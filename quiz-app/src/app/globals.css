@@ -1,56 +1,51 @@
-@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap');
 @import "tailwindcss";
 
 :root {
-  /* Cyberpunk Backgrounds */
+  /* Фоны (тёплый фиолетовый оттенок) */
   --bg-primary: #0a0612;
   --bg-secondary: #110b1a;
   --bg-tertiary: #1a1025;
 
-  /* Neon Accents */
+  /* Киберпанк акценты */
   --neon-cyan: #00f0ff;
   --neon-magenta: #ff00aa;
   --neon-purple: #9d4edd;
   --neon-yellow: #f0ff00;
-
-  /* Glows */
   --glow-cyan: rgba(0, 240, 255, 0.5);
   --glow-magenta: rgba(255, 0, 170, 0.5);
   --glow-purple: rgba(157, 78, 221, 0.4);
 
-  /* Gamification */
+  /* Геймификация */
   --xp-gold: #ffd700;
   --success: #00ff88;
   --danger: #ff2a6d;
 
-  /* Text */
+  /* Текст */
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.7);
   --text-muted: rgba(255, 255, 255, 0.4);
-}
 
-@theme inline {
-  /* Colors */
-  --color-bg-primary: var(--bg-primary);
-  --color-bg-secondary: var(--bg-secondary);
-  --color-bg-tertiary: var(--bg-tertiary);
-  --color-neon-cyan: var(--neon-cyan);
-  --color-neon-magenta: var(--neon-magenta);
-  --color-neon-purple: var(--neon-purple);
-  --color-neon-yellow: var(--neon-yellow);
-  --color-success: var(--success);
-  --color-danger: var(--danger);
-  --color-xp-gold: var(--xp-gold);
-
-  /* Fonts */
+  /* Шрифты */
   --font-display: 'Orbitron', sans-serif;
   --font-body: 'Exo 2', sans-serif;
+
+  /* 8pt Grid spacing */
+  --space-xs: 8px;
+  --space-sm: 16px;
+  --space-md: 24px;
+  --space-lg: 32px;
+  --space-xl: 48px;
+  --space-2xl: 64px;
 }
 
-* {
+*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
 }
 
 html, body {
@@ -61,14 +56,59 @@ html, body {
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Exo 2', sans-serif;
-  font-size: 16px;
+  font-family: var(--font-body);
+  font-size: 1rem;
   line-height: 1.6;
 }
 
-/* Scanlines overlay */
-.scanlines::after {
-  content: '';
+/* ========================================
+   LAYOUT - Центрирование как в SlideForge
+   ======================================== */
+
+.quiz-container {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-xl);
+  position: relative;
+  overflow: hidden;
+}
+
+.quiz-content {
+  width: 100%;
+  max-width: 950px;
+  position: relative;
+  z-index: 10;
+  text-align: center;
+}
+
+/* ========================================
+   GRID BACKGROUND - opacity 0.03
+   ======================================== */
+
+.grid-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-primary);
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ========================================
+   SCANLINES - opacity 0.15 как в SlideForge
+   ======================================== */
+
+.scanlines {
   position: fixed;
   top: 0;
   left: 0;
@@ -86,19 +126,46 @@ body {
   opacity: 0.15;
 }
 
-/* Grid background */
-.grid-bg {
-  background-image:
-    linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
-  background-size: 50px 50px;
+/* ========================================
+   GLOW SPHERES - атмосферные сферы
+   ======================================== */
+
+.glow-sphere {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* HUD corners */
+.glow-sphere-1 {
+  background: var(--neon-cyan);
+  width: 400px;
+  height: 400px;
+  top: -150px;
+  right: -100px;
+  opacity: 0.1;
+}
+
+.glow-sphere-2 {
+  background: var(--neon-magenta);
+  width: 300px;
+  height: 300px;
+  bottom: -100px;
+  left: 20%;
+  opacity: 0.08;
+}
+
+/* ========================================
+   HUD CORNERS - как в SlideForge
+   ======================================== */
+
 .hud-corner {
-  position: absolute;
-  width: 30px;
-  height: 30px;
+  position: fixed;
+  width: 40px;
+  height: 40px;
+  z-index: 999;
+  pointer-events: none;
 }
 
 .hud-corner::before,
@@ -106,75 +173,180 @@ body {
   content: '';
   position: absolute;
   background: var(--neon-cyan);
-  box-shadow: 0 0 10px var(--glow-cyan);
+  box-shadow: 0 0 8px var(--neon-cyan);
 }
 
-.hud-corner-tl { top: 0; left: 0; }
-.hud-corner-tl::before { width: 20px; height: 2px; top: 0; left: 0; }
-.hud-corner-tl::after { width: 2px; height: 20px; top: 0; left: 0; }
+.hud-corner-tl { top: var(--space-sm); left: var(--space-sm); }
+.hud-corner-tl::before { width: 25px; height: 2px; top: 0; left: 0; }
+.hud-corner-tl::after { width: 2px; height: 25px; top: 0; left: 0; }
 
-.hud-corner-tr { top: 0; right: 0; }
-.hud-corner-tr::before { width: 20px; height: 2px; top: 0; right: 0; }
-.hud-corner-tr::after { width: 2px; height: 20px; top: 0; right: 0; }
+.hud-corner-tr { top: var(--space-sm); right: var(--space-sm); }
+.hud-corner-tr::before { width: 25px; height: 2px; top: 0; right: 0; }
+.hud-corner-tr::after { width: 2px; height: 25px; top: 0; right: 0; }
 
-.hud-corner-bl { bottom: 0; left: 0; }
-.hud-corner-bl::before { width: 20px; height: 2px; bottom: 0; left: 0; }
-.hud-corner-bl::after { width: 2px; height: 20px; bottom: 0; left: 0; }
+.hud-corner-bl { bottom: var(--space-sm); left: var(--space-sm); }
+.hud-corner-bl::before { width: 25px; height: 2px; bottom: 0; left: 0; }
+.hud-corner-bl::after { width: 2px; height: 25px; bottom: 0; left: 0; }
 
-.hud-corner-br { bottom: 0; right: 0; }
-.hud-corner-br::before { width: 20px; height: 2px; bottom: 0; right: 0; }
-.hud-corner-br::after { width: 2px; height: 20px; bottom: 0; right: 0; }
+.hud-corner-br { bottom: var(--space-sm); right: var(--space-sm); }
+.hud-corner-br::before { width: 25px; height: 2px; bottom: 0; right: 0; }
+.hud-corner-br::after { width: 2px; height: 25px; bottom: 0; right: 0; }
 
-/* Neon button */
-.btn-neon {
-  background: transparent;
-  border: 2px solid var(--neon-cyan);
+/* ========================================
+   TYPOGRAPHY - как в SlideForge
+   ======================================== */
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.title-xl {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 900;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--neon-cyan) 50%, var(--neon-magenta) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 30px var(--glow-cyan));
+  margin-bottom: var(--space-md);
+}
+
+.title-lg {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+  margin-bottom: var(--space-lg);
+}
+
+.title-line {
+  width: 80px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+  margin: var(--space-md) auto;
+  box-shadow: 0 0 15px var(--glow-cyan);
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
   color: var(--neon-cyan);
-  padding: 12px 32px;
-  font-family: 'Orbitron', sans-serif;
+}
+
+/* ========================================
+   BUTTONS - Neon style
+   ======================================== */
+
+.btn-neon {
+  display: inline-block;
+  padding: var(--space-sm) var(--space-xl);
+  font-family: var(--font-display);
+  font-size: 1rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  color: var(--bg-primary);
+  background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+  border: none;
   cursor: pointer;
   position: relative;
+  overflow: hidden;
   transition: all 0.3s ease;
-  box-shadow: 0 0 10px var(--glow-cyan), inset 0 0 10px transparent;
+  text-decoration: none;
 }
 
 .btn-neon:hover {
-  background: var(--neon-cyan);
-  color: var(--bg-primary);
-  box-shadow: 0 0 30px var(--glow-cyan), inset 0 0 20px rgba(0, 240, 255, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 35px rgba(0, 240, 255, 0.4);
+}
+
+.btn-neon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: btnShine 2s infinite;
+}
+
+@keyframes btnShine {
+  0% { left: -100%; }
+  50%, 100% { left: 100%; }
+}
+
+.btn-neon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Option button */
 .btn-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  width: 100%;
   background: var(--bg-secondary);
-  border: 1px solid var(--neon-purple);
-  color: var(--text-primary);
-  padding: 16px 20px;
-  font-family: 'Exo 2', sans-serif;
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-left: 3px solid var(--neon-cyan);
+  color: var(--text-secondary);
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-body);
   font-size: 1rem;
   text-align: left;
   cursor: pointer;
   position: relative;
   transition: all 0.3s ease;
-  width: 100%;
 }
 
 .btn-option:hover {
-  border-color: var(--neon-cyan);
-  box-shadow: 0 0 15px var(--glow-cyan);
-  transform: translateX(5px);
+  background: rgba(0, 240, 255, 0.05);
+  border-left-color: var(--neon-magenta);
+  color: var(--text-primary);
 }
 
-.btn-option.selected {
-  border-color: var(--neon-magenta);
-  background: rgba(255, 0, 170, 0.1);
-  box-shadow: 0 0 20px var(--glow-magenta);
+.btn-option .option-number {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  color: var(--neon-cyan);
+  opacity: 0.6;
 }
 
-/* Progress bar */
+.btn-option:hover .option-number {
+  opacity: 1;
+}
+
+.btn-option strong {
+  color: var(--text-primary);
+}
+
+/* ========================================
+   PROGRESS BAR
+   ======================================== */
+
 .progress-bar {
   height: 4px;
   background: var(--bg-tertiary);
@@ -189,15 +361,76 @@ body {
   box-shadow: 0 0 10px var(--glow-cyan);
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from {
+/* ========================================
+   CARDS
+   ======================================== */
+
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  padding: var(--space-lg) var(--space-xl);
+  text-align: left;
+  position: relative;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--neon-cyan), var(--neon-magenta));
+}
+
+.card-success {
+  background: rgba(0, 255, 136, 0.05);
+  border-color: rgba(0, 255, 136, 0.3);
+}
+
+.card-success::before {
+  background: var(--success);
+}
+
+/* ========================================
+   INPUT
+   ======================================== */
+
+.input-neon {
+  background: var(--bg-secondary);
+  border: 2px solid var(--neon-purple);
+  color: var(--text-primary);
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  outline: none;
+  transition: all 0.3s ease;
+  width: 100%;
+  max-width: 280px;
+}
+
+.input-neon:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 20px var(--glow-cyan);
+}
+
+/* ========================================
+   ANIMATIONS - как в SlideForge
+   ======================================== */
+
+@keyframes cyberFadeIn {
+  0% {
     opacity: 0;
     transform: translateY(20px);
+    filter: blur(8px);
   }
-  to {
+  100% {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0);
   }
 }
 
@@ -211,9 +444,127 @@ body {
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.5s ease forwards;
+  animation: cyberFadeIn 0.5s ease forwards;
 }
+
+.animate-1 { animation: cyberFadeIn 0.5s ease 0.1s both; }
+.animate-2 { animation: cyberFadeIn 0.5s ease 0.2s both; }
+.animate-3 { animation: cyberFadeIn 0.5s ease 0.3s both; }
+.animate-4 { animation: cyberFadeIn 0.5s ease 0.4s both; }
+.animate-5 { animation: cyberFadeIn 0.5s ease 0.5s both; }
 
 .animate-pulse-neon {
   animation: neonPulse 2s ease-in-out infinite;
+}
+
+/* ========================================
+   UTILITIES
+   ======================================== */
+
+.text-cyan { color: var(--neon-cyan); }
+.text-magenta { color: var(--neon-magenta); }
+.text-purple { color: var(--neon-purple); }
+.text-success { color: var(--success); }
+.text-danger { color: var(--danger); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+
+.mb-xs { margin-bottom: var(--space-xs); }
+.mb-sm { margin-bottom: var(--space-sm); }
+.mb-md { margin-bottom: var(--space-md); }
+.mb-lg { margin-bottom: var(--space-lg); }
+.mb-xl { margin-bottom: var(--space-xl); }
+
+.space-y-sm > * + * { margin-top: var(--space-sm); }
+.space-y-md > * + * { margin-top: var(--space-md); }
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+  :root {
+    --space-xl: 32px;
+    --space-2xl: 48px;
+  }
+
+  .quiz-container {
+    padding: var(--space-md);
+    justify-content: flex-start;
+    padding-top: var(--space-2xl);
+  }
+
+  .title-xl {
+    font-size: 2rem;
+  }
+
+  .title-lg {
+    font-size: 1.4rem;
+  }
+
+  .btn-neon {
+    padding: var(--space-sm) var(--space-lg);
+    font-size: 0.875rem;
+    width: 100%;
+  }
+
+  .btn-option {
+    padding: var(--space-sm);
+  }
+
+  .card {
+    padding: var(--space-md);
+  }
+
+  .hud-corner {
+    width: 24px;
+    height: 24px;
+  }
+
+  .hud-corner-tl { top: var(--space-xs); left: var(--space-xs); }
+  .hud-corner-tl::before { width: 16px; }
+  .hud-corner-tl::after { height: 16px; }
+
+  .hud-corner-tr { top: var(--space-xs); right: var(--space-xs); }
+  .hud-corner-tr::before { width: 16px; }
+  .hud-corner-tr::after { height: 16px; }
+
+  .hud-corner-bl { bottom: var(--space-xs); left: var(--space-xs); }
+  .hud-corner-bl::before { width: 16px; }
+  .hud-corner-bl::after { height: 16px; }
+
+  .hud-corner-br { bottom: var(--space-xs); right: var(--space-xs); }
+  .hud-corner-br::before { width: 16px; }
+  .hud-corner-br::after { height: 16px; }
+
+  .glow-sphere-1 {
+    width: 200px;
+    height: 200px;
+    top: -100px;
+    right: -50px;
+  }
+
+  .glow-sphere-2 {
+    width: 150px;
+    height: 150px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .quiz-container {
+    padding: var(--space-lg);
+  }
+
+  .title-xl {
+    font-size: 2.5rem;
+  }
+}
+
+@media (min-height: 800px) {
+  .quiz-container {
+    justify-content: center;
+  }
 }

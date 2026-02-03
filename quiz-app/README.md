@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TheSasha Quiz MVP
 
-## Getting Started
+AI-диагност контента — квиз для определения этапа развития эксперта.
 
-First, run the development server:
+## Features
+
+- 8 вопросов с 4 вариантами ответа
+- 5 результатов (этапов) с персональными текстами
+- Cyberpunk дизайн (Orbitron, neon glow, HUD corners)
+- Telegram Mini App интеграция
+- Callback с user_id и результатом
+
+## Tech Stack
+
+- Next.js 16
+- TypeScript
+- Tailwind CSS v4
+- Telegram WebApp SDK
+
+## Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Telegram Mini App
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Квиз автоматически определяет Telegram контекст:
+- В Telegram: получает user_id, отправляет данные через `sendData()`
+- В браузере: работает как обычный сайт
 
-## Learn More
+### Telegram Integration
 
-To learn more about Next.js, take a look at the following resources:
+Хук `useTelegram` (`src/hooks/useTelegram.ts`):
+- `userId` — ID пользователя из Telegram
+- `isTelegramContext` — запущено ли в Telegram
+- `sendCallback(data)` — отправить результат квиза
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Callback Data
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```typescript
+{
+  user_id: number | null,  // Telegram user ID
+  result_id: string,       // "nevidimka", "delatel", etc.
+  stage: number,           // 1-5
+  keyword: string,         // "ВИДИМОСТЬ", "ФОКУС", etc.
+  timestamp: number        // Unix timestamp
+}
+```
 
-## Deploy on Vercel
+## Deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+See: `.planning/phases/03-deploy/DEPLOY-GUIDE.md`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project Structure
+
+```
+quiz-app/
+├── src/
+│   ├── app/
+│   │   ├── globals.css    # Cyberpunk styles
+│   │   ├── layout.tsx     # Root layout with fonts
+│   │   └── page.tsx       # Quiz component
+│   ├── data/
+│   │   └── quiz.ts        # Questions, scoring, results
+│   └── hooks/
+│       └── useTelegram.ts # Telegram WebApp hook
+└── .env.example           # Environment variables
+```
