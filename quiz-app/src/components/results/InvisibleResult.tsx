@@ -11,6 +11,13 @@ export default function InvisibleResult() {
         <p className="subtitle">
           После прохождения теста вы получили результат "Эксперт-невидимка".
         </p>
+        <a
+          href="/results/1-invisible.pdf"
+          download="Диагностика-Эксперт-невидимка.pdf"
+          className="btn-download"
+        >
+          📥 Скачать PDF с результатами
+        </a>
       </div>
 
       {/* Intro */}

@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { questions, calculateScores, determineResult, QuizResult } from '@/data/quiz';
 import { useTelegram } from '@/hooks/useTelegram';
 import InvisibleResult from '@/components/results/InvisibleResult';
+import DoerResult from '@/components/results/DoerResult';
+import GenerousResult from '@/components/results/GenerousResult';
+import UnstableResult from '@/components/results/UnstableResult';
+import ScaleResult from '@/components/results/ScaleResult';
 
 type QuizState = 'welcome' | 'quiz' | 'result-preview' | 'result';
 
@@ -282,19 +286,10 @@ export default function Home() {
             <div key="result">
               {/* Show detailed result page based on result type */}
               {result.id === 'invisible' && <InvisibleResult />}
-
-              {/* Fallback for types without custom components yet */}
-              {result.id !== 'invisible' && (
-                <div className="text-center">
-                  <p className="text-muted mb-md">Подробная страница для "{result.title}" в разработке</p>
-                  <div className="card">
-                    <h2 className="title-lg text-magenta mb-lg">«{result.title}»</h2>
-                    <p className="text-secondary" style={{ whiteSpace: 'pre-line' }}>
-                      {result.description}
-                    </p>
-                  </div>
-                </div>
-              )}
+              {result.id === 'doer' && <DoerResult />}
+              {result.id === 'generous' && <GenerousResult />}
+              {result.id === 'unstable' && <UnstableResult />}
+              {result.id === 'scale' && <ScaleResult />}
             </div>
           )}
         </div>
