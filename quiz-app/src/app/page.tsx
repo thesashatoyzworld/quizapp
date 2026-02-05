@@ -17,7 +17,7 @@ export default function Home() {
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
 
-  const { userId, sendCallback, isTelegramContext } = useTelegram();
+  const { userId, sendCallback, isTelegramContext, webApp } = useTelegram();
 
   const CHANNEL_URL = 'https://t.me/sashatoyz';
 
@@ -71,7 +71,12 @@ export default function Home() {
   };
 
   const openChannel = () => {
-    window.open(CHANNEL_URL, '_blank');
+    // Используем Telegram API для открытия внутри Telegram (можно вернуться назад)
+    if (webApp && isTelegramContext) {
+      webApp.openTelegramLink(CHANNEL_URL);
+    } else {
+      window.open(CHANNEL_URL, '_blank');
+    }
   };
 
   const handleKeywordSubmit = async () => {

@@ -40,6 +40,8 @@ interface TelegramWebApp {
     offClick: (callback: () => void) => void;
   };
   sendData: (data: string) => void;
+  openTelegramLink: (url: string) => void;
+  openLink: (url: string) => void;
 }
 
 declare global {
