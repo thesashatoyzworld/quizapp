@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { questions, calculateScores, determineResult, QuizResult } from '@/data/quiz';
 import { useTelegram, CallbackData } from '@/hooks/useTelegram';
 
-type QuizState = 'welcome' | 'quiz' | 'result';
+type QuizState = 'welcome' | 'quiz' | 'result-preview' | 'result';
 
 export default function Home() {
   const [state, setState] = useState<QuizState>('welcome');
@@ -14,8 +14,12 @@ export default function Home() {
   const [keyword, setKeyword] = useState('');
   const [keywordSubmitted, setKeywordSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
 
-  const { userId, sendCallback } = useTelegram();
+  const { userId, sendCallback, isTelegramContext } = useTelegram();
+
+  const CHANNEL_URL = 'https://t.me/sashatoyz';
 
   const handleStart = () => {
     setState('quiz');
@@ -31,8 +35,43 @@ export default function Home() {
       const scores = calculateScores(newAnswers);
       const quizResult = determineResult(newAnswers, scores);
       setResult(quizResult);
-      setState('result');
+      setState('result-preview');
     }
+  };
+
+  const checkSubscription = async () => {
+    if (!userId) {
+      setSubscriptionError('Откройте квиз через Telegram для проверки подписки');
+      return;
+    }
+
+    setIsCheckingSubscription(true);
+    setSubscriptionError(null);
+
+    try {
+      const response = await fetch('/api/check-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+      });
+
+      const data = await response.json();
+
+      if (data.subscribed) {
+        setState('result');
+      } else {
+        setSubscriptionError('Вы ещё не подписаны на канал. Подпишитесь и попробуйте снова.');
+      }
+    } catch (error) {
+      console.error('Subscription check error:', error);
+      setSubscriptionError('Ошибка проверки. Попробуйте ещё раз.');
+    } finally {
+      setIsCheckingSubscription(false);
+    }
+  };
+
+  const openChannel = () => {
+    window.open(CHANNEL_URL, '_blank');
   };
 
   const handleKeywordSubmit = async () => {
@@ -150,6 +189,75 @@ export default function Home() {
                     <span>{option}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* ==================== RESULT PREVIEW (Subscribe) ==================== */}
+          {state === 'result-preview' && result && (
+            <div key="result-preview">
+              <div className="mb-md animate-1">
+                <span className="label">📊 Диагностика готова</span>
+              </div>
+
+              <div className="card mb-lg animate-2">
+                <div className="text-center mb-lg">
+                  <span className="text-muted" style={{ fontSize: '0.85rem' }}>
+                    Этап {result.stage}
+                  </span>
+                  <h2 className="title-lg text-magenta" style={{ marginTop: 'var(--space-xs)', marginBottom: 0 }}>
+                    «{result.title}»
+                  </h2>
+                </div>
+
+                <p className="text-secondary text-center mb-lg">
+                  {result.description.split('\n')[0]}
+                </p>
+
+                <div className="text-center" style={{ padding: 'var(--space-md)', background: 'rgba(157, 78, 221, 0.1)', borderRadius: '8px', border: '1px solid rgba(157, 78, 221, 0.3)' }}>
+                  <p className="text-cyan mb-sm" style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}>
+                    🔒 Полный разбор доступен подписчикам канала
+                  </p>
+                  <p className="text-muted" style={{ fontSize: '0.9rem' }}>
+                    Подпишитесь, чтобы узнать:
+                  </p>
+                  <ul className="text-secondary text-left" style={{ maxWidth: '300px', margin: 'var(--space-sm) auto 0' }}>
+                    <li>• Финансовые потери</li>
+                    <li>• Причины проблемы</li>
+                    <li>• Пошаговый план действий</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="text-center animate-3">
+                <button
+                  onClick={openChannel}
+                  className="btn-neon mb-md"
+                  style={{ width: '100%', maxWidth: '320px' }}
+                >
+                  Подписаться на канал
+                </button>
+
+                <button
+                  onClick={checkSubscription}
+                  className="btn-option"
+                  disabled={isCheckingSubscription}
+                  style={{ width: '100%', maxWidth: '320px', justifyContent: 'center' }}
+                >
+                  {isCheckingSubscription ? 'Проверяю...' : 'Я подписался — показать результат'}
+                </button>
+
+                {subscriptionError && (
+                  <p className="text-danger mt-md" style={{ fontSize: '0.9rem' }}>
+                    {subscriptionError}
+                  </p>
+                )}
+
+                {!isTelegramContext && (
+                  <p className="text-muted mt-md" style={{ fontSize: '0.85rem' }}>
+                    Для проверки подписки откройте квиз через Telegram
+                  </p>
+                )}
               </div>
             </div>
           )}
