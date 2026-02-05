@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
   try {
     const update: TelegramUpdate = await request.json();
 
-    // Handle /start command
-    if (update.message?.text === '/start') {
+    // Handle /start command (with or without parameters)
+    if (update.message?.text?.startsWith('/start')) {
       const chatId = update.message.chat.id;
       const firstName = update.message.from?.first_name || 'друг';
 
