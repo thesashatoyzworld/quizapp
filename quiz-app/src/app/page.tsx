@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { questions, calculateScores, determineResult, QuizResult } from '@/data/quiz';
-import { useTelegram, CallbackData } from '@/hooks/useTelegram';
+import { useTelegram } from '@/hooks/useTelegram';
+import InvisibleResult from '@/components/results/InvisibleResult';
 
 type QuizState = 'welcome' | 'quiz' | 'result-preview' | 'result';
 
@@ -11,15 +12,12 @@ export default function Home() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [result, setResult] = useState<QuizResult | null>(null);
-  const [keyword, setKeyword] = useState('');
-  const [keywordSubmitted, setKeywordSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const [showSubscribePopup, setShowSubscribePopup] = useState(false);
   const waitingForReturn = useRef(false);
 
-  const { userId, sendCallback, isTelegramContext, webApp } = useTelegram();
+  const { userId, isTelegramContext, webApp } = useTelegram();
 
   const CHANNEL_URL = 'https://t.me/sashatoyz';
 
@@ -113,30 +111,6 @@ export default function Home() {
     } else {
       window.open(CHANNEL_URL, '_blank');
     }
-  };
-
-  const handleKeywordSubmit = async () => {
-    if (keyword.toUpperCase() !== result?.keyword || !result) {
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const callbackData: CallbackData = {
-      user_id: userId,
-      result_id: result.id,
-      stage: result.stage,
-      keyword: keyword.toUpperCase(),
-      timestamp: Date.now(),
-    };
-
-    const success = await sendCallback(callbackData);
-
-    if (success) {
-      setKeywordSubmitted(true);
-    }
-
-    setIsSubmitting(false);
   };
 
   const progress = ((currentQuestion + 1) / questions.length) * 100;
@@ -306,98 +280,17 @@ export default function Home() {
           {/* ==================== RESULT SCREEN ==================== */}
           {state === 'result' && result && (
             <div key="result">
-              <div className="mb-md animate-1">
-                <span className="label">📊 Диагностика готова</span>
-              </div>
+              {/* Show detailed result page based on result type */}
+              {result.id === 'invisible' && <InvisibleResult />}
 
-              <div className="card mb-lg animate-2">
-                {/* Result Header */}
-                <div className="text-center mb-lg">
-                  <span className="text-muted" style={{ fontSize: '0.85rem' }}>
-                    Этап {result.stage}
-                  </span>
-                  <h2 className="title-lg text-magenta" style={{ marginTop: 'var(--space-xs)', marginBottom: 0 }}>
-                    «{result.title}»
-                  </h2>
-                </div>
-
-                {/* Description */}
-                <div className="mb-lg">
-                  <h3 className="label mb-xs">Что происходит:</h3>
-                  <p className="text-secondary" style={{ whiteSpace: 'pre-line' }}>
-                    {result.description}
-                  </p>
-                </div>
-
-                {/* Financials */}
-                <div className="mb-lg">
-                  <h3 className="label mb-xs">Финансы:</h3>
-                  <p className="text-danger" style={{ whiteSpace: 'pre-line' }}>
-                    {result.financials}
-                  </p>
-                </div>
-
-                {/* Reason */}
-                <div className="mb-lg">
-                  <h3 className="label mb-xs">Почему:</h3>
-                  <p className="text-secondary">
-                    {result.reason}
-                  </p>
-                </div>
-
-                {/* Is Normal */}
-                <div className="mb-lg">
-                  <h3 className="label mb-xs">Это нормально?</h3>
-                  <p className="text-success">
-                    {result.isNormal}
-                  </p>
-                </div>
-
-                {/* Next Steps */}
-                <div>
-                  <h3 className="label mb-xs">➡️ Подробный разбор:</h3>
-                  <ul className="text-secondary space-y-sm">
-                    {result.nextSteps.map((step, i) => (
-                      <li key={i}>• {step}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              {/* Keyword Input */}
-              {!keywordSubmitted ? (
-                <div className="text-center animate-3">
-                  <p className="subtitle mb-lg">
-                    Чтобы получить подробный разбор, напишите ключевое слово:
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-md">
-                    <input
-                      type="text"
-                      value={keyword}
-                      onChange={(e) => setKeyword(e.target.value)}
-                      placeholder={result.keyword}
-                      className="input-neon"
-                    />
-                    <button
-                      onClick={handleKeywordSubmit}
-                      className="btn-neon"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? 'Отправка...' : 'Отправить'}
-                    </button>
-                  </div>
-                  <p className="text-muted" style={{ fontSize: '0.85rem' }}>
-                    Напишите «{result.keyword}»
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center animate-fadeIn">
-                  <div className="card card-success">
-                    <p className="font-display text-success mb-xs" style={{ textAlign: 'center' }}>
-                      ✓ Отлично! Ваш запрос отправлен.
-                    </p>
-                    <p className="text-secondary" style={{ textAlign: 'center' }}>
-                      Подробный разбор будет отправлен вам в Telegram.
+              {/* Fallback for types without custom components yet */}
+              {result.id !== 'invisible' && (
+                <div className="text-center">
+                  <p className="text-muted mb-md">Подробная страница для "{result.title}" в разработке</p>
+                  <div className="card">
+                    <h2 className="title-lg text-magenta mb-lg">«{result.title}»</h2>
+                    <p className="text-secondary" style={{ whiteSpace: 'pre-line' }}>
+                      {result.description}
                     </p>
                   </div>
                 </div>
