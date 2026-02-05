@@ -235,21 +235,31 @@ export default function Home() {
               </div>
 
               <div className="text-center animate-3">
-                <button
-                  onClick={openChannel}
-                  className="btn-neon mb-md"
-                  style={{ width: '100%', maxWidth: '320px' }}
-                >
-                  Подписаться на канал
-                </button>
+                <p className="text-secondary mb-sm">
+                  Подпишитесь на канал:
+                </p>
+                <p className="text-cyan mb-lg" style={{ fontSize: '1.3rem', fontFamily: 'var(--font-display)' }}>
+                  <a
+                    href={CHANNEL_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: 'var(--cyan)', textDecoration: 'none' }}
+                  >
+                    @sashatoyz
+                  </a>
+                </p>
+                <p className="text-muted mb-lg" style={{ fontSize: '0.85rem' }}>
+                  Найдите канал в поиске Telegram или нажмите на ссылку,<br/>
+                  подпишитесь и вернитесь сюда
+                </p>
 
                 <button
                   onClick={checkSubscription}
-                  className="btn-option"
+                  className="btn-neon"
                   disabled={isCheckingSubscription}
-                  style={{ width: '100%', maxWidth: '320px', justifyContent: 'center' }}
+                  style={{ width: '100%', maxWidth: '320px' }}
                 >
-                  {isCheckingSubscription ? 'Проверяю...' : 'Я подписался — показать результат'}
+                  {isCheckingSubscription ? 'Проверяю...' : 'Я подписался ✓'}
                 </button>
 
                 {subscriptionError && (
