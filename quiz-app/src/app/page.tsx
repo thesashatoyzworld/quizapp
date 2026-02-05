@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { questions, calculateScores, determineResult, QuizResult } from '@/data/quiz';
 import { useTelegram, CallbackData } from '@/hooks/useTelegram';
 
@@ -16,6 +16,8 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+  const [showSubscribePopup, setShowSubscribePopup] = useState(false);
+  const waitingForReturn = useRef(false);
 
   const { userId, sendCallback, isTelegramContext, webApp } = useTelegram();
 
@@ -39,10 +41,12 @@ export default function Home() {
     }
   };
 
-  const checkSubscription = async () => {
+  const checkSubscription = useCallback(async (showError = true) => {
     if (!userId) {
-      setSubscriptionError('Откройте квиз через Telegram для проверки подписки');
-      return;
+      if (showError) {
+        setSubscriptionError('Откройте квиз через Telegram для проверки подписки');
+      }
+      return false;
     }
 
     setIsCheckingSubscription(true);
@@ -59,19 +63,51 @@ export default function Home() {
 
       if (data.subscribed) {
         setState('result');
+        return true;
       } else {
-        setSubscriptionError('Вы ещё не подписаны на канал. Подпишитесь и попробуйте снова.');
+        if (showError) {
+          setSubscriptionError('Вы ещё не подписаны на канал. Подпишитесь и попробуйте снова.');
+        }
+        return false;
       }
     } catch (error) {
       console.error('Subscription check error:', error);
-      setSubscriptionError('Ошибка проверки. Попробуйте ещё раз.');
+      if (showError) {
+        setSubscriptionError('Ошибка проверки. Попробуйте ещё раз.');
+      }
+      return false;
     } finally {
       setIsCheckingSubscription(false);
     }
+  }, [userId]);
+
+  // Автопроверка подписки при возврате в приложение
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && waitingForReturn.current) {
+        waitingForReturn.current = false;
+        // Небольшая задержка чтобы Telegram успел обновить статус подписки
+        setTimeout(() => {
+          checkSubscription(true);
+        }, 500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [checkSubscription]);
+
+  const openChannelWithPopup = () => {
+    setShowSubscribePopup(true);
   };
 
-  const openChannel = () => {
-    // Используем Telegram API для открытия внутри Telegram (можно вернуться назад)
+  const confirmOpenChannel = () => {
+    setShowSubscribePopup(false);
+    waitingForReturn.current = true;
+
+    // Открываем канал
     if (webApp && isTelegramContext) {
       webApp.openTelegramLink(CHANNEL_URL);
     } else {
@@ -235,31 +271,21 @@ export default function Home() {
               </div>
 
               <div className="text-center animate-3">
-                <p className="text-secondary mb-sm">
-                  Подпишитесь на канал:
-                </p>
-                <p className="text-cyan mb-lg" style={{ fontSize: '1.3rem', fontFamily: 'var(--font-display)' }}>
-                  <a
-                    href={CHANNEL_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: 'var(--cyan)', textDecoration: 'none' }}
-                  >
-                    @sashatoyz
-                  </a>
-                </p>
-                <p className="text-muted mb-lg" style={{ fontSize: '0.85rem' }}>
-                  Найдите канал в поиске Telegram или нажмите на ссылку,<br/>
-                  подпишитесь и вернитесь сюда
-                </p>
-
                 <button
-                  onClick={checkSubscription}
-                  className="btn-neon"
-                  disabled={isCheckingSubscription}
+                  onClick={openChannelWithPopup}
+                  className="btn-neon mb-md"
                   style={{ width: '100%', maxWidth: '320px' }}
                 >
-                  {isCheckingSubscription ? 'Проверяю...' : 'Я подписался ✓'}
+                  Подписаться на канал
+                </button>
+
+                <button
+                  onClick={() => checkSubscription(true)}
+                  className="btn-option"
+                  disabled={isCheckingSubscription}
+                  style={{ width: '100%', maxWidth: '320px', justifyContent: 'center' }}
+                >
+                  {isCheckingSubscription ? 'Проверяю...' : 'Уже подписан — проверить'}
                 </button>
 
                 {subscriptionError && (
@@ -380,6 +406,74 @@ export default function Home() {
           )}
         </div>
       </main>
+
+      {/* Subscribe Popup */}
+      {showSubscribePopup && (
+        <div
+          className="popup-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 'var(--space-md)',
+          }}
+          onClick={() => setShowSubscribePopup(false)}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: '360px',
+              width: '100%',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="title-md text-cyan mb-md">
+              Подписка на канал
+            </h3>
+
+            <p className="text-secondary mb-lg" style={{ fontSize: '0.95rem' }}>
+              Сейчас откроется канал <strong>@sashatoyz</strong>
+            </p>
+
+            <div style={{
+              background: 'rgba(0, 240, 255, 0.1)',
+              border: '1px solid rgba(0, 240, 255, 0.3)',
+              borderRadius: '8px',
+              padding: 'var(--space-md)',
+              marginBottom: 'var(--space-lg)'
+            }}>
+              <p className="text-cyan" style={{ fontSize: '0.9rem', margin: 0 }}>
+                👆 Нажмите «Подписаться» в канале,<br/>
+                затем вернитесь назад — результат появится автоматически
+              </p>
+            </div>
+
+            <button
+              onClick={confirmOpenChannel}
+              className="btn-neon mb-sm"
+              style={{ width: '100%' }}
+            >
+              Открыть канал
+            </button>
+
+            <button
+              onClick={() => setShowSubscribePopup(false)}
+              className="btn-option"
+              style={{ width: '100%', justifyContent: 'center', marginTop: 'var(--space-sm)' }}
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
