@@ -22,8 +22,9 @@ function buildProdamusUrl(userId: number | null | undefined, resultId: string | 
     result_id: resultId || 'unknown',
   });
 
-  // Build URL manually — Prodamus requires literal [] brackets, not %5B%5D
+  // Build URL manually — Prodamus requires literal [] brackets and do=pay
   const parts = [
+    `do=pay`,
     `products[0][name]=${encodeURIComponent('Мастер-класс «Продающий контент»')}`,
     `products[0][price]=3450`,
     `products[0][quantity]=1`,
