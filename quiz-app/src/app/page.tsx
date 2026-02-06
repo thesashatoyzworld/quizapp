@@ -55,7 +55,7 @@ export default function Home() {
       setState('result-preview');
 
       // Track quiz completion
-      trackQuizComplete(quizResult.title, String(quizResult.stage));
+      trackQuizComplete(quizResult.title, String(quizResult.stage), quizResult.id);
     }
   };
 

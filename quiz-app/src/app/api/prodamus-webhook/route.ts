@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { trackEvent, markFollowUpPaid } from '@/lib/notion';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
-const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzs1YTm4GskD4MZlIroyFnc1848eafSyOS9E83WbHDyYMlhBuPKgJjszOqSUfyD7rtTSQ/exec';
 
 function sortObject(obj: Record<string, unknown>): Record<string, unknown> {
   const sorted: Record<string, unknown> = {};
@@ -91,23 +91,6 @@ async function notifyAdmin(tgUserId: number, resultId: string) {
   }
 }
 
-async function trackPaymentToSheets(tgUserId: number, resultId: string) {
-  try {
-    await fetch(GOOGLE_SHEETS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event_type: 'payment_success',
-        user_id: tgUserId,
-        result_title: resultId,
-        amount: 3450,
-      }),
-    });
-  } catch (error) {
-    console.error('Failed to track payment to Google Sheets:', error);
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -156,7 +139,13 @@ export async function POST(request: NextRequest) {
     await Promise.all([
       sendMaterialsToUser(tgUserId),
       notifyAdmin(tgUserId, resultId),
-      trackPaymentToSheets(tgUserId, resultId),
+      trackEvent({
+        event_type: 'payment_success',
+        user_id: tgUserId,
+        result_title: resultId,
+        amount: 3450,
+      }),
+      markFollowUpPaid(tgUserId),
     ]);
 
     console.log(`[Prodamus Webhook] Payment success for user ${tgUserId}, result: ${resultId}`);

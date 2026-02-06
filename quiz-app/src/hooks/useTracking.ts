@@ -13,6 +13,7 @@ interface TrackEventOptions {
   user_id?: number;
   username?: string;
   first_name?: string;
+  result_id?: string;
   result_stage?: string;
   result_title?: string;
   amount?: number;
@@ -41,8 +42,8 @@ export function useTracking(user?: TelegramUser | null) {
     }
   }, [user]);
 
-  const trackQuizComplete = useCallback((resultTitle: string, resultStage?: string) => {
-    trackEvent('quiz_complete', { result_title: resultTitle, result_stage: resultStage });
+  const trackQuizComplete = useCallback((resultTitle: string, resultStage?: string, resultId?: string) => {
+    trackEvent('quiz_complete', { result_title: resultTitle, result_stage: resultStage, result_id: resultId });
   }, [trackEvent]);
 
   const trackResultView = useCallback((resultTitle: string) => {

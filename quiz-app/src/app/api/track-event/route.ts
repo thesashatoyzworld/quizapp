@@ -1,29 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { trackEvent, registerFollowUp } from '@/lib/notion';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
-const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzs1YTm4GskD4MZlIroyFnc1848eafSyOS9E83WbHDyYMlhBuPKgJjszOqSUfyD7rtTSQ/exec';
 
 interface TrackEventPayload {
   event_type: 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
   user_id?: number;
+  result_id?: string;
   result_stage?: string;
   result_title?: string;
   amount?: number;
   metadata?: Record<string, unknown>;
-}
-
-// Отправка в Google Sheets
-async function sendToGoogleSheets(payload: TrackEventPayload) {
-  try {
-    await fetch(GOOGLE_SHEETS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-  } catch (error) {
-    console.error('Failed to send to Google Sheets:', error);
-  }
 }
 
 // Форматирование сообщения для Telegram (только для важных событий)
@@ -83,8 +71,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Отправляем в Google Sheets (все события)
-    await sendToGoogleSheets(payload);
+    // Отправляем в Notion (все события)
+    await trackEvent(payload);
+
+    // Регистрируем в очереди follow-up (только quiz_complete)
+    if (payload.event_type === 'quiz_complete' && payload.user_id && payload.result_id) {
+      await registerFollowUp(payload.user_id, payload.result_id);
+    }
 
     // Отправляем в Telegram (только оплаты)
     await sendTelegramNotification(payload);
