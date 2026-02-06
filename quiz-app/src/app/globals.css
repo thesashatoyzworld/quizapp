@@ -605,6 +605,36 @@ body {
 
 .result-page {
   text-align: left;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Desktop improvements for result pages */
+@media (min-width: 769px) {
+  .result-page .card {
+    padding: var(--space-xl) var(--space-2xl);
+  }
+
+  .result-page .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .result-page .comparison-grid {
+    flex-direction: row;
+  }
+
+  .result-page .comparison-item {
+    flex: 1;
+  }
+
+  .result-page .step-item {
+    flex-direction: row;
+    text-align: left;
+  }
+
+  .result-page .cta-details {
+    gap: var(--space-xl);
+  }
 }
 
 .result-header {
@@ -1007,6 +1037,73 @@ body {
 .mt-sm { margin-top: var(--space-sm); }
 .mt-md { margin-top: var(--space-md); }
 .mt-lg { margin-top: var(--space-lg); }
+
+/* ========================================
+   PAYMENT BUTTON
+   ======================================== */
+
+.payment-section {
+  text-align: center;
+  margin: var(--space-lg) 0;
+}
+
+.btn-payment {
+  display: inline-block;
+  padding: var(--space-md) var(--space-2xl);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bg-primary);
+  background: linear-gradient(135deg, var(--success), var(--neon-cyan));
+  border: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 30px rgba(0, 255, 136, 0.4);
+  animation: paymentPulse 2s ease-in-out infinite;
+}
+
+.btn-payment:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 40px rgba(0, 255, 136, 0.5);
+}
+
+.btn-payment::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: btnShine 2s infinite;
+}
+
+@keyframes paymentPulse {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(0, 255, 136, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 50px rgba(0, 255, 136, 0.6), 0 0 80px rgba(0, 240, 255, 0.3);
+  }
+}
+
+.payment-note {
+  margin-top: var(--space-sm);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .btn-payment {
+    width: 100%;
+    padding: var(--space-md) var(--space-lg);
+    font-size: 1rem;
+  }
+}
 
 /* Responsive for result page */
 @media (max-width: 768px) {

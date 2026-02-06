@@ -17,23 +17,25 @@ function buildProdamusUrl(userId: number | null | undefined, resultId: string | 
     return 'https://t.me/sashatoyz_bot?start=pay_masterclass';
   }
 
-  const params = new URLSearchParams();
-  params.set('products[0][name]', 'Мастер-класс «Продающий контент»');
-  params.set('products[0][price]', '3450');
-  params.set('products[0][quantity]', '1');
-
   const customerExtra = JSON.stringify({
     tg_user_id: userId || null,
     result_id: resultId || 'unknown',
   });
-  params.set('customer_extra', customerExtra);
+
+  // Build URL manually — Prodamus requires literal [] brackets, not %5B%5D
+  const parts = [
+    `products[0][name]=${encodeURIComponent('Мастер-класс «Продающий контент»')}`,
+    `products[0][price]=3450`,
+    `products[0][quantity]=1`,
+    `customer_extra=${encodeURIComponent(customerExtra)}`,
+  ];
 
   if (WEBAPP_URL) {
-    params.set('urlNotification', `${WEBAPP_URL}/api/prodamus-webhook`);
-    params.set('urlSuccess', `${WEBAPP_URL}?payment=success`);
+    parts.push(`urlNotification=${encodeURIComponent(`${WEBAPP_URL}/api/prodamus-webhook`)}`);
+    parts.push(`urlSuccess=${encodeURIComponent(`${WEBAPP_URL}?payment=success`)}`);
   }
 
-  return `${PRODAMUS_FORM_URL}?${params.toString()}`;
+  return `${PRODAMUS_FORM_URL}?${parts.join('&')}`;
 }
 
 export default function PaymentButton({
