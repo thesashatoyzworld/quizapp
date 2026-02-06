@@ -135,26 +135,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // Extract customer_extra containing tg_user_id and result_id
+    // Extract tg_user_id and result_id from order_id (format: "userId_resultId")
     let tgUserId: number | null = null;
     let resultId = 'unknown';
 
-    try {
-      const customerExtra = body.customer_extra;
-      if (typeof customerExtra === 'string') {
-        const parsed = JSON.parse(customerExtra);
-        tgUserId = parsed.tg_user_id || null;
-        resultId = parsed.result_id || 'unknown';
-      } else if (typeof customerExtra === 'object' && customerExtra) {
-        tgUserId = customerExtra.tg_user_id || null;
-        resultId = customerExtra.result_id || 'unknown';
-      }
-    } catch (e) {
-      console.error('Failed to parse customer_extra:', e);
+    const orderId = body.order_id || body.order_num || '';
+    if (typeof orderId === 'string' && orderId.includes('_')) {
+      const [userPart, ...resultParts] = orderId.split('_');
+      const parsed = parseInt(userPart, 10);
+      if (parsed > 0) tgUserId = parsed;
+      resultId = resultParts.join('_') || 'unknown';
     }
 
     if (!tgUserId) {
-      console.error('No tg_user_id in customer_extra');
+      console.error('No tg_user_id in order_id:', orderId);
       return NextResponse.json({ success: true });
     }
 

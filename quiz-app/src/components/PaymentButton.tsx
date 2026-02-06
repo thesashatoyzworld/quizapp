@@ -17,10 +17,8 @@ function buildProdamusUrl(userId: number | null | undefined, resultId: string | 
     return 'https://t.me/sashatoyz_bot?start=pay_masterclass';
   }
 
-  const customerExtra = JSON.stringify({
-    tg_user_id: userId || null,
-    result_id: resultId || 'unknown',
-  });
+  // Pass user data in order_id (not visible to buyer), friendly text in customer_extra
+  const orderId = `${userId || 0}_${resultId || 'unknown'}`;
 
   // Build URL manually — Prodamus requires literal [] brackets and do=pay
   const parts = [
@@ -28,7 +26,7 @@ function buildProdamusUrl(userId: number | null | undefined, resultId: string | 
     `products[0][name]=${encodeURIComponent('Мастер-класс «Продающий контент»')}`,
     `products[0][price]=3450`,
     `products[0][quantity]=1`,
-    `customer_extra=${encodeURIComponent(customerExtra)}`,
+    `order_id=${encodeURIComponent(orderId)}`,
   ];
 
   if (WEBAPP_URL) {
