@@ -1,92 +1,72 @@
-# TheSasha Quiz MVP
+# TheSasha Quiz Funnel
 
 ## What This Is
 
-Минимальный продукт для тестирования квиза: веб-страница с квизом на домене thesasha.com + тот же квиз как Telegram Mini App. После прохождения квиза результат отправляется в Telegram бота через callback. Цель — проверить workflow разработки и редактирования через код.
+Telegram Mini App с квизом "AI-диагност контента" для эксперта @sashatoyz. Квиз определяет этап развития эксперта (5 результатов), после чего ведёт к покупке мастер-класса "Продающий контент" за 3,450 RUB через Prodamus. Все события трекаются в Notion, неоплатившим отправляются follow-up сообщения через cron.
 
 ## Core Value
 
-Человек проходит квиз → видим его в Telegram (user_id) → можем запустить персональную коммуникацию на основе результата.
+Человек проходит квиз → получает персонализированный результат → покупает мастер-класс. Полная воронка от первого касания до оплаты.
 
 ## Requirements
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ **QUIZ-01..05**: Квиз с 8 вопросами, 5 категориями, 5 результатами — existing (Phase 1)
+- ✓ **TG-01..03**: Telegram Mini App, user_id, callback — existing (Phase 2)
+- ✓ **DEPLOY-01..02**: Деплой на Vercel, quizapp-ivory-delta.vercel.app — existing (Phase 3)
+- ✓ **PAY-01**: Prodamus интеграция (оплата, webhook верификация, материалы) — existing (post-MVP)
+- ✓ **TRACK-01**: Event tracking через Notion API — existing (post-MVP)
+- ✓ **FOLLOW-01**: Follow-up сообщения (4 персональных по результату квиза) — existing (post-MVP)
+- ✓ **FOLLOW-02**: Cron endpoint для рассылки follow-up — existing (post-MVP)
+- ✓ **SUB-01**: Проверка подписки на канал перед результатом — existing (post-MVP)
 
 ### Active
 
-- [ ] **QUIZ-01**: Веб-страница с квизом на thesasha.com
-- [ ] **QUIZ-02**: 8 вопросов с 4 вариантами ответа каждый
-- [ ] **QUIZ-03**: Система подсчёта баллов по 5 категориям
-- [ ] **QUIZ-04**: 5 результатов (этапов) с разными текстами
-- [ ] **QUIZ-05**: После результата — форма ввода ключевого слова
-- [ ] **TG-01**: Telegram Mini App с тем же квизом
-- [ ] **TG-02**: Получение user_id из Telegram WebApp API
-- [ ] **TG-03**: Callback в бота: user_id + результат + ключевое слово
-- [ ] **DESIGN-01**: Cyberpunk визуальный стиль (из SlideForge visual-dna)
-- [ ] **DEPLOY-01**: Деплой на Vercel с подключением домена thesasha.com
+(Определим в новом milestone)
 
-### Out of Scope (MVP)
+### Out of Scope
 
-- Цепочки сообщений в боте — только callback, логика потом
-- Notion интеграция для статей — это для полного сайта
-- Аналитика (Яндекс.Метрика, пиксели) — добавим после MVP
+- Домен thesasha.com — используем Vercel subdomain
 - Админка для редактирования квиза — пока в коде
-- Сохранение результатов в БД — пока только callback
+- Мультиязычность — только русский
+- AI-ассистент для обработки заявок — будущее
 
 ## Context
 
-### Квиз "AI-диагност контента"
+### Стек
+- Next.js 16 (App Router), TypeScript, Tailwind CSS
+- Telegram WebApp SDK для Mini App
+- Prodamus для оплаты (HMAC SHA256 webhook verification)
+- Notion API (@notionhq/client v5.x) для трекинга и follow-up очереди
+- Vercel для хостинга и cron jobs
 
-**Роль:** AI-диагност контента, работает как врач — без оценок, с эмпатией.
-
-**Механика:**
-- 8 вопросов, пользователь отвечает цифрами 1-4
-- Баллы суммируются по 5 категориям: Невидимка, Делатель, Щедрый, Нестабильные, Масштаб
-- Побеждает категория с max баллами
-- Для "Масштаба" — особые условия (40+ баллов И ответы 4 на вопросы 1, 2, 8)
-
-**5 результатов (этапов):**
-1. Эксперт-невидимка → ключевое слово "ВИДИМОСТЬ"
-2. Делатель без системы → ключевое слово "ФОКУС"
-3. Щедрый эксперт → ключевое слово "ЭКСПЕРТ"
-4. Нестабильные результаты → ключевое слово "СИСТЕМА"
-5. Масштабирование → ключевое слово "МАСШТАБ"
-
-**После ключевого слова:** callback в бота, дальше автоматизация (не в scope MVP).
-
-### Визуальная ДНК
-
-Из SlideForge (.knowledge/visual-dna.md):
-- Стиль: Cyberpunk + Gamification
-- Тёмные фиолетовые фоны (#0a0612, #110b1a)
-- Neon акценты (cyan #00f0ff, magenta #ff00aa, purple #9d4edd)
-- Шрифты: Orbitron (заголовки), Exo 2 (текст)
-- HUD-элементы, scanlines, grid background
-- Анимации: neon pulse, fadeIn с blur
+### Квиз
+- 8 вопросов, 4 варианта ответа
+- 5 результатов: Эксперт-невидимка, Делатель без системы, Щедрый эксперт, Эксперт на качелях, Манимейкер
+- Каждому результату — 4 персональных follow-up сообщения (включая видео-кейс)
 
 ### Инфраструктура
-
-- Домен: thesasha.com (Reg.ru)
-- Хостинг: Vercel (бесплатно)
-- Telegram бот: создать тестовый через BotFather
+- Bot: @sashatoyz_bot
+- Deploy: quizapp-ivory-delta.vercel.app
+- GitHub: github.com/thesashatoyzworld/quizapp.git
 
 ## Constraints
 
-- **Стек**: Next.js + TypeScript + Tailwind CSS
-- **Деплой**: Vercel (автодеплой из git)
-- **Telegram**: Mini App через WebApp API
-- **Без БД**: Результаты только через callback, не сохраняем
+- **Стек**: Next.js + TypeScript + Tailwind (established)
+- **Оплата**: Только Prodamus
+- **Трекинг**: Notion API (migrated from Google Sheets)
+- **Деплой**: Vercel (free tier)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Next.js для квиза | SSR не нужен, но Vercel деплой проще | — Pending |
-| Tailwind CSS | Быстрая стилизация, Cyberpunk через custom colors | — Pending |
-| Без БД в MVP | Минимальная версия, данные через callback | — Pending |
-| Один квиз для веба и TG | Переиспользование кода, единая логика | — Pending |
+| Next.js для квиза | Vercel деплой, App Router | ✓ Good |
+| Prodamus для оплаты | Российский рынок, простая интеграция | ✓ Good |
+| Notion вместо Google Sheets | Удобнее, нет Apps Script, MCP доступ | — Pending verification |
+| @notionhq/client v5 dataSources API | databases.query removed in v5, use dataSources.query | ✓ Good |
+| Follow-up через cron | Vercel cron + Notion queue, не зависит от внешних сервисов | — Pending verification |
 
 ---
-*Last updated: 2026-01-31 after initialization*
+*Last updated: 2026-02-06 after MVP completion + Notion migration*
