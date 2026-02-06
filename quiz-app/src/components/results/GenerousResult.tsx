@@ -1,8 +1,15 @@
 'use client';
 
 import React from 'react';
+import PaymentButton from '@/components/PaymentButton';
 
-export default function GenerousResult() {
+interface ResultProps {
+  onPaymentClick?: () => void;
+  userId?: number | null;
+  resultId?: string;
+}
+
+export default function GenerousResult({ onPaymentClick, userId, resultId }: ResultProps) {
   return (
     <div className="result-page">
       {/* Header */}
@@ -402,7 +409,12 @@ export default function GenerousResult() {
         </p>
 
         <div className="cta-action">
-          <p className="text-success mb-md">ПРИГЛАШЕНИЕ НА МАСТЕР-КЛАСС УЖЕ ЖДЕТ ТЕБЯ В БОТЕ</p>
+          <PaymentButton
+            resultTitle="Щедрый эксперт"
+            userId={userId}
+            resultId={resultId}
+            onPaymentClick={onPaymentClick}
+          />
         </div>
 
         <div className="cta-ps">

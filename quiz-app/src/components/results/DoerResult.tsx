@@ -1,8 +1,15 @@
 'use client';
 
 import React from 'react';
+import PaymentButton from '@/components/PaymentButton';
 
-export default function DoerResult() {
+interface ResultProps {
+  onPaymentClick?: () => void;
+  userId?: number | null;
+  resultId?: string;
+}
+
+export default function DoerResult({ onPaymentClick, userId, resultId }: ResultProps) {
   return (
     <div className="result-page">
       {/* Header */}
@@ -395,7 +402,12 @@ export default function DoerResult() {
         </p>
 
         <div className="cta-action">
-          <p className="text-success mb-md">ПРИГЛАШЕНИЕ НА МАСТЕР-КЛАСС УЖЕ ЖДЕТ ТЕБЯ В БОТЕ</p>
+          <PaymentButton
+            resultTitle="Делатель без системы"
+            userId={userId}
+            resultId={resultId}
+            onPaymentClick={onPaymentClick}
+          />
         </div>
 
         <div className="cta-ps">

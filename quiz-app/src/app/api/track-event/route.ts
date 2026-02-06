@@ -1,0 +1,107 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
+const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzs1YTm4GskD4MZlIroyFnc1848eafSyOS9E83WbHDyYMlhBuPKgJjszOqSUfyD7rtTSQ/exec';
+
+interface TrackEventPayload {
+  event_type: 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
+  user_id?: number;
+  result_stage?: string;
+  result_title?: string;
+  amount?: number;
+  metadata?: Record<string, unknown>;
+}
+
+// Отправка в Google Sheets
+async function sendToGoogleSheets(payload: TrackEventPayload) {
+  try {
+    await fetch(GOOGLE_SHEETS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.error('Failed to send to Google Sheets:', error);
+  }
+}
+
+// Форматирование сообщения для Telegram (только для важных событий)
+function formatEventMessage(payload: TrackEventPayload): string {
+  const timestamp = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
+
+  if (payload.event_type === 'payment_success') {
+    return `✅ <b>ОПЛАТА ПОЛУЧЕНА!</b>
+
+👤 User ID: <code>${payload.user_id || 'unknown'}</code>
+💰 Сумма: <b>${payload.amount || 3450}₽</b>
+📊 Этап: <b>${payload.result_title || 'N/A'}</b>
+⏰ ${timestamp}`;
+  }
+
+  return '';
+}
+
+// Отправка уведомления в Telegram (только для оплат)
+async function sendTelegramNotification(payload: TrackEventPayload) {
+  // Отправляем в Telegram только оплаты
+  if (payload.event_type !== 'payment_success') {
+    return;
+  }
+
+  if (!BOT_TOKEN || !ADMIN_CHAT_ID) {
+    console.log('Telegram notification skipped (no BOT_TOKEN or ADMIN_CHAT_ID)');
+    return;
+  }
+
+  try {
+    const text = formatEventMessage(payload);
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: ADMIN_CHAT_ID,
+        text,
+        parse_mode: 'HTML',
+      }),
+    });
+  } catch (error) {
+    console.error('Failed to send Telegram notification:', error);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const payload: TrackEventPayload = await request.json();
+
+    // Валидация
+    if (!payload.event_type) {
+      return NextResponse.json(
+        { success: false, error: 'event_type is required' },
+        { status: 400 }
+      );
+    }
+
+    // Отправляем в Google Sheets (все события)
+    await sendToGoogleSheets(payload);
+
+    // Отправляем в Telegram (только оплаты)
+    await sendTelegramNotification(payload);
+
+    // Логируем событие
+    console.log(`[Track Event] ${payload.event_type}`, {
+      user_id: payload.user_id,
+      result: payload.result_title,
+      timestamp: new Date().toISOString(),
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Track event error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

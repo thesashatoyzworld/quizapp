@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { questions, calculateScores, determineResult, QuizResult } from '@/data/quiz';
 import { useTelegram } from '@/hooks/useTelegram';
+import { useTracking } from '@/hooks/useTracking';
 import InvisibleResult from '@/components/results/InvisibleResult';
 import DoerResult from '@/components/results/DoerResult';
 import GenerousResult from '@/components/results/GenerousResult';
 import UnstableResult from '@/components/results/UnstableResult';
 import ScaleResult from '@/components/results/ScaleResult';
 
-type QuizState = 'welcome' | 'quiz' | 'result-preview' | 'result';
+type QuizState = 'welcome' | 'quiz' | 'result-preview' | 'result' | 'payment-success';
 
 export default function Home() {
   const [state, setState] = useState<QuizState>('welcome');
@@ -20,10 +21,22 @@ export default function Home() {
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const [showSubscribePopup, setShowSubscribePopup] = useState(false);
   const waitingForReturn = useRef(false);
+  const hasTrackedResult = useRef(false);
 
-  const { userId, isTelegramContext, webApp } = useTelegram();
+  const { user, userId, isTelegramContext, webApp } = useTelegram();
+  const { trackQuizComplete, trackResultView, trackPaymentClick } = useTracking(user);
 
   const CHANNEL_URL = 'https://t.me/sashatoyz';
+
+  // Detect ?payment=success on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success') {
+      setState('payment-success');
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const handleStart = () => {
     setState('quiz');
@@ -40,6 +53,9 @@ export default function Home() {
       const quizResult = determineResult(newAnswers, scores);
       setResult(quizResult);
       setState('result-preview');
+
+      // Track quiz completion
+      trackQuizComplete(quizResult.title, String(quizResult.stage));
     }
   };
 
@@ -65,6 +81,11 @@ export default function Home() {
 
       if (data.subscribed) {
         setState('result');
+        // Track result view when subscription confirmed
+        if (!hasTrackedResult.current && result) {
+          trackResultView(result.title);
+          hasTrackedResult.current = true;
+        }
         return true;
       } else {
         if (showError) {
@@ -285,11 +306,47 @@ export default function Home() {
           {state === 'result' && result && (
             <div key="result">
               {/* Show detailed result page based on result type */}
-              {result.id === 'invisible' && <InvisibleResult />}
-              {result.id === 'doer' && <DoerResult />}
-              {result.id === 'generous' && <GenerousResult />}
-              {result.id === 'unstable' && <UnstableResult />}
-              {result.id === 'scale' && <ScaleResult />}
+              {result.id === 'invisible' && <InvisibleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} />}
+              {result.id === 'doer' && <DoerResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} />}
+              {result.id === 'generous' && <GenerousResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} />}
+              {result.id === 'unstable' && <UnstableResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} />}
+              {result.id === 'scale' && <ScaleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} />}
+            </div>
+          )}
+
+          {/* ==================== PAYMENT SUCCESS ==================== */}
+          {state === 'payment-success' && (
+            <div key="payment-success" className="text-center">
+              <div className="mb-lg animate-1">
+                <span style={{ fontSize: '4rem' }}>&#x2705;</span>
+              </div>
+
+              <h1 className="title-xl text-cyan animate-2" style={{ marginBottom: 'var(--space-md)' }}>
+                Оплата получена!
+              </h1>
+
+              <div className="card mb-lg animate-3">
+                <p className="text-secondary mb-md" style={{ fontSize: '1.1rem' }}>
+                  Проверьте сообщения в Telegram — бот уже отправил вам доступ и бонус.
+                </p>
+
+                <div style={{
+                  background: 'rgba(0, 240, 255, 0.1)',
+                  border: '1px solid rgba(0, 240, 255, 0.3)',
+                  borderRadius: '8px',
+                  padding: 'var(--space-md)',
+                }}>
+                  <p className="text-cyan" style={{ fontSize: '0.95rem', margin: 0 }}>
+                    &#x1F393; Мастер-класс «Продающий контент»<br/>
+                    &#x1F4C5; 24 февраля, 17:00 мск<br/>
+                    &#x1F381; Бонус «Богатая ЦА» уже в чате
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-muted animate-4" style={{ fontSize: '0.9rem' }}>
+                Если сообщение не пришло — напишите @sashatoyz_bot
+              </p>
             </div>
           )}
         </div>
