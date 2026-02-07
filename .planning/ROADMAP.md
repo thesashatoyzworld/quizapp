@@ -60,8 +60,8 @@
 **Plans:** 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Shared component library + typography/CSS system
-- [ ] 04-02-PLAN.md — Refactor all 5 result pages to use shared components
+- [x] 04-01-PLAN.md — Shared component library + typography/CSS system (complete 2026-02-07)
+- [x] 04-02-PLAN.md — Refactor all 5 result pages to use shared components (complete 2026-02-07)
 
 ---
 
@@ -80,13 +80,13 @@ Plans:
 4. User sees audience composition breakdown (clients vs students vs random) in donut chart format
 5. Visual blocks are integrated into result pages without disrupting reading flow or overshadowing CTA buttons
 
-**Plans:** TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 05-01: TBD (chart library setup + score propagation)
-- [ ] 05-02: TBD (radar chart + level system components)
-- [ ] 05-03: TBD (financial gauge + donut chart components)
-- [ ] 05-04: TBD (integration into result pages with visual hierarchy)
+- [ ] 05-01-PLAN.md — Install Recharts, propagate scores to result components, define chart data
+- [ ] 05-02-PLAN.md — Radar chart + level badge + level path components (VIZ-01, VIZ-02)
+- [ ] 05-03-PLAN.md — Financial gauge + audience donut chart components (VIZ-03, VIZ-04)
+- [ ] 05-04-PLAN.md — Integrate all charts into 5 result pages with visual verification (VIZ-05)
 
 ---
 
@@ -144,8 +144,8 @@ v1.0 phases complete -> Phase 4 -> Phase 5 -> Phase 6 -> Phase 7
 | 1. Quiz Web App | v1.0 | 3/3 | Complete | 2026-01-31 |
 | 2. Telegram Mini App | v1.0 | 2/2 | Complete | 2026-02-01 |
 | 3. Deploy | v1.0 | 1/1 | Complete | 2026-02-01 |
-| 4. Result Layout Refactoring | v1.1 | 0/2 | Not started | - |
-| 5. Visual Analytics | v1.1 | 0/TBD | Not started | - |
+| 4. Result Layout Refactoring | v1.1 | 2/2 | Complete | 2026-02-07 |
+| 5. Visual Analytics | v1.1 | 0/4 | Planned | - |
 | 6. Follow-up Messaging | v1.1 | 0/TBD | Not started | - |
 | 7. End-to-End Testing | v1.1 | 0/TBD | Not started | - |
 
@@ -167,4 +167,4 @@ v1.0 phases complete -> Phase 4 -> Phase 5 -> Phase 6 -> Phase 7
 ---
 
 *Roadmap created: 2026-01-31*
-*Last updated: 2026-02-07 (Phase 4 planned)*
+*Last updated: 2026-02-07 (Phase 5 planned)*
