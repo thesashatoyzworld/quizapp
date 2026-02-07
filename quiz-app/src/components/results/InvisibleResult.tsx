@@ -24,7 +24,7 @@ interface ResultProps {
 
 export default function InvisibleResult({ onPaymentClick, userId, resultId, scores }: ResultProps) {
   const ACCENT_COLOR = '#ff00aa'; // magenta
-  const chartData = scores ? getChartData(resultId as Category, scores) : null;
+  const chartData = resultId ? getChartData(resultId as Category) : null;
 
   return (
     <div className="result-page">

@@ -46,14 +46,11 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 export function RadarChart({ data, accentColor = '#00f0ff' }: RadarChartProps) {
-  // Category colors cycling through cyberpunk palette
-  const categoryColors = ['#00f0ff', '#ff00aa', '#9d4edd', '#ffd700', '#00ff88'];
-
   return (
     <div className="chart-container">
       <h3 className="chart-title">Профиль эксперта</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <RechartsRadarChart data={data}>
+      <ResponsiveContainer width="100%" height={260}>
+        <RechartsRadarChart data={data} outerRadius="70%">
           <defs>
             <filter id="glow">
               <feGaussianBlur stdDeviation="3" result="coloredBlur" />
@@ -68,8 +65,7 @@ export function RadarChart({ data, accentColor = '#00f0ff' }: RadarChartProps) {
             dataKey="category"
             tick={{
               fill: '#fff',
-              fontSize: 11,
-              fontFamily: 'var(--font-display)',
+              fontSize: 10,
             }}
           />
           <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
@@ -89,33 +85,6 @@ export function RadarChart({ data, accentColor = '#00f0ff' }: RadarChartProps) {
         </RechartsRadarChart>
       </ResponsiveContainer>
 
-      {/* Score summary row */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          gap: '12px',
-          marginTop: '16px',
-          fontSize: '0.8rem',
-        }}
-      >
-        {data.map((item, index) => (
-          <div
-            key={item.category}
-            style={{
-              color: categoryColors[index % categoryColors.length],
-              fontFamily: 'var(--font-body)',
-            }}
-          >
-            {item.category}:{' '}
-            <span style={{ fontFamily: 'var(--font-display)' }}>
-              {item.value}
-            </span>
-            /100
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

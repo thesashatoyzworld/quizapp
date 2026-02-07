@@ -35,7 +35,7 @@ export function AudienceDonut({ data }: AudienceDonutProps) {
       <h3 className="chart-title">Состав аудитории</h3>
 
       <div style={{ position: 'relative' }}>
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width="100%" height={220}>
           <PieChart>
             <defs>
               <filter id="donut-glow">
@@ -50,8 +50,8 @@ export function AudienceDonut({ data }: AudienceDonutProps) {
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius="55%"
-              outerRadius="80%"
+              innerRadius="50%"
+              outerRadius="78%"
               paddingAngle={2}
               dataKey="value"
               animationDuration={1500}
@@ -66,7 +66,7 @@ export function AudienceDonut({ data }: AudienceDonutProps) {
           </PieChart>
         </ResponsiveContainer>
 
-        {/* Center label */}
+        {/* Center label — just percentage, no overlapping text */}
         <div
           style={{
             position: 'absolute',
@@ -80,32 +80,20 @@ export function AudienceDonut({ data }: AudienceDonutProps) {
           <div
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              color: 'var(--text-muted)',
-              marginBottom: '4px',
-            }}
-          >
-            Аудитория
-          </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '1.5rem',
+              fontSize: '1.3rem',
               fontWeight: '700',
               color: largestSegment.color,
               filter: 'drop-shadow(0 0 10px ' + largestSegment.color + ')',
+              lineHeight: 1,
             }}
           >
             {largestSegment.value}%
           </div>
           <div
             style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: '0.7rem',
-              color: 'var(--text-secondary)',
-              marginTop: '2px',
+              fontSize: '0.65rem',
+              color: 'var(--text-muted)',
+              marginTop: '4px',
             }}
           >
             {largestSegment.name}

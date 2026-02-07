@@ -43,14 +43,14 @@ const ALL_LEVELS = [
   { level: 5, name: 'Готовы к масштабированию', id: 'scale' as Category },
 ];
 
-// Category labels mapping (short labels for radar chart)
-const CATEGORY_LABELS: Record<Category, { short: string; full: string }> = {
-  invisible: { short: 'Контент', full: 'Качество контента' },
-  doer: { short: 'Клиенты', full: 'Понимание клиентов' },
-  generous: { short: 'Посыл', full: 'Четкость посыла' },
-  unstable: { short: 'Структура', full: 'Структура продаж' },
-  scale: { short: 'Действия', full: 'Способность действовать' },
-};
+// Radar dimensions — universal across all result types
+const RADAR_DIMENSIONS = [
+  { key: 'expertise', short: 'Экспертиза', full: 'Уровень экспертизы' },
+  { key: 'visibility', short: 'Видимость', full: 'Видимость в соцсетях' },
+  { key: 'content', short: 'Контент', full: 'Качество контента' },
+  { key: 'sales', short: 'Продажи', full: 'Продажи через контент' },
+  { key: 'system', short: 'Система', full: 'Системность подхода' },
+];
 
 // Audience colors from cyberpunk palette
 const AUDIENCE_COLORS = {
@@ -61,22 +61,25 @@ const AUDIENCE_COLORS = {
   Любопытные: '#00ff88',     // green
 };
 
-// Normalize score to 0-100 scale
-// Max possible per category is ~240 (8 questions * 30 avg)
-function normalizeScore(score: number): number {
-  const MAX_SCORE = 240;
-  const normalized = Math.round((score / MAX_SCORE) * 100);
-  return Math.min(normalized, 100); // Clamp to 100
-}
+// Predefined radar profiles per result type
+// Values reflect the narrative from result page text
+const RADAR_PROFILES: Record<Category, number[]> = {
+  // [expertise, visibility, content, sales, system]
+  invisible: [75, 10, 15, 10, 5],    // Great expert, zero visibility
+  doer: [60, 40, 55, 15, 10],        // Lots of content but chaotic, no system
+  generous: [80, 65, 70, 15, 40],     // High expertise & content, zero sales
+  unstable: [75, 60, 65, 55, 25],     // Good results but inconsistent, no system
+  scale: [90, 85, 80, 75, 70],        // Strong across the board, ready to scale
+};
 
-// Get radar data from scores
-function getRadarData(scores: Record<Category, number>): RadarDataPoint[] {
-  const categories: Category[] = ['invisible', 'doer', 'generous', 'unstable', 'scale'];
+// Get radar data from predefined profile
+function getRadarData(resultId: Category): RadarDataPoint[] {
+  const profile = RADAR_PROFILES[resultId];
 
-  return categories.map(cat => ({
-    category: CATEGORY_LABELS[cat].short,
-    fullName: CATEGORY_LABELS[cat].full,
-    value: normalizeScore(scores[cat]),
+  return RADAR_DIMENSIONS.map((dim, i) => ({
+    category: dim.short,
+    fullName: dim.full,
+    value: profile[i],
     maxValue: 100,
   }));
 }
@@ -172,9 +175,9 @@ function getLevelData(resultId: Category): LevelData {
  * @param scores - Quiz scores for all categories
  * @returns Complete chart data structure
  */
-export function getChartData(resultId: Category, scores: Record<Category, number>): ChartData {
+export function getChartData(resultId: Category): ChartData {
   return {
-    radar: getRadarData(scores),
+    radar: getRadarData(resultId),
     audience: getAudienceSegments(resultId),
     financial: getFinancialData(resultId),
     levelData: getLevelData(resultId),

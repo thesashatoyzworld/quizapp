@@ -22,7 +22,7 @@ interface ResultProps {
 
 export default function ScaleResult({ onPaymentClick, userId, resultId, scores }: ResultProps) {
   const ACCENT_COLOR = '#00ff88'; // green
-  const chartData = scores ? getChartData(resultId as Category, scores) : null;
+  const chartData = resultId ? getChartData(resultId as Category) : null;
 
   return (
     <div className="result-page">

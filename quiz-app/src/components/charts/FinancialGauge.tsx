@@ -46,9 +46,20 @@ export function FinancialGauge({ data, accentColor = '#ffd700' }: FinancialGauge
     };
   }, [data.currentIncome, data.potentialIncome]);
 
-  // Format rubles with space separator
+  // Format rubles - compact for boxes
   const formatRubles = (amount: number) => {
-    return amount.toLocaleString('ru-RU') + ' ₽/мес';
+    if (amount >= 1000000) {
+      return (amount / 1000000).toFixed(1).replace('.0', '') + 'M ₽';
+    }
+    if (amount >= 1000) {
+      return Math.round(amount / 1000) + 'K ₽';
+    }
+    return amount + ' ₽';
+  };
+
+  // Format rubles - full for center label
+  const formatRublesFull = (amount: number) => {
+    return amount.toLocaleString('ru-RU') + ' ₽';
   };
 
   // Calculate gauge fill percentage
@@ -134,12 +145,12 @@ export function FinancialGauge({ data, accentColor = '#ffd700' }: FinancialGauge
             y={center - 5}
             textAnchor="middle"
             fill={accentColor}
-            fontSize="24"
+            fontSize="20"
             fontFamily="var(--font-display)"
             fontWeight="700"
             filter="url(#gauge-glow)"
           >
-            {formatRubles(animatedPotential)}
+            {formatRublesFull(animatedPotential)}
           </text>
 
           <text
