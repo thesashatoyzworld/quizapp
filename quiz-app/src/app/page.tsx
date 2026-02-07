@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { questions, calculateScores, determineResult, QuizResult } from '@/data/quiz';
+import { questions, calculateScores, determineResult, QuizResult, Category } from '@/data/quiz';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useTracking } from '@/hooks/useTracking';
 import InvisibleResult from '@/components/results/InvisibleResult';
@@ -17,6 +17,7 @@ export default function Home() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [result, setResult] = useState<QuizResult | null>(null);
+  const [scores, setScores] = useState<Record<Category, number> | null>(null);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const [showSubscribePopup, setShowSubscribePopup] = useState(false);
@@ -49,8 +50,9 @@ export default function Home() {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
-      const scores = calculateScores(newAnswers);
-      const quizResult = determineResult(newAnswers, scores);
+      const calculatedScores = calculateScores(newAnswers);
+      const quizResult = determineResult(newAnswers, calculatedScores);
+      setScores(calculatedScores);
       setResult(quizResult);
       setState('result-preview');
 
@@ -306,11 +308,11 @@ export default function Home() {
           {state === 'result' && result && (
             <div key="result">
               {/* Show detailed result page based on result type */}
-              {result.id === 'invisible' && <InvisibleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} />}
-              {result.id === 'doer' && <DoerResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} />}
-              {result.id === 'generous' && <GenerousResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} />}
-              {result.id === 'unstable' && <UnstableResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} />}
-              {result.id === 'scale' && <ScaleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} />}
+              {result.id === 'invisible' && <InvisibleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} />}
+              {result.id === 'doer' && <DoerResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} />}
+              {result.id === 'generous' && <GenerousResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} />}
+              {result.id === 'unstable' && <UnstableResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} />}
+              {result.id === 'scale' && <ScaleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} />}
             </div>
           )}
 

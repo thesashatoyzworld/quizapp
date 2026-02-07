@@ -11,14 +11,16 @@ import {
   StepsList,
   CTASection,
 } from './shared';
+import { Category } from '@/data/quiz';
 
 interface ResultProps {
   onPaymentClick?: () => void;
   userId?: number | null;
   resultId?: string;
+  scores?: Record<Category, number> | null;
 }
 
-export default function InvisibleResult({ onPaymentClick, userId, resultId }: ResultProps) {
+export default function InvisibleResult({ onPaymentClick, userId, resultId, scores }: ResultProps) {
   return (
     <div className="result-page">
       <ResultHeader
