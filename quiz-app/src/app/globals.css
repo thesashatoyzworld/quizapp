@@ -607,6 +607,32 @@ body {
   text-align: left;
   max-width: 800px;
   margin: 0 auto;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.result-page .card {
+  overflow: hidden;
+}
+
+/* Typography scale for result pages */
+.result-h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--neon-cyan);
+  margin-bottom: var(--space-md);
+}
+
+.result-body {
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: var(--space-md);
+}
+
+/* Phase 5 chart slot placeholder */
+.result-chart-slot {
+  margin: var(--space-lg) 0;
+  min-height: 0;
 }
 
 /* Desktop improvements for result pages */
@@ -1136,5 +1162,57 @@ body {
     flex-direction: column;
     align-items: center;
     text-align: center;
+  }
+}
+
+/* Extra small mobile (Telegram WebApp on small phones) */
+@media (max-width: 480px) {
+  .result-page {
+    padding: 0 var(--space-xs);
+  }
+
+  .result-page .card {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .case-study {
+    padding: var(--space-md);
+  }
+
+  .title-xl {
+    font-size: 1.6rem;
+  }
+
+  .section-title {
+    font-size: 1rem;
+  }
+
+  .result-h3 {
+    font-size: 0.95rem;
+  }
+
+  .reason-title {
+    font-size: 0.95rem;
+  }
+
+  .cta-title {
+    font-size: 1.2rem;
+  }
+
+  .price-amount {
+    font-size: 1.8rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .comparison-item {
+    padding: var(--space-sm);
+  }
+
+  .timeline-item {
+    flex-direction: column;
+    gap: var(--space-xs);
   }
 }
