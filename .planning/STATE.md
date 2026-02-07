@@ -2,16 +2,16 @@
 
 ## Current Status
 
-**Milestone:** v1.0 MVP — COMPLETE
-**Status:** All phases done. Post-MVP features added manually (payments, tracking, follow-up).
-**Next:** New milestone TBD after verification of Notion integration.
+**Milestone:** v1.1 Polish & Conversion
+**Status:** Defining requirements
+**Next:** Requirements → Roadmap → Plan phases
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-06)
+See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Квиз → персонализированный результат → покупка мастер-класса
-**Current focus:** Verification & new milestone planning
+**Current focus:** Редизайн результатов + догрев + тестирование воронки
 
 ## Milestone v1.0 — Complete
 
@@ -21,25 +21,23 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 | 2 | Telegram Mini App | ✓ Complete |
 | 3 | Deploy | ✓ Complete |
 
-## Post-MVP Work (done manually, outside GSD)
+## Milestone v1.1 — In Progress
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Prodamus payment | ✓ Working | Webhook + materials delivery |
-| Subscription gate | ✓ Working | Check before result |
-| Event tracking → Notion | ✓ Verified | API tested, pages create OK |
-| Follow-up queue → Notion | ✓ Verified | Register + query + update OK |
-| Follow-up cron | ⚠ Code ready | Vercel env vars + deploy needed |
-| Follow-up messages (content) | ✓ Done | 5 results × 4 messages each |
+| Phase | Name | Status |
+|-------|------|--------|
+| TBD | (defining requirements) | ○ Pending |
 
-## Pending Verification
+## Accumulated Context
 
-1. Notion API key not yet in .env.local
-2. Notion DB IDs not yet in .env.local
-3. ADMIN_CHAT_ID not in .env.local (Telegram admin notifications)
-4. NEXT_PUBLIC_WEBAPP_URL not in .env.local
-5. Vercel env vars need updating
-6. Vercel cron schedule not confirmed
+### Pending Issues
+- ADMIN_CHAT_ID not set (Telegram admin notifications)
+- Vercel cron schedule not confirmed
+- Notion decision "Pending verification" in PROJECT.md
+
+### Key Decisions from v1.0
+- Notion API for tracking (replacing Google Sheets)
+- @notionhq/client v5 with dataSources API
+- Follow-up via Vercel cron + Notion queue
 
 ## Session Log
 
@@ -52,6 +50,7 @@ See: .planning/PROJECT.md (updated 2026-02-06)
 | 2026-02-02..05 | Manual work | Prodamus, tracking, follow-up (outside GSD) |
 | 2026-02-06 | Notion migration | Replaced Google Sheets with Notion API |
 | 2026-02-06 | MVP milestone closed | Updated PROJECT.md, STATE.md |
+| 2026-02-07 | Milestone v1.1 started | Polish & Conversion — redesign, follow-up, testing |
 
 ---
-*Last updated: 2026-02-06*
+*Last updated: 2026-02-07*

@@ -1,83 +1,170 @@
-# Roadmap: TheSasha Quiz MVP
+# Roadmap: TheSasha Quiz Funnel
 
-**Created:** 2026-01-31
-**Phases:** 3
-**Requirements:** 11
+## Milestones
 
-## Phase Overview
+- ✅ **v1.0 MVP** - Phases 1-3 (shipped 2026-02-06)
+- 🚧 **v1.1 Polish & Conversion** - Phases 4-7 (in progress)
 
-| # | Phase | Goal | Requirements |
-|---|-------|------|--------------|
-| 1 | Quiz Web App | Рабочий квиз на локалхосте с Cyberpunk дизайном | QUIZ-01..05, DESIGN-01 |
-| 2 | Telegram Mini App | Квиз работает в Telegram, callback в бота | TG-01..03 |
-| 3 | Deploy | Сайт на thesasha.com, Mini App привязан | DEPLOY-01..02 |
+## Phases
 
----
+<details>
+<summary>✅ v1.0 MVP (Phases 1-3) - SHIPPED 2026-02-06</summary>
 
-## Phase 1: Quiz Web App
+### Phase 1: Quiz Web App
+**Goal**: Launch working quiz with cyberpunk design and result calculation
+**Requirements**: QUIZ-01, QUIZ-02, QUIZ-03, QUIZ-04, QUIZ-05, DESIGN-01
+**Status**: Complete
 
-**Goal:** Рабочий квиз на локалхосте с Cyberpunk дизайном
+### Phase 2: Telegram Mini App
+**Goal**: Deploy quiz as Telegram Mini App with user identification
+**Requirements**: TG-01, TG-02, TG-03
+**Status**: Complete
 
-**Requirements:**
-- QUIZ-01: Веб-страница с квизом
-- QUIZ-02: 8 вопросов с 4 вариантами
-- QUIZ-03: Система подсчёта баллов
-- QUIZ-04: 5 результатов с текстами
-- QUIZ-05: Форма ключевого слова
-- DESIGN-01: Cyberpunk стиль
+### Phase 3: Deploy
+**Goal**: Deploy to Vercel with working domain
+**Requirements**: DEPLOY-01, DEPLOY-02
+**Status**: Complete
 
-**Success Criteria:**
-1. Можно пройти квиз от начала до результата
-2. Баллы считаются правильно по всем 5 категориям
-3. Показывается правильный результат (этап)
-4. Дизайн соответствует visual-dna (neon, тёмный фон, Orbitron)
-5. Ключевое слово можно ввести после результата
+**Post-MVP work (done manually):**
+- Payment integration (PAY-01)
+- Event tracking via Notion (TRACK-01)
+- Follow-up messaging pipeline (FOLLOW-01, FOLLOW-02)
+- Subscription gating (SUB-01)
 
-**Depends on:** Nothing
+</details>
 
 ---
 
-## Phase 2: Telegram Mini App
+## 🚧 v1.1 Polish & Conversion (In Progress)
 
-**Goal:** Квиз работает в Telegram, callback отправляется в бота
+**Milestone Goal:** Transform quiz results from text-heavy pages into visual diagnostic dashboards with analytics, charts, and gamification. Complete and verify follow-up messaging pipeline. Test entire funnel end-to-end with AI walkthroughs.
 
-**Requirements:**
-- TG-01: Telegram Mini App
-- TG-02: Получение user_id
-- TG-03: Callback в бота
-
-**Success Criteria:**
-1. Квиз открывается как Mini App в Telegram
-2. user_id получен из Telegram WebApp API
-3. После ввода ключевого слова → callback с данными уходит в бота
-4. Бот получает: user_id, результат (этап), ключевое слово
-
-**Depends on:** Phase 1
+**Target outcome:** Higher conversion through clearer value presentation, verified follow-up nurturing for non-buyers, confidence in funnel quality.
 
 ---
 
-## Phase 3: Deploy
+### Phase 4: Result Layout Refactoring
 
-**Goal:** Сайт на thesasha.com, Mini App привязан к production URL
+**Goal:** Clean, consistent, mobile-responsive result pages with shared component system.
 
-**Requirements:**
-- DEPLOY-01: Деплой на Vercel
-- DEPLOY-02: Подключение домена
+**Depends on:** v1.0 Phase 3 (Deploy)
 
-**Success Criteria:**
-1. Сайт доступен по https://thesasha.com
-2. Квиз работает в production
-3. Mini App использует production URL
-4. Callback работает в production
+**Requirements:** LAYOUT-01, LAYOUT-02, LAYOUT-03, LAYOUT-04
 
-**Depends on:** Phase 2
+**Success Criteria** (what must be TRUE):
+1. All 5 result pages use shared components for headers, cards, case studies, and CTAs
+2. Typography is consistent across all results (same heading sizes, spacing, font weights)
+3. Result pages display correctly on mobile devices without layout breaks or horizontal scrolling
+4. Repeating content blocks (case studies, lists, CTA sections) have uniform styling
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Shared component library + typography/CSS system
+- [ ] 04-02-PLAN.md — Refactor all 5 result pages to use shared components
+
+---
+
+### Phase 5: Visual Analytics
+
+**Goal:** Users see their quiz results as interactive charts and visual metrics, making their diagnostic profile concrete and actionable.
+
+**Depends on:** Phase 4 (Result Layout Refactoring)
+
+**Requirements:** VIZ-01, VIZ-02, VIZ-03, VIZ-04, VIZ-05
+
+**Success Criteria** (what must be TRUE):
+1. User sees radar chart showing their scores across 5 categories (Content Quality, Client Understanding, Messaging Clarity, Sales Structure, Action Capability)
+2. User sees their current level (1-5) displayed with visual rank indicator in Solo Leveling style
+3. User sees financial metrics (potential losses or gaps) visualized with gauge or progress indicator
+4. User sees audience composition breakdown (clients vs students vs random) in donut chart format
+5. Visual blocks are integrated into result pages without disrupting reading flow or overshadowing CTA buttons
+
+**Plans:** TBD
+
+Plans:
+- [ ] 05-01: TBD (chart library setup + score propagation)
+- [ ] 05-02: TBD (radar chart + level system components)
+- [ ] 05-03: TBD (financial gauge + donut chart components)
+- [ ] 05-04: TBD (integration into result pages with visual hierarchy)
 
 ---
 
-## Milestone: v1.0 MVP
+### Phase 6: Follow-up Messaging
 
-**Includes:** Phases 1-3
-**Delivers:** Рабочий квиз на своём домене + Telegram Mini App с callback
+**Goal:** Verified end-to-end follow-up pipeline sending personalized messages to non-buyers, and proper post-payment communication.
+
+**Depends on:** Phase 4 (independent of Phase 5 visual work)
+
+**Requirements:** MSG-01, MSG-02, MSG-03
+
+**Success Criteria** (what must be TRUE):
+1. Non-buyer who completes quiz receives 4 personalized follow-up messages from bot at correct intervals (based on their result type)
+2. Buyer who completes payment receives confirmation message with masterclass materials via Telegram bot
+3. Admin receives Telegram notifications for all critical events (quiz completion, payment received, errors)
+
+**Plans:** TBD
+
+Plans:
+- [ ] 06-01: TBD (verify cron pipeline + message delivery)
+- [ ] 06-02: TBD (post-payment message + admin notifications)
 
 ---
+
+### Phase 7: End-to-End Testing
+
+**Goal:** Full confidence in funnel quality through AI-driven user journey walkthroughs and UX audit.
+
+**Depends on:** Phase 4, Phase 5, Phase 6 (all features complete)
+
+**Requirements:** TEST-01, TEST-02, TEST-03, TEST-04
+
+**Success Criteria** (what must be TRUE):
+1. AI successfully completes buyer journey (quiz -> subscription check -> result -> payment -> materials received)
+2. AI successfully completes non-buyer journey (quiz -> result -> follow-up messages received on schedule)
+3. AI identifies and documents UX friction points (unclear navigation, confusing elements, conversion blockers)
+4. Identified issues are fixed and verified with follow-up test
+
+**Plans:** TBD
+
+Plans:
+- [ ] 07-01: TBD (buyer journey walkthrough)
+- [ ] 07-02: TBD (non-buyer journey walkthrough)
+- [ ] 07-03: TBD (UX audit + iteration round)
+
+---
+
+## Progress
+
+**Execution Order:**
+v1.0 phases complete -> Phase 4 -> Phase 5 -> Phase 6 -> Phase 7
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1. Quiz Web App | v1.0 | 3/3 | Complete | 2026-01-31 |
+| 2. Telegram Mini App | v1.0 | 2/2 | Complete | 2026-02-01 |
+| 3. Deploy | v1.0 | 1/1 | Complete | 2026-02-01 |
+| 4. Result Layout Refactoring | v1.1 | 0/2 | Not started | - |
+| 5. Visual Analytics | v1.1 | 0/TBD | Not started | - |
+| 6. Follow-up Messaging | v1.1 | 0/TBD | Not started | - |
+| 7. End-to-End Testing | v1.1 | 0/TBD | Not started | - |
+
+---
+
+## Coverage
+
+**v1.1 requirements mapped:** 16/16 ✓
+
+| Category | Count | Phase |
+|----------|-------|-------|
+| LAYOUT-01..04 | 4 | Phase 4 |
+| VIZ-01..05 | 5 | Phase 5 |
+| MSG-01..03 | 3 | Phase 6 |
+| TEST-01..04 | 4 | Phase 7 |
+
+**No orphaned requirements.**
+
+---
+
 *Roadmap created: 2026-01-31*
+*Last updated: 2026-02-07 (Phase 4 planned)*
