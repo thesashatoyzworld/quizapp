@@ -1,7 +1,16 @@
 'use client';
 
 import React from 'react';
-import PaymentButton from '@/components/PaymentButton';
+import {
+  ResultHeader,
+  ResultSection,
+  CaseStudyCard,
+  ComparisonBox,
+  StatsGrid,
+  ReasonBlock,
+  StepsList,
+  CTASection,
+} from './shared';
 
 interface ResultProps {
   onPaymentClick?: () => void;
@@ -12,25 +21,15 @@ interface ResultProps {
 export default function DoerResult({ onPaymentClick, userId, resultId }: ResultProps) {
   return (
     <div className="result-page">
-      {/* Header */}
-      <div className="result-header">
-        <h1 className="title-xl text-magenta">ДЕЛАТЕЛЬ БЕЗ СИСТЕМЫ</h1>
-        <p className="subtitle">
-          После прохождения теста вы получили результат "Делатель без системы".
-        </p>
-        <a
-          href="/results/2-doer.pdf"
-          download="Диагностика-Делатель-без-системы.pdf"
-          className="btn-download"
-        >
-          📥 Скачать PDF с результатами
-        </a>
-      </div>
+      <ResultHeader
+        title="ДЕЛАТЕЛЬ БЕЗ СИСТЕМЫ"
+        subtitle="После прохождения теста вы получили результат &quot;Делатель без системы&quot;."
+        pdfUrl="/results/2-doer.pdf"
+        pdfFilename="Диагностика-Делатель-без-системы.pdf"
+      />
 
       {/* Intro */}
-      <div className="card mb-lg">
-        <h2 className="section-title">Вот что происходит с вашим контентом прямо сейчас:</h2>
-
+      <ResultSection title="Вот что происходит с вашим контентом прямо сейчас:">
         <div className="mb-lg">
           <h3 className="label mb-sm">Что вы делаете:</h3>
           <ul className="result-list">
@@ -68,11 +67,10 @@ export default function DoerResult({ onPaymentClick, userId, resultId }: ResultP
           Проблема не в вас. Проблема в <strong>отсутствии системы</strong>.
         </p>
         <p className="text-cyan text-center mt-md" style={{ fontSize: '1.2rem' }}>Это про вас?</p>
-      </div>
+      </ResultSection>
 
       {/* What's really happening */}
-      <div className="card mb-lg">
-        <h2 className="section-title">ЧТО НА САМОМ ДЕЛЕ ПРОИСХОДИТ?</h2>
+      <ResultSection title="ЧТО НА САМОМ ДЕЛЕ ПРОИСХОДИТ?">
         <h3 className="text-cyan mb-md">У вас нет фокуса</h3>
 
         <div className="mb-lg">
@@ -102,15 +100,11 @@ export default function DoerResult({ onPaymentClick, userId, resultId }: ResultP
             Вы тратите время, деньги и энергию — но движетесь по кругу, а не вперёд.
           </p>
         </div>
-      </div>
+      </ResultSection>
 
       {/* Why it happens */}
-      <div className="card mb-lg">
-        <h2 className="section-title">Почему это происходит (без осуждения)</h2>
-
-        <div className="reason-block mb-lg">
-          <h3 className="reason-title">1. Охота за "волшебной таблеткой"</h3>
-          <p className="text-muted mb-md">Думаете: "Вот ЭТО обучение/шаблон/метод точно сработает"</p>
+      <ResultSection title="Почему это происходит (без осуждения)">
+        <ReasonBlock number={1} title="Охота за &quot;волшебной таблеткой&quot;" quote="Думаете: &quot;Вот ЭТО обучение/шаблон/метод точно сработает&quot;">
           <p className="text-secondary mb-md">
             Но волшебных таблеток не существует.<br/>
             <strong>Работает только система.</strong>
@@ -121,22 +115,18 @@ export default function DoerResult({ onPaymentClick, userId, resultId }: ResultP
               Каждый успешный эксперт использует ОДНУ систему. Не десять. Одну. Он её оттачивает, а не меняет каждую неделю.
             </p>
           </div>
-        </div>
+        </ReasonBlock>
 
-        <div className="reason-block mb-lg">
-          <h3 className="reason-title">2. Нетерпение</h3>
-          <p className="text-muted mb-md">"Попробовал неделю — не работает — значит, метод плохой"</p>
+        <ReasonBlock number={2} title="Нетерпение" quote="&quot;Попробовал неделю — не работает — значит, метод плохой&quot;">
           <p className="text-secondary mb-md">
             <strong>Правда в том,</strong> что любой системе нужно время, чтобы дать результат. Минимум 2-4 недели на тест.
           </p>
           <p className="text-cyan mb-md">
             Но вы бросаете раньше, чем система успевает сработать.
           </p>
-        </div>
+        </ReasonBlock>
 
-        <div className="reason-block mb-lg">
-          <h3 className="reason-title">3. Копирование без понимания</h3>
-          <p className="text-muted mb-md">"Возьму шаблон, который работает у Маши — и у меня сработает"</p>
+        <ReasonBlock number={3} title="Копирование без понимания" quote="&quot;Возьму шаблон, который работает у Маши — и у меня сработает&quot;">
           <p className="text-secondary mb-md">
             Но шаблон — это форма. А работает — механика под ней.<br/>
             <strong className="text-cyan">Без понимания механики шаблон бесполезен.</strong>
@@ -144,26 +134,21 @@ export default function DoerResult({ onPaymentClick, userId, resultId }: ResultP
           <p className="text-secondary">
             Это как скопировать слова песни, но не знать мелодию. Слова те же — но песни нет.
           </p>
-        </div>
+        </ReasonBlock>
 
-        <div className="reason-block">
-          <h3 className="reason-title">4. Слишком много информации</h3>
-          <p className="text-muted mb-md">"Прошёл 10 курсов — теперь знаю всё, но ничего не работает"</p>
+        <ReasonBlock number={4} title="Слишком много информации" quote="&quot;Прошёл 10 курсов — теперь знаю всё, но ничего не работает&quot;">
           <p className="text-secondary mb-md">
             <strong>Правда:</strong> Избыток информации парализует. Вы знаете 50 способов сделать контент — и не делаете ничего толком.
           </p>
           <p className="text-highlight">
             Знания без системы применения = потраченные деньги и время.
           </p>
-        </div>
-      </div>
+        </ReasonBlock>
+      </ResultSection>
 
       {/* What happens if you don't change */}
-      <div className="card mb-lg">
-        <h2 className="section-title">ЧТО БУДЕТ ДАЛЬШЕ (ЕСЛИ ПРОДОЛЖИТЬ ТАК ЖЕ)</h2>
-
-        <div className="case-study case-study-negative mb-lg">
-          <h3 className="case-title">История Димы: 500 000₽ на обучения, 0 результата</h3>
+      <ResultSection title="ЧТО БУДЕТ ДАЛЬШЕ (ЕСЛИ ПРОДОЛЖИТЬ ТАК ЖЕ)">
+        <CaseStudyCard type="negative" title="История Димы: 500 000₽ на обучения, 0 результата">
           <p className="text-secondary mb-md">Дима — таргетолог. Пришёл ко мне в 2024 году.</p>
 
           <div className="mb-md">
@@ -200,10 +185,9 @@ export default function DoerResult({ onPaymentClick, userId, resultId }: ResultP
               2 года усилий. 500 000₽. 0 клиентов. И полное выгорание.
             </p>
           </div>
-        </div>
+        </CaseStudyCard>
 
-        <div className="case-study case-study-positive mb-lg">
-          <h3 className="case-title">Контрпример: Катя, нутрициолог</h3>
+        <CaseStudyCard type="positive" title="Контрпример: Катя, нутрициолог">
           <p className="text-secondary mb-md">
             Катя тоже прошла 8 обучений до того, как пришла ко мне. Та же ситуация — много знаний, ноль результата.
           </p>
@@ -214,48 +198,38 @@ export default function DoerResult({ onPaymentClick, userId, resultId }: ResultP
             Первые 2 недели — ничего. Третья неделя — 2 заявки. Четвёртая — 5 заявок. Второй месяц — 12 заявок.
           </p>
 
-          <div className="stats-grid">
-            <div className="stat-item">
-              <span className="stat-number">0 → 12</span>
-              <span className="stat-label">заявок в месяц</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">8 недель</span>
-              <span className="stat-label">до результата</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">1</span>
-              <span className="stat-label">система вместо 8</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">180 000₽</span>
-              <span className="stat-label">доход с контента</span>
-            </div>
-          </div>
-        </div>
+          <StatsGrid
+            stats={[
+              { number: '0 → 12', label: 'заявок в месяц' },
+              { number: '8 недель', label: 'до результата' },
+              { number: '1', label: 'система вместо 8' },
+              { number: '180 000₽', label: 'доход с контента' },
+            ]}
+          />
+        </CaseStudyCard>
 
-        <div className="comparison-box">
-          <h4 className="label mb-md text-center">Разница:</h4>
-          <div className="comparison-grid">
-            <div className="comparison-item comparison-item-negative">
-              <span className="comparison-name">Дима:</span>
-              <span className="comparison-result">12 систем одновременно, 500 000₽ потрачено, 0 результата</span>
-            </div>
-            <div className="comparison-item comparison-item-positive">
-              <span className="comparison-name">Катя:</span>
-              <span className="comparison-result">1 система, 8 недель терпения, 180 000₽/месяц с контента</span>
-            </div>
-          </div>
-        </div>
+        <ComparisonBox
+          items={[
+            {
+              type: 'negative',
+              name: 'Дима:',
+              result: '12 систем одновременно, 500 000₽ потрачено, 0 результата',
+            },
+            {
+              type: 'positive',
+              name: 'Катя:',
+              result: '1 система, 8 недель терпения, 180 000₽/месяц с контента',
+            },
+          ]}
+        />
 
         <p className="text-highlight text-center mt-lg">
           Разница не в количестве знаний. Разница в фокусе на ОДНОЙ системе.
         </p>
-      </div>
+      </ResultSection>
 
       {/* Solution exists */}
-      <div className="card mb-lg">
-        <h2 className="section-title">РЕШЕНИЕ СУЩЕСТВУЕТ</h2>
+      <ResultSection title="РЕШЕНИЕ СУЩЕСТВУЕТ">
         <p className="text-secondary mb-md">
           Я работаю с "делателями без системы" с 2023 года.
         </p>
@@ -263,9 +237,7 @@ export default function DoerResult({ onPaymentClick, userId, resultId }: ResultP
           Помог <strong>300+ экспертам</strong> перестать метаться и найти свою систему.
         </p>
 
-        <div className="case-study case-study-positive">
-          <h3 className="case-title">Реальный кейс: Артём, маркетолог</h3>
-
+        <CaseStudyCard type="positive" title="Реальный кейс: Артём, маркетолог">
           <div className="mb-md">
             <h4 className="label mb-sm">Ситуация:</h4>
             <ul className="result-list">
@@ -293,12 +265,11 @@ export default function DoerResult({ onPaymentClick, userId, resultId }: ResultP
           <p className="text-highlight mt-md">
             Артём не стал делать больше. Он стал делать <strong>правильно</strong>.
           </p>
-        </div>
-      </div>
+        </CaseStudyCard>
+      </ResultSection>
 
       {/* What needs to change */}
-      <div className="card mb-lg">
-        <h2 className="section-title">ЧТО НУЖНО ИЗМЕНИТЬ</h2>
+      <ResultSection title="ЧТО НУЖНО ИЗМЕНИТЬ">
         <p className="text-secondary mb-md">
           Вам не нужно ещё одно обучение. Вам нужна <strong>одна работающая система</strong>.
         </p>
@@ -310,29 +281,22 @@ export default function DoerResult({ onPaymentClick, userId, resultId }: ResultP
           Это не про "делать больше". Это про <strong>делать правильно</strong>:
         </p>
 
-        <div className="steps-list">
-          <div className="step-item">
-            <span className="step-number">1</span>
-            <div className="step-content">
-              <h4 className="step-title">Выбрать ОДНУ систему</h4>
-              <p className="step-desc">не 5, не 10 — одну. И дать ей минимум 4-6 недель на результат</p>
-            </div>
-          </div>
-          <div className="step-item">
-            <span className="step-number">2</span>
-            <div className="step-content">
-              <h4 className="step-title">Понять механику, а не копировать форму</h4>
-              <p className="step-desc">почему это работает, а не просто "как это выглядит"</p>
-            </div>
-          </div>
-          <div className="step-item">
-            <span className="step-number">3</span>
-            <div className="step-content">
-              <h4 className="step-title">Перестать гнаться за новым</h4>
-              <p className="step-desc">лучше глубоко освоить одно, чем поверхностно — десять</p>
-            </div>
-          </div>
-        </div>
+        <StepsList
+          steps={[
+            {
+              title: 'Выбрать ОДНУ систему',
+              description: 'не 5, не 10 — одну. И дать ей минимум 4-6 недель на результат',
+            },
+            {
+              title: 'Понять механику, а не копировать форму',
+              description: 'почему это работает, а не просто "как это выглядит"',
+            },
+            {
+              title: 'Перестать гнаться за новым',
+              description: 'лучше глубоко освоить одно, чем поверхностно — десять',
+            },
+          ]}
+        />
 
         <p className="text-secondary mt-lg mb-md">Звучит просто. Но на практике — сложно:</p>
         <ul className="result-list result-list-questions">
@@ -342,83 +306,32 @@ export default function DoerResult({ onPaymentClick, userId, resultId }: ResultP
           <li>Как не выгореть пока жду результат?</li>
         </ul>
         <p className="text-highlight mt-md">На это нужен взгляд со стороны.</p>
-      </div>
+      </ResultSection>
 
       {/* Masterclass CTA */}
-      <div className="card card-cta">
-        <div className="cta-badge">МАСТЕР-КЛАСС</div>
-        <h2 className="cta-title">«ПРОДАЮЩИЙ КОНТЕНТ»</h2>
-        <p className="cta-subtitle">
-          Как перестать метаться между методиками и собрать работающую систему контента
-        </p>
-
-        <div className="cta-details">
-          <span>24 февраля</span>
-          <span>17:00 мск</span>
-          <span>2 часа</span>
-        </div>
-
-        <div className="cta-content">
-          <h3 className="label mb-md">Что будет на мастер-классе:</h3>
-          <ul className="cta-list">
-            <li><strong>Схема сборки Продающего Контента</strong> — одна система вместо десяти обрывков из разных курсов</li>
-            <li><strong>3 промпта для нейросетей</strong> — вставляете в нейронку, получаете готовый продающий контент за минуты</li>
-            <li><strong>Готовая воронка</strong>, которая принесла 8 000 подписчиков и 300+ продаж с 4 рилсов</li>
-            <li><strong>Методика создания лид-магнитов</strong>, за которыми люди приходят сами толпами</li>
-            <li><strong>«Фирменный рецепт»</strong> — секретный ингредиент, который выделит вас среди тысяч других экспертов</li>
-          </ul>
-
-          <h3 className="label mb-md mt-lg">Что получите дополнительно:</h3>
-          <ul className="cta-list cta-list-bonus">
-            <li>5 структур-шаблонов продающих постов</li>
-            <li>Чек-лист сборки воронки (от оффера до лид-магнитов)</li>
-            <li>"Копипаст" файл с лучшими продающими постами</li>
-          </ul>
-        </div>
-
-        <div className="cta-guarantee">
-          <h4 className="label mb-sm">Гарантия:</h4>
-          <p className="text-secondary">
-            Если после мастер-класса поймёте, что система не подходит — верну деньги. Без вопросов. Весь риск на мне.
-          </p>
-        </div>
-
-        <div className="cta-bonus">
-          <h4 className="label mb-sm">Бонус сразу после оплаты:</h4>
-          <p className="text-cyan"><strong>Шаблон «Богатая ЦА»</strong></p>
-          <p className="text-secondary">
-            2 промта скормленные нейронке и у вас за 20 минут на руках вся информация по вашей целевой аудитории и самым платежеспособным сегментам.
-          </p>
-        </div>
-
-        <div className="cta-price">
-          <span className="price-amount">3 450</span>
-          <span className="price-currency">руб</span>
-        </div>
-
-        <p className="cta-note">
-          Оплата в любой валюте, включая крипту.<br/>
-          Живой эфир + запись навсегда.
-        </p>
-
-        <div className="cta-action">
-          <PaymentButton
-            resultTitle="Делатель без системы"
-            userId={userId}
-            resultId={resultId}
-            onPaymentClick={onPaymentClick}
-          />
-        </div>
-
-        <div className="cta-ps">
-          <p className="text-muted">
-            <strong>P.S.</strong> Вы на этапе "Делатель без системы" — мастер-класс покажет вам одну работающую систему вместо десятка неработающих.
-          </p>
-          <p className="text-muted">
-            <strong>P.P.S.</strong> Можете продолжить метаться как Дима. А можете за 8 недель получить результат как Катя. Решать вам.
-          </p>
-        </div>
-      </div>
+      <CTASection
+        subtitle="Как перестать метаться между методиками и собрать работающую систему контента"
+        features={[
+          <><strong>Схема сборки Продающего Контента</strong> — одна система вместо десяти обрывков из разных курсов</>,
+          <><strong>3 промпта для нейросетей</strong> — вставляете в нейронку, получаете готовый продающий контент за минуты</>,
+          <><strong>Готовая воронка</strong>, которая принесла 8 000 подписчиков и 300+ продаж с 4 рилсов</>,
+          <><strong>Методика создания лид-магнитов</strong>, за которыми люди приходят сами толпами</>,
+          <><strong>«Фирменный рецепт»</strong> — секретный ингредиент, который выделит вас среди тысяч других экспертов</>,
+        ]}
+        bonuses={[
+          <>5 структур-шаблонов продающих постов</>,
+          <>Чек-лист сборки воронки (от оффера до лид-магнитов)</>,
+          <>&quot;Копипаст&quot; файл с лучшими продающими постами</>,
+        ]}
+        resultTitle="Делатель без системы"
+        userId={userId}
+        resultId={resultId}
+        onPaymentClick={onPaymentClick}
+        psLines={[
+          'Вы на этапе "Делатель без системы" — мастер-класс покажет вам одну работающую систему вместо десятка неработающих.',
+          'Можете продолжить метаться как Дима. А можете за 8 недель получить результат как Катя. Решать вам.',
+        ]}
+      />
     </div>
   );
 }
