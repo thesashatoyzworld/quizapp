@@ -118,34 +118,34 @@ function getAudienceSegments(resultId: Category): AudienceSegment[] {
 function getFinancialData(resultId: Category): FinancialData {
   const financialData: Record<Category, FinancialData> = {
     invisible: {
-      currentIncome: 22500,      // Midpoint of 0-45000 (0-3 * 15000)
-      potentialIncome: 300000,   // Midpoint of 225000-375000 (15-25 * 15000)
-      lostPerMonth: 300000,      // Midpoint of 200000-400000
-      label: 'Потенциал роста',
+      currentIncome: 0,
+      potentialIncome: 0,
+      lostPerMonth: 300000,      // From text: "200 000 - 400 000" midpoint
+      label: 'Недополученный доход',
     },
     doer: {
-      currentIncome: 30000,      // Midpoint of 15000-45000
-      potentialIncome: 300000,   // Midpoint of 225000-375000
-      lostPerMonth: 300000,      // Midpoint of 200000-400000
-      label: 'Потенциал роста',
+      currentIncome: 0,
+      potentialIncome: 0,
+      lostPerMonth: 300000,      // From text: "200 000 - 400 000" midpoint
+      label: 'Недополученный доход',
     },
     generous: {
-      currentIncome: 60000,      // Estimated from context (1-3 paying from crowd)
-      potentialIncome: 375000,   // Higher potential
-      lostPerMonth: 315000,      // Midpoint of 180000-450000
-      label: 'Потенциал роста',
+      currentIncome: 0,
+      potentialIncome: 0,
+      lostPerMonth: 315000,      // From text: "180 000 - 450 000"
+      label: 'Недополученный доход',
     },
     unstable: {
-      currentIncome: 127500,     // Average: good (11.5*15000) + bad (3*15000) / 2
-      potentialIncome: 267500,   // Consistent good months: 15*15000
-      lostPerMonth: 140000,      // Midpoint of 80000-200000
-      label: 'Потенциал роста',
+      currentIncome: 0,
+      potentialIncome: 0,
+      lostPerMonth: 140000,      // From text: "80 000 - 200 000"
+      label: 'Недополученный доход',
     },
     scale: {
-      currentIncome: 300000,     // Already at good level (15-25 range midpoint)
-      potentialIncome: 850000,   // With scaling (300000 + midpoint 300000-800000)
-      lostPerMonth: 550000,      // Midpoint of 300000-800000
-      label: 'Потенциал масштабирования',
+      currentIncome: 0,
+      potentialIncome: 0,
+      lostPerMonth: 550000,      // From text: "300 000 - 800 000"
+      label: 'Упущенный потенциал',
     },
   };
 

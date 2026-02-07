@@ -879,7 +879,8 @@ body {
 
 .comparison-result {
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 /* Stats grid */
@@ -1163,11 +1164,12 @@ body {
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-sm);
   }
 
   .stat-number {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
   }
 
   .cta-title {
@@ -1229,7 +1231,16 @@ body {
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-xs);
+  }
+
+  .stat-number {
+    font-size: 1rem;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
   }
 
   .comparison-item {
