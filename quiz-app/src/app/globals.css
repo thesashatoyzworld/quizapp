@@ -629,10 +629,34 @@ body {
   margin-bottom: var(--space-md);
 }
 
-/* Phase 5 chart slot placeholder */
+/* Phase 5 chart slot - integration spacing */
 .result-chart-slot {
   margin: var(--space-lg) 0;
   min-height: 0;
+}
+
+.result-chart-slot > * + * {
+  margin-top: var(--space-lg);
+}
+
+/* Ensure charts don't overflow on mobile */
+.result-chart-slot .recharts-responsive-container {
+  max-width: 100%;
+}
+
+/* Reduce chart padding on very small screens */
+@media (max-width: 480px) {
+  .chart-container {
+    padding: var(--space-sm);
+  }
+
+  .chart-title {
+    font-size: 0.75rem;
+  }
+
+  .gauge-metric-value {
+    font-size: 0.95rem;
+  }
 }
 
 /* Desktop improvements for result pages */

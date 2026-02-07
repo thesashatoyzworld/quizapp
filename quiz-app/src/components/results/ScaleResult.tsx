@@ -10,6 +10,8 @@ import {
   CTASection,
 } from './shared';
 import { Category } from '@/data/quiz';
+import { RadarChart, LevelBadge, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
+import { getChartData } from '@/data/chart-data';
 
 interface ResultProps {
   onPaymentClick?: () => void;
@@ -19,6 +21,9 @@ interface ResultProps {
 }
 
 export default function ScaleResult({ onPaymentClick, userId, resultId, scores }: ResultProps) {
+  const ACCENT_COLOR = '#00ff88'; // green
+  const chartData = scores ? getChartData(resultId as Category, scores) : null;
+
   return (
     <div className="result-page">
       <ResultHeader
@@ -26,10 +31,20 @@ export default function ScaleResult({ onPaymentClick, userId, resultId, scores }
         subtitle="После прохождения теста вы получили результат &quot;Готовы к масштабированию&quot;."
         pdfUrl="/results/5-scale.pdf"
         pdfFilename="Диагностика-Готовы-к-масштабированию.pdf"
+        accentColor={ACCENT_COLOR}
       />
 
       {/* Intro */}
-      <ResultSection title="Вот что происходит с вашим контентом прямо сейчас:">
+      <ResultSection
+        title="Вот что происходит с вашим контентом прямо сейчас:"
+        slot={chartData ? (
+          <div className="result-chart-slot">
+            <LevelBadge levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
+            <RadarChart data={chartData.radar} accentColor={ACCENT_COLOR} />
+            <LevelPath levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
+          </div>
+        ) : undefined}
+      >
         <div className="mb-lg">
           <h3 className="label mb-sm">Что вы делаете:</h3>
           <ul className="result-list">
@@ -70,7 +85,14 @@ export default function ScaleResult({ onPaymentClick, userId, resultId, scores }
       </ResultSection>
 
       {/* What's really happening */}
-      <ResultSection title="ЧТО НА САМОМ ДЕЛЕ ПРОИСХОДИТ?">
+      <ResultSection
+        title="ЧТО НА САМОМ ДЕЛЕ ПРОИСХОДИТ?"
+        slot={chartData ? (
+          <div className="result-chart-slot">
+            <FinancialGauge data={chartData.financial} accentColor={ACCENT_COLOR} />
+          </div>
+        ) : undefined}
+      >
         <h3 className="text-cyan mb-md">Вы выжали максимум из сольной модели</h3>
 
         <div className="mb-lg">
@@ -102,7 +124,14 @@ export default function ScaleResult({ onPaymentClick, userId, resultId, scores }
       </ResultSection>
 
       {/* What's next */}
-      <ResultSection title="ЧТО ДАЛЬШЕ?">
+      <ResultSection
+        title="ЧТО ДАЛЬШЕ?"
+        slot={chartData ? (
+          <div className="result-chart-slot">
+            <AudienceDonut data={chartData.audience} accentColor={ACCENT_COLOR} />
+          </div>
+        ) : undefined}
+      >
         <div className="reason-block mb-lg">
           <h3 className="reason-title">1. Масштабирование без роста времени</h3>
           <p className="text-secondary mb-md">

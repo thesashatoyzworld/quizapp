@@ -12,6 +12,8 @@ import {
   CTASection,
 } from './shared';
 import { Category } from '@/data/quiz';
+import { RadarChart, LevelBadge, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
+import { getChartData } from '@/data/chart-data';
 
 interface ResultProps {
   onPaymentClick?: () => void;
@@ -21,6 +23,9 @@ interface ResultProps {
 }
 
 export default function GenerousResult({ onPaymentClick, userId, resultId, scores }: ResultProps) {
+  const ACCENT_COLOR = '#9d4edd'; // purple
+  const chartData = scores ? getChartData(resultId as Category, scores) : null;
+
   return (
     <div className="result-page">
       <ResultHeader
@@ -28,10 +33,20 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
         subtitle="После прохождения теста вы получили результат &quot;Щедрый эксперт&quot;."
         pdfUrl="/results/3-generous.pdf"
         pdfFilename="Диагностика-Щедрый-эксперт.pdf"
+        accentColor={ACCENT_COLOR}
       />
 
       {/* Intro */}
-      <ResultSection title="Вот что происходит с вашим контентом прямо сейчас:">
+      <ResultSection
+        title="Вот что происходит с вашим контентом прямо сейчас:"
+        slot={chartData ? (
+          <div className="result-chart-slot">
+            <LevelBadge levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
+            <RadarChart data={chartData.radar} accentColor={ACCENT_COLOR} />
+            <LevelPath levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
+          </div>
+        ) : undefined}
+      >
         <div className="mb-lg">
           <h3 className="label mb-sm">Что вы делаете:</h3>
           <ul className="result-list">
@@ -73,7 +88,14 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
       </ResultSection>
 
       {/* What's really happening */}
-      <ResultSection title="ЧТО НА САМОМ ДЕЛЕ ПРОИСХОДИТ?">
+      <ResultSection
+        title="ЧТО НА САМОМ ДЕЛЕ ПРОИСХОДИТ?"
+        slot={chartData ? (
+          <div className="result-chart-slot">
+            <FinancialGauge data={chartData.financial} accentColor={ACCENT_COLOR} />
+          </div>
+        ) : undefined}
+      >
         <h3 className="text-cyan mb-md">Вы привлекаете не тех людей</h3>
 
         <div className="mb-lg">
@@ -105,7 +127,14 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
       </ResultSection>
 
       {/* Why it happens */}
-      <ResultSection title="Почему это происходит (без осуждения)">
+      <ResultSection
+        title="Почему это происходит (без осуждения)"
+        slot={chartData ? (
+          <div className="result-chart-slot">
+            <AudienceDonut data={chartData.audience} accentColor={ACCENT_COLOR} />
+          </div>
+        ) : undefined}
+      >
         <ReasonBlock number={1} title="&quot;Фу, инфоцыган&quot;" quote="Думаете: &quot;Если буду продавать — стану как те противные блогеры&quot;">
           <p className="text-secondary mb-md">
             Но продажа — это не манипуляция.<br/>
