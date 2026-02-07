@@ -662,19 +662,17 @@ body {
 /* Desktop improvements for result pages */
 @media (min-width: 769px) {
   .result-page .card {
-    padding: var(--space-xl) var(--space-2xl);
-  }
-
-  .result-page .stats-grid {
-    grid-template-columns: repeat(4, 1fr);
+    padding: var(--space-lg) var(--space-xl);
   }
 
   .result-page .comparison-grid {
     flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .result-page .comparison-item {
     flex: 1;
+    min-width: 200px;
   }
 
   .result-page .step-item {
@@ -684,6 +682,16 @@ body {
 
   .result-page .cta-details {
     gap: var(--space-xl);
+  }
+
+  .chart-container {
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .result-chart-slot {
+    text-align: center;
   }
 }
 
@@ -886,7 +894,7 @@ body {
 /* Stats grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: var(--space-md);
   margin: var(--space-md) 0;
 }
@@ -1164,7 +1172,6 @@ body {
   }
 
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
     gap: var(--space-sm);
   }
 
@@ -1231,7 +1238,6 @@ body {
   }
 
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
     gap: var(--space-xs);
   }
 
