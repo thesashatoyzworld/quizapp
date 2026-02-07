@@ -1,7 +1,16 @@
 'use client';
 
 import React from 'react';
-import PaymentButton from '@/components/PaymentButton';
+import {
+  ResultHeader,
+  ResultSection,
+  CaseStudyCard,
+  ComparisonBox,
+  StatsGrid,
+  ReasonBlock,
+  StepsList,
+  CTASection,
+} from './shared';
 
 interface ResultProps {
   onPaymentClick?: () => void;
@@ -12,25 +21,15 @@ interface ResultProps {
 export default function GenerousResult({ onPaymentClick, userId, resultId }: ResultProps) {
   return (
     <div className="result-page">
-      {/* Header */}
-      <div className="result-header">
-        <h1 className="title-xl text-magenta">ЩЕДРЫЙ ЭКСПЕРТ</h1>
-        <p className="subtitle">
-          После прохождения теста вы получили результат "Щедрый эксперт".
-        </p>
-        <a
-          href="/results/3-generous.pdf"
-          download="Диагностика-Щедрый-эксперт.pdf"
-          className="btn-download"
-        >
-          📥 Скачать PDF с результатами
-        </a>
-      </div>
+      <ResultHeader
+        title="ЩЕДРЫЙ ЭКСПЕРТ"
+        subtitle="После прохождения теста вы получили результат &quot;Щедрый эксперт&quot;."
+        pdfUrl="/results/3-generous.pdf"
+        pdfFilename="Диагностика-Щедрый-эксперт.pdf"
+      />
 
       {/* Intro */}
-      <div className="card mb-lg">
-        <h2 className="section-title">Вот что происходит с вашим контентом прямо сейчас:</h2>
-
+      <ResultSection title="Вот что происходит с вашим контентом прямо сейчас:">
         <div className="mb-lg">
           <h3 className="label mb-sm">Что вы делаете:</h3>
           <ul className="result-list">
@@ -69,11 +68,10 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
           Вы нашли систему. Но <strong>не ту систему</strong>.
         </p>
         <p className="text-cyan text-center mt-md" style={{ fontSize: '1.2rem' }}>Это про вас?</p>
-      </div>
+      </ResultSection>
 
       {/* What's really happening */}
-      <div className="card mb-lg">
-        <h2 className="section-title">ЧТО НА САМОМ ДЕЛЕ ПРОИСХОДИТ?</h2>
+      <ResultSection title="ЧТО НА САМОМ ДЕЛЕ ПРОИСХОДИТ?">
         <h3 className="text-cyan mb-md">Вы привлекаете не тех людей</h3>
 
         <div className="mb-lg">
@@ -102,15 +100,11 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
             Вы недополучаете 180 000 - 450 000₽ в месяц. При том же объёме работы.
           </p>
         </div>
-      </div>
+      </ResultSection>
 
       {/* Why it happens */}
-      <div className="card mb-lg">
-        <h2 className="section-title">Почему это происходит (без осуждения)</h2>
-
-        <div className="reason-block mb-lg">
-          <h3 className="reason-title">1. "Фу, инфоцыган"</h3>
-          <p className="text-muted mb-md">Думаете: "Если буду продавать — стану как те противные блогеры"</p>
+      <ResultSection title="Почему это происходит (без осуждения)">
+        <ReasonBlock number={1} title="&quot;Фу, инфоцыган&quot;" quote="Думаете: &quot;Если буду продавать — стану как те противные блогеры&quot;">
           <p className="text-secondary mb-md">
             Но продажа — это не манипуляция.<br/>
             <strong>Продажа — это помощь человеку принять решение.</strong>
@@ -124,11 +118,9 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
               Не продавая — вы лишаете его возможности решить проблему быстро.
             </p>
           </div>
-        </div>
+        </ReasonBlock>
 
-        <div className="reason-block mb-lg">
-          <h3 className="reason-title">2. Путаница: польза vs ценность</h3>
-          <p className="text-muted mb-md">"Чем больше даю пользы — тем больше заплатят"</p>
+        <ReasonBlock number={2} title="Путаница: польза vs ценность" quote="&quot;Чем больше даю пользы — тем больше заплатят&quot;">
           <p className="text-secondary mb-md">
             <strong>Правда в том,</strong> что бесплатная польза и платная услуга — разные вещи.
           </p>
@@ -138,11 +130,9 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
           <p className="text-secondary">
             Чем больше вы показываете "как" — тем меньше людям нужна ваша услуга.
           </p>
-        </div>
+        </ReasonBlock>
 
-        <div className="reason-block mb-lg">
-          <h3 className="reason-title">3. Страх отказа</h3>
-          <p className="text-muted mb-md">"Если предложу и откажут — значит, я недостаточно хорош"</p>
+        <ReasonBlock number={3} title="Страх отказа" quote="&quot;Если предложу и откажут — значит, я недостаточно хорош&quot;">
           <p className="text-secondary mb-md">
             Отказ — это не про вашу компетентность.<br/>
             <strong className="text-cyan">Это про то, что человеку сейчас не нужно или не подходит.</strong>
@@ -150,26 +140,21 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
           <p className="text-secondary">
             Вы можете быть лучшим в мире — и всё равно получать отказы. Это нормально.
           </p>
-        </div>
+        </ReasonBlock>
 
-        <div className="reason-block">
-          <h3 className="reason-title">4. "Быть хорошим"</h3>
-          <p className="text-muted mb-md">"Буду хорошим экспертом — и деньги придут сами"</p>
+        <ReasonBlock number={4} title="&quot;Быть хорошим&quot;" quote="&quot;Буду хорошим экспертом — и деньги придут сами&quot;">
           <p className="text-secondary mb-md">
             <strong>Правда:</strong> Мир полон гениальных экспертов без клиентов. И посредственных — с очередью.
           </p>
           <p className="text-highlight">
             Разница — не в экспертности. Разница — в умении продавать свою экспертность.
           </p>
-        </div>
-      </div>
+        </ReasonBlock>
+      </ResultSection>
 
       {/* What happens if you don't change */}
-      <div className="card mb-lg">
-        <h2 className="section-title">ЧТО БУДЕТ ДАЛЬШЕ (ЕСЛИ ПРОДОЛЖИТЬ ТАК ЖЕ)</h2>
-
-        <div className="case-study case-study-negative mb-lg">
-          <h3 className="case-title">История Оли: 3 года "щедрости", выгорание</h3>
+      <ResultSection title="ЧТО БУДЕТ ДАЛЬШЕ (ЕСЛИ ПРОДОЛЖИТЬ ТАК ЖЕ)">
+        <CaseStudyCard type="negative" title="История Оли: 3 года &quot;щедрости&quot;, выгорание">
           <p className="text-secondary mb-md">Оля — дизайнер интерьеров. Пришла ко мне в 2024 году.</p>
 
           <div className="mb-md">
@@ -207,10 +192,9 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
               3 года работы. 15 000 подписчиков. 60 000₽/месяц. Полное выгорание от "неблагодарной" аудитории.
             </p>
           </div>
-        </div>
+        </CaseStudyCard>
 
-        <div className="case-study case-study-positive mb-lg">
-          <h3 className="case-title">Контрпример: Лена, тоже дизайнер</h3>
+        <CaseStudyCard type="positive" title="Контрпример: Лена, тоже дизайнер">
           <p className="text-secondary mb-md">
             Лена пришла с той же проблемой. 8 000 подписчиков, 1-2 клиента в месяц.
           </p>
@@ -221,48 +205,38 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
             За 2 месяца — 7 000 подписчиков (часть "студентов" отписалась). Но заявок стало 8-10 в месяц.
           </p>
 
-          <div className="stats-grid">
-            <div className="stat-item">
-              <span className="stat-number">1-2 → 10</span>
-              <span className="stat-label">заявок в месяц</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">8 000 → 7 000</span>
-              <span className="stat-label">подписчиков</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">x5</span>
-              <span className="stat-label">рост конверсии</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">280 000₽</span>
-              <span className="stat-label">доход в месяц</span>
-            </div>
-          </div>
-        </div>
+          <StatsGrid
+            stats={[
+              { number: '1-2 → 10', label: 'заявок в месяц' },
+              { number: '8 000 → 7 000', label: 'подписчиков' },
+              { number: 'x5', label: 'рост конверсии' },
+              { number: '280 000₽', label: 'доход в месяц' },
+            ]}
+          />
+        </CaseStudyCard>
 
-        <div className="comparison-box">
-          <h4 className="label mb-md text-center">Разница:</h4>
-          <div className="comparison-grid">
-            <div className="comparison-item comparison-item-negative">
-              <span className="comparison-name">Оля:</span>
-              <span className="comparison-result">15 000 подписчиков-студентов, 60 000₽/месяц, выгорание</span>
-            </div>
-            <div className="comparison-item comparison-item-positive">
-              <span className="comparison-name">Лена:</span>
-              <span className="comparison-result">7 000 целевых подписчиков, 280 000₽/месяц, кайф от работы</span>
-            </div>
-          </div>
-        </div>
+        <ComparisonBox
+          items={[
+            {
+              type: 'negative',
+              name: 'Оля:',
+              result: '15 000 подписчиков-студентов, 60 000₽/месяц, выгорание',
+            },
+            {
+              type: 'positive',
+              name: 'Лена:',
+              result: '7 000 целевых подписчиков, 280 000₽/месяц, кайф от работы',
+            },
+          ]}
+        />
 
         <p className="text-highlight text-center mt-lg">
           Разница не в количестве подписчиков. Разница в том, КОГО вы привлекаете контентом.
         </p>
-      </div>
+      </ResultSection>
 
       {/* Solution exists */}
-      <div className="card mb-lg">
-        <h2 className="section-title">РЕШЕНИЕ СУЩЕСТВУЕТ</h2>
+      <ResultSection title="РЕШЕНИЕ СУЩЕСТВУЕТ">
         <p className="text-secondary mb-md">
           Я работаю с "щедрыми экспертами" с 2023 года.
         </p>
@@ -270,9 +244,7 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
           Помог <strong>300+ экспертам</strong> перестать создавать студентов и начать привлекать клиентов.
         </p>
 
-        <div className="case-study case-study-positive">
-          <h3 className="case-title">Реальный кейс: Наташа, психолог</h3>
-
+        <CaseStudyCard type="positive" title="Реальный кейс: Наташа, психолог">
           <div className="mb-md">
             <h4 className="label mb-sm">Ситуация:</h4>
             <ul className="result-list">
@@ -300,12 +272,11 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
           <p className="text-highlight mt-md">
             Наташа не стала менее щедрой. Она стала <strong>щедрой к тем, кому реально нужна помощь</strong>.
           </p>
-        </div>
-      </div>
+        </CaseStudyCard>
+      </ResultSection>
 
       {/* What needs to change */}
-      <div className="card mb-lg">
-        <h2 className="section-title">ЧТО НУЖНО ИЗМЕНИТЬ</h2>
+      <ResultSection title="ЧТО НУЖНО ИЗМЕНИТЬ">
         <p className="text-secondary mb-md">
           Вам не нужно перестать быть щедрым. Вам нужно <strong>изменить ЧТО вы даёте</strong>.
         </p>
@@ -317,29 +288,22 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
           3 стратегических сдвига:
         </p>
 
-        <div className="steps-list">
-          <div className="step-item">
-            <span className="step-number">1</span>
-            <div className="step-content">
-              <h4 className="step-title">От "как сделать" к "почему сам не сделаешь"</h4>
-              <p className="step-desc">показывать сложность, подводные камни, цену ошибок — а не пошаговые инструкции</p>
-            </div>
-          </div>
-          <div className="step-item">
-            <span className="step-number">2</span>
-            <div className="step-content">
-              <h4 className="step-title">От экспертизы к диагностике</h4>
-              <p className="step-desc">не учить решать проблему — а помогать понять, что проблема есть и какая она</p>
-            </div>
-          </div>
-          <div className="step-item">
-            <span className="step-number">3</span>
-            <div className="step-content">
-              <h4 className="step-title">Принять что продажа = помощь</h4>
-              <p className="step-desc">когда человек покупает вашу услугу — он решает проблему быстрее. Не продавая — вы лишаете его этой возможности</p>
-            </div>
-          </div>
-        </div>
+        <StepsList
+          steps={[
+            {
+              title: 'От "как сделать" к "почему сам не сделаешь"',
+              description: 'показывать сложность, подводные камни, цену ошибок — а не пошаговые инструкции',
+            },
+            {
+              title: 'От экспертизы к диагностике',
+              description: 'не учить решать проблему — а помогать понять, что проблема есть и какая она',
+            },
+            {
+              title: 'Принять что продажа = помощь',
+              description: 'когда человек покупает вашу услугу — он решает проблему быстрее. Не продавая — вы лишаете его этой возможности',
+            },
+          ]}
+        />
 
         <p className="text-secondary mt-lg mb-md">Звучит просто. Но на практике возникают вопросы:</p>
         <ul className="result-list result-list-questions">
@@ -349,83 +313,32 @@ export default function GenerousResult({ onPaymentClick, userId, resultId }: Res
           <li>Как перестроить контент без потери вовлечённости?</li>
         </ul>
         <p className="text-highlight mt-md">На это нужен взгляд со стороны.</p>
-      </div>
+      </ResultSection>
 
       {/* Masterclass CTA */}
-      <div className="card card-cta">
-        <div className="cta-badge">МАСТЕР-КЛАСС</div>
-        <h2 className="cta-title">«ПРОДАЮЩИЙ КОНТЕНТ»</h2>
-        <p className="cta-subtitle">
-          Как перестать создавать "студентов" и начать привлекать платящих клиентов
-        </p>
-
-        <div className="cta-details">
-          <span>24 февраля</span>
-          <span>17:00 мск</span>
-          <span>2 часа</span>
-        </div>
-
-        <div className="cta-content">
-          <h3 className="label mb-md">Что будет на мастер-классе:</h3>
-          <ul className="cta-list">
-            <li><strong>Схема сборки Продающего Контента</strong> — как давать ценность без создания "студентов"</li>
-            <li><strong>3 промпта для нейросетей</strong> — вставляете в нейронку, получаете готовый продающий контент за минуты</li>
-            <li><strong>Готовая воронка</strong>, которая принесла 8 000 подписчиков и 300+ продаж с 4 рилсов</li>
-            <li><strong>Методика создания лид-магнитов</strong>, за которыми люди приходят сами толпами</li>
-            <li><strong>«Фирменный рецепт»</strong> — секретный ингредиент, который выделит вас среди тысяч других экспертов</li>
-          </ul>
-
-          <h3 className="label mb-md mt-lg">Что получите дополнительно:</h3>
-          <ul className="cta-list cta-list-bonus">
-            <li>5 структур-шаблонов продающих постов</li>
-            <li>Чек-лист сборки воронки (от оффера до лид-магнитов)</li>
-            <li>"Копипаст" файл с лучшими продающими постами</li>
-          </ul>
-        </div>
-
-        <div className="cta-guarantee">
-          <h4 className="label mb-sm">Гарантия:</h4>
-          <p className="text-secondary">
-            Если после мастер-класса поймёте, что система не подходит — верну деньги. Без вопросов. Весь риск на мне.
-          </p>
-        </div>
-
-        <div className="cta-bonus">
-          <h4 className="label mb-sm">Бонус сразу после оплаты:</h4>
-          <p className="text-cyan"><strong>Шаблон «Богатая ЦА»</strong></p>
-          <p className="text-secondary">
-            2 промта скормленные нейронке и у вас за 20 минут на руках вся информация по вашей целевой аудитории и самым платежеспособным сегментам.
-          </p>
-        </div>
-
-        <div className="cta-price">
-          <span className="price-amount">3 450</span>
-          <span className="price-currency">руб</span>
-        </div>
-
-        <p className="cta-note">
-          Оплата в любой валюте, включая крипту.<br/>
-          Живой эфир + запись навсегда.
-        </p>
-
-        <div className="cta-action">
-          <PaymentButton
-            resultTitle="Щедрый эксперт"
-            userId={userId}
-            resultId={resultId}
-            onPaymentClick={onPaymentClick}
-          />
-        </div>
-
-        <div className="cta-ps">
-          <p className="text-muted">
-            <strong>P.S.</strong> Вы на этапе "Щедрый эксперт" — мастер-класс покажет как давать ценность и получать за это деньги.
-          </p>
-          <p className="text-muted">
-            <strong>P.P.S.</strong> Можете продолжить создавать "студентов" как Оля. А можете за 6 недель получить x4 к доходу как Лена. Решать вам.
-          </p>
-        </div>
-      </div>
+      <CTASection
+        subtitle="Как перестать создавать &quot;студентов&quot; и начать привлекать платящих клиентов"
+        features={[
+          <><strong>Схема сборки Продающего Контента</strong> — как давать ценность без создания "студентов"</>,
+          <><strong>3 промпта для нейросетей</strong> — вставляете в нейронку, получаете готовый продающий контент за минуты</>,
+          <><strong>Готовая воронка</strong>, которая принесла 8 000 подписчиков и 300+ продаж с 4 рилсов</>,
+          <><strong>Методика создания лид-магнитов</strong>, за которыми люди приходят сами толпами</>,
+          <><strong>«Фирменный рецепт»</strong> — секретный ингредиент, который выделит вас среди тысяч других экспертов</>,
+        ]}
+        bonuses={[
+          <>5 структур-шаблонов продающих постов</>,
+          <>Чек-лист сборки воронки (от оффера до лид-магнитов)</>,
+          <>&quot;Копипаст&quot; файл с лучшими продающими постами</>,
+        ]}
+        resultTitle="Щедрый эксперт"
+        userId={userId}
+        resultId={resultId}
+        onPaymentClick={onPaymentClick}
+        psLines={[
+          'Вы на этапе "Щедрый эксперт" — мастер-класс покажет как давать ценность и получать за это деньги.',
+          'Можете продолжить создавать "студентов" как Оля. А можете за 6 недель получить x4 к доходу как Лена. Решать вам.',
+        ]}
+      />
     </div>
   );
 }
