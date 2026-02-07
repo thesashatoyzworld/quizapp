@@ -1,7 +1,14 @@
 'use client';
 
 import React from 'react';
-import PaymentButton from '@/components/PaymentButton';
+import {
+  ResultHeader,
+  ResultSection,
+  CaseStudyCard,
+  StatsGrid,
+  StepsList,
+  CTASection,
+} from './shared';
 
 interface ResultProps {
   onPaymentClick?: () => void;
@@ -12,25 +19,15 @@ interface ResultProps {
 export default function ScaleResult({ onPaymentClick, userId, resultId }: ResultProps) {
   return (
     <div className="result-page">
-      {/* Header */}
-      <div className="result-header">
-        <h1 className="title-xl text-magenta">ГОТОВЫ К МАСШТАБИРОВАНИЮ</h1>
-        <p className="subtitle">
-          После прохождения теста вы получили результат "Готовы к масштабированию".
-        </p>
-        <a
-          href="/results/5-scale.pdf"
-          download="Диагностика-Готовы-к-масштабированию.pdf"
-          className="btn-download"
-        >
-          📥 Скачать PDF с результатами
-        </a>
-      </div>
+      <ResultHeader
+        title="ГОТОВЫ К МАСШТАБИРОВАНИЮ"
+        subtitle="После прохождения теста вы получили результат &quot;Готовы к масштабированию&quot;."
+        pdfUrl="/results/5-scale.pdf"
+        pdfFilename="Диагностика-Готовы-к-масштабированию.pdf"
+      />
 
       {/* Intro */}
-      <div className="card mb-lg">
-        <h2 className="section-title">Вот что происходит с вашим контентом прямо сейчас:</h2>
-
+      <ResultSection title="Вот что происходит с вашим контентом прямо сейчас:">
         <div className="mb-lg">
           <h3 className="label mb-sm">Что вы делаете:</h3>
           <ul className="result-list">
@@ -68,11 +65,10 @@ export default function ScaleResult({ onPaymentClick, userId, resultId }: Result
           Поздравляю! Вы в <strong>топ-15% экспертов</strong>. Следующий шаг — масштабирование.
         </p>
         <p className="text-cyan text-center mt-md" style={{ fontSize: '1.2rem' }}>Это про вас?</p>
-      </div>
+      </ResultSection>
 
       {/* What's really happening */}
-      <div className="card mb-lg">
-        <h2 className="section-title">ЧТО НА САМОМ ДЕЛЕ ПРОИСХОДИТ?</h2>
+      <ResultSection title="ЧТО НА САМОМ ДЕЛЕ ПРОИСХОДИТ?">
         <h3 className="text-cyan mb-md">Вы выжали максимум из сольной модели</h3>
 
         <div className="mb-lg">
@@ -101,12 +97,10 @@ export default function ScaleResult({ onPaymentClick, userId, resultId }: Result
             Упущенный потенциал при текущей модели: 300 000 - 800 000₽++ в месяц.
           </p>
         </div>
-      </div>
+      </ResultSection>
 
       {/* What's next */}
-      <div className="card mb-lg">
-        <h2 className="section-title">ЧТО ДАЛЬШЕ?</h2>
-
+      <ResultSection title="ЧТО ДАЛЬШЕ?">
         <div className="reason-block mb-lg">
           <h3 className="reason-title">1. Масштабирование без роста времени</h3>
           <p className="text-secondary mb-md">
@@ -163,15 +157,11 @@ export default function ScaleResult({ onPaymentClick, userId, resultId }: Result
             <li>Автопрогревы в сторис</li>
           </ul>
         </div>
-      </div>
+      </ResultSection>
 
       {/* Case studies */}
-      <div className="card mb-lg">
-        <h2 className="section-title">ПРИМЕРЫ МАСШТАБИРОВАНИЯ</h2>
-
-        <div className="case-study case-study-positive mb-lg">
-          <h3 className="case-title">Кейс: Михаил, бизнес-трекер</h3>
-
+      <ResultSection title="ПРИМЕРЫ МАСШТАБИРОВАНИЯ">
+        <CaseStudyCard type="positive" title="Кейс: Михаил, бизнес-трекер">
           <div className="mb-md">
             <h4 className="label mb-sm">Было:</h4>
             <ul className="result-list">
@@ -186,29 +176,17 @@ export default function ScaleResult({ onPaymentClick, userId, resultId }: Result
             <strong>Что изменили:</strong> Запустили групповой формат + записанный курс для "холодных".
           </p>
 
-          <div className="stats-grid">
-            <div className="stat-item">
-              <span className="stat-number">400K → 1.2M</span>
-              <span className="stat-label">рост дохода</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">12 → 6</span>
-              <span className="stat-label">часов работы</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">x3</span>
-              <span className="stat-label">рост выручки</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">50%</span>
-              <span className="stat-label">меньше работы</span>
-            </div>
-          </div>
-        </div>
+          <StatsGrid
+            stats={[
+              { number: '400K → 1.2M', label: 'рост дохода' },
+              { number: '12 → 6', label: 'часов работы' },
+              { number: 'x3', label: 'рост выручки' },
+              { number: '50%', label: 'меньше работы' },
+            ]}
+          />
+        </CaseStudyCard>
 
-        <div className="case-study case-study-positive">
-          <h3 className="case-title">Кейс: Елена, нутрициолог</h3>
-
+        <CaseStudyCard type="positive" title="Кейс: Елена, нутрициолог">
           <div className="mb-md">
             <h4 className="label mb-sm">Было:</h4>
             <ul className="result-list">
@@ -232,12 +210,11 @@ export default function ScaleResult({ onPaymentClick, userId, resultId }: Result
               <li className="text-success">Работа: <strong>6 часов в день</strong></li>
             </ul>
           </div>
-        </div>
-      </div>
+        </CaseStudyCard>
+      </ResultSection>
 
       {/* What you need */}
-      <div className="card mb-lg">
-        <h2 className="section-title">ЧТО ВАМ НУЖНО СЕЙЧАС</h2>
+      <ResultSection title="ЧТО ВАМ НУЖНО СЕЙЧАС">
         <p className="text-secondary mb-md">
           Вы уже прошли путь от нуля до работающей системы.
         </p>
@@ -249,29 +226,22 @@ export default function ScaleResult({ onPaymentClick, userId, resultId }: Result
           3 ключевых направления:
         </p>
 
-        <div className="steps-list">
-          <div className="step-item">
-            <span className="step-number">1</span>
-            <div className="step-content">
-              <h4 className="step-title">Продуктовая линейка</h4>
-              <p className="step-desc">от трипваера до премиума — чтобы монетизировать всю аудиторию, а не только "готовых купить сейчас"</p>
-            </div>
-          </div>
-          <div className="step-item">
-            <span className="step-number">2</span>
-            <div className="step-content">
-              <h4 className="step-title">Автоматизация</h4>
-              <p className="step-desc">автоворонки, автовебинары, цепочки — чтобы продавать без вашего участия</p>
-            </div>
-          </div>
-          <div className="step-item">
-            <span className="step-number">3</span>
-            <div className="step-content">
-              <h4 className="step-title">Умножение контента</h4>
-              <p className="step-desc">системы переупаковки — чтобы один контент работал в 5-10 местах</p>
-            </div>
-          </div>
-        </div>
+        <StepsList
+          steps={[
+            {
+              title: 'Продуктовая линейка',
+              description: 'от трипваера до премиума — чтобы монетизировать всю аудиторию, а не только "готовых купить сейчас"',
+            },
+            {
+              title: 'Автоматизация',
+              description: 'автоворонки, автовебинары, цепочки — чтобы продавать без вашего участия',
+            },
+            {
+              title: 'Умножение контента',
+              description: 'системы переупаковки — чтобы один контент работал в 5-10 местах',
+            },
+          ]}
+        />
 
         <p className="text-secondary mt-lg mb-md">Вопросы, которые возникают на этом этапе:</p>
         <ul className="result-list result-list-questions">
@@ -281,83 +251,32 @@ export default function ScaleResult({ onPaymentClick, userId, resultId }: Result
           <li>Как автоматизировать без потери "живости"?</li>
         </ul>
         <p className="text-highlight mt-md">На этом этапе особенно важен взгляд со стороны.</p>
-      </div>
+      </ResultSection>
 
       {/* Masterclass CTA */}
-      <div className="card card-cta">
-        <div className="cta-badge">МАСТЕР-КЛАСС</div>
-        <h2 className="cta-title">«ПРОДАЮЩИЙ КОНТЕНТ»</h2>
-        <p className="cta-subtitle">
-          Как масштабировать работающую систему и вырасти в 2-3 раза без выгорания
-        </p>
-
-        <div className="cta-details">
-          <span>24 февраля</span>
-          <span>17:00 мск</span>
-          <span>2 часа</span>
-        </div>
-
-        <div className="cta-content">
-          <h3 className="label mb-md">Что будет на мастер-классе:</h3>
-          <ul className="cta-list">
-            <li><strong>Схема сборки Продающего Контента</strong> — как системно умножать охват и заявки</li>
-            <li><strong>3 промпта для нейросетей</strong> — вставляете в нейронку, получаете готовый продающий контент за минуты</li>
-            <li><strong>Готовая воронка</strong>, которая принесла 8 000 подписчиков и 300+ продаж с 4 рилсов</li>
-            <li><strong>Методика создания лид-магнитов</strong>, за которыми люди приходят сами толпами</li>
-            <li><strong>«Фирменный рецепт»</strong> — секретный ингредиент, который выделит вас среди тысяч других экспертов</li>
-          </ul>
-
-          <h3 className="label mb-md mt-lg">Что получите дополнительно:</h3>
-          <ul className="cta-list cta-list-bonus">
-            <li>5 структур-шаблонов продающих постов</li>
-            <li>Чек-лист сборки воронки (от оффера до лид-магнитов)</li>
-            <li>"Копипаст" файл с лучшими продающими постами</li>
-          </ul>
-        </div>
-
-        <div className="cta-guarantee">
-          <h4 className="label mb-sm">Гарантия:</h4>
-          <p className="text-secondary">
-            Если после мастер-класса поймёте, что система не подходит — верну деньги. Без вопросов. Весь риск на мне.
-          </p>
-        </div>
-
-        <div className="cta-bonus">
-          <h4 className="label mb-sm">Бонус сразу после оплаты:</h4>
-          <p className="text-cyan"><strong>Шаблон «Богатая ЦА»</strong></p>
-          <p className="text-secondary">
-            2 промта скормленные нейронке и у вас за 20 минут на руках вся информация по вашей целевой аудитории и самым платежеспособным сегментам.
-          </p>
-        </div>
-
-        <div className="cta-price">
-          <span className="price-amount">3 450</span>
-          <span className="price-currency">руб</span>
-        </div>
-
-        <p className="cta-note">
-          Оплата в любой валюте, включая крипту.<br/>
-          Живой эфир + запись навсегда.
-        </p>
-
-        <div className="cta-action">
-          <PaymentButton
-            resultTitle="Готовы к масштабированию"
-            userId={userId}
-            resultId={resultId}
-            onPaymentClick={onPaymentClick}
-          />
-        </div>
-
-        <div className="cta-ps">
-          <p className="text-muted">
-            <strong>P.S.</strong> Вы в топ-15% экспертов. Мастер-класс покажет, как перейти на следующий уровень — масштабирование.
-          </p>
-          <p className="text-muted">
-            <strong>P.P.S.</strong> Можете продолжить упираться в потолок времени. А можете за 4 месяца вырасти в 2-3 раза как Михаил и Елена. Решать вам.
-          </p>
-        </div>
-      </div>
+      <CTASection
+        subtitle="Как масштабировать работающую систему и вырасти в 2-3 раза без выгорания"
+        features={[
+          <><strong>Схема сборки Продающего Контента</strong> — как системно умножать охват и заявки</>,
+          <><strong>3 промпта для нейросетей</strong> — вставляете в нейронку, получаете готовый продающий контент за минуты</>,
+          <><strong>Готовая воронка</strong>, которая принесла 8 000 подписчиков и 300+ продаж с 4 рилсов</>,
+          <><strong>Методика создания лид-магнитов</strong>, за которыми люди приходят сами толпами</>,
+          <><strong>«Фирменный рецепт»</strong> — секретный ингредиент, который выделит вас среди тысяч других экспертов</>,
+        ]}
+        bonuses={[
+          <>5 структур-шаблонов продающих постов</>,
+          <>Чек-лист сборки воронки (от оффера до лид-магнитов)</>,
+          <>&quot;Копипаст&quot; файл с лучшими продающими постами</>,
+        ]}
+        resultTitle="Готовы к масштабированию"
+        userId={userId}
+        resultId={resultId}
+        onPaymentClick={onPaymentClick}
+        psLines={[
+          'Вы в топ-15% экспертов. Мастер-класс покажет, как перейти на следующий уровень — масштабирование.',
+          'Можете продолжить упираться в потолок времени. А можете за 4 месяца вырасти в 2-3 раза как Михаил и Елена. Решать вам.',
+        ]}
+      />
     </div>
   );
 }
