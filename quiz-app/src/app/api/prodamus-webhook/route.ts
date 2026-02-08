@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { trackEvent, markFollowUpPaid } from '@/lib/notion';
+import { trackEvent, markFollowUpPaid, getAdminChatId } from '@/lib/notion';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
+const MASTERCLASS_CHANNEL_LINK = process.env.MASTERCLASS_CHANNEL_LINK;
 
 function sortObject(obj: Record<string, unknown>): Record<string, unknown> {
   const sorted: Record<string, unknown> = {};
@@ -37,16 +37,28 @@ async function sendMaterialsToUser(tgUserId: number) {
     return;
   }
 
-  const message = `✅ Оплата получена!
+  // Build message with channel link if available
+  let message: string;
+  if (MASTERCLASS_CHANNEL_LINK) {
+    message = `Оплата получена!
 
-🎓 Мастер-класс «Продающий контент»
-📅 24 февраля, 17:00 мск
+Мастер-класс "Продающий контент"
 
-Ссылка на эфир: [будет отправлена за 1 час до начала]
+Ваша ссылка на закрытый канал: ${MASTERCLASS_CHANNEL_LINK}
 
-🎁 Ваш бонус «Богатая ЦА»: [будет отправлен отдельным сообщением]
+Бонус "Богатая ЦА" — уже доступен в канале.
 
 Если возникнут вопросы — напишите сюда.`;
+  } else {
+    message = `Оплата получена!
+
+Мастер-класс "Продающий контент"
+
+Ссылка на канал будет отправлена отдельным сообщением.
+
+Если возникнут вопросы — напишите сюда.`;
+    console.warn('MASTERCLASS_CHANNEL_LINK not set, using fallback message');
+  }
 
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
   try {
@@ -65,15 +77,12 @@ async function sendMaterialsToUser(tgUserId: number) {
 }
 
 async function notifyAdmin(tgUserId: number, resultId: string) {
-  if (!BOT_TOKEN || !ADMIN_CHAT_ID) return;
+  if (!BOT_TOKEN) return;
 
-  const timestamp = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
-  const text = `✅ <b>ОПЛАТА ПОЛУЧЕНА!</b>
+  const adminChatId = await getAdminChatId();
+  if (!adminChatId) return;
 
-👤 User ID: <code>${tgUserId}</code>
-💰 Сумма: <b>3 450₽</b>
-📊 Результат квиза: <b>${resultId}</b>
-⏰ ${timestamp}`;
+  const text = `Оплата 3,450 руб от user ${tgUserId} (результат: ${resultId})`;
 
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
   try {
@@ -81,13 +90,58 @@ async function notifyAdmin(tgUserId: number, resultId: string) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: ADMIN_CHAT_ID,
+        chat_id: adminChatId,
         text,
         parse_mode: 'HTML',
       }),
     });
   } catch (error) {
     console.error('Failed to notify admin:', error);
+  }
+}
+
+async function sendMidSequenceThankYou(tgUserId: number) {
+  if (!BOT_TOKEN) return;
+
+  const message = `Спасибо за покупку! Все дальнейшие материалы ждут вас в закрытом канале.`;
+
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: tgUserId,
+        text: message,
+        parse_mode: 'HTML',
+      }),
+    });
+  } catch (error) {
+    console.error('Failed to send mid-sequence thank-you:', error);
+  }
+}
+
+async function notifyAdminError(errorMessage: string) {
+  if (!BOT_TOKEN) return;
+
+  try {
+    const adminChatId = await getAdminChatId();
+    if (!adminChatId) return;
+
+    const text = `⚠️ Ошибка webhook: ${errorMessage}`;
+
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: adminChatId,
+        text,
+        parse_mode: 'HTML',
+      }),
+    });
+  } catch (error) {
+    console.error('Failed to notify admin about error:', error);
   }
 }
 
@@ -146,6 +200,7 @@ export async function POST(request: NextRequest) {
         amount: 3450,
       }),
       markFollowUpPaid(tgUserId),
+      sendMidSequenceThankYou(tgUserId),
     ]);
 
     console.log(`[Prodamus Webhook] Payment success for user ${tgUserId}, result: ${resultId}`);
@@ -153,6 +208,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Prodamus webhook error:', error);
+
+    // Notify admin about webhook error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    await notifyAdminError(errorMessage);
+
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }

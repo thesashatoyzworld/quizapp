@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { trackEvent, registerFollowUp } from '@/lib/notion';
+import { trackEvent, registerFollowUp, getAdminChatId } from '@/lib/notion';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
 
 interface TrackEventPayload {
   event_type: 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
@@ -37,8 +36,14 @@ async function sendTelegramNotification(payload: TrackEventPayload) {
     return;
   }
 
-  if (!BOT_TOKEN || !ADMIN_CHAT_ID) {
-    console.log('Telegram notification skipped (no BOT_TOKEN or ADMIN_CHAT_ID)');
+  if (!BOT_TOKEN) {
+    console.log('Telegram notification skipped (no BOT_TOKEN)');
+    return;
+  }
+
+  const adminChatId = await getAdminChatId();
+  if (!adminChatId) {
+    console.log('Telegram notification skipped (no admin chat_id)');
     return;
   }
 
@@ -49,7 +54,7 @@ async function sendTelegramNotification(payload: TrackEventPayload) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: ADMIN_CHAT_ID,
+        chat_id: adminChatId,
         text,
         parse_mode: 'HTML',
       }),

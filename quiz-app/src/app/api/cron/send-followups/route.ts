@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import followUpMessages, { ResultId } from '@/data/followup-messages';
-import { getPendingUsers, updateFollowUpSent, markUserBlocked } from '@/lib/notion';
+import { getPendingUsers, updateFollowUpSent, markUserBlocked, getAdminChatId } from '@/lib/notion';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
 const CRON_SECRET = process.env.CRON_SECRET;
 const PRODAMUS_FORM_URL = process.env.NEXT_PUBLIC_PRODAMUS_FORM_URL || '';
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || '';
@@ -113,7 +112,10 @@ async function sendTelegramVideo(
 }
 
 async function notifyAdmin(sentCount: number, errorCount: number, blockedCount: number) {
-  if (!BOT_TOKEN || !ADMIN_CHAT_ID) return;
+  if (!BOT_TOKEN) return;
+
+  const adminChatId = await getAdminChatId();
+  if (!adminChatId) return;
 
   const timestamp = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
   let text = `\uD83D\uDCE8 <b>Follow-up рассылка</b>\n\n\u2705 Отправлено: <b>${sentCount}</b>\n\u274C Ошибок: <b>${errorCount}</b>`;
@@ -130,13 +132,37 @@ async function notifyAdmin(sentCount: number, errorCount: number, blockedCount: 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: ADMIN_CHAT_ID,
+        chat_id: adminChatId,
         text,
         parse_mode: 'HTML',
       }),
     });
   } catch (error) {
     console.error('Failed to notify admin:', error);
+  }
+}
+
+async function notifyAdminError(errorMessage: string) {
+  if (!BOT_TOKEN) return;
+
+  try {
+    const adminChatId = await getAdminChatId();
+    if (!adminChatId) return;
+
+    const text = `⚠️ Ошибка cron follow-up: ${errorMessage}`;
+
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: adminChatId,
+        text,
+        parse_mode: 'HTML',
+      }),
+    });
+  } catch (notifyError) {
+    console.error('Failed to notify admin about error:', notifyError);
   }
 }
 
@@ -230,6 +256,11 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Follow-up cron error:', error);
+
+    // Notify admin about cron error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    await notifyAdminError(errorMessage);
+
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 },
