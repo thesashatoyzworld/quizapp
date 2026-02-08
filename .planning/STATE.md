@@ -16,11 +16,11 @@ See: .planning/PROJECT.md (updated 2026-02-07)
 ## Current Position
 
 Phase: 6 of 7 (Follow-up Messaging)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-08 — Completed 06-01-PLAN.md
+Last activity: 2026-02-08 — Completed 06-02-PLAN.md
 
-Progress: [█████░░░░░] 63% (5/7 phases complete + 1/4 of phase 6)
+Progress: [█████░░░░░] 64% (5/7 phases complete + 2/4 of phase 6)
 
 ## Milestones
 
@@ -33,15 +33,15 @@ Progress: [█████░░░░░] 63% (5/7 phases complete + 1/4 of pha
 **v1.1 Polish & Conversion:** 🚧 In Progress (Phases 4-7)
 - Phase 4: Result Layout Refactoring ✅ Complete (2026-02-07)
 - Phase 5: Visual Analytics ✅ Complete (2026-02-07)
-- Phase 6: Follow-up Messaging 🚧 In Progress (Plan 01/04 complete)
+- Phase 6: Follow-up Messaging 🚧 In Progress (Plan 02/04 complete)
 - Phase 7: End-to-End Testing (pending 4-6)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11 (6 from v1.0 + 5 from v1.1)
-- v1.1 plans completed: 5
-- Total execution time: ~12-15 hours (v1.0) + ~38 min (v1.1)
+- Total plans completed: 12 (6 from v1.0 + 6 from v1.1)
+- v1.1 plans completed: 6
+- Total execution time: ~12-15 hours (v1.0) + ~43 min (v1.1)
 
 **By Phase (v1.0):**
 
@@ -57,12 +57,13 @@ Progress: [█████░░░░░] 63% (5/7 phases complete + 1/4 of pha
 |-------|-------|-------|----------|
 | 4. Result Layout | 2/2 | ~23min | ~11min |
 | 5. Visual Analytics | 4/4 | ~11min | ~2.75min |
-| 6. Follow-up Messaging | 1/4 | ~4min | ~4min |
+| 6. Follow-up Messaging | 2/4 | ~9min | ~4.5min |
 
 **Recent Trend:**
 - v1.1 Phase 4 completed in ~23 minutes (2 plans: shared components + refactoring)
 - v1.1 Phase 5 completed in ~11 minutes (4 plans: chart foundation, components, integration)
 - v1.1 Phase 6 Plan 01 completed in ~4 minutes (cron fixes: timing, blocked users, dry-run mode)
+- v1.1 Phase 6 Plan 02 completed in ~5 minutes (admin notifications, post-payment messaging)
 
 ## Accumulated Context
 
@@ -97,11 +98,18 @@ Recent decisions affecting current work:
 - **Blocked user field reuse**: Set paid=true for blocked users (simpler than new Notion property)
 - **Dry-run query param**: ?dry_run=true for safe testing without side effects
 
+**From Phase 6 Plan 02:**
+- **Admin chat_id storage**: Store in Notion Events DB with event_type=admin_config (reuses existing infrastructure)
+- **Admin selection pattern**: Last user to /start bot becomes admin (single-admin bot design)
+- **Env var fallback priority**: ADMIN_CHAT_ID env var takes priority over Notion for override capability
+- **Channel link fallback**: Graceful degradation if MASTERCLASS_CHANNEL_LINK not set
+
 ### Pending Issues
 
 **From v1.0:**
-- ADMIN_CHAT_ID not set (Telegram admin notifications) — will fix in Phase 6 Plan 02
+- ✅ ADMIN_CHAT_ID not set (Telegram admin notifications) — FIXED in Phase 6 Plan 02 (dynamic via Notion)
 - ✅ Vercel cron schedule fixed (Plan 06-01: now 06:00 UTC = 09:00 MSK)
+- MASTERCLASS_CHANNEL_LINK not set (post-payment channel invite) — admin needs to set this env var
 
 **From research:**
 - A/B test duration determination based on traffic (Phase 7)
@@ -123,9 +131,9 @@ None blocking Phase 4 (layout refactoring is pure refactoring, no new dependenci
 ## Session Continuity
 
 Last session: 2026-02-08
-Stopped at: Completed 06-01-PLAN.md (Phase 6 Plan 01 complete - cron timing & blocked user fixes)
+Stopped at: Completed 06-02-PLAN.md (Phase 6 Plan 02 complete - admin notifications & post-payment messaging)
 Resume file: None
-Resume action: Execute Phase 6 Plan 02 (post-payment flow & admin notifications)
+Resume action: Execute Phase 6 Plan 03 (next plan in follow-up messaging phase)
 
 ---
-*Last updated: 2026-02-08T19:42:04Z*
+*Last updated: 2026-02-08T12:23:21Z*
