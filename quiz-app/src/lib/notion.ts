@@ -237,3 +237,90 @@ export async function markUserBlocked(userId: number) {
     console.error(`Failed to mark user ${userId} as blocked:`, error);
   }
 }
+
+/**
+ * Save admin chat_id to Notion Events DB.
+ * Uses event_type="admin_config" to store admin chat_id.
+ * Note: Last person to /start the bot becomes the admin (single-admin bot).
+ */
+export async function saveAdminChatId(chatId: number) {
+  try {
+    // Check if admin_config entry already exists
+    const existing = await notion.dataSources.query({
+      data_source_id: EVENTS_DS_ID,
+      filter: {
+        property: 'event_type',
+        title: { equals: 'admin_config' },
+      },
+    });
+
+    if (existing.results.length > 0) {
+      // Update existing admin_config
+      const pageId = existing.results[0].id;
+      await notion.pages.update({
+        page_id: pageId,
+        properties: {
+          user_id: { number: chatId },
+          timestamp: { date: { start: new Date().toISOString() } },
+        },
+      });
+    } else {
+      // Create new admin_config entry
+      await notion.pages.create({
+        parent: { data_source_id: EVENTS_DS_ID },
+        properties: {
+          event_type: {
+            title: [{ text: { content: 'admin_config' } }],
+          },
+          user_id: {
+            number: chatId,
+          },
+          timestamp: {
+            date: { start: new Date().toISOString() },
+          },
+        },
+      });
+    }
+
+    console.log(`Admin chat_id saved: ${chatId}`);
+  } catch (error) {
+    console.error('Failed to save admin chat_id to Notion:', error);
+  }
+}
+
+/**
+ * Get admin chat_id from Notion or env var fallback.
+ * Priority: ADMIN_CHAT_ID env var > Notion admin_config
+ */
+export async function getAdminChatId(): Promise<string | null> {
+  // Check env var first (fallback/override)
+  const envChatId = process.env.ADMIN_CHAT_ID;
+  if (envChatId && envChatId.trim() !== '') {
+    return envChatId.trim();
+  }
+
+  // Query Notion for admin_config
+  try {
+    const results = await notion.dataSources.query({
+      data_source_id: EVENTS_DS_ID,
+      filter: {
+        property: 'event_type',
+        title: { equals: 'admin_config' },
+      },
+    });
+
+    if (results.results.length === 0) {
+      return null;
+    }
+
+    const page = results.results[0];
+    const props = (page as Record<string, unknown>).properties as Record<string, unknown>;
+    const userIdProp = props.user_id as { number: number | null } | undefined;
+    const chatId = userIdProp?.number;
+
+    return chatId ? String(chatId) : null;
+  } catch (error) {
+    console.error('Failed to get admin chat_id from Notion:', error);
+    return null;
+  }
+}

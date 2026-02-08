@@ -3,24 +3,24 @@
 ## Current Status
 
 **Milestone:** v1.1 Polish & Conversion
-**Status:** Executing Phase 4
-**Next:** Continue Phase 4 (Plan 02 pending)
+**Status:** Executing Phase 6
+**Next:** Continue Phase 6 (Plans 02-04 pending)
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Квиз → персонализированный результат → покупка мастер-класса
-**Current focus:** Result layout refactoring (Phase 4 of 7)
+**Current focus:** Follow-up messaging pipeline (Phase 6 of 7)
 
 ## Current Position
 
-Phase: 4 of 7 (Result Layout Refactoring)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-07 — Completed 04-02-PLAN.md
+Phase: 6 of 7 (Follow-up Messaging)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-02-08 — Completed 06-01-PLAN.md
 
-Progress: [████░░░░░░] 57% (4/7 phases complete)
+Progress: [█████░░░░░] 63% (5/7 phases complete + 1/4 of phase 6)
 
 ## Milestones
 
@@ -32,16 +32,16 @@ Progress: [████░░░░░░] 57% (4/7 phases complete)
 
 **v1.1 Polish & Conversion:** 🚧 In Progress (Phases 4-7)
 - Phase 4: Result Layout Refactoring ✅ Complete (2026-02-07)
-- Phase 5: Visual Analytics (ready to plan)
-- Phase 6: Follow-up Messaging (ready to plan)
+- Phase 5: Visual Analytics ✅ Complete (2026-02-07)
+- Phase 6: Follow-up Messaging 🚧 In Progress (Plan 01/04 complete)
 - Phase 7: End-to-End Testing (pending 4-6)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8 (6 from v1.0 + 2 from v1.1)
-- v1.1 plans completed: 2
-- Total execution time: ~12-15 hours (v1.0) + ~23 min (v1.1)
+- Total plans completed: 11 (6 from v1.0 + 5 from v1.1)
+- v1.1 plans completed: 5
+- Total execution time: ~12-15 hours (v1.0) + ~38 min (v1.1)
 
 **By Phase (v1.0):**
 
@@ -56,11 +56,13 @@ Progress: [████░░░░░░] 57% (4/7 phases complete)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 4. Result Layout | 2/2 | ~23min | ~11min |
+| 5. Visual Analytics | 4/4 | ~11min | ~2.75min |
+| 6. Follow-up Messaging | 1/4 | ~4min | ~4min |
 
 **Recent Trend:**
 - v1.1 Phase 4 completed in ~23 minutes (2 plans: shared components + refactoring)
-- High velocity due to pure refactoring work (no external dependencies)
-- Phase 4 averaged ~11 min/plan (3min for Plan 01, ~20min for Plan 02)
+- v1.1 Phase 5 completed in ~11 minutes (4 plans: chart foundation, components, integration)
+- v1.1 Phase 6 Plan 01 completed in ~4 minutes (cron fixes: timing, blocked users, dry-run mode)
 
 ## Accumulated Context
 
@@ -78,16 +80,30 @@ Recent decisions affecting current work:
 - **Slot-based architecture**: ResultSection has slot prop for Phase 5 to inject visual analytics between sections
 - **480px Telegram WebApp target**: Dedicated mobile breakpoint for small phones (iPhone SE viewport)
 
+**From Phase 5 Plan 01:**
+- **Score normalization approach**: Normalize to 0-100 scale with 240 max (8 questions × 30 avg points), clamped to handle edge cases
+- **Cyberpunk color palette for segments**: Клиенты (cyan), Студенты (magenta), Случайные (purple), Рекомендации (gold), Любопытные (green)
+- **Audience data derivation**: Extracted from quiz.ts result descriptions, hardcoded per result type (characteristic of stage, not individual)
+- **Financial data calculation**: Used midpoints of ranges from quiz.ts financials field for single chart values
+
+**From Phase 5 Plan 02:**
+- **Radar animation duration**: 1500ms ease-out for smooth draw-in without delay
+- **Level glow animation**: 2s infinite pulse on current level node for visual emphasis
+- **Connector lines**: Absolute positioning for vertical level path to keep flex layout simple
+
+**From Phase 6 Plan 01:**
+- **Cron timing**: 06:00 UTC = 09:00 MSK for morning message delivery
+- **First message delay**: Enforce registered_at + 24h for messages_sent=0 to prevent same-day sends
+- **Blocked user field reuse**: Set paid=true for blocked users (simpler than new Notion property)
+- **Dry-run query param**: ?dry_run=true for safe testing without side effects
+
 ### Pending Issues
 
 **From v1.0:**
-- ADMIN_CHAT_ID not set (Telegram admin notifications) — will fix in Phase 6
-- Notion decision marked "Pending verification" in PROJECT.md — Notion working per user notes
-- Vercel cron schedule not confirmed — will verify in Phase 6
+- ADMIN_CHAT_ID not set (Telegram admin notifications) — will fix in Phase 6 Plan 02
+- ✅ Vercel cron schedule fixed (Plan 06-01: now 06:00 UTC = 09:00 MSK)
 
 **From research:**
-- Chart library Telegram WebApp compatibility needs validation (Phase 5)
-- Visual hierarchy design rules to balance charts with CTA (Phase 5)
 - A/B test duration determination based on traffic (Phase 7)
 
 ### Blockers/Concerns
@@ -106,10 +122,10 @@ None blocking Phase 4 (layout refactoring is pure refactoring, no new dependenci
 
 ## Session Continuity
 
-Last session: 2026-02-07
-Stopped at: Completed 04-02-PLAN.md (Phase 4 complete)
+Last session: 2026-02-08
+Stopped at: Completed 06-01-PLAN.md (Phase 6 Plan 01 complete - cron timing & blocked user fixes)
 Resume file: None
-Resume action: Plan Phase 5 (Visual Analytics) or Phase 6 (Follow-up Messaging)
+Resume action: Execute Phase 6 Plan 02 (post-payment flow & admin notifications)
 
 ---
-*Last updated: 2026-02-07T05:30:00Z*
+*Last updated: 2026-02-08T19:42:04Z*
