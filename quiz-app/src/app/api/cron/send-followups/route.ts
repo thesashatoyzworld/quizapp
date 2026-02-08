@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import followUpMessages, { ResultId } from '@/data/followup-messages';
-import { getPendingUsers, updateFollowUpSent } from '@/lib/notion';
+import { getPendingUsers, updateFollowUpSent, markUserBlocked } from '@/lib/notion';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
@@ -37,8 +37,8 @@ async function sendTelegramMessage(
   chatId: number,
   text: string,
   paymentUrl: string,
-) {
-  if (!BOT_TOKEN) return false;
+): Promise<{ ok: boolean; blocked?: boolean }> {
+  if (!BOT_TOKEN) return { ok: false };
 
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
   try {
@@ -57,10 +57,16 @@ async function sendTelegramMessage(
       }),
     });
     const data = await response.json();
-    return data.ok === true;
+
+    // Check if bot was blocked by user (403 error)
+    if (data.ok === false && data.error_code === 403) {
+      return { ok: false, blocked: true };
+    }
+
+    return { ok: data.ok === true };
   } catch (error) {
     console.error(`Failed to send message to ${chatId}:`, error);
-    return false;
+    return { ok: false };
   }
 }
 
@@ -69,7 +75,7 @@ async function sendTelegramVideo(
   videoFileId: string,
   caption: string,
   paymentUrl: string,
-) {
+): Promise<{ ok: boolean; blocked?: boolean }> {
   if (!BOT_TOKEN || !videoFileId) {
     // Fallback to text message if no video file_id
     return sendTelegramMessage(chatId, caption, paymentUrl);
@@ -93,18 +99,30 @@ async function sendTelegramVideo(
       }),
     });
     const data = await response.json();
-    return data.ok === true;
+
+    // Check if bot was blocked by user (403 error)
+    if (data.ok === false && data.error_code === 403) {
+      return { ok: false, blocked: true };
+    }
+
+    return { ok: data.ok === true };
   } catch (error) {
     console.error(`Failed to send video to ${chatId}:`, error);
-    return false;
+    return { ok: false };
   }
 }
 
-async function notifyAdmin(sentCount: number, errorCount: number) {
+async function notifyAdmin(sentCount: number, errorCount: number, blockedCount: number) {
   if (!BOT_TOKEN || !ADMIN_CHAT_ID) return;
 
   const timestamp = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
-  const text = `\uD83D\uDCE8 <b>Follow-up рассылка</b>\n\n\u2705 Отправлено: <b>${sentCount}</b>\n\u274C Ошибок: <b>${errorCount}</b>\n\u23F0 ${timestamp}`;
+  let text = `\uD83D\uDCE8 <b>Follow-up рассылка</b>\n\n\u2705 Отправлено: <b>${sentCount}</b>\n\u274C Ошибок: <b>${errorCount}</b>`;
+
+  if (blockedCount > 0) {
+    text += `\n\uD83D\uDEAB Заблокировали бота: <b>${blockedCount}</b>`;
+  }
+
+  text += `\n\u23F0 ${timestamp}`;
 
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
   try {
@@ -129,15 +147,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Check for dry-run mode
+  const dryRun = request.nextUrl.searchParams.get('dry_run') === 'true';
+
   try {
     const pendingUsers = await getPendingUsers();
 
     if (pendingUsers.length === 0) {
-      return NextResponse.json({ success: true, sent: 0, message: 'No pending users' });
+      return NextResponse.json({ success: true, sent: 0, message: 'No pending users', dry_run: dryRun });
     }
 
     let sentCount = 0;
     let errorCount = 0;
+    let blockedCount = 0;
 
     for (const user of pendingUsers) {
       const resultId = user.result_id as ResultId;
@@ -152,46 +174,59 @@ export async function GET(request: NextRequest) {
       const message = messages[messageIndex];
       const paymentUrl = buildPaymentUrl(user.user_id, resultId);
 
-      let success = false;
-
-      if (message.hasVideo && VIDEO_FILE_ID) {
-        success = await sendTelegramVideo(
-          user.user_id,
-          VIDEO_FILE_ID,
-          message.text,
-          paymentUrl,
-        );
-      } else {
-        success = await sendTelegramMessage(
-          user.user_id,
-          message.text,
-          paymentUrl,
-        );
-      }
-
-      if (success) {
-        await updateFollowUpSent(user.user_id);
+      if (dryRun) {
+        // Dry-run mode: log what would be sent without actually sending
+        console.log(`[DRY RUN] Would send message ${messageIndex + 1} to user ${user.user_id} (result: ${resultId})`);
         sentCount++;
       } else {
-        errorCount++;
+        // Normal mode: actually send messages
+        let result: { ok: boolean; blocked?: boolean };
+
+        if (message.hasVideo && VIDEO_FILE_ID) {
+          result = await sendTelegramVideo(
+            user.user_id,
+            VIDEO_FILE_ID,
+            message.text,
+            paymentUrl,
+          );
+        } else {
+          result = await sendTelegramMessage(
+            user.user_id,
+            message.text,
+            paymentUrl,
+          );
+        }
+
+        if (result.blocked) {
+          // User blocked the bot - mark in Notion and stop sending
+          await markUserBlocked(user.user_id);
+          blockedCount++;
+        } else if (result.ok) {
+          await updateFollowUpSent(user.user_id);
+          sentCount++;
+        } else {
+          errorCount++;
+        }
+
+        // Small delay to avoid Telegram rate limits
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
-
-      // Small delay to avoid Telegram rate limits
-      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // Notify admin about results
-    if (sentCount > 0 || errorCount > 0) {
-      await notifyAdmin(sentCount, errorCount);
+    // Notify admin about results (skip in dry-run mode)
+    if (!dryRun && (sentCount > 0 || errorCount > 0 || blockedCount > 0)) {
+      await notifyAdmin(sentCount, errorCount, blockedCount);
     }
 
-    console.log(`[Follow-up Cron] Sent: ${sentCount}, Errors: ${errorCount}`);
+    console.log(`[Follow-up Cron] ${dryRun ? 'DRY RUN - ' : ''}Sent: ${sentCount}, Errors: ${errorCount}, Blocked: ${blockedCount}`);
 
     return NextResponse.json({
       success: true,
       sent: sentCount,
       errors: errorCount,
+      blocked: blockedCount,
       total: pendingUsers.length,
+      dry_run: dryRun,
     });
   } catch (error) {
     console.error('Follow-up cron error:', error);
