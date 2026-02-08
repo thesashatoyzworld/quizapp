@@ -134,12 +134,29 @@ export async function getPendingUsers(): Promise<PendingUser[]> {
           { property: 'messages_sent', number: { less_than: 4 } },
           {
             or: [
-              { property: 'last_sent_at', date: { is_empty: true } },
-              { property: 'last_sent_at', date: { before: twentyFourHoursAgo } },
+              // For users who already received at least 1 message: check last_sent_at
+              {
+                and: [
+                  { property: 'messages_sent', number: { greater_than: 0 } },
+                  {
+                    or: [
+                      { property: 'last_sent_at', date: { is_empty: true } },
+                      { property: 'last_sent_at', date: { before: twentyFourHoursAgo } },
+                    ],
+                  },
+                ],
+              },
+              // For new users (0 messages): check registered_at is at least 24h ago
+              {
+                and: [
+                  { property: 'messages_sent', number: { equals: 0 } },
+                  { property: 'registered_at', date: { before: twentyFourHoursAgo } },
+                ],
+              },
             ],
           },
         ],
-      },
+      } as any, // Type assertion needed for nested and/or filters
     });
 
     return results.results.map((page) => {
@@ -188,5 +205,35 @@ export async function updateFollowUpSent(userId: number) {
     });
   } catch (error) {
     console.error(`Failed to update follow-up sent for user ${userId}:`, error);
+  }
+}
+
+/**
+ * Mark user as blocked when bot receives 403 error.
+ * Sets paid=true to stop future sends (reusing existing field instead of adding new property).
+ */
+export async function markUserBlocked(userId: number) {
+  try {
+    const results = await notion.dataSources.query({
+      data_source_id: FOLLOWUP_DS_ID,
+      filter: {
+        property: 'user_id',
+        number: { equals: userId },
+      },
+    });
+
+    if (results.results.length === 0) return;
+
+    const pageId = results.results[0].id;
+    await notion.pages.update({
+      page_id: pageId,
+      properties: {
+        paid: { checkbox: true }, // Reuse paid field to mean "stop sending"
+      },
+    });
+
+    console.log(`User ${userId} marked as blocked`);
+  } catch (error) {
+    console.error(`Failed to mark user ${userId} as blocked:`, error);
   }
 }

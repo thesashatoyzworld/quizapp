@@ -103,11 +103,12 @@ Plans:
 2. Buyer who completes payment receives confirmation message with masterclass materials via Telegram bot
 3. Admin receives Telegram notifications for all critical events (quiz completion, payment received, errors)
 
-**Plans:** TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 06-01: TBD (verify cron pipeline + message delivery)
-- [ ] 06-02: TBD (post-payment message + admin notifications)
+- [ ] 06-01-PLAN.md — Fix cron schedule, first-message delay, blocked user detection, dry-run mode
+- [ ] 06-02-PLAN.md — Admin chat_id auto-capture, post-payment channel invite, mid-sequence thank-you, error notifications
+- [ ] 06-03-PLAN.md — Set Vercel env vars, deploy, and end-to-end verification
 
 ---
 
@@ -146,7 +147,7 @@ v1.0 phases complete -> Phase 4 -> Phase 5 -> Phase 6 -> Phase 7
 | 3. Deploy | v1.0 | 1/1 | Complete | 2026-02-01 |
 | 4. Result Layout Refactoring | v1.1 | 2/2 | Complete | 2026-02-07 |
 | 5. Visual Analytics | v1.1 | 0/4 | Planned | - |
-| 6. Follow-up Messaging | v1.1 | 0/TBD | Not started | - |
+| 6. Follow-up Messaging | v1.1 | 0/3 | Planned | - |
 | 7. End-to-End Testing | v1.1 | 0/TBD | Not started | - |
 
 ---
@@ -167,4 +168,4 @@ v1.0 phases complete -> Phase 4 -> Phase 5 -> Phase 6 -> Phase 7
 ---
 
 *Roadmap created: 2026-01-31*
-*Last updated: 2026-02-07 (Phase 5 planned)*
+*Last updated: 2026-02-08 (Phase 6 planned)*
