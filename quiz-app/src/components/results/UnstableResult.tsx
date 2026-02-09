@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {
-  ResultHeader,
+  HeroSection,
   ResultSection,
   CaseStudyCard,
   ComparisonBox,
@@ -12,7 +12,7 @@ import {
   CTASection,
 } from './shared';
 import { Category } from '@/data/quiz';
-import { RadarChart, LevelBadge, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
+import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
 import { getChartData } from '@/data/chart-data';
 
 interface ResultProps {
@@ -24,26 +24,31 @@ interface ResultProps {
   userPhoto?: string | null;
 }
 
-export default function UnstableResult({ onPaymentClick, userId, resultId, scores }: ResultProps) {
+export default function UnstableResult({ onPaymentClick, userId, resultId, scores, userName, userPhoto }: ResultProps) {
   const ACCENT_COLOR = '#ffd700'; // gold
   const chartData = resultId ? getChartData(resultId as Category) : null;
 
   return (
     <div className="result-page">
-      <ResultHeader
-        title="НЕСТАБИЛЬНЫЕ РЕЗУЛЬТАТЫ"
-        subtitle="После прохождения теста вы получили результат &quot;Нестабильные результаты&quot;."
-        pdfUrl="/results/4-unstable.pdf"
-        pdfFilename="Диагностика-Нестабильные-результаты.pdf"
-        accentColor={ACCENT_COLOR}
-      />
+      {chartData && (
+        <HeroSection
+          userName={userName}
+          userPhoto={userPhoto}
+          resultTitle="НЕСТАБИЛЬНЫЕ РЕЗУЛЬТАТЫ"
+          resultSubtitle="Ваш контент-профиль по результатам диагностики"
+          levelData={chartData.levelData}
+          financialData={chartData.financial}
+          accentColor={ACCENT_COLOR}
+          pdfUrl="/results/4-unstable.pdf"
+          pdfFilename="Диагностика-Нестабильные-результаты.pdf"
+        />
+      )}
 
       {/* Intro */}
       <ResultSection
         title="Вот что происходит с вашим контентом прямо сейчас:"
         slot={chartData ? (
           <div className="result-chart-slot">
-            <LevelBadge levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
             <RadarChart data={chartData.radar} accentColor={ACCENT_COLOR} />
             <LevelPath levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
           </div>
