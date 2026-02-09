@@ -20,6 +20,8 @@ interface ResultProps {
   userId?: number | null;
   resultId?: string;
   scores?: Record<Category, number> | null;
+  userName?: string | null;
+  userPhoto?: string | null;
 }
 
 export default function UnstableResult({ onPaymentClick, userId, resultId, scores }: ResultProps) {

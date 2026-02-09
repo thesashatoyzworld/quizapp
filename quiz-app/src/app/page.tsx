@@ -308,11 +308,11 @@ export default function Home() {
           {state === 'result' && result && (
             <div key="result">
               {/* Show detailed result page based on result type */}
-              {result.id === 'invisible' && <InvisibleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} />}
-              {result.id === 'doer' && <DoerResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} />}
-              {result.id === 'generous' && <GenerousResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} />}
-              {result.id === 'unstable' && <UnstableResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} />}
-              {result.id === 'scale' && <ScaleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} />}
+              {result.id === 'invisible' && <InvisibleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} userName={user?.first_name || null} userPhoto={null} />}
+              {result.id === 'doer' && <DoerResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} userName={user?.first_name || null} userPhoto={null} />}
+              {result.id === 'generous' && <GenerousResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} userName={user?.first_name || null} userPhoto={null} />}
+              {result.id === 'unstable' && <UnstableResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} userName={user?.first_name || null} userPhoto={null} />}
+              {result.id === 'scale' && <ScaleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} userName={user?.first_name || null} userPhoto={null} />}
             </div>
           )}
 
