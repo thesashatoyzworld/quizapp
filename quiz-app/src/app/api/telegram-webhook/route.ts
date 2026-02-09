@@ -26,14 +26,19 @@ async function sendMessage(chatId: number, text: string, replyMarkup?: object) {
   };
 
   if (replyMarkup) {
-    body.reply_markup = JSON.stringify(replyMarkup);
+    body.reply_markup = replyMarkup;
   }
 
-  await fetch(url, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  const result = await response.json();
+  if (!result.ok) {
+    console.error('Telegram sendMessage failed:', JSON.stringify(result));
+  }
+  return result;
 }
 
 export async function POST(request: NextRequest) {
