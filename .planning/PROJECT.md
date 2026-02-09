@@ -82,15 +82,18 @@ Telegram Mini App с квизом "AI-диагност контента" для 
 | @notionhq/client v5 dataSources API | databases.query removed in v5, use dataSources.query | ✓ Good |
 | Follow-up через cron | Vercel cron + Notion queue, не зависит от внешних сервисов | — Pending verification |
 
-## Current Milestone: v1.1 Polish & Conversion
+## Current Milestone: v2.0 Result Page WOW Effect
 
-**Goal:** Превратить результаты квиза из текстового лонгрида в аналитическую карту с визуализациями, наладить полный цикл догрева, протестировать всю воронку.
+**Goal:** Превратить страницы результатов из "дешёвых" текстовых лонгридов в эмоционально попадающие визуальные страницы, которыми хочется делиться в соцсетях.
 
 **Target features:**
-- Редизайн 5 страниц результатов: чистая вёрстка + визуальные блоки (графики, чарты, геймификация)
-- Рабочая цепочка follow-up сообщений для непокупателей
-- Корректное сообщение после оплаты
-- Сквозное тестирование всей воронки с AI-аудитом
+- Эмоциональное попадание: человек узнаёт себя, чувствует "это про меня"
+- Визуальный WOW-эффект: инфографика, визуальные элементы, не полотно текста
+- Shareability: страница-скриншот, которой хочется поделиться в соцсетях
+- Консистентность: одинаково хорошо на телефоне и десктопе
+- Возможная переработка текстов результатов (обсуждается отдельно)
+
+**Previous milestone (v1.1):** Mostly complete — Phase 4 (layout) done, Phase 5 (charts 3/4), Phase 6 (follow-up E2E verified). Phase 7 (E2E testing) deferred.
 
 ---
-*Last updated: 2026-02-07 after milestone v1.1 initialization*
+*Last updated: 2026-02-09 after milestone v2.0 initialization*

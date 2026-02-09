@@ -21,3 +21,6 @@ export type { StepsListProps, StepItem } from './StepsList';
 
 export { CTASection } from './CTASection';
 export type { CTASectionProps } from './CTASection';
+
+export { HeroSection } from './HeroSection';
+export type { HeroSectionProps } from './HeroSection';
