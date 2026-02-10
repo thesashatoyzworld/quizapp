@@ -10,6 +10,9 @@ import {
   ReasonBlock,
   StepsList,
   CTASection,
+  WeakPointsHighlight,
+  IncomeGapBar,
+  GrowthMetric,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -51,6 +54,7 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
           <div className="result-chart-slot">
             <RadarChart data={chartData.radar} accentColor={ACCENT_COLOR} />
             <LevelPath levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
+            <WeakPointsHighlight data={chartData.radar} accentColor={ACCENT_COLOR} />
           </div>
         ) : undefined}
       >
@@ -99,6 +103,13 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
         slot={chartData ? (
           <div className="result-chart-slot">
             <FinancialGauge data={chartData.financial} accentColor={ACCENT_COLOR} />
+            <IncomeGapBar
+              currentRange="0–50 000 ₽/мес"
+              potentialRange="200 000–400 000 ₽/мес"
+              gap="до 300 000 ₽ в месяц"
+              currentPercent={15}
+              potentialPercent={80}
+            />
           </div>
         ) : undefined}
       >
@@ -214,14 +225,27 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
             Алина сказала: "Вот сейчас пройду ещё одно повышение квалификации — и тогда возьмусь".
           </p>
 
-          <div className="timeline">
+          <div className="timeline timeline-enhanced">
             <div className="timeline-item">
-              <span className="timeline-year">2024 год:</span>
-              <span className="text-secondary">Алина снова пришла. Ничего не сделала. "Сейчас пройду курс и начну".</span>
+              <div className="timeline-node" style={{ backgroundColor: 'var(--neon-cyan)', color: 'var(--neon-cyan)' }} />
+              <div>
+                <span className="timeline-year" style={{ color: 'var(--neon-cyan)' }}>2023 год:</span>
+                <span className="text-secondary"> Первая встреча. Дала обещание начать.</span>
+              </div>
             </div>
             <div className="timeline-item">
-              <span className="timeline-year">2025 год:</span>
-              <span className="text-secondary">Алина снова пришла. Ничего не сделала. "Получу ещё один сертификат и начну".</span>
+              <div className="timeline-node" style={{ backgroundColor: '#ff6b35', color: '#ff6b35' }} />
+              <div>
+                <span className="timeline-year" style={{ color: '#ff6b35' }}>2024 год:</span>
+                <span className="text-secondary"> Ничего не сделала. &quot;Сейчас пройду курс и начну&quot;.</span>
+              </div>
+            </div>
+            <div className="timeline-item">
+              <div className="timeline-node" style={{ backgroundColor: 'var(--danger)', color: 'var(--danger)' }} />
+              <div>
+                <span className="timeline-year" style={{ color: 'var(--danger)' }}>2025 год:</span>
+                <span className="text-secondary"> Ничего не сделала. &quot;Получу ещё один сертификат и начну&quot;.</span>
+              </div>
             </div>
           </div>
 
@@ -305,6 +329,20 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
               <li className="text-success">Рост в <strong>5 раз</strong></li>
             </ul>
           </div>
+
+          <GrowthMetric
+            before={[
+              { label: 'Подписчики', value: '300' },
+              { label: 'Доход', value: '100 тыс' },
+              { label: 'Контент', value: 'Нет' },
+            ]}
+            after={[
+              { label: 'Подписчики', value: '600' },
+              { label: 'Доход', value: '500 тыс' },
+              { label: 'Контент', value: 'Система' },
+            ]}
+            multiplier="×5"
+          />
 
           <p className="text-highlight mt-md">
             Вася не набрал миллион подписчиков. Он просто стал <strong>видимым для правильной аудитории</strong>. И этого хватило, чтобы вырасти в 5 раз.

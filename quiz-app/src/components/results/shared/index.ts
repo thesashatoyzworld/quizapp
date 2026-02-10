@@ -24,3 +24,12 @@ export type { CTASectionProps } from './CTASection';
 
 export { HeroSection } from './HeroSection';
 export type { HeroSectionProps } from './HeroSection';
+
+export { WeakPointsHighlight } from './WeakPointsHighlight';
+export type { WeakPointsHighlightProps } from './WeakPointsHighlight';
+
+export { IncomeGapBar } from './IncomeGapBar';
+export type { IncomeGapBarProps } from './IncomeGapBar';
+
+export { GrowthMetric } from './GrowthMetric';
+export type { GrowthMetricProps, GrowthMetricItem } from './GrowthMetric';
