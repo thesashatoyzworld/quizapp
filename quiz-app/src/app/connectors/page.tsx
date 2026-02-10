@@ -20,7 +20,7 @@ export default async function ConnectorsPage({
     : 'invisible';
 
   return (
-    <div className="quiz-container">
+    <div className="quiz-container connectors-page">
       <div className="quiz-content">
         <div className="grid-bg" />
         <div className="scanlines" />

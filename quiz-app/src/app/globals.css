@@ -2234,6 +2234,16 @@ body {
    CONNECTORS LANDING PAGE (Phase 11)
    ======================================== */
 
+/* Override quiz-container centering for long landing page */
+.connectors-page {
+  justify-content: flex-start !important;
+  padding-top: var(--space-lg);
+}
+
+.connectors-page .result-page .card {
+  overflow: visible;
+}
+
 /* Tier cards container - side by side on desktop */
 .connectors-tiers {
   display: flex;
