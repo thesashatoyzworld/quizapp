@@ -797,12 +797,32 @@ body {
   padding-bottom: 0;
 }
 
+.reason-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.reason-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 0, 170, 0.1);
+  border: 1px solid rgba(255, 0, 170, 0.25);
+  border-radius: 8px;
+}
+
 .reason-title {
   font-family: var(--font-body);
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--neon-magenta);
-  margin-bottom: var(--space-sm);
+  margin-bottom: 0;
 }
 
 /* Case studies */
@@ -1056,18 +1076,19 @@ body {
 
 .cta-price {
   margin: var(--space-lg) 0;
+  white-space: nowrap;
 }
 
 .price-amount {
   font-family: var(--font-display);
-  font-size: 3rem;
+  font-size: clamp(1.8rem, 8vw, 3rem);
   color: var(--neon-cyan);
   text-shadow: 0 0 30px var(--glow-cyan);
 }
 
 .price-currency {
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: clamp(0.9rem, 3vw, 1.2rem);
   color: var(--text-muted);
   margin-left: var(--space-xs);
 }
@@ -1182,10 +1203,6 @@ body {
     font-size: 1.4rem;
   }
 
-  .price-amount {
-    font-size: 2.2rem;
-  }
-
   .cta-details {
     flex-direction: column;
     gap: var(--space-sm);
@@ -1235,10 +1252,6 @@ body {
 
   .cta-title {
     font-size: 1.2rem;
-  }
-
-  .price-amount {
-    font-size: 1.8rem;
   }
 
   .stats-grid {
@@ -1764,4 +1777,23 @@ body {
     min-width: 65px;
     font-size: 0.7rem;
   }
+
+  .reason-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 1.2rem;
+  }
+}
+
+/* Case study screenshot */
+.case-screenshot {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+}
+
+.case-screenshot-img {
+  width: 100%;
+  height: auto;
+  display: block;
 }

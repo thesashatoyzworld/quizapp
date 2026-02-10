@@ -11,7 +11,6 @@ import {
   StepsList,
   CTASection,
   WeakPointsHighlight,
-  IncomeGapBar,
   GrowthMetric,
 } from './shared';
 import { Category } from '@/data/quiz';
@@ -103,13 +102,6 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
         slot={chartData ? (
           <div className="result-chart-slot">
             <FinancialGauge data={chartData.financial} accentColor={ACCENT_COLOR} />
-            <IncomeGapBar
-              currentRange="0–50 000 ₽/мес"
-              potentialRange="200 000–400 000 ₽/мес"
-              gap="до 300 000 ₽ в месяц"
-              currentPercent={15}
-              potentialPercent={80}
-            />
           </div>
         ) : undefined}
       >
@@ -156,7 +148,7 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
           </div>
         ) : undefined}
       >
-        <ReasonBlock number={1} title="Вы боитесь выглядеть хвастуном" quote="Думаете: &quot;Если покажу результаты – решат что хвастаюсь&quot;">
+        <ReasonBlock number={1} title="Вы боитесь выглядеть хвастуном" icon="🙈" quote="Думаете: &quot;Если покажу результаты – решат что хвастаюсь&quot;">
           <p className="text-secondary mb-md">
             Но показывать результаты ≠ хвастовство.<br/>
             <strong>Это доказательство компетентности.</strong>
@@ -172,7 +164,7 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
           </div>
         </ReasonBlock>
 
-        <ReasonBlock number={2} title="Не знаете что писать про работу" quote="&quot;Моя работа скучная&quot;, &quot;Кому это интересно&quot;, &quot;Все и так это знают&quot;">
+        <ReasonBlock number={2} title="Не знаете что писать про работу" icon="🤷" quote="&quot;Моя работа скучная&quot;, &quot;Кому это интересно&quot;, &quot;Все и так это знают&quot;">
           <p className="text-secondary mb-md">
             <strong>Правда в том,</strong> что силу того, что мы все фанаты своего дела и мы все любим то, что мы делаем, мы привыкаем к этому.
           </p>
@@ -184,7 +176,7 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
           </p>
         </ReasonBlock>
 
-        <ReasonBlock number={3} title="Перфекционизм" quote="&quot;Сначала придумаю идеальную стратегию, потом начну&quot;">
+        <ReasonBlock number={3} title="Перфекционизм" icon="🎯" quote="&quot;Сначала придумаю идеальную стратегию, потом начну&quot;">
           <p className="text-secondary mb-md">
             Но идеальной стратегии не существует.<br/>
             <strong className="text-cyan">Начать = важнее чем идеально.</strong>
@@ -194,7 +186,7 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
           </p>
         </ReasonBlock>
 
-        <ReasonBlock number={4} title="Боитесь критики" quote="&quot;А вдруг кто-то раскритикует&quot;, &quot;А если скажут что я некомпетентен&quot;">
+        <ReasonBlock number={4} title="Боитесь критики" icon="🛡️" quote="&quot;А вдруг кто-то раскритикует&quot;, &quot;А если скажут что я некомпетентен&quot;">
           <p className="text-secondary mb-md">
             <strong>Правда:</strong> Есть те, кто создает. Есть те, кто критикует. И есть те, кто наблюдает за всем этим.
           </p>
@@ -343,6 +335,15 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
             ]}
             multiplier="×5"
           />
+
+          {/* Скриншот отзыва Васи — замени /reviews/vasya.jpg на реальную картинку */}
+          <div className="case-screenshot mt-md">
+            <img
+              src="/reviews/vasya-review.jpg"
+              alt="Отзыв Васи о результатах"
+              className="case-screenshot-img"
+            />
+          </div>
 
           <p className="text-highlight mt-md">
             Вася не набрал миллион подписчиков. Он просто стал <strong>видимым для правильной аудитории</strong>. И этого хватило, чтобы вырасти в 5 раз.
