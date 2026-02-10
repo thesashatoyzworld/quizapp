@@ -179,8 +179,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — AnalyzingLoader component + ScrollReveal scroll-triggered animations with CSS keyframes + Intersection Observer (VIS-03, VIS-04)
-- [ ] 09-02-PLAN.md — Visual accent CSS classes + BeforeAfterComparison data-driven component (VIS-05, EMO-02)
+- [x] 09-01-PLAN.md — AnalyzingLoader component + ScrollReveal scroll-triggered animations with CSS keyframes + Intersection Observer (VIS-03, VIS-04)
+- [x] 09-02-PLAN.md — Visual accent CSS classes + BeforeAfterComparison data-driven component (VIS-05, EMO-02)
 
 ---
 
@@ -224,7 +224,7 @@ v1.0 phases complete → Phase 4 → Phase 5 (partial) → Phase 6 → Phase 8 �
 | 6. Follow-up Messaging | v1.1 | 3/3 | Complete | 2026-02-09 |
 | 7. End-to-End Testing | v1.1 | - | Deferred to Phase 10 | - |
 | 8. Chart Integration + Hero | v2.0 | 2/2 | Complete | 2026-02-10 |
-| 9. Animations + Emotional Design | v2.0 | 0/2 | Planned | - |
+| 9. Animations + Emotional Design | v2.0 | 2/2 | Complete | 2026-02-10 |
 | 10. Shareability + Testing | v2.0 | 0/3 | Planned | - |
 
 ---
@@ -267,4 +267,4 @@ v1.0 phases complete → Phase 4 → Phase 5 (partial) → Phase 6 → Phase 8 �
 ---
 
 *Roadmap created: 2026-01-31*
-*Last updated: 2026-02-10 (Phase 8 complete)*
+*Last updated: 2026-02-10 (Phase 9 complete)*
