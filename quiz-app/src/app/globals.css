@@ -2234,18 +2234,12 @@ body {
    CONNECTORS LANDING PAGE (Phase 11)
    ======================================== */
 
-/* Override for long scrollable landing pages */
-html:has(.connectors-page),
-html:has(.connectors-page) body {
-  height: auto;
-  min-height: 100%;
-}
-
+/* Standalone scrollable landing page container */
 .connectors-page {
-  justify-content: flex-start !important;
-  padding-top: var(--space-lg);
-  min-height: auto;
-  height: auto;
+  padding: var(--space-lg);
+  position: relative;
+  max-width: 950px;
+  margin: 0 auto;
 }
 
 .connectors-page .result-page .card {

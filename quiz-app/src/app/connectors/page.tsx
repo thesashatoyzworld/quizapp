@@ -20,8 +20,9 @@ export default async function ConnectorsPage({
     : 'invisible';
 
   return (
-    <div className="quiz-container connectors-page">
-      <div className="quiz-content">
+    <>
+      <style>{`html, body { height: auto !important; min-height: 100% !important; }`}</style>
+      <div className="connectors-page">
         <div className="grid-bg" />
         <div className="scanlines" />
 
@@ -294,6 +295,6 @@ export default async function ConnectorsPage({
           </section>
         </div>
       </div>
-    </div>
+    </>
   );
 }
