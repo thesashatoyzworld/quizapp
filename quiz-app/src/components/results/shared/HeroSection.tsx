@@ -64,8 +64,8 @@ export function HeroSection({
         <div className="hero-financial-label">
           {financialData.label}
         </div>
-        <div className="hero-financial-amount" style={{ color: accentColor }}>
-          +{formatNumber(financialData.lostPerMonth)}<span className="hero-financial-suffix">&nbsp;₽</span>
+        <div className="hero-financial-amount" style={{ color: 'var(--danger)' }}>
+          {formatNumber(financialData.lostPerMonth)}+<span className="hero-financial-suffix">&nbsp;₽</span>
         </div>
         <div className="hero-financial-label" style={{ fontSize: '0.9rem', opacity: 0.7 }}>
           каждый месяц
