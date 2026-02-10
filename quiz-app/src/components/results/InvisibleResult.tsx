@@ -12,6 +12,7 @@ import {
   CTASection,
   WeakPointsHighlight,
   GrowthMetric,
+  BeforeAfterComparison,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -285,7 +286,7 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
           ]}
         />
 
-        <p className="text-highlight text-center mt-lg">
+        <p className="text-highlight text-center mt-lg accent-quote">
           Разница не в количестве дипломов. Разница в видимости и в том, чтобы начать сразу с манимейкинговых действий.
         </p>
       </ResultSection>
@@ -296,7 +297,7 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
           Я работаю с экспертами-невидимками с 2023 года.
         </p>
         <p className="text-cyan mb-lg">
-          Помог <strong>300+ экспертам</strong> стать видимыми и получить крутые результаты.
+          Помог <strong className="accent-number">300+ экспертам</strong> стать видимыми и получить крутые результаты.
         </p>
 
         <CaseStudyCard type="positive" title="Реальный кейс: Вася, фитнес-тренер">
@@ -389,6 +390,17 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
           <li>Как делать это системно без выгорания?</li>
         </ul>
         <p className="text-highlight mt-md">На это нужен взгляд со стороны.</p>
+
+        <div className="mt-lg">
+          <p className="text-cyan text-center mb-md">Ваша трансформация:</p>
+          {chartData && (
+            <BeforeAfterComparison
+              radarData={chartData.radar}
+              financialData={chartData.financial}
+              accentColor={ACCENT_COLOR}
+            />
+          )}
+        </div>
       </ResultSection>
 
       {/* Masterclass CTA */}

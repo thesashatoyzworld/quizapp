@@ -10,6 +10,7 @@ import {
   CTASection,
   WeakPointsHighlight,
   GrowthMetric,
+  BeforeAfterComparison,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -88,8 +89,8 @@ export default function ScaleResult({ onPaymentClick, userId, resultId, scores, 
           </ul>
         </div>
 
-        <p className="text-highlight">
-          Поздравляю! Вы в <strong>топ-15% экспертов</strong>. Следующий шаг — масштабирование.
+        <p className="text-highlight accent-quote">
+          Поздравляю! Вы в <strong className="accent-number">топ-15% экспертов</strong>. Следующий шаг — масштабирование.
         </p>
         <p className="text-cyan text-center mt-md" style={{ fontSize: '1.2rem' }}>Это про вас?</p>
       </ResultSection>
@@ -305,6 +306,17 @@ export default function ScaleResult({ onPaymentClick, userId, resultId, scores, 
           <li>Как автоматизировать без потери "живости"?</li>
         </ul>
         <p className="text-highlight mt-md">На этом этапе особенно важен взгляд со стороны.</p>
+
+        <div className="mt-lg">
+          <p className="text-cyan text-center mb-md">Ваша трансформация:</p>
+          {chartData && (
+            <BeforeAfterComparison
+              radarData={chartData.radar}
+              financialData={chartData.financial}
+              accentColor={ACCENT_COLOR}
+            />
+          )}
+        </div>
       </ResultSection>
 
       {/* Masterclass CTA */}

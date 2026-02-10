@@ -12,6 +12,7 @@ import {
   CTASection,
   WeakPointsHighlight,
   GrowthMetric,
+  BeforeAfterComparison,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -90,7 +91,7 @@ export default function DoerResult({ onPaymentClick, userId, resultId, scores, u
           </ul>
         </div>
 
-        <p className="text-highlight">
+        <p className="text-highlight accent-insight">
           Проблема не в вас. Проблема в <strong>отсутствии системы</strong>.
         </p>
         <p className="text-cyan text-center mt-md" style={{ fontSize: '1.2rem' }}>Это про вас?</p>
@@ -281,7 +282,7 @@ export default function DoerResult({ onPaymentClick, userId, resultId, scores, u
           Я работаю с "делателями без системы" с 2023 года.
         </p>
         <p className="text-cyan mb-lg">
-          Помог <strong>300+ экспертам</strong> перестать метаться и найти свою систему.
+          Помог <strong className="accent-number">300+ экспертам</strong> перестать метаться и найти свою систему.
         </p>
 
         <CaseStudyCard type="positive" title="Реальный кейс: Артём, маркетолог">
@@ -367,6 +368,17 @@ export default function DoerResult({ onPaymentClick, userId, resultId, scores, u
           <li>Как не выгореть пока жду результат?</li>
         </ul>
         <p className="text-highlight mt-md">На это нужен взгляд со стороны.</p>
+
+        <div className="mt-lg">
+          <p className="text-cyan text-center mb-md">Ваша трансформация:</p>
+          {chartData && (
+            <BeforeAfterComparison
+              radarData={chartData.radar}
+              financialData={chartData.financial}
+              accentColor={ACCENT_COLOR}
+            />
+          )}
+        </div>
       </ResultSection>
 
       {/* Masterclass CTA */}

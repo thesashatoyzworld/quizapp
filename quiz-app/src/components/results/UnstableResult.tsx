@@ -12,6 +12,7 @@ import {
   CTASection,
   WeakPointsHighlight,
   GrowthMetric,
+  BeforeAfterComparison,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -90,7 +91,7 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
           </ul>
         </div>
 
-        <p className="text-highlight">
+        <p className="text-highlight accent-insight">
           Вы нашли работающую механику. Но <strong>не оцифровали её в систему</strong>.
         </p>
         <p className="text-cyan text-center mt-md" style={{ fontSize: '1.2rem' }}>Это про вас?</p>
@@ -287,7 +288,7 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
           Я работаю с "нестабильными результатами" с 2023 года.
         </p>
         <p className="text-cyan mb-lg">
-          Помог <strong>300+ экспертам</strong> превратить интуицию в систему.
+          Помог <strong className="accent-number">300+ экспертам</strong> превратить интуицию в систему.
         </p>
 
         <CaseStudyCard type="positive" title="Реальный кейс: Анна, стилист">
@@ -373,6 +374,17 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
           <li>Как выстроить систему без потери "творческого огня"?</li>
         </ul>
         <p className="text-highlight mt-md">На это нужен взгляд со стороны.</p>
+
+        <div className="mt-lg">
+          <p className="text-cyan text-center mb-md">Ваша трансформация:</p>
+          {chartData && (
+            <BeforeAfterComparison
+              radarData={chartData.radar}
+              financialData={chartData.financial}
+              accentColor={ACCENT_COLOR}
+            />
+          )}
+        </div>
       </ResultSection>
 
       {/* Masterclass CTA */}

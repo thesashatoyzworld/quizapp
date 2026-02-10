@@ -12,6 +12,7 @@ import {
   CTASection,
   WeakPointsHighlight,
   GrowthMetric,
+  BeforeAfterComparison,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -91,7 +92,7 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
           </ul>
         </div>
 
-        <p className="text-highlight">
+        <p className="text-highlight accent-quote">
           Вы нашли систему. Но <strong>не ту систему</strong>.
         </p>
         <p className="text-cyan text-center mt-md" style={{ fontSize: '1.2rem' }}>Это про вас?</p>
@@ -288,7 +289,7 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
           Я работаю с "щедрыми экспертами" с 2023 года.
         </p>
         <p className="text-cyan mb-lg">
-          Помог <strong>300+ экспертам</strong> перестать создавать студентов и начать привлекать клиентов.
+          Помог <strong className="accent-number">300+ экспертам</strong> перестать создавать студентов и начать привлекать клиентов.
         </p>
 
         <CaseStudyCard type="positive" title="Реальный кейс: Наташа, психолог">
@@ -374,6 +375,17 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
           <li>Как перестроить контент без потери вовлечённости?</li>
         </ul>
         <p className="text-highlight mt-md">На это нужен взгляд со стороны.</p>
+
+        <div className="mt-lg">
+          <p className="text-cyan text-center mb-md">Ваша трансформация:</p>
+          {chartData && (
+            <BeforeAfterComparison
+              radarData={chartData.radar}
+              financialData={chartData.financial}
+              accentColor={ACCENT_COLOR}
+            />
+          )}
+        </div>
       </ResultSection>
 
       {/* Masterclass CTA */}
