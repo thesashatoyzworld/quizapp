@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Telegram Mini App с квизом "AI-диагност контента" для эксперта @sashatoyz. Квиз определяет этап развития эксперта (5 результатов), после чего ведёт к покупке мастер-класса "Продающий контент" за 3,450 RUB через Prodamus. Все события трекаются в Notion, неоплатившим отправляются follow-up сообщения через cron.
+Telegram Mini App с квизом "AI-диагност контента" для эксперта @sashatoyz. Квиз определяет этап развития эксперта (5 результатов), показывает персонализированную визуальную диагностику с чартами, инфографикой и анимациями, после чего ведёт к покупке мастер-класса "Продающий контент" за 3,450 RUB через Prodamus. Все события трекаются в Notion, неоплатившим отправляются follow-up сообщения через cron.
 
 ## Core Value
 
@@ -12,32 +12,24 @@ Telegram Mini App с квизом "AI-диагност контента" для 
 
 ### Validated
 
-- ✓ **QUIZ-01..05**: Квиз с 8 вопросами, 5 категориями, 5 результатами — existing (Phase 1)
-- ✓ **TG-01..03**: Telegram Mini App, user_id, callback — existing (Phase 2)
-- ✓ **DEPLOY-01..02**: Деплой на Vercel, quizapp-ivory-delta.vercel.app — existing (Phase 3)
-- ✓ **PAY-01**: Prodamus интеграция (оплата, webhook верификация, материалы) — existing (post-MVP)
-- ✓ **TRACK-01**: Event tracking через Notion API — existing (post-MVP)
-- ✓ **FOLLOW-01**: Follow-up сообщения (4 персональных по результату квиза) — existing (post-MVP)
-- ✓ **FOLLOW-02**: Cron endpoint для рассылки follow-up — existing (post-MVP)
-- ✓ **SUB-01**: Проверка подписки на канал перед результатом — existing (post-MVP)
+- ✓ **QUIZ-01..05**: Квиз с 8 вопросами, 5 категориями, 5 результатами — v1.0
+- ✓ **TG-01..03**: Telegram Mini App, user_id, callback — v1.0
+- ✓ **DEPLOY-01..02**: Деплой на Vercel — v1.0
+- ✓ **PAY-01**: Prodamus оплата + webhook + материалы — v1.0
+- ✓ **TRACK-01**: Event tracking через Notion API — v1.0
+- ✓ **FOLLOW-01..02**: Follow-up сообщения + cron — v1.0
+- ✓ **SUB-01**: Проверка подписки на канал — v1.0
+- ✓ **LAYOUT-01..04**: Shared components, типографика, адаптивность — v1.1
+- ✓ **VIZ-01..04**: Radar chart, level badge, financial gauge, audience donut — v1.1
+- ✓ **MSG-01..03**: Follow-up E2E, пост-оплата, admin notifications — v1.1
+- ✓ **VIS-01..05**: Чарт интеграция, hero секция, scroll-анимации, лоадер, визуальные акценты — v2.0
+- ✓ **EMO-01..03**: Финансовый impact, before/after, персонализация — v2.0
+- ✓ **CONS-01**: Mobile/desktop responsive — v2.0
+- ✓ **TEST-01..04**: E2E тестирование, UX-аудит (guides + checklist) — v2.0
 
-### Active — Milestone v1.1: Polish & Conversion
+### Active
 
-**Блок 1: Редизайн результатов**
-- [ ] Исправить вёрстку 5 страниц результатов (разъезжается, шрифты, несогласованность)
-- [ ] Визуальные блоки: графики, чарты, инфографика из данных квиза (radar chart, gauge, donut, before/after)
-- [ ] Геймификация: уровень (1-5), прогресс-бар, ранжирование (Solo Leveling стиль)
-- [ ] Ресёрч UI-паттернов для лонгридов с инфографикой в cyberpunk стилистике
-
-**Блок 2: Догрев + сообщения**
-- [ ] Follow-up цепочка для непокупателей — проверить/доделать end-to-end
-- [ ] Сообщение после оплаты — проверить/доделать
-- [ ] Cron расписание — настроить и проверить на Vercel
-
-**Блок 3: Сквозное тестирование**
-- [ ] AI проходит весь путь как покупатель (квиз → результат → оплата → follow-up)
-- [ ] Подсветить слабые места и UX-проблемы
-- [ ] Раунд итераций по найденным проблемам
+(No active milestone — planning next)
 
 ### Out of Scope
 
@@ -45,6 +37,9 @@ Telegram Mini App с квизом "AI-диагност контента" для 
 - Админка для редактирования квиза — пока в коде
 - Мультиязычность — только русский
 - AI-ассистент для обработки заявок — будущее
+- Тяжёлые анимации (Framer Motion) — React 19 несовместимость, bundle size
+- Кнопка "Поделиться результатом" — отложена, доработаем позже
+- Переписывание текстов результатов — отдельный milestone
 
 ## Context
 
@@ -53,17 +48,35 @@ Telegram Mini App с квизом "AI-диагност контента" для 
 - Telegram WebApp SDK для Mini App
 - Prodamus для оплаты (HMAC SHA256 webhook verification)
 - Notion API (@notionhq/client v5.x) для трекинга и follow-up очереди
+- Recharts (40KB) для визуализаций (SVG rendering)
+- Pure CSS @keyframes + native IntersectionObserver для анимаций
 - Vercel для хостинга и cron jobs
 
 ### Квиз
 - 8 вопросов, 4 варианта ответа
 - 5 результатов: Эксперт-невидимка, Делатель без системы, Щедрый эксперт, Эксперт на качелях, Манимейкер
-- Каждому результату — 4 персональных follow-up сообщения (включая видео-кейс)
+- Каждому результату — персонализированная диагностика (hero, charts, before/after, CTA)
+- 4 follow-up сообщения на результат (включая видео-кейс)
+
+### Shipped features (v2.0)
+- HeroSection с Telegram персонализацией (имя, аватар, level badge, финансовый impact)
+- AnalyzingLoader (2.5s лоадинг перед показом результата)
+- ScrollReveal (прогрессивное появление секций при скролле)
+- BeforeAfterComparison (СЕЙЧАС vs ПОСЛЕ на основе данных квиза)
+- Визуальные акценты (accent-quote, accent-number, accent-pain, accent-insight)
+- WeakPointsHighlight (2 слабейших показателя из radar chart)
+- GrowthMetric (Было/Стало с множителем)
 
 ### Инфраструктура
-- Bot: @sashatoyz_bot
-- Deploy: quizapp-ivory-delta.vercel.app
+- Bot: @testtoyzbot
+- Deploy: quiz.thesashatoyz.com (Vercel)
 - GitHub: github.com/thesashatoyzworld/quizapp.git
+
+### Known Issues (from UX audit)
+- State lost on page refresh (no localStorage persistence)
+- No back button during quiz
+- Payment timeout not handled
+- MASTERCLASS_CHANNEL_LINK not set
 
 ## Constraints
 
@@ -71,6 +84,7 @@ Telegram Mini App с квизом "AI-диагност контента" для 
 - **Оплата**: Только Prodamus
 - **Трекинг**: Notion API (migrated from Google Sheets)
 - **Деплой**: Vercel (free tier)
+- **Анимации**: Pure CSS + native APIs only (no Framer Motion)
 
 ## Key Decisions
 
@@ -78,22 +92,14 @@ Telegram Mini App с квизом "AI-диагност контента" для 
 |----------|-----------|---------|
 | Next.js для квиза | Vercel деплой, App Router | ✓ Good |
 | Prodamus для оплаты | Российский рынок, простая интеграция | ✓ Good |
-| Notion вместо Google Sheets | Удобнее, нет Apps Script, MCP доступ | — Pending verification |
+| Notion вместо Google Sheets | Удобнее, нет Apps Script, MCP доступ | ✓ Good (verified E2E) |
 | @notionhq/client v5 dataSources API | databases.query removed in v5, use dataSources.query | ✓ Good |
-| Follow-up через cron | Vercel cron + Notion queue, не зависит от внешних сервисов | — Pending verification |
-
-## Current Milestone: v2.0 Result Page WOW Effect
-
-**Goal:** Превратить страницы результатов из "дешёвых" текстовых лонгридов в эмоционально попадающие визуальные страницы, которыми хочется делиться в соцсетях.
-
-**Target features:**
-- Эмоциональное попадание: человек узнаёт себя, чувствует "это про меня"
-- Визуальный WOW-эффект: инфографика, визуальные элементы, не полотно текста
-- Shareability: страница-скриншот, которой хочется поделиться в соцсетях
-- Консистентность: одинаково хорошо на телефоне и десктопе
-- Возможная переработка текстов результатов (обсуждается отдельно)
-
-**Previous milestone (v1.1):** Mostly complete — Phase 4 (layout) done, Phase 5 (charts 3/4), Phase 6 (follow-up E2E verified). Phase 7 (E2E testing) deferred.
+| Follow-up через cron | Vercel cron + Notion queue, не зависит от внешних сервисов | ✓ Good (verified E2E) |
+| Recharts для визуализаций | 40KB bundle, mobile-optimized, SVG rendering | ✓ Good |
+| Pure CSS вместо Framer Motion | React 19 issues, 0KB bundle impact | ✓ Good |
+| IntersectionObserver для scroll | Native API, 0KB, Telegram WebView compatible | ✓ Good |
+| ShareButton отложена | Не выглядит прикольно, доработаем позже | ⚠️ Deferred |
+| Composition over modification | Обёртки вокруг существующих компонентов | ✓ Good |
 
 ---
-*Last updated: 2026-02-09 after milestone v2.0 initialization*
+*Last updated: 2026-02-10 after v2.0 milestone*
