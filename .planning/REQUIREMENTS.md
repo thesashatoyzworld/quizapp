@@ -66,26 +66,26 @@ Requirements for milestone v3.0 "Коннекторы Upsell Funnel". Each maps 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LAND-01 | — | Pending |
-| LAND-02 | — | Pending |
-| LAND-03 | — | Pending |
-| LAND-04 | — | Pending |
-| PAY-02 | — | Pending |
-| PAY-03 | — | Pending |
-| UPSELL-01 | — | Pending |
-| UPSELL-02 | — | Pending |
-| UPSELL-03 | — | Pending |
-| UPSELL-04 | — | Pending |
-| ACCESS-01 | — | Pending |
-| ACCESS-02 | — | Pending |
-| TRACK-02 | — | Pending |
-| TRACK-03 | — | Pending |
+| LAND-01 | Phase 11 | Pending |
+| LAND-02 | Phase 11 | Pending |
+| LAND-03 | Phase 12 | Pending |
+| LAND-04 | Phase 11 | Pending |
+| PAY-02 | Phase 13 | Pending |
+| PAY-03 | Phase 13 | Pending |
+| UPSELL-01 | Phase 14 | Pending |
+| UPSELL-02 | Phase 14 | Pending |
+| UPSELL-03 | Phase 14 | Pending |
+| UPSELL-04 | Phase 14 | Pending |
+| ACCESS-01 | Phase 15 | Pending |
+| ACCESS-02 | Phase 13 | Pending |
+| TRACK-02 | Phase 14 | Pending |
+| TRACK-03 | Phase 13 | Pending |
 
 **Coverage:**
 - v3.0 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14 (pending roadmap)
+- Mapped to phases: 14/14 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-10*
-*Last updated: 2026-02-10 after initial definition*
+*Last updated: 2026-02-10 (traceability mapped to phases 11-15)*
