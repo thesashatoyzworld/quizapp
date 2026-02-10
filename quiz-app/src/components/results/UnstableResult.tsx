@@ -10,6 +10,8 @@ import {
   ReasonBlock,
   StepsList,
   CTASection,
+  WeakPointsHighlight,
+  GrowthMetric,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -51,6 +53,7 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
           <div className="result-chart-slot">
             <RadarChart data={chartData.radar} accentColor={ACCENT_COLOR} />
             <LevelPath levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
+            <WeakPointsHighlight data={chartData.radar} accentColor={ACCENT_COLOR} />
           </div>
         ) : undefined}
       >
@@ -141,7 +144,7 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
           </div>
         ) : undefined}
       >
-        <ReasonBlock number={1} title="Интуиция вместо аналитики" quote="Думаете: &quot;Я чувствую, когда получается&quot;">
+        <ReasonBlock number={1} title="Интуиция вместо аналитики" quote="Думаете: &quot;Я чувствую, когда получается&quot;" icon="🎲">
           <p className="text-secondary mb-md">
             Но чувства — не система.<br/>
             <strong>Без цифр невозможно понять, что работает.</strong>
@@ -157,7 +160,7 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
           </div>
         </ReasonBlock>
 
-        <ReasonBlock number={2} title="Зависимость от настроения" quote="&quot;Когда в ресурсе — контент огонь. Когда устал — не получается&quot;">
+        <ReasonBlock number={2} title="Зависимость от настроения" quote="&quot;Когда в ресурсе — контент огонь. Когда устал — не получается&quot;" icon="🎭">
           <p className="text-secondary mb-md">
             <strong>Правда в том,</strong> что настроение не должно влиять на результат.
           </p>
@@ -169,7 +172,7 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
           </p>
         </ReasonBlock>
 
-        <ReasonBlock number={3} title="&quot;Работает — не трогай&quot;" quote="&quot;В хорошие месяцы не до анализа, в плохие — паника&quot;">
+        <ReasonBlock number={3} title="&quot;Работает — не трогай&quot;" quote="&quot;В хорошие месяцы не до анализа, в плохие — паника&quot;" icon="🙈">
           <p className="text-secondary mb-md">
             В хорошие месяцы кажется, что анализировать не нужно — и так работает.<br/>
             <strong className="text-cyan">Но именно в хорошие месяцы нужно фиксировать, ЧТО сработало.</strong>
@@ -179,7 +182,7 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
           </p>
         </ReasonBlock>
 
-        <ReasonBlock number={4} title="Страх &quot;сглазить&quot;" quote="&quot;Начну анализировать — и магия пропадёт&quot;">
+        <ReasonBlock number={4} title="Страх &quot;сглазить&quot;" quote="&quot;Начну анализировать — и магия пропадёт&quot;" icon="🔮">
           <p className="text-secondary mb-md">
             <strong>Правда:</strong> Анализ не убивает творчество. Он делает его управляемым.
           </p>
@@ -212,14 +215,20 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
             Сергей: "Не знаю. Иногда кейсы работают, иногда нет. Иногда рилсы, иногда посты..."
           </p>
 
-          <div className="timeline">
+          <div className="timeline timeline-enhanced">
             <div className="timeline-item">
-              <span className="timeline-year">Проблема:</span>
-              <span className="text-secondary">Ноль аналитики. Ноль понимания, что работает.</span>
+              <div className="timeline-node" style={{ backgroundColor: '#ff6b35', color: '#ff6b35' }} />
+              <div>
+                <span className="timeline-year" style={{ color: '#ff6b35' }}>Проблема:</span>
+                <span className="text-secondary"> Ноль аналитики. Ноль понимания, что работает.</span>
+              </div>
             </div>
             <div className="timeline-item">
-              <span className="timeline-year">Результат:</span>
-              <span className="text-secondary">2 года на эмоциональных качелях. Выгорание на подходе.</span>
+              <div className="timeline-node" style={{ backgroundColor: 'var(--danger)', color: 'var(--danger)' }} />
+              <div>
+                <span className="timeline-year" style={{ color: 'var(--danger)' }}>Результат:</span>
+                <span className="text-secondary"> 2 года на эмоциональных качелях. Выгорание на подходе.</span>
+              </div>
             </div>
           </div>
 
@@ -305,6 +314,20 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
               <li className="text-success">Впервые за 2 года: <strong>спланированный отпуск</strong></li>
             </ul>
           </div>
+
+          <GrowthMetric
+            before={[
+              { label: 'Разброс', value: '130 тыс' },
+              { label: 'Средний', value: '135 тыс' },
+              { label: 'Стресс', value: 'Высокий' },
+            ]}
+            after={[
+              { label: 'Разброс', value: '40 тыс' },
+              { label: 'Средний', value: '200 тыс' },
+              { label: 'Стресс', value: 'Ноль' },
+            ]}
+            multiplier="×1.5"
+          />
 
           <p className="text-highlight mt-md">
             Анна не стала работать больше. Она стала <strong>работать предсказуемо</strong>.

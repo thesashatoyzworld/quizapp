@@ -8,6 +8,8 @@ import {
   StatsGrid,
   StepsList,
   CTASection,
+  WeakPointsHighlight,
+  GrowthMetric,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -49,6 +51,7 @@ export default function ScaleResult({ onPaymentClick, userId, resultId, scores, 
           <div className="result-chart-slot">
             <RadarChart data={chartData.radar} accentColor={ACCENT_COLOR} />
             <LevelPath levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
+            <WeakPointsHighlight data={chartData.radar} accentColor={ACCENT_COLOR} />
           </div>
         ) : undefined}
       >
@@ -248,6 +251,19 @@ export default function ScaleResult({ onPaymentClick, userId, resultId, scores, 
               <li className="text-success">Работа: <strong>6 часов в день</strong></li>
             </ul>
           </div>
+          <GrowthMetric
+            before={[
+              { label: 'Клиенты', value: '12-15/мес' },
+              { label: 'Доход', value: '250 тыс' },
+              { label: 'Работа', value: '10+ часов' },
+            ]}
+            after={[
+              { label: 'Клиенты', value: '70-95/мес' },
+              { label: 'Доход', value: '650 тыс' },
+              { label: 'Работа', value: '6 часов' },
+            ]}
+            multiplier="×2.6"
+          />
         </CaseStudyCard>
       </ResultSection>
 

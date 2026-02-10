@@ -10,6 +10,8 @@ import {
   ReasonBlock,
   StepsList,
   CTASection,
+  WeakPointsHighlight,
+  GrowthMetric,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -51,6 +53,7 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
           <div className="result-chart-slot">
             <RadarChart data={chartData.radar} accentColor={ACCENT_COLOR} />
             <LevelPath levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
+            <WeakPointsHighlight data={chartData.radar} accentColor={ACCENT_COLOR} />
           </div>
         ) : undefined}
       >
@@ -142,7 +145,7 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
           </div>
         ) : undefined}
       >
-        <ReasonBlock number={1} title="&quot;Фу, инфоцыган&quot;" quote="Думаете: &quot;Если буду продавать — стану как те противные блогеры&quot;">
+        <ReasonBlock number={1} title="&quot;Фу, инфоцыган&quot;" icon="🤮" quote="Думаете: &quot;Если буду продавать — стану как те противные блогеры&quot;">
           <p className="text-secondary mb-md">
             Но продажа — это не манипуляция.<br/>
             <strong>Продажа — это помощь человеку принять решение.</strong>
@@ -158,7 +161,7 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
           </div>
         </ReasonBlock>
 
-        <ReasonBlock number={2} title="Путаница: польза vs ценность" quote="&quot;Чем больше даю пользы — тем больше заплатят&quot;">
+        <ReasonBlock number={2} title="Путаница: польза vs ценность" icon="⚖️" quote="&quot;Чем больше даю пользы — тем больше заплатят&quot;">
           <p className="text-secondary mb-md">
             <strong>Правда в том,</strong> что бесплатная польза и платная услуга — разные вещи.
           </p>
@@ -170,7 +173,7 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
           </p>
         </ReasonBlock>
 
-        <ReasonBlock number={3} title="Страх отказа" quote="&quot;Если предложу и откажут — значит, я недостаточно хорош&quot;">
+        <ReasonBlock number={3} title="Страх отказа" icon="😰" quote="&quot;Если предложу и откажут — значит, я недостаточно хорош&quot;">
           <p className="text-secondary mb-md">
             Отказ — это не про вашу компетентность.<br/>
             <strong className="text-cyan">Это про то, что человеку сейчас не нужно или не подходит.</strong>
@@ -180,7 +183,7 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
           </p>
         </ReasonBlock>
 
-        <ReasonBlock number={4} title="&quot;Быть хорошим&quot;" quote="&quot;Буду хорошим экспертом — и деньги придут сами&quot;">
+        <ReasonBlock number={4} title="&quot;Быть хорошим&quot;" icon="😇" quote="&quot;Буду хорошим экспертом — и деньги придут сами&quot;">
           <p className="text-secondary mb-md">
             <strong>Правда:</strong> Мир полон гениальных экспертов без клиентов. И посредственных — с очередью.
           </p>
@@ -213,14 +216,20 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
             Оля: "Показываю как самим сделать дизайн-проект, даю шаблоны, объясняю принципы..."
           </p>
 
-          <div className="timeline">
+          <div className="timeline timeline-enhanced">
             <div className="timeline-item">
-              <span className="timeline-year">Проблема:</span>
-              <span className="text-secondary">Её подписчики научились делать сами. Зачем им платить?</span>
+              <div className="timeline-node" style={{ backgroundColor: '#ff6b35', color: '#ff6b35' }} />
+              <div>
+                <span className="timeline-year" style={{ color: '#ff6b35' }}>Проблема:</span>
+                <span className="text-secondary"> Её подписчики научились делать сами. Зачем им платить?</span>
+              </div>
             </div>
             <div className="timeline-item">
-              <span className="timeline-year">Результат:</span>
-              <span className="text-secondary">15 000 подписчиков-студентов. 0.02% конверсия в клиентов.</span>
+              <div className="timeline-node" style={{ backgroundColor: 'var(--danger)', color: 'var(--danger)' }} />
+              <div>
+                <span className="timeline-year" style={{ color: 'var(--danger)' }}>Результат:</span>
+                <span className="text-secondary"> 15 000 подписчиков-студентов. 0.02% конверсия в клиентов.</span>
+              </div>
             </div>
           </div>
 
@@ -306,6 +315,20 @@ export default function GenerousResult({ onPaymentClick, userId, resultId, score
               <li className="text-success">Рост в <strong>4 раза</strong></li>
             </ul>
           </div>
+
+          <GrowthMetric
+            before={[
+              { label: 'Подписчики', value: '12 000' },
+              { label: 'Клиенты', value: '3/мес' },
+              { label: 'Доход', value: '90 тыс' },
+            ]}
+            after={[
+              { label: 'Подписчики', value: '11 000' },
+              { label: 'Клиенты', value: '12-15/мес' },
+              { label: 'Доход', value: '350 тыс' },
+            ]}
+            multiplier="×4"
+          />
 
           <p className="text-highlight mt-md">
             Наташа не стала менее щедрой. Она стала <strong>щедрой к тем, кому реально нужна помощь</strong>.

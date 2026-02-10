@@ -10,6 +10,8 @@ import {
   ReasonBlock,
   StepsList,
   CTASection,
+  WeakPointsHighlight,
+  GrowthMetric,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -51,6 +53,7 @@ export default function DoerResult({ onPaymentClick, userId, resultId, scores, u
           <div className="result-chart-slot">
             <RadarChart data={chartData.radar} accentColor={ACCENT_COLOR} />
             <LevelPath levelData={chartData.levelData} accentColor={ACCENT_COLOR} />
+            <WeakPointsHighlight data={chartData.radar} accentColor={ACCENT_COLOR} />
           </div>
         ) : undefined}
       >
@@ -142,7 +145,7 @@ export default function DoerResult({ onPaymentClick, userId, resultId, scores, u
           </div>
         ) : undefined}
       >
-        <ReasonBlock number={1} title="Охота за &quot;волшебной таблеткой&quot;" quote="Думаете: &quot;Вот ЭТО обучение/шаблон/метод точно сработает&quot;">
+        <ReasonBlock number={1} title="Охота за &quot;волшебной таблеткой&quot;" quote="Думаете: &quot;Вот ЭТО обучение/шаблон/метод точно сработает&quot;" icon="💊">
           <p className="text-secondary mb-md">
             Но волшебных таблеток не существует.<br/>
             <strong>Работает только система.</strong>
@@ -155,7 +158,7 @@ export default function DoerResult({ onPaymentClick, userId, resultId, scores, u
           </div>
         </ReasonBlock>
 
-        <ReasonBlock number={2} title="Нетерпение" quote="&quot;Попробовал неделю — не работает — значит, метод плохой&quot;">
+        <ReasonBlock number={2} title="Нетерпение" quote="&quot;Попробовал неделю — не работает — значит, метод плохой&quot;" icon="⏱️">
           <p className="text-secondary mb-md">
             <strong>Правда в том,</strong> что любой системе нужно время, чтобы дать результат. Минимум 2-4 недели на тест.
           </p>
@@ -164,7 +167,7 @@ export default function DoerResult({ onPaymentClick, userId, resultId, scores, u
           </p>
         </ReasonBlock>
 
-        <ReasonBlock number={3} title="Копирование без понимания" quote="&quot;Возьму шаблон, который работает у Маши — и у меня сработает&quot;">
+        <ReasonBlock number={3} title="Копирование без понимания" quote="&quot;Возьму шаблон, который работает у Маши — и у меня сработает&quot;" icon="📋">
           <p className="text-secondary mb-md">
             Но шаблон — это форма. А работает — механика под ней.<br/>
             <strong className="text-cyan">Без понимания механики шаблон бесполезен.</strong>
@@ -174,7 +177,7 @@ export default function DoerResult({ onPaymentClick, userId, resultId, scores, u
           </p>
         </ReasonBlock>
 
-        <ReasonBlock number={4} title="Слишком много информации" quote="&quot;Прошёл 10 курсов — теперь знаю всё, но ничего не работает&quot;">
+        <ReasonBlock number={4} title="Слишком много информации" quote="&quot;Прошёл 10 курсов — теперь знаю всё, но ничего не работает&quot;" icon="🤯">
           <p className="text-secondary mb-md">
             <strong>Правда:</strong> Избыток информации парализует. Вы знаете 50 способов сделать контент — и не делаете ничего толком.
           </p>
@@ -206,14 +209,20 @@ export default function DoerResult({ onPaymentClick, userId, resultId, scores, u
             Дима начал перечислять: "Ну, вот из этого курса беру хуки, из этого — структуру, из этого — визуал..."
           </p>
 
-          <div className="timeline">
+          <div className="timeline timeline-enhanced">
             <div className="timeline-item">
-              <span className="timeline-year">Проблема:</span>
-              <span className="text-secondary">Франкенштейн из 12 разных методик. Ни одна не работала целиком.</span>
+              <div className="timeline-node" style={{ backgroundColor: '#ff6b35', color: '#ff6b35' }} />
+              <div>
+                <span className="timeline-year" style={{ color: '#ff6b35' }}>Проблема:</span>
+                <span className="text-secondary"> Франкенштейн из 12 разных методик. Ни одна не работала целиком.</span>
+              </div>
             </div>
             <div className="timeline-item">
-              <span className="timeline-year">Результат:</span>
-              <span className="text-secondary">Выгорание, разочарование, мысли "контент не для меня".</span>
+              <div className="timeline-node" style={{ backgroundColor: 'var(--danger)', color: 'var(--danger)' }} />
+              <div>
+                <span className="timeline-year" style={{ color: 'var(--danger)' }}>Результат:</span>
+                <span className="text-secondary"> Выгорание, разочарование, мысли &quot;контент не для меня&quot;.</span>
+              </div>
             </div>
           </div>
 
@@ -299,6 +308,20 @@ export default function DoerResult({ onPaymentClick, userId, resultId, scores, u
               <li className="text-success">Рост в <strong>3 раза</strong></li>
             </ul>
           </div>
+
+          <GrowthMetric
+            before={[
+              { label: 'Контент', value: '3 часа/день' },
+              { label: 'Доход', value: '80 тыс' },
+              { label: 'Заявки', value: '0' },
+            ]}
+            after={[
+              { label: 'Контент', value: '30 мин/день' },
+              { label: 'Доход', value: '250 тыс' },
+              { label: 'Заявки', value: '8-10' },
+            ]}
+            multiplier="×3"
+          />
 
           <p className="text-highlight mt-md">
             Артём не стал делать больше. Он стал делать <strong>правильно</strong>.
