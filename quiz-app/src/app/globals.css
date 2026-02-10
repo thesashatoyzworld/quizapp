@@ -2229,3 +2229,168 @@ body {
     height: 16px;
   }
 }
+
+/* ========================================
+   CONNECTORS LANDING PAGE (Phase 11)
+   ======================================== */
+
+/* Tier cards container - side by side on desktop */
+.connectors-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.connectors-tier-card {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  padding: var(--space-lg);
+  position: relative;
+}
+
+.connectors-tier-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--neon-cyan), var(--neon-purple));
+}
+
+.connectors-tier-card-premium {
+  border-color: rgba(255, 0, 170, 0.4);
+  background: linear-gradient(135deg, rgba(255, 0, 170, 0.05), var(--bg-secondary));
+}
+
+.connectors-tier-card-premium::before {
+  background: linear-gradient(180deg, var(--neon-magenta), var(--neon-purple));
+  width: 6px;
+}
+
+.connectors-tier-name {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: var(--space-sm);
+}
+
+.connectors-tier-price {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 900;
+  margin-bottom: var(--space-xs);
+}
+
+.connectors-tier-total {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-md);
+}
+
+.connectors-tier-features {
+  list-style: none;
+  padding: 0;
+}
+
+.connectors-tier-features li {
+  position: relative;
+  padding-left: var(--space-md);
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+}
+
+.connectors-tier-features li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--success);
+  font-weight: 700;
+}
+
+.connectors-badge {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--bg-primary);
+  background: var(--neon-magenta);
+  padding: 4px var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.connectors-spots-badge {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--danger);
+  border: 2px solid var(--danger);
+  padding: var(--space-xs) var(--space-md);
+  animation: neonPulse 2s ease-in-out infinite;
+}
+
+/* Phase cards */
+.connectors-phase-card {
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  padding-left: calc(var(--space-md) + 6px);
+}
+
+.connectors-phase-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+}
+
+.connectors-phase-label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: var(--space-xs);
+}
+
+.connectors-phase-title {
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.connectors-phase-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Desktop: tier cards side by side */
+@media (min-width: 601px) {
+  .connectors-tiers {
+    flex-direction: row;
+  }
+
+  .connectors-tier-card {
+    flex: 1;
+  }
+}
+
+/* Landing page section spacing */
+.connectors-section {
+  margin-bottom: var(--space-2xl);
+}
+
+.connectors-section:last-child {
+  margin-bottom: 0;
+}
