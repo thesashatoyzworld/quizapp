@@ -13,7 +13,6 @@ export interface HeroSectionProps {
   accentColor: string;
   pdfUrl: string;
   pdfFilename: string;
-  heroRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export function HeroSection({
@@ -26,7 +25,6 @@ export function HeroSection({
   accentColor,
   pdfUrl,
   pdfFilename,
-  heroRef,
 }: HeroSectionProps) {
   // Format financial number with thousands separators
   const formatNumber = (num: number) => {
@@ -34,7 +32,7 @@ export function HeroSection({
   };
 
   return (
-    <div className="hero-section" ref={heroRef}>
+    <div className="hero-section">
       {/* Greeting */}
       <div className="hero-greeting">
         {userName ? (
