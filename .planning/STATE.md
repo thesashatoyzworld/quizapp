@@ -2,30 +2,32 @@
 
 ## Current Status
 
-**Milestone:** v2.0 Result Page WOW Effect — SHIPPED
-**Status:** All milestones complete. Planning next.
-**Next:** `/gsd:new-milestone`
+**Milestone:** v3.0 Коннекторы Upsell Funnel
+**Status:** Defining requirements
+**Next:** Define requirements → Create roadmap
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-02-10)
 
-**Core value:** Квиз → персонализированный результат → покупка мастер-класса
-**Current focus:** All v1.0-v2.0 milestones shipped. Ready for next milestone.
+**Core value:** Квиз → персонализированный результат → покупка мастер-класса → апселл на "Коннекторы"
+**Current focus:** Персонализированная апселл-воронка на программу "Коннекторы"
 
 ## Current Position
 
-Phase: All complete (10 phases across 3 milestones)
-Status: v2.0 milestone shipped and archived
-Last activity: 2026-02-10 — v2.0 milestone archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-10 — Milestone v3.0 started
 
-Progress: [██████████] 100% (all milestones complete)
+Progress: [░░░░░░░░░░] 0%
 
 ## Milestones
 
 **v1.0 MVP:** ✅ Complete (Phases 1-3 shipped 2026-02-06)
 **v1.1 Polish & Conversion:** ✅ Complete (Phases 4-7 shipped 2026-02-09)
 **v2.0 Result Page WOW Effect:** ✅ Complete (Phases 8-10 shipped 2026-02-10)
+**v3.0 Коннекторы Upsell Funnel:** ◆ In Progress
 
 ## Accumulated Context
 
@@ -43,14 +45,14 @@ All decisions logged in PROJECT.md Key Decisions table.
 
 ### Blockers/Concerns
 
-None — ready for next milestone planning.
+None.
 
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: v2.0 milestone archived
+Stopped at: Defining requirements for v3.0
 Resume file: None
-Resume action: `/gsd:new-milestone`
+Resume action: Continue requirements → roadmap
 
 ---
 *Last updated: 2026-02-10*
