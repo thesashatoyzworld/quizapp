@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   HeroSection,
   ResultSection,
@@ -11,6 +11,7 @@ import {
   WeakPointsHighlight,
   GrowthMetric,
   BeforeAfterComparison,
+  ShareButton,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -28,6 +29,7 @@ interface ResultProps {
 export default function ScaleResult({ onPaymentClick, userId, resultId, scores, userName, userPhoto }: ResultProps) {
   const ACCENT_COLOR = '#00ff88'; // green
   const chartData = resultId ? getChartData(resultId as Category) : null;
+  const heroRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="result-page">
@@ -42,8 +44,18 @@ export default function ScaleResult({ onPaymentClick, userId, resultId, scores, 
           accentColor={ACCENT_COLOR}
           pdfUrl="/results/5-scale.pdf"
           pdfFilename="Диагностика-Готовы-к-масштабированию.pdf"
+          heroRef={heroRef}
         />
       )}
+
+      <div style={{ display: 'flex', justifyContent: 'center', margin: 'var(--space-lg) 0' }}>
+        <ShareButton
+          heroRef={heroRef}
+          resultTitle="ГОТОВЫ К МАСШТАБИРОВАНИЮ"
+          resultId={resultId || 'scale'}
+          accentColor={ACCENT_COLOR}
+        />
+      </div>
 
       {/* Intro */}
       <ResultSection

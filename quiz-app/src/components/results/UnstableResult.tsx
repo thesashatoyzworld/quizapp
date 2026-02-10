@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   HeroSection,
   ResultSection,
@@ -13,6 +13,7 @@ import {
   WeakPointsHighlight,
   GrowthMetric,
   BeforeAfterComparison,
+  ShareButton,
 } from './shared';
 import { Category } from '@/data/quiz';
 import { RadarChart, LevelPath, FinancialGauge, AudienceDonut } from '../charts';
@@ -30,6 +31,7 @@ interface ResultProps {
 export default function UnstableResult({ onPaymentClick, userId, resultId, scores, userName, userPhoto }: ResultProps) {
   const ACCENT_COLOR = '#ffd700'; // gold
   const chartData = resultId ? getChartData(resultId as Category) : null;
+  const heroRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="result-page">
@@ -44,8 +46,18 @@ export default function UnstableResult({ onPaymentClick, userId, resultId, score
           accentColor={ACCENT_COLOR}
           pdfUrl="/results/4-unstable.pdf"
           pdfFilename="Диагностика-Нестабильные-результаты.pdf"
+          heroRef={heroRef}
         />
       )}
+
+      <div style={{ display: 'flex', justifyContent: 'center', margin: 'var(--space-lg) 0' }}>
+        <ShareButton
+          heroRef={heroRef}
+          resultTitle="НЕСТАБИЛЬНЫЕ РЕЗУЛЬТАТЫ"
+          resultId={resultId || 'unstable'}
+          accentColor={ACCENT_COLOR}
+        />
+      </div>
 
       {/* Intro */}
       <ResultSection
