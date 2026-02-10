@@ -2242,6 +2242,11 @@ body {
   margin: 0 auto;
 }
 
+.connectors-page .result-page {
+  position: relative;
+  z-index: 10;
+}
+
 .connectors-page .result-page .card {
   overflow: visible;
 }
