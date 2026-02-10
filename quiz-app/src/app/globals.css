@@ -488,6 +488,100 @@ body {
 }
 
 /* ========================================
+   ANALYZING LOADER
+   ======================================== */
+
+.analyzing-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.analyzing-content {
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+.analyzing-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 20px var(--glow-cyan);
+  margin-bottom: var(--space-xl);
+  animation: cyberFadeIn 0.5s ease forwards;
+}
+
+.analyzing-progress {
+  height: 4px;
+  background: var(--bg-tertiary);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: var(--space-xl);
+}
+
+.analyzing-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+  box-shadow: 0 0 10px var(--glow-cyan);
+  animation: analyzingFill 2.5s ease-in-out forwards;
+}
+
+@keyframes analyzingFill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.analyzing-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  text-align: left;
+}
+
+.analyzing-step {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  opacity: 0;
+  animation: cyberFadeIn 0.5s ease forwards;
+}
+
+.analyzing-step-1 {
+  animation-delay: 0s;
+}
+
+.analyzing-step-2 {
+  animation-delay: 0.8s;
+}
+
+.analyzing-step-3 {
+  animation-delay: 1.6s;
+}
+
+@media (max-width: 480px) {
+  .analyzing-title {
+    font-size: 1.1rem;
+  }
+
+  .analyzing-step {
+    font-size: 0.85rem;
+  }
+}
+
+/* ========================================
    UTILITIES
    ======================================== */
 

@@ -156,8 +156,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Create HeroSection component with Telegram personalization, LevelBadge, financial impact display, and responsive CSS (VIS-02, EMO-01, EMO-03)
-- [ ] 08-02-PLAN.md — Integrate HeroSection into all 5 result pages, pass user data from page.tsx, verify mobile rendering (CONS-01)
+- [x] 08-01-PLAN.md — Create HeroSection component with Telegram personalization, LevelBadge, financial impact display, and responsive CSS (VIS-02, EMO-01, EMO-03)
+- [x] 08-02-PLAN.md — Integrate HeroSection into all 5 result pages, pass user data from page.tsx, verify mobile rendering (CONS-01)
 
 ---
 
@@ -179,8 +179,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — Loading screen + scroll-triggered animations with tailwindcss-motion (VIS-03, VIS-04)
-- [ ] 09-02-PLAN.md — Visual accents + before/after comparison (VIS-05, EMO-02)
+- [ ] 09-01-PLAN.md — AnalyzingLoader component + ScrollReveal scroll-triggered animations with CSS keyframes + Intersection Observer (VIS-03, VIS-04)
+- [ ] 09-02-PLAN.md — Visual accent CSS classes + BeforeAfterComparison data-driven component (VIS-05, EMO-02)
 
 ---
 
@@ -223,7 +223,7 @@ v1.0 phases complete → Phase 4 → Phase 5 (partial) → Phase 6 → Phase 8 �
 | 5. Visual Analytics | v1.1 | 3/4 | Superseded | 2026-02-08 |
 | 6. Follow-up Messaging | v1.1 | 3/3 | Complete | 2026-02-09 |
 | 7. End-to-End Testing | v1.1 | - | Deferred to Phase 10 | - |
-| 8. Chart Integration + Hero | v2.0 | 0/2 | Planned | - |
+| 8. Chart Integration + Hero | v2.0 | 2/2 | Complete | 2026-02-10 |
 | 9. Animations + Emotional Design | v2.0 | 0/2 | Planned | - |
 | 10. Shareability + Testing | v2.0 | 0/3 | Planned | - |
 
@@ -267,4 +267,4 @@ v1.0 phases complete → Phase 4 → Phase 5 (partial) → Phase 6 → Phase 8 �
 ---
 
 *Roadmap created: 2026-01-31*
-*Last updated: 2026-02-09 (v2.0 phases 8-10 added)*
+*Last updated: 2026-02-10 (Phase 8 complete)*

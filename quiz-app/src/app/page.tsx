@@ -9,8 +9,9 @@ import DoerResult from '@/components/results/DoerResult';
 import GenerousResult from '@/components/results/GenerousResult';
 import UnstableResult from '@/components/results/UnstableResult';
 import ScaleResult from '@/components/results/ScaleResult';
+import { AnalyzingLoader } from '@/components/results/shared/AnalyzingLoader';
 
-type QuizState = 'welcome' | 'quiz' | 'result-preview' | 'result' | 'payment-success';
+type QuizState = 'welcome' | 'quiz' | 'result-preview' | 'analyzing' | 'result' | 'payment-success';
 
 export default function Home() {
   const [state, setState] = useState<QuizState>('welcome');
@@ -82,7 +83,7 @@ export default function Home() {
       const data = await response.json();
 
       if (data.subscribed) {
-        setState('result');
+        setState('analyzing');
         // Track result view when subscription confirmed
         if (!hasTrackedResult.current && result) {
           trackResultView(result.title);
@@ -302,6 +303,11 @@ export default function Home() {
                 )}
               </div>
             </div>
+          )}
+
+          {/* ==================== ANALYZING SCREEN ==================== */}
+          {state === 'analyzing' && (
+            <AnalyzingLoader onComplete={() => setState('result')} />
           )}
 
           {/* ==================== RESULT SCREEN ==================== */}
