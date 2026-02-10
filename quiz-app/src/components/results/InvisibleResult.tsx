@@ -339,7 +339,7 @@ export default function InvisibleResult({ onPaymentClick, userId, resultId, scor
           {/* Скриншот отзыва Васи — замени /reviews/vasya.jpg на реальную картинку */}
           <div className="case-screenshot mt-md">
             <img
-              src="/reviews/vasya-review.jpg"
+              src="/reviews/vasya-review.png"
               alt="Отзыв Васи о результатах"
               className="case-screenshot-img"
             />

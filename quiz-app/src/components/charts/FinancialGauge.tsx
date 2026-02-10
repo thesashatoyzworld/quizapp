@@ -42,7 +42,7 @@ export function FinancialGauge({ data, accentColor = '#ffd700' }: FinancialGauge
   }, [data.lostPerMonth]);
 
   const formatRubles = (amount: number) => {
-    return amount.toLocaleString('ru-RU') + ' ₽';
+    return '+' + amount.toLocaleString('ru-RU') + '\u00A0₽';
   };
 
   return (
@@ -52,13 +52,14 @@ export function FinancialGauge({ data, accentColor = '#ffd700' }: FinancialGauge
       <div style={{ textAlign: 'center', padding: 'var(--space-md) 0' }}>
         <div style={{
           fontFamily: 'var(--font-display)',
-          fontSize: '2rem',
+          fontSize: 'clamp(1.5rem, 7vw, 2rem)',
           fontWeight: '700',
           color: accentColor,
           filter: `drop-shadow(0 0 12px ${accentColor}80)`,
           lineHeight: 1.2,
+          whiteSpace: 'nowrap',
         }}>
-          ~{formatRubles(animatedValue)}
+          {formatRubles(animatedValue)}
         </div>
         <div style={{
           fontSize: '0.85rem',
