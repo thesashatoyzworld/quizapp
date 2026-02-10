@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { connectorsContent, validTypes, ConnectorType } from '@/data/connectors';
+import { ScrollFix } from './ScrollFix';
 
 export const metadata: Metadata = {
   title: 'Коннекторы | TheSasha',
@@ -21,7 +22,7 @@ export default async function ConnectorsPage({
 
   return (
     <>
-      <style>{`html, body { height: auto !important; min-height: 100% !important; }`}</style>
+      <ScrollFix />
       <div className="connectors-page">
         <div className="grid-bg" />
         <div className="scanlines" />
