@@ -42,3 +42,6 @@ export type { ScrollRevealProps } from './ScrollReveal';
 
 export { BeforeAfterComparison } from './BeforeAfterComparison';
 export type { BeforeAfterComparisonProps } from './BeforeAfterComparison';
+
+export { ShareButton } from './ShareButton';
+export type { ShareButtonProps } from './ShareButton';
