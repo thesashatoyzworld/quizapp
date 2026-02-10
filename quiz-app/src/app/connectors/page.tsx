@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { connectorsContent, validTypes, ConnectorType } from '@/data/connectors';
+import { getConnectorsContent } from '@/data/connectors';
 import { ScrollFix } from './ScrollFix';
 
 export const metadata: Metadata = {
@@ -13,11 +13,12 @@ export default async function ConnectorsPage({
   searchParams: Promise<{ type?: string }>;
 }) {
   const params = await searchParams;
-  const rawType = params.type || 'invisible';
+  const type = params.type;
 
-  const type: ConnectorType = validTypes.includes(rawType as ConnectorType)
-    ? (rawType as ConnectorType)
-    : 'invisible';
+  // Get personalized content based on type param
+  // No type or invalid type = base content (generic landing)
+  // Valid type = merged personalized content
+  const content = getConnectorsContent(type);
 
   return (
     <>
@@ -31,28 +32,28 @@ export default async function ConnectorsPage({
           <section className="connectors-section">
             <div className="card" style={{ textAlign: 'center', padding: 'var(--space-xl) var(--space-lg)' }}>
               <div style={{ marginBottom: 'var(--space-lg)' }}>
-                <span className="connectors-spots-badge">{connectorsContent.hero.spots}</span>
+                <span className="connectors-spots-badge">{content.hero.spots}</span>
               </div>
 
               <h1 className="connectors-hero-headline">
-                {connectorsContent.hero.headline}
+                {content.hero.headline}
               </h1>
 
               <p className="connectors-hero-sub">
-                {connectorsContent.hero.subheadline}
+                {content.hero.subheadline}
               </p>
 
               <p className="result-body" style={{ textAlign: 'center', marginBottom: 0 }}>
-                {connectorsContent.hero.description}
+                {content.hero.description}
               </p>
             </div>
           </section>
 
           {/* 3 Elements Section — each in its own card */}
           <section className="connectors-section">
-            <h2 className="section-title">{connectorsContent.threeElements.title}</h2>
+            <h2 className="section-title">{content.threeElements.title}</h2>
 
-            {connectorsContent.threeElements.items.map((item, index) => (
+            {content.threeElements.items.map((item, index) => (
               <div key={index} className="card connectors-element-card">
                 <h3 className="connectors-element-title">{item.title}</h3>
                 <p className="result-body" style={{ marginBottom: 0 }}>{item.description}</p>
@@ -62,15 +63,15 @@ export default async function ConnectorsPage({
 
           {/* First 14 Days Section */}
           <section className="connectors-section">
-            <h2 className="section-title">{connectorsContent.firstDays.title}</h2>
+            <h2 className="section-title">{content.firstDays.title}</h2>
 
             <div className="card">
               <p className="result-body" style={{ marginBottom: 'var(--space-md)' }}>
-                {connectorsContent.firstDays.subtitle}
+                {content.firstDays.subtitle}
               </p>
 
               <ol className="steps-list">
-                {connectorsContent.firstDays.items.map((item, index) => (
+                {content.firstDays.items.map((item, index) => (
                   <li key={index} className="step-item">
                     <div className="step-number">{index + 1}</div>
                     <div className="step-content">
@@ -84,12 +85,12 @@ export default async function ConnectorsPage({
 
           {/* 3 Whales Section — each in its own card */}
           <section className="connectors-section">
-            <h2 className="section-title">{connectorsContent.whales.title}</h2>
+            <h2 className="section-title">{content.whales.title}</h2>
             <p className="result-body" style={{ marginBottom: 'var(--space-md)' }}>
-              {connectorsContent.whales.subtitle}
+              {content.whales.subtitle}
             </p>
 
-            {connectorsContent.whales.items.map((item, index) => (
+            {content.whales.items.map((item, index) => (
               <div key={index} className="card connectors-element-card">
                 <h3 className="connectors-element-title">{item.title}</h3>
                 <p className="result-body" style={{ marginBottom: 0 }}>{item.description}</p>
@@ -99,15 +100,15 @@ export default async function ConnectorsPage({
 
           {/* Weeks 4-8 Section */}
           <section className="connectors-section">
-            <h2 className="section-title">{connectorsContent.weeks4to8.title}</h2>
+            <h2 className="section-title">{content.weeks4to8.title}</h2>
 
             <div className="card">
               <p className="result-body" style={{ marginBottom: 'var(--space-md)' }}>
-                {connectorsContent.weeks4to8.subtitle}
+                {content.weeks4to8.subtitle}
               </p>
 
               <ul className="connectors-list">
-                {connectorsContent.weeks4to8.items.map((item, index) => (
+                {content.weeks4to8.items.map((item, index) => (
                   <li key={index}>{item}</li>
                 ))}
               </ul>
@@ -116,15 +117,15 @@ export default async function ConnectorsPage({
 
           {/* System Section */}
           <section className="connectors-section">
-            <h2 className="section-title">{connectorsContent.system.title}</h2>
+            <h2 className="section-title">{content.system.title}</h2>
 
             <div className="card">
               <p className="result-body" style={{ marginBottom: 'var(--space-lg)' }}>
-                {connectorsContent.system.description}
+                {content.system.description}
               </p>
 
               <ol className="steps-list">
-                {connectorsContent.system.steps.map((step, index) => (
+                {content.system.steps.map((step, index) => (
                   <li key={index} className="step-item">
                     <div className="step-number">{step.step}</div>
                     <div className="step-content">
@@ -139,15 +140,15 @@ export default async function ConnectorsPage({
 
           {/* Week 12 Results Section */}
           <section className="connectors-section">
-            <h2 className="section-title">{connectorsContent.week12.title}</h2>
+            <h2 className="section-title">{content.week12.title}</h2>
 
             <div className="card">
               <p className="result-body" style={{ marginBottom: 'var(--space-lg)' }}>
-                {connectorsContent.week12.subtitle}
+                {content.week12.subtitle}
               </p>
 
               <div className="stats-grid">
-                {connectorsContent.week12.results.map((result, index) => (
+                {content.week12.results.map((result, index) => (
                   <div key={index} className="stat-item">
                     <span className="stat-number">{result.metric}</span>
                     <span className="stat-label">{result.label}</span>
@@ -159,10 +160,10 @@ export default async function ConnectorsPage({
 
           {/* 3 Phases Section */}
           <section className="connectors-section">
-            <h2 className="section-title">{connectorsContent.phases.title}</h2>
+            <h2 className="section-title">{content.phases.title}</h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-              {connectorsContent.phases.items.map((phase, index) => (
+              {content.phases.items.map((phase, index) => (
                 <div
                   key={index}
                   className="connectors-phase-card"
@@ -186,22 +187,22 @@ export default async function ConnectorsPage({
 
           {/* Tiers Section */}
           <section className="connectors-section">
-            <h2 className="section-title">{connectorsContent.tiers.title}</h2>
+            <h2 className="section-title">{content.tiers.title}</h2>
 
             <div className="connectors-tiers">
               {/* Basic Tier */}
               <div className="connectors-tier-card">
                 <div className="connectors-tier-name">
-                  {connectorsContent.tiers.basic.name}
+                  {content.tiers.basic.name}
                 </div>
                 <div className="connectors-tier-price">
-                  {connectorsContent.tiers.basic.priceWeekly}
+                  {content.tiers.basic.priceWeekly}
                 </div>
                 <div className="connectors-tier-total">
-                  {connectorsContent.tiers.basic.priceTotal}
+                  {content.tiers.basic.priceTotal}
                 </div>
                 <ul className="connectors-tier-features">
-                  {connectorsContent.tiers.basic.features.map((feature, index) => (
+                  {content.tiers.basic.features.map((feature, index) => (
                     <li key={index}>{feature}</li>
                   ))}
                 </ul>
@@ -211,16 +212,16 @@ export default async function ConnectorsPage({
               <div className="connectors-tier-card connectors-tier-card-premium">
                 <div className="connectors-badge">Рекомендуем</div>
                 <div className="connectors-tier-name">
-                  {connectorsContent.tiers.premium.name}
+                  {content.tiers.premium.name}
                 </div>
                 <div className="connectors-tier-price">
-                  {connectorsContent.tiers.premium.priceWeekly}
+                  {content.tiers.premium.priceWeekly}
                 </div>
                 <div className="connectors-tier-total">
-                  {connectorsContent.tiers.premium.priceTotal}
+                  {content.tiers.premium.priceTotal}
                 </div>
                 <ul className="connectors-tier-features">
-                  {connectorsContent.tiers.premium.features.map((feature, index) => (
+                  {content.tiers.premium.features.map((feature, index) => (
                     <li key={index}>{feature}</li>
                   ))}
                 </ul>
@@ -239,10 +240,10 @@ export default async function ConnectorsPage({
                 textAlign: 'center',
                 marginBottom: 'var(--space-md)'
               }}>
-                {connectorsContent.important.title}
+                {content.important.title}
               </h3>
               <p className="result-body" style={{ textAlign: 'center', marginBottom: 0 }}>
-                {connectorsContent.important.text}
+                {content.important.text}
               </p>
             </div>
           </section>
@@ -251,10 +252,10 @@ export default async function ConnectorsPage({
           <section className="connectors-section">
             <div className="card card-cta">
               <h2 className="cta-title" style={{ marginBottom: 'var(--space-sm)' }}>
-                {connectorsContent.cta.title}
+                {content.cta.title}
               </h2>
               <p className="cta-subtitle" style={{ marginBottom: 'var(--space-lg)' }}>
-                {connectorsContent.cta.subtitle}
+                {content.cta.subtitle}
               </p>
 
               <button
@@ -265,7 +266,7 @@ export default async function ConnectorsPage({
                   cursor: 'not-allowed'
                 }}
               >
-                {connectorsContent.cta.buttonText}
+                {content.cta.buttonText}
               </button>
 
               <p className="text-muted" style={{ fontSize: '0.85rem', textAlign: 'center' }}>
