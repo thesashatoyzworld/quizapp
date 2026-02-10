@@ -33,3 +33,9 @@ export type { IncomeGapBarProps } from './IncomeGapBar';
 
 export { GrowthMetric } from './GrowthMetric';
 export type { GrowthMetricProps, GrowthMetricItem } from './GrowthMetric';
+
+export { AnalyzingLoader } from './AnalyzingLoader';
+export type { AnalyzingLoaderProps } from './AnalyzingLoader';
+
+export { ScrollReveal } from './ScrollReveal';
+export type { ScrollRevealProps } from './ScrollReveal';

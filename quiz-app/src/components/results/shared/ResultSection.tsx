@@ -1,6 +1,7 @@
 'use client';
 
 import React, { ReactNode } from 'react';
+import { ScrollReveal } from './ScrollReveal';
 
 export interface ResultSectionProps {
   title?: string;
@@ -18,10 +19,12 @@ export function ResultSection({
   slot,
 }: ResultSectionProps) {
   return (
-    <div className={`card mb-lg ${className}`} id={id}>
-      {title && <h2 className="section-title">{title}</h2>}
-      {slot}
-      {children}
-    </div>
+    <ScrollReveal>
+      <div className={`card mb-lg ${className}`} id={id}>
+        {title && <h2 className="section-title">{title}</h2>}
+        {slot}
+        {children}
+      </div>
+    </ScrollReveal>
   );
 }
