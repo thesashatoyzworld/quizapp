@@ -2234,10 +2234,18 @@ body {
    CONNECTORS LANDING PAGE (Phase 11)
    ======================================== */
 
-/* Override quiz-container centering for long landing page */
+/* Override for long scrollable landing pages */
+html:has(.connectors-page),
+html:has(.connectors-page) body {
+  height: auto;
+  min-height: 100%;
+}
+
 .connectors-page {
   justify-content: flex-start !important;
   padding-top: var(--space-lg);
+  min-height: auto;
+  height: auto;
 }
 
 .connectors-page .result-page .card {
