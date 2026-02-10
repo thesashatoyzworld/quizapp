@@ -58,10 +58,10 @@ Full details: `.planning/milestones/v2.0-ROADMAP.md`
   2. Landing displays all PDF sections (hero 500K, 3 elements, 14 days, whales, weeks 4-8, system, week 12, phases 1-3, tiers, ВАЖНО, CTA)
   3. Layout adapts to mobile screen without horizontal scroll
   4. CTA buttons are visible and positioned correctly
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 11-01: [TBD during planning]
+- [ ] 11-01-PLAN.md — Data file + page route + CSS + mobile-responsive landing with all 11 sections
 
 #### Phase 12: Landing Personalization
 **Goal**: Landing content adapts to quiz archetype (5 text versions)
