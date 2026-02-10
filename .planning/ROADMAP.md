@@ -61,7 +61,7 @@ Full details: `.planning/milestones/v2.0-ROADMAP.md`
 **Plans**: 1 plan
 
 Plans:
-- [ ] 11-01-PLAN.md — Data file + page route + CSS + mobile-responsive landing with all 11 sections
+- [x] 11-01-PLAN.md — Data file + page route + CSS + mobile-responsive landing with all 11 sections — 2026-02-11
 
 #### Phase 12: Landing Personalization
 **Goal**: Landing content adapts to quiz archetype (5 text versions)
@@ -72,10 +72,10 @@ Plans:
   2. Pain points section reflects archetype-specific struggles (5 versions)
   3. CTA button text personalized per archetype
   4. All 5 archetypes have complete text variations tested
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 12-01: [TBD during planning]
+- [ ] 12-01-PLAN.md — Base+overrides data pattern, PMHS copy for 5 archetypes across 7 sections, page.tsx wiring
 
 #### Phase 13: Payment Integration
 **Goal**: Users can purchase Connectors tiers and payment is recorded
@@ -131,7 +131,7 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15
 | 1-3 | v1.0 | 6/6 | Complete | 2026-02-06 |
 | 4-7 | v1.1 | 8/9 | Complete | 2026-02-09 |
 | 8-10 | v2.0 | 7/7 | Complete | 2026-02-10 |
-| 11. Landing Page Foundation | v3.0 | 0/1 | Not started | - |
+| 11. Landing Page Foundation | v3.0 | 1/1 | Complete | 2026-02-11 |
 | 12. Landing Personalization | v3.0 | 0/1 | Not started | - |
 | 13. Payment Integration | v3.0 | 0/1 | Not started | - |
 | 14. Upsell Chain | v3.0 | 0/1 | Not started | - |
@@ -142,4 +142,4 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15
 ---
 
 *Roadmap created: 2026-01-31*
-*Last updated: 2026-02-10 (v3.0 roadmap created)*
+*Last updated: 2026-02-11 (Phase 12 planned)*
