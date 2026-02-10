@@ -15,7 +15,6 @@ export default async function ConnectorsPage({
   const params = await searchParams;
   const rawType = params.type || 'invisible';
 
-  // Validate type is one of the 5 valid types
   const type: ConnectorType = validTypes.includes(rawType as ConnectorType)
     ? (rawType as ConnectorType)
     : 'invisible';
@@ -30,48 +29,35 @@ export default async function ConnectorsPage({
         <div className="result-page">
           {/* Hero Section */}
           <section className="connectors-section">
-            <div className="card" style={{ textAlign: 'center' }}>
-              <div style={{ marginBottom: 'var(--space-md)' }}>
+            <div className="card" style={{ textAlign: 'center', padding: 'var(--space-xl) var(--space-lg)' }}>
+              <div style={{ marginBottom: 'var(--space-lg)' }}>
                 <span className="connectors-spots-badge">{connectorsContent.hero.spots}</span>
               </div>
 
-              <h1
-                className="hero-financial-amount"
-                style={{
-                  color: 'var(--danger)',
-                  marginBottom: 'var(--space-sm)'
-                }}
-              >
+              <h1 className="connectors-hero-headline">
                 {connectorsContent.hero.headline}
               </h1>
 
-              <p className="subtitle" style={{ marginBottom: 'var(--space-md)' }}>
+              <p className="connectors-hero-sub">
                 {connectorsContent.hero.subheadline}
               </p>
 
-              <p className="result-body" style={{ textAlign: 'center' }}>
+              <p className="result-body" style={{ textAlign: 'center', marginBottom: 0 }}>
                 {connectorsContent.hero.description}
               </p>
             </div>
           </section>
 
-          {/* 3 Elements Section */}
+          {/* 3 Elements Section — each in its own card */}
           <section className="connectors-section">
             <h2 className="section-title">{connectorsContent.threeElements.title}</h2>
 
-            <div className="card">
-              {connectorsContent.threeElements.items.map((item, index) => (
-                <div key={index} className="reason-block">
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-md)' }}>
-                    <span style={{ fontSize: '2rem', flexShrink: 0 }}>{item.icon}</span>
-                    <div>
-                      <h3 className="result-h3">{item.title}</h3>
-                      <p className="result-body">{item.description}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {connectorsContent.threeElements.items.map((item, index) => (
+              <div key={index} className="card connectors-element-card">
+                <h3 className="connectors-element-title">{item.title}</h3>
+                <p className="result-body" style={{ marginBottom: 0 }}>{item.description}</p>
+              </div>
+            ))}
           </section>
 
           {/* First 14 Days Section */}
@@ -96,27 +82,19 @@ export default async function ConnectorsPage({
             </div>
           </section>
 
-          {/* 3 Whales Section */}
+          {/* 3 Whales Section — each in its own card */}
           <section className="connectors-section">
             <h2 className="section-title">{connectorsContent.whales.title}</h2>
+            <p className="result-body" style={{ marginBottom: 'var(--space-md)' }}>
+              {connectorsContent.whales.subtitle}
+            </p>
 
-            <div className="card">
-              <p className="result-body" style={{ marginBottom: 'var(--space-lg)' }}>
-                {connectorsContent.whales.subtitle}
-              </p>
-
-              {connectorsContent.whales.items.map((item, index) => (
-                <div key={index} className="reason-block">
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-md)' }}>
-                    <span style={{ fontSize: '2rem', flexShrink: 0 }}>{item.icon}</span>
-                    <div>
-                      <h3 className="result-h3">{item.title}</h3>
-                      <p className="result-body">{item.description}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {connectorsContent.whales.items.map((item, index) => (
+              <div key={index} className="card connectors-element-card">
+                <h3 className="connectors-element-title">{item.title}</h3>
+                <p className="result-body" style={{ marginBottom: 0 }}>{item.description}</p>
+              </div>
+            ))}
           </section>
 
           {/* Weeks 4-8 Section */}
@@ -128,7 +106,7 @@ export default async function ConnectorsPage({
                 {connectorsContent.weeks4to8.subtitle}
               </p>
 
-              <ul className="result-list">
+              <ul className="connectors-list">
                 {connectorsContent.weeks4to8.items.map((item, index) => (
                   <li key={index}>{item}</li>
                 ))}
@@ -150,7 +128,7 @@ export default async function ConnectorsPage({
                   <li key={index} className="step-item">
                     <div className="step-number">{step.step}</div>
                     <div className="step-content">
-                      <h3 className="result-h3" style={{ marginBottom: 'var(--space-xs)' }}>{step.title}</h3>
+                      <h3 className="connectors-element-title" style={{ marginBottom: 'var(--space-xs)' }}>{step.title}</h3>
                       <p className="result-body" style={{ marginBottom: 0 }}>{step.description}</p>
                     </div>
                   </li>
@@ -188,10 +166,11 @@ export default async function ConnectorsPage({
                 <div
                   key={index}
                   className="connectors-phase-card"
-                  style={{
-                    borderLeftColor: phase.color,
-                  }}
                 >
+                  <div
+                    className="connectors-phase-card-border"
+                    style={{ background: phase.color }}
+                  />
                   <div
                     className="connectors-phase-label"
                     style={{ color: phase.color }}
@@ -255,7 +234,7 @@ export default async function ConnectorsPage({
               border: '2px solid var(--danger)',
               background: 'rgba(255, 42, 109, 0.05)'
             }}>
-              <h3 className="result-h3" style={{
+              <h3 className="connectors-element-title" style={{
                 color: 'var(--danger)',
                 textAlign: 'center',
                 marginBottom: 'var(--space-md)'

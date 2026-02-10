@@ -2251,7 +2251,75 @@ body {
   overflow: visible;
 }
 
-/* Tier cards container - side by side on desktop */
+/* Hero — smaller than quiz hero, fits mobile */
+.connectors-hero-headline {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 8vw, 3rem);
+  font-weight: 900;
+  color: var(--danger);
+  margin-bottom: var(--space-sm);
+  line-height: 1.1;
+}
+
+.connectors-hero-sub {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
+  letter-spacing: 0.05em;
+}
+
+/* Section spacing — more breathing room */
+.connectors-section {
+  margin-bottom: var(--space-2xl);
+}
+
+.connectors-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Element cards — each block separate, consistent font */
+.connectors-element-card {
+  margin-bottom: var(--space-md);
+}
+
+.connectors-element-card:last-child {
+  margin-bottom: 0;
+}
+
+.connectors-element-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  margin-bottom: var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* List style for weeks 4-8 etc */
+.connectors-list {
+  list-style: none;
+  padding: 0;
+}
+
+.connectors-list li {
+  position: relative;
+  padding-left: var(--space-md);
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.connectors-list li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--neon-cyan);
+}
+
+/* Tier cards container */
 .connectors-tiers {
   display: flex;
   flex-direction: column;
@@ -2295,9 +2363,10 @@ body {
 
 .connectors-tier-price {
   font-family: var(--font-display);
-  font-size: 1.8rem;
+  font-size: 1.4rem;
   font-weight: 900;
   margin-bottom: var(--space-xs);
+  white-space: nowrap;
 }
 
 .connectors-tier-total {
@@ -2355,14 +2424,13 @@ body {
 /* Phase cards */
 .connectors-phase-card {
   padding: var(--space-md);
+  padding-left: calc(var(--space-md) + 10px);
   background: var(--bg-secondary);
   border: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
-  padding-left: calc(var(--space-md) + 6px);
 }
 
-.connectors-phase-card::before {
-  content: '';
+.connectors-phase-card-border {
   position: absolute;
   top: 0;
   left: 0;
@@ -2379,8 +2447,8 @@ body {
 }
 
 .connectors-phase-title {
-  font-family: var(--font-body);
-  font-size: 1.05rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: var(--space-xs);
