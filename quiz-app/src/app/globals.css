@@ -1919,3 +1919,199 @@ body {
   height: auto;
   display: block;
 }
+
+/* ========================================
+   VISUAL ACCENTS (Phase 9 Plan 02)
+   ======================================== */
+
+/* Quote/phrase emphasis */
+.accent-quote {
+  border-left: 3px solid var(--neon-cyan);
+  background: rgba(0, 240, 255, 0.05);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 0 8px 8px 0;
+  box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.05);
+}
+
+/* Key numbers emphasis with subtle pulse */
+.accent-number {
+  display: inline-block;
+  font-family: var(--font-display);
+  text-shadow: 0 0 10px currentColor;
+  animation: accentNumberPulse 3s ease-in-out infinite;
+}
+
+@keyframes accentNumberPulse {
+  0%, 100% {
+    text-shadow: 0 0 10px currentColor;
+  }
+  50% {
+    text-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+}
+
+/* Pain points/warnings emphasis */
+.accent-pain {
+  border-left: 3px solid var(--danger);
+  background: rgba(255, 42, 109, 0.05);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 0 8px 8px 0;
+}
+
+/* Key insights/takeaways emphasis */
+.accent-insight {
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  background: rgba(0, 240, 255, 0.03);
+  border-radius: 8px;
+  padding: var(--space-md);
+  position: relative;
+}
+
+.accent-insight::before {
+  content: '✦';
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-sm);
+  font-size: 1.2rem;
+  color: var(--neon-cyan);
+  opacity: 0.5;
+}
+
+/* ========================================
+   BEFORE/AFTER COMPARISON (Phase 9 Plan 02)
+   ======================================== */
+
+.before-after-comparison {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  align-items: stretch;
+  background: rgba(10, 6, 18, 0.6);
+  border: 1px solid rgba(157, 78, 221, 0.25);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: var(--space-md) 0;
+}
+
+.before-after-col {
+  flex: 1;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.before-after-col-before {
+  border: 1px dashed rgba(255, 42, 109, 0.3);
+  background: rgba(255, 42, 109, 0.05);
+  border-radius: 12px 0 0 12px;
+}
+
+.before-after-col-after {
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  background: rgba(0, 255, 136, 0.05);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
+  border-radius: 0 12px 12px 0;
+}
+
+.before-after-heading {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.before-after-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.before-after-metric-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.before-after-metric-value {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.before-after-status {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.before-after-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  background: rgba(157, 78, 221, 0.1);
+  border-left: 1px solid rgba(157, 78, 221, 0.25);
+  border-right: 1px solid rgba(157, 78, 221, 0.25);
+}
+
+.before-after-arrow {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px var(--glow-cyan);
+  transform: rotate(0deg);
+  transition: transform 0.3s ease;
+}
+
+/* Responsive: stack on mobile with arrow pointing down */
+@media (max-width: 600px) {
+  .before-after-comparison {
+    flex-direction: column;
+  }
+
+  .before-after-col-before {
+    border-radius: 12px 12px 0 0;
+  }
+
+  .before-after-col-after {
+    border-radius: 0 0 12px 12px;
+  }
+
+  .before-after-divider {
+    min-width: auto;
+    min-height: 40px;
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid rgba(157, 78, 221, 0.25);
+    border-bottom: 1px solid rgba(157, 78, 221, 0.25);
+  }
+
+  .before-after-arrow {
+    transform: rotate(90deg);
+  }
+
+  .before-after-metric-value {
+    font-size: 1.1rem;
+  }
+
+  .before-after-heading {
+    font-size: 0.75rem;
+  }
+}
+
+/* Accessibility: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .accent-number {
+    animation: none;
+    text-shadow: 0 0 10px currentColor;
+  }
+}

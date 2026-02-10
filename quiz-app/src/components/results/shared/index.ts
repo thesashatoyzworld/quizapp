@@ -39,3 +39,6 @@ export type { AnalyzingLoaderProps } from './AnalyzingLoader';
 
 export { ScrollReveal } from './ScrollReveal';
 export type { ScrollRevealProps } from './ScrollReveal';
+
+export { BeforeAfterComparison } from './BeforeAfterComparison';
+export type { BeforeAfterComparisonProps } from './BeforeAfterComparison';
