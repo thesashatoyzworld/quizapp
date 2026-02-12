@@ -145,10 +145,7 @@ export async function POST(request: NextRequest) {
     if (payload.event_type === 'quiz_complete' && payload.user_id && payload.result_id) {
       const isNew = await registerFollowUp(payload.user_id, payload.result_id);
       if (isNew) {
-        // Send first follow-up message immediately (don't await — don't block response)
-        sendFirstFollowUp(payload.user_id, payload.result_id).catch(err =>
-          console.error('[Follow-up] Background send error:', err)
-        );
+        await sendFirstFollowUp(payload.user_id, payload.result_id);
       }
     }
 
