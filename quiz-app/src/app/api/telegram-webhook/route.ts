@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveAdminChatId } from '@/lib/notion';
-
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
 
@@ -70,10 +68,6 @@ export async function POST(request: NextRequest) {
       };
 
       await sendMessage(chatId, welcomeText, replyMarkup);
-
-      // Save this user's chat_id as admin chat_id
-      // Note: Last person to /start becomes the admin (single-admin bot design)
-      await saveAdminChatId(chatId);
     }
 
     return NextResponse.json({ ok: true });
