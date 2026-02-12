@@ -126,7 +126,8 @@ interface PendingUser {
 export async function getPendingUsers(): Promise<PendingUser[]> {
   try {
     const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const threeMinutesAgo = new Date(now.getTime() - 3 * 60 * 1000).toISOString();
+    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString();
 
     const results = await notion.dataSources.query({
       data_source_id: FOLLOWUP_DS_ID,
@@ -136,23 +137,23 @@ export async function getPendingUsers(): Promise<PendingUser[]> {
           { property: 'messages_sent', number: { less_than: 4 } },
           {
             or: [
-              // For users who already received at least 1 message: check last_sent_at
+              // For users who already received at least 1 message: check last_sent_at (12h interval)
               {
                 and: [
                   { property: 'messages_sent', number: { greater_than: 0 } },
                   {
                     or: [
                       { property: 'last_sent_at', date: { is_empty: true } },
-                      { property: 'last_sent_at', date: { before: twentyFourHoursAgo } },
+                      { property: 'last_sent_at', date: { before: twelveHoursAgo } },
                     ],
                   },
                 ],
               },
-              // For new users (0 messages): check registered_at is at least 24h ago
+              // For new users (0 messages): send first message after 3 min
               {
                 and: [
                   { property: 'messages_sent', number: { equals: 0 } },
-                  { property: 'registered_at', date: { before: twentyFourHoursAgo } },
+                  { property: 'registered_at', date: { before: threeMinutesAgo } },
                 ],
               },
             ],

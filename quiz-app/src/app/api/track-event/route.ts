@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { trackEvent, registerFollowUp, updateFollowUpSent, getAdminChatId } from '@/lib/notion';
-import followUpMessages, { ResultId } from '@/data/followup-messages';
+import { trackEvent, registerFollowUp, getAdminChatId } from '@/lib/notion';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const PRODAMUS_FORM_URL = process.env.NEXT_PUBLIC_PRODAMUS_FORM_URL || '';
-const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || '';
 
 interface TrackEventPayload {
   event_type: 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
@@ -14,65 +11,6 @@ interface TrackEventPayload {
   result_title?: string;
   amount?: number;
   metadata?: Record<string, unknown>;
-}
-
-function buildPaymentUrl(userId: number, resultId: string): string {
-  if (!PRODAMUS_FORM_URL) {
-    return 'https://t.me/sashatoyz_bot?start=pay_masterclass';
-  }
-  const orderId = `${userId}_${resultId}`;
-  const parts = [
-    'do=pay',
-    `products[0][name]=${encodeURIComponent('Мастер-класс «Продающий контент»')}`,
-    'products[0][price]=3450',
-    'products[0][quantity]=1',
-    `order_id=${encodeURIComponent(orderId)}`,
-  ];
-  if (WEBAPP_URL) {
-    parts.push(`urlNotification=${encodeURIComponent(`${WEBAPP_URL}/api/prodamus-webhook`)}`);
-    parts.push(`urlSuccess=${encodeURIComponent(`${WEBAPP_URL}?payment=success`)}`);
-  }
-  return `${PRODAMUS_FORM_URL}?${parts.join('&')}`;
-}
-
-// Send first follow-up message immediately after quiz completion
-async function sendFirstFollowUp(userId: number, resultId: string) {
-  if (!BOT_TOKEN) return;
-
-  const messages = followUpMessages[resultId as ResultId];
-  if (!messages || messages.length === 0) return;
-
-  const message = messages[0];
-  const paymentUrl = buildPaymentUrl(userId, resultId);
-
-  try {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: userId,
-        text: message.text,
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '\uD83D\uDCB3 Оплатить мастер-класс — 3 450₽', url: paymentUrl },
-          ]],
-        },
-      }),
-    });
-    const data = await response.json();
-
-    if (data.ok) {
-      // Mark message 1 as sent in Notion
-      await updateFollowUpSent(userId);
-      console.log(`[Follow-up] Sent immediate message 1 to user ${userId} (result: ${resultId})`);
-    } else {
-      console.error(`[Follow-up] Failed to send to ${userId}:`, data);
-    }
-  } catch (error) {
-    console.error(`[Follow-up] Error sending to ${userId}:`, error);
-  }
 }
 
 // Форматирование сообщения для Telegram (только для важных событий)
@@ -141,12 +79,9 @@ export async function POST(request: NextRequest) {
     // Отправляем в Notion (все события)
     await trackEvent(payload);
 
-    // Регистрируем в очереди follow-up и сразу шлём первое сообщение (только quiz_complete)
+    // Регистрируем в очереди follow-up (cron отправит через 3 мин)
     if (payload.event_type === 'quiz_complete' && payload.user_id && payload.result_id) {
-      const isNew = await registerFollowUp(payload.user_id, payload.result_id);
-      if (isNew) {
-        await sendFirstFollowUp(payload.user_id, payload.result_id);
-      }
+      await registerFollowUp(payload.user_id, payload.result_id);
     }
 
     // Отправляем в Telegram (только оплаты)
