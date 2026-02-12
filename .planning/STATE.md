@@ -3,8 +3,8 @@
 ## Current Status
 
 **Milestone:** v3.0 Коннекторы Upsell Funnel
-**Status:** Phase 12.1-01 complete (3 new content sections + updated copy)
-**Next:** `/gsd:plan-phase 12.1` for plan 02 (page.tsx rendering)
+**Status:** Phase 12.1 complete (landing restructure + copy optimization)
+**Next:** `/gsd:plan-phase 12.2` for FAQ section
 
 ## Project Reference
 
@@ -16,9 +16,9 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 12.1 of 15 (Landing Restructure + Copy)
-Plan: 1 of 1 in current phase (COMPLETE)
+Plan: 2 of 2 in current phase (COMPLETE)
 Status: Phase 12.1 complete, ready for 12.2
-Last activity: 2026-02-12 — Completed 12.1-01: added 3 content sections + updated base copy
+Last activity: 2026-02-12 — Completed 12.1-02: restructured landing page in research-backed order
 
 Progress: [▓▓▓▓▓▓▓▓░░░░░░░] 68% (phases 1-12.1 complete, 5.9 remaining)
 
@@ -48,6 +48,8 @@ Recent decisions affecting current work:
 - Phase 12.1: "Это не курс — совместная работа над вашим проектом в групповом формате"
 - Phase 12.1: Формат: еженедельные созвоны, индивидуальный подбор, 10 человек max
 - Phase 12.1: Результат 12 нед: работающие продукты, воронка, контент-система, лид-магниты, скрипты
+- Phase 12.1: Section order optimized for conversion: Pre-qualifier → Hero → Problem → Belief Shift → Solution → Bio → Timeline → Product Tour → Pricing → Important → For You If → CTA
+- Phase 12.1: Consolidated Timeline (FirstDays+Weeks4-8+Week12) and Product Tour (System+Phases) sections
 - Phase 12.2: FAQ универсальный (не per-archetype), 6-8 вопросов
 - Phase 12.2: Еженедельная оплата = встроенный risk reversal (не нужна money-back гарантия)
 - Phase 12.3: Social proof — user предоставит материал позже
@@ -70,9 +72,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed 12.1-01-PLAN.md execution (3 new sections + updated copy)
-Resume file: .planning/phases/12.1-landing-restructure-copy/12.1-01-SUMMARY.md
-Resume action: `/gsd:plan-phase 12.1` for plan 02 (page.tsx rendering) or `/gsd:plan-phase 12.2` (FAQ section)
+Stopped at: Completed 12.1-02-PLAN.md execution (landing page restructure)
+Resume file: .planning/phases/12.1-landing-restructure-copy/12.1-02-SUMMARY.md
+Resume action: `/gsd:plan-phase 12.2` for FAQ section
 
 ---
 *Last updated: 2026-02-12*
