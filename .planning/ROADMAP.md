@@ -75,11 +75,56 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 12-01-PLAN.md — Base+overrides data pattern, PMHS copy for 5 archetypes across 7 sections, page.tsx wiring
+- [x] 12-01-PLAN.md — Base+overrides data pattern, PMHS copy for 5 archetypes across 7 sections, page.tsx wiring — 2026-02-11
+
+#### Phase 12.1: Landing Page Restructure + Copy
+**Goal**: Page follows research-backed selling structure with new conversion copy
+**Depends on**: Phase 12 + sales page research
+**Requirements**: CONV-01, CONV-02, CONV-03
+**Success Criteria** (what must be TRUE):
+  1. Sections reordered: Pre-qualifier → Hero → Problem → Belief Shift → Solution → Bio → Timeline → Product Tour → Pricing → Important → "Для вас если..." → CTA
+  2. Pre-qualifier block shows personalized "Для экспертов, которые..." (5 versions)
+  3. Belief shift block: "Это не курс — это совместная работа над вашим проектом"
+  4. "Для вас, если..." block with 5-7 self-selection criteria
+  5. Copy updated with program details: еженедельные созвоны, индивидуальный подход, конкретные результаты за 12 недель
+**Plans**: 2 plans
+
+Plans:
+- [ ] 12.1-01-PLAN.md — Add 3 new data sections (preQualifier, beliefShift, forYouIf) + update copy to reflect program format
+- [ ] 12.1-02-PLAN.md — Reorder page sections to research-backed conversion order + render new blocks
+
+#### Phase 12.2: Conversion Components
+**Goal**: Interactive conversion elements added to landing page
+**Depends on**: Phase 12.1
+**Requirements**: CONV-04, CONV-05, CONV-06, CONV-07, CONV-08
+**Success Criteria** (what must be TRUE):
+  1. FAQ accordion with 6-8 universal questions (not per-archetype) — each answer = mini-sale
+  2. Value Stack visual before pricing (10:1 value-to-price ratio)
+  3. Sticky CTA button appears after 25% page scroll
+  4. Scarcity banner: "Осталось X мест из 10" + countdown timer
+  5. ROI calculator: "Один клиент за Xк окупает Y недель программы"
+**Plans**: TBD
+
+Plans:
+- [ ] 12.2-01: [TBD during planning]
+
+#### Phase 12.3: Social Proof Integration
+**Goal**: Real testimonials/case studies placed at strategic points on page
+**Depends on**: Phase 12.2 + user provides testimonial content
+**Requirements**: CONV-09
+**Success Criteria** (what must be TRUE):
+  1. Social proof component renders at 4-5 strategic points on page
+  2. At least 2 "было/стало" case studies with real numbers
+  3. Short quote testimonials near hero and pricing sections
+  4. Most emotional testimonial as final page element
+**Plans**: TBD
+
+Plans:
+- [ ] 12.3-01: [TBD during planning]
 
 #### Phase 13: Payment Integration
 **Goal**: Users can purchase Connectors tiers and payment is recorded
-**Depends on**: Phase 12
+**Depends on**: Phase 12.2 (landing conversion ready)
 **Requirements**: PAY-02, PAY-03, ACCESS-02, TRACK-03
 **Success Criteria** (what must be TRUE):
   1. User can click "Базовый 10K/нед" or "Премиум 20K/нед" and reach Prodamus payment page
@@ -124,7 +169,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 11 → 12 → 13 → 14 → 15
+Phases execute in order: 11 → 12 → 12.1 → 12.2 → 12.3 → 13 → 14 → 15
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -132,14 +177,17 @@ Phases execute in numeric order: 11 → 12 → 13 → 14 → 15
 | 4-7 | v1.1 | 8/9 | Complete | 2026-02-09 |
 | 8-10 | v2.0 | 7/7 | Complete | 2026-02-10 |
 | 11. Landing Page Foundation | v3.0 | 1/1 | Complete | 2026-02-11 |
-| 12. Landing Personalization | v3.0 | 0/1 | Not started | - |
+| 12. Landing Personalization | v3.0 | 1/1 | Complete | 2026-02-11 |
+| 12.1 Landing Restructure + Copy | v3.0 | 0/2 | Planning done | - |
+| 12.2 Conversion Components | v3.0 | 0/1 | Not started | - |
+| 12.3 Social Proof Integration | v3.0 | 0/1 | Not started | - |
 | 13. Payment Integration | v3.0 | 0/1 | Not started | - |
 | 14. Upsell Chain | v3.0 | 0/1 | Not started | - |
 | 15. Group Access | v3.0 | 0/1 | Not started | - |
 
-**Total: 10 phases shipped, 5 phases planned for v3.0**
+**Total: 10 phases shipped, 8 phases planned for v3.0**
 
 ---
 
 *Roadmap created: 2026-01-31*
-*Last updated: 2026-02-11 (Phase 12 planned)*
+*Last updated: 2026-02-12 (Phases 12.1-12.3 added — landing conversion optimization)*

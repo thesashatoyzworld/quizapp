@@ -3,24 +3,24 @@
 ## Current Status
 
 **Milestone:** v3.0 Коннекторы Upsell Funnel
-**Status:** Roadmap complete, ready to plan Phase 11
-**Next:** `/gsd:plan-phase 11`
+**Status:** Phase 12 complete, ready to plan Phase 13
+**Next:** `/gsd:plan-phase 13`
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Квиз → персонализированный результат → покупка мастер-класса → апселл на "Коннекторы"
-**Current focus:** Landing page foundation (Phase 11)
+**Current focus:** Result page integration (Phase 13)
 
 ## Current Position
 
-Phase: 11 of 15 (Landing Page Foundation)
-Plan: 0 of 1 in current phase
-Status: Ready to plan
-Last activity: 2026-02-10 — Roadmap created for v3.0
+Phase: 12 of 15 (Landing Personalization)
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2026-02-11 — Completed 12-01-PLAN.md
 
-Progress: [▓▓▓▓▓▓▓░░░░░░░░] 67% (phases 1-10 complete, 5 remaining)
+Progress: [▓▓▓▓▓▓▓▓▓░░░░░░] 80% (phases 1-12 complete, 3 remaining)
 
 ## Milestones
 
@@ -37,8 +37,13 @@ All decisions logged in PROJECT.md Key Decisions table.
 
 Recent decisions affecting current work:
 
-- Phase 11: Single Next.js page for landing (/connectors?type=invisible)
-- Phase 12: Text personalization first, visual personalization deferred
+- Phase 11: Single Next.js page for landing (/connectors?type=invisible) ✅
+- Phase 11: Standalone layout pattern for long pages (no quiz-container centering)
+- Phase 11: Client-side ScrollFix to override body height for individual pages
+- Phase 12: Base+overrides content pattern for personalization ✅
+- Phase 12: PMHS framework (Pain-More Pain-Hope-Solution) for sales copy ✅
+- Phase 12: No type param = base content (not defaulting to invisible) ✅
+- Phase 12: CTA button text stays universal 'ЗАПИСАТЬСЯ' ✅
 - Phase 14: Reuse existing Notion follow-up queue infrastructure
 - v3.0: Upsell after workshop, not replacing current payment flow
 
@@ -49,6 +54,7 @@ Recent decisions affecting current work:
 - No back button during quiz (from UX audit — CRITICAL)
 - Payment timeout not handled (from UX audit — CRITICAL)
 - ShareButton deferred (doesn't look good, revisit later)
+- Temporary test navigation link on result pages (remove in Phase 13)
 
 ### Blockers/Concerns
 
@@ -56,10 +62,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-10
-Stopped at: v3.0 roadmap created
+Last session: 2026-02-11
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None
-Resume action: Begin Phase 11 planning
+Resume action: Begin Phase 13 planning (Result Page Links)
 
 ---
-*Last updated: 2026-02-10*
+*Last updated: 2026-02-11*
