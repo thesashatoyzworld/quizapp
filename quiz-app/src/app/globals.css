@@ -2319,6 +2319,51 @@ body {
   color: var(--neon-cyan);
 }
 
+/* Pre-qualifier text (above hero) */
+.connectors-prequalifier {
+  text-align: center;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  padding: var(--space-md) 0;
+  line-height: 1.6;
+}
+
+/* Belief shift highlighted quote */
+.connectors-belief-shift {
+  border-left: 3px solid var(--neon-cyan);
+  padding-left: var(--space-md);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+  line-height: 1.5;
+}
+
+/* "For you if" checklist */
+.connectors-checklist {
+  list-style: none;
+  padding: 0;
+}
+
+.connectors-checklist li {
+  position: relative;
+  padding: var(--space-sm) 0;
+  padding-left: var(--space-lg);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.connectors-checklist li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--neon-green, #00ff88);
+  font-weight: 700;
+  margin-right: var(--space-sm);
+}
+
 /* Tier cards container */
 .connectors-tiers {
   display: flex;
