@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent, registerFollowUp, getAdminChatId } from '@/lib/notion';
+import { scheduleFollowUp } from '@/lib/qstash';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
@@ -79,9 +80,12 @@ export async function POST(request: NextRequest) {
     // Отправляем в Notion (все события)
     await trackEvent(payload);
 
-    // Регистрируем в очереди follow-up (cron отправит через 3 мин)
+    // Регистрируем в очереди follow-up и планируем первое сообщение через 3 мин
     if (payload.event_type === 'quiz_complete' && payload.user_id && payload.result_id) {
-      await registerFollowUp(payload.user_id, payload.result_id);
+      const isNew = await registerFollowUp(payload.user_id, payload.result_id);
+      if (isNew) {
+        await scheduleFollowUp(payload.user_id, payload.result_id, 0, 180);
+      }
     }
 
     // Отправляем в Telegram (только оплаты)

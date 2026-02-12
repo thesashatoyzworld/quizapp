@@ -92,6 +92,28 @@ export async function registerFollowUp(userId: number, resultId: string): Promis
   }
 }
 
+export async function isFollowUpPaid(userId: number): Promise<boolean> {
+  try {
+    const results = await notion.dataSources.query({
+      data_source_id: FOLLOWUP_DS_ID,
+      filter: {
+        property: 'user_id',
+        number: { equals: userId },
+      },
+    });
+
+    if (results.results.length === 0) return false;
+
+    const page = results.results[0];
+    const props = (page as Record<string, unknown>).properties as Record<string, unknown>;
+    const paidProp = props.paid as { checkbox: boolean } | undefined;
+    return paidProp?.checkbox === true;
+  } catch (error) {
+    console.error(`Failed to check paid status for user ${userId}:`, error);
+    return false;
+  }
+}
+
 export async function markFollowUpPaid(userId: number) {
   try {
     const results = await notion.dataSources.query({
@@ -113,68 +135,6 @@ export async function markFollowUpPaid(userId: number) {
     });
   } catch (error) {
     console.error('Failed to mark follow-up as paid in Notion:', error);
-  }
-}
-
-interface PendingUser {
-  user_id: number;
-  result_id: string;
-  messages_sent: number;
-  page_id: string;
-  registered_at: string | null;
-  last_sent_at: string | null;
-}
-
-export async function getPendingUsers(): Promise<PendingUser[]> {
-  try {
-    const now = new Date();
-    const threeMinutesAgo = now.getTime() - 3 * 60 * 1000;
-    const twelveHoursAgo = now.getTime() - 12 * 60 * 60 * 1000;
-
-    // Simple filter — time checks done in JS to avoid nested and/or issues
-    const results = await notion.dataSources.query({
-      data_source_id: FOLLOWUP_DS_ID,
-      filter: {
-        and: [
-          { property: 'paid', checkbox: { equals: false } },
-          { property: 'messages_sent', number: { less_than: 4 } },
-        ],
-      },
-    });
-
-    return results.results.map((page) => {
-      const props = (page as Record<string, unknown>).properties as Record<string, unknown>;
-
-      const userIdProp = props.user_id as { number: number | null } | undefined;
-      const resultIdProp = props.result_id as { select: { name: string } | null } | undefined;
-      const messagesSentProp = props.messages_sent as { number: number | null } | undefined;
-      const registeredAtProp = props.registered_at as { date: { start: string } | null } | undefined;
-      const lastSentAtProp = props.last_sent_at as { date: { start: string } | null } | undefined;
-
-      return {
-        user_id: userIdProp?.number ?? 0,
-        result_id: resultIdProp?.select?.name ?? '',
-        messages_sent: messagesSentProp?.number ?? 0,
-        page_id: page.id,
-        registered_at: registeredAtProp?.date?.start ?? null,
-        last_sent_at: lastSentAtProp?.date?.start ?? null,
-      };
-    }).filter(u => {
-      if (u.user_id <= 0 || !u.result_id) return false;
-
-      if (u.messages_sent === 0) {
-        // First message: 3 min after registration
-        if (!u.registered_at) return false;
-        return new Date(u.registered_at).getTime() < threeMinutesAgo;
-      } else {
-        // Subsequent messages: 12h after last sent
-        if (!u.last_sent_at) return true;
-        return new Date(u.last_sent_at).getTime() < twelveHoursAgo;
-      }
-    });
-  } catch (error) {
-    console.error('Failed to get pending users from Notion:', error);
-    return [];
   }
 }
 
