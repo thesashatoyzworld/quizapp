@@ -90,8 +90,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 12.1-01-PLAN.md — Add 3 new data sections (preQualifier, beliefShift, forYouIf) + update copy to reflect program format
-- [ ] 12.1-02-PLAN.md — Reorder page sections to research-backed conversion order + render new blocks
+- [x] 12.1-01-PLAN.md — Add 3 new data sections (preQualifier, beliefShift, forYouIf) + update copy to reflect program format — 2026-02-12
+- [x] 12.1-02-PLAN.md — Reorder page sections to research-backed conversion order + render new blocks — 2026-02-12
 
 #### Phase 12.2: Conversion Components
 **Goal**: Interactive conversion elements added to landing page
@@ -178,7 +178,7 @@ Phases execute in order: 11 → 12 → 12.1 → 12.2 → 12.3 → 13 → 14 → 
 | 8-10 | v2.0 | 7/7 | Complete | 2026-02-10 |
 | 11. Landing Page Foundation | v3.0 | 1/1 | Complete | 2026-02-11 |
 | 12. Landing Personalization | v3.0 | 1/1 | Complete | 2026-02-11 |
-| 12.1 Landing Restructure + Copy | v3.0 | 0/2 | Planning done | - |
+| 12.1 Landing Restructure + Copy | v3.0 | 2/2 | Complete | 2026-02-12 |
 | 12.2 Conversion Components | v3.0 | 0/1 | Not started | - |
 | 12.3 Social Proof Integration | v3.0 | 0/1 | Not started | - |
 | 13. Payment Integration | v3.0 | 0/1 | Not started | - |

@@ -320,16 +320,6 @@ export default function Home() {
               {result.id === 'unstable' && <UnstableResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} userName={user?.first_name || null} userPhoto={null} />}
               {result.id === 'scale' && <ScaleResult onPaymentClick={() => trackPaymentClick(result.title)} userId={userId} resultId={result.id} scores={scores} userName={user?.first_name || null} userPhoto={null} />}
 
-              {/* Temporary link to Connectors landing for testing */}
-              <div style={{ textAlign: 'center', marginTop: 'var(--space-xl)' }}>
-                <a
-                  href={`/connectors?type=${result.id}`}
-                  className="btn-neon"
-                  style={{ display: 'inline-block', textDecoration: 'none' }}
-                >
-                  Программа &laquo;Коннекторы&raquo;
-                </a>
-              </div>
             </div>
           )}
 
