@@ -212,6 +212,9 @@ type ContentOverrides = {
 // Archetype-specific content overrides using PMHS framework
 const archetypeOverrides: Record<ConnectorType, ContentOverrides> = {
   invisible: {
+    preQualifier: {
+      text: 'Для экспертов, которые сильны в своём деле, но которых никто не видит онлайн',
+    },
     hero: {
       headline: 'Первые клиенты из контента за 90 дней',
       subheadline: 'Ваш доход держится на сарафане — а сарафан непредсказуем. Клиенты уходят к тем, кто просто громче',
@@ -267,6 +270,9 @@ const archetypeOverrides: Record<ConnectorType, ContentOverrides> = {
     },
   },
   doer: {
+    preQualifier: {
+      text: 'Для экспертов, которые много учатся и делают, но никак не могут собрать всё в работающую систему',
+    },
     hero: {
       headline: 'Одна работающая механика вместо хаоса',
       subheadline: 'Вы уже вложили сотни тысяч в обучения — но доход так и не стал стабильным. Проблема не в знаниях, а в отсутствии единой механики',
@@ -322,6 +328,9 @@ const archetypeOverrides: Record<ConnectorType, ContentOverrides> = {
     },
   },
   generous: {
+    preQualifier: {
+      text: 'Для экспертов, которые щедро делятся знаниями, но зарабатывают меньше, чем заслуживают',
+    },
     hero: {
       headline: '300-500K ₽/мес с вашей аудитории',
       subheadline: 'Ваша аудитория растёт — но покупают единицы. Большинство приходят учиться бесплатно, а не платить за решение',
@@ -377,6 +386,9 @@ const archetypeOverrides: Record<ConnectorType, ContentOverrides> = {
     },
   },
   unstable: {
+    preQualifier: {
+      text: 'Для экспертов, у которых то густо, то пусто — и непонятно, от чего зависит результат',
+    },
     hero: {
       headline: 'Стабильные 250-400K ₽/мес',
       subheadline: 'В хороший месяц — 200-300K. В плохой — 50-80K. Вы попадаете интуитивно, а не по алгоритму',
@@ -432,6 +444,9 @@ const archetypeOverrides: Record<ConnectorType, ContentOverrides> = {
     },
   },
   scale: {
+    preQualifier: {
+      text: 'Для экспертов, которые упёрлись в потолок дохода и хотят масштабировать без выгорания',
+    },
     hero: {
       headline: '800K — 1.5M ₽/мес',
       subheadline: 'Ваш доход упирается в потолок личного времени. Вы чувствуете: всё, что выше — требует другой модели',
