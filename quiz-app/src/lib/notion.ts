@@ -47,7 +47,7 @@ export async function trackEvent(payload: TrackEventPayload) {
   }
 }
 
-export async function registerFollowUp(userId: number, resultId: string) {
+export async function registerFollowUp(userId: number, resultId: string): Promise<boolean> {
   try {
     // Deduplicate: check if user already exists in FollowUpQueue
     const existing = await notion.dataSources.query({
@@ -59,7 +59,7 @@ export async function registerFollowUp(userId: number, resultId: string) {
     });
 
     if (existing.results.length > 0) {
-      return; // Already registered
+      return false; // Already registered
     }
 
     await notion.pages.create({
@@ -85,8 +85,10 @@ export async function registerFollowUp(userId: number, resultId: string) {
         },
       },
     });
+    return true; // New entry created
   } catch (error) {
     console.error('Failed to register follow-up in Notion:', error);
+    return false;
   }
 }
 
