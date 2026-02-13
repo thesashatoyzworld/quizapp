@@ -1,9 +1,17 @@
+import React from 'react';
 import { Metadata } from 'next';
 import { getConnectorsContent, faqData, valueStackData } from '@/data/connectors';
 import { ScrollFix } from './ScrollFix';
 import { ConnectorsCTA, ConnectorsTierButtons } from './ConnectorsCTA';
 import { FaqAccordion } from './FaqAccordion';
 import { StickyCta } from './StickyCta';
+
+function rt(text: string): React.ReactNode {
+  if (!text.includes('**')) return text;
+  return text.split(/\*\*(.*?)\*\*/g).map((part, i) =>
+    i % 2 === 1 ? <strong key={i} style={{ color: 'var(--neon-cyan)' }}>{part}</strong> : part
+  );
+}
 
 export const metadata: Metadata = {
   title: 'Коннекторы | TheSasha',
@@ -37,7 +45,7 @@ export default async function ConnectorsPage({
         <div className="result-page">
           {/* Pre-qualifier */}
           <section className="connectors-section">
-            <p className="connectors-prequalifier">{content.preQualifier.text}</p>
+            <p className="connectors-prequalifier">{rt(content.preQualifier.text)}</p>
           </section>
 
           {/* Hero */}
@@ -56,7 +64,7 @@ export default async function ConnectorsPage({
               </p>
 
               <p className="result-body" style={{ textAlign: 'center', marginBottom: 0 }}>
-                {content.hero.description}
+                {rt(content.hero.description)}
               </p>
             </div>
           </section>
@@ -66,9 +74,27 @@ export default async function ConnectorsPage({
             <h2 className="section-title">{content.threeElements.title}</h2>
 
             {content.threeElements.items.map((item, index) => (
-              <div key={index} className="card connectors-element-card">
-                <h3 className="connectors-element-title">{item.title}</h3>
-                <p className="result-body" style={{ marginBottom: 0 }}>{item.description}</p>
+              <div key={index} className="card connectors-element-card" style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'flex-start' }}>
+                <div style={{
+                  minWidth: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: 'rgba(0, 240, 255, 0.1)',
+                  border: '2px solid var(--neon-cyan)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.2rem',
+                  fontWeight: 700,
+                  color: 'var(--neon-cyan)',
+                  flexShrink: 0,
+                }}>
+                  {index + 1}
+                </div>
+                <div>
+                  <h3 className="connectors-element-title">{item.title}</h3>
+                  <p className="result-body" style={{ marginBottom: 0 }}>{rt(item.description)}</p>
+                </div>
               </div>
             ))}
           </section>
@@ -83,10 +109,10 @@ export default async function ConnectorsPage({
                 {content.beliefShift.subtitle}
               </p>
               <p className="result-body" style={{ textAlign: 'center', marginBottom: 'var(--space-lg)' }}>
-                {content.beliefShift.text}
+                {rt(content.beliefShift.text)}
               </p>
               <div className="connectors-belief-shift">
-                {content.beliefShift.shift}
+                {rt(content.beliefShift.shift)}
               </div>
             </div>
           </section>
@@ -95,13 +121,13 @@ export default async function ConnectorsPage({
           <section className="connectors-section">
             <h2 className="section-title">{content.whales.title}</h2>
             <p className="result-body" style={{ marginBottom: 'var(--space-md)' }}>
-              {content.whales.subtitle}
+              {rt(content.whales.subtitle)}
             </p>
 
             {content.whales.items.map((item, index) => (
               <div key={index} className="card connectors-element-card">
                 <h3 className="connectors-element-title">{item.title}</h3>
-                <p className="result-body" style={{ marginBottom: 0 }}>{item.description}</p>
+                <p className="result-body" style={{ marginBottom: 0 }}>{rt(item.description)}</p>
               </div>
             ))}
           </section>
@@ -131,11 +157,11 @@ export default async function ConnectorsPage({
                 textAlign: 'center',
                 marginBottom: 'var(--space-lg)',
               }}>
-                {content.author.description}
+                {rt(content.author.description)}
               </p>
               <ul className="connectors-list" style={{ textAlign: 'left' }}>
                 {content.author.facts.map((fact, index) => (
-                  <li key={index}>{fact}</li>
+                  <li key={index}>{rt(fact)}</li>
                 ))}
               </ul>
             </div>
@@ -146,19 +172,19 @@ export default async function ConnectorsPage({
             <h2 className="section-title">Как проходит программа</h2>
 
             {/* First 14 Days */}
-            <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
+            <div className="card" style={{ marginBottom: 'var(--space-md)', borderLeft: `3px solid ${(content.firstDays as any).color || '#00f0ff'}` }}>
               <h3 className="connectors-element-title" style={{ marginBottom: 'var(--space-sm)' }}>
                 {content.firstDays.title}
               </h3>
               <p className="result-body" style={{ marginBottom: 'var(--space-md)' }}>
-                {content.firstDays.subtitle}
+                {rt(content.firstDays.subtitle)}
               </p>
               <ol className="steps-list">
                 {content.firstDays.items.map((item, index) => (
                   <li key={index} className="step-item">
                     <div className="step-number">{index + 1}</div>
                     <div className="step-content">
-                      <p className="result-body" style={{ marginBottom: 0 }}>{item}</p>
+                      <p className="result-body" style={{ marginBottom: 0 }}>{rt(item)}</p>
                     </div>
                   </li>
                 ))}
@@ -166,27 +192,27 @@ export default async function ConnectorsPage({
             </div>
 
             {/* Weeks 4-8 */}
-            <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
+            <div className="card" style={{ marginBottom: 'var(--space-md)', borderLeft: `3px solid ${(content.weeks4to8 as any).color || '#9d4edd'}` }}>
               <h3 className="connectors-element-title" style={{ marginBottom: 'var(--space-sm)' }}>
                 {content.weeks4to8.title}
               </h3>
               <p className="result-body" style={{ marginBottom: 'var(--space-md)' }}>
-                {content.weeks4to8.subtitle}
+                {rt(content.weeks4to8.subtitle)}
               </p>
               <ul className="connectors-list">
                 {content.weeks4to8.items.map((item, index) => (
-                  <li key={index}>{item}</li>
+                  <li key={index}>{rt(item)}</li>
                 ))}
               </ul>
             </div>
 
             {/* Week 12 Results */}
-            <div className="card">
+            <div className="card" style={{ borderLeft: `3px solid ${(content.week12 as any).color || '#00ff88'}` }}>
               <h3 className="connectors-element-title" style={{ marginBottom: 'var(--space-sm)' }}>
                 {content.week12.title}
               </h3>
               <p className="result-body" style={{ marginBottom: 'var(--space-lg)' }}>
-                {content.week12.subtitle}
+                {rt(content.week12.subtitle)}
               </p>
               <div className="stats-grid">
                 {content.week12.results.map((result, index) => (
@@ -199,44 +225,23 @@ export default async function ConnectorsPage({
             </div>
           </section>
 
-          {/* Product Tour */}
+          {/* Method */}
           <section className="connectors-section">
-            <h2 className="section-title">Что внутри программы</h2>
-
-            {/* Connector System */}
-            <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
-              <h3 className="connectors-element-title" style={{ marginBottom: 'var(--space-sm)' }}>
-                {content.system.title}
-              </h3>
-              <p className="result-body" style={{ marginBottom: 'var(--space-lg)' }}>
-                {content.system.description}
-              </p>
-              <ol className="steps-list">
-                {content.system.steps.map((step, index) => (
-                  <li key={index} className="step-item">
-                    <div className="step-number">{step.step}</div>
-                    <div className="step-content">
-                      <h3 className="connectors-element-title" style={{ marginBottom: 'var(--space-xs)' }}>{step.title}</h3>
-                      <p className="result-body" style={{ marginBottom: 0 }}>{step.description}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {/* 3 Phases */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-              {content.phases.items.map((phase, index) => (
-                <div key={index} className="connectors-phase-card">
-                  <div className="connectors-phase-card-border" style={{ background: phase.color }} />
-                  <div className="connectors-phase-label" style={{ color: phase.color }}>
-                    {phase.phase}
+            <h2 className="section-title">{content.system.title}</h2>
+            <p className="result-body" style={{ marginBottom: 'var(--space-lg)' }}>
+              {rt(content.system.description)}
+            </p>
+            <ol className="steps-list">
+              {content.system.steps.map((step, index) => (
+                <li key={index} className="step-item">
+                  <div className="step-number">{step.step}</div>
+                  <div className="step-content">
+                    <h3 className="connectors-element-title" style={{ marginBottom: 'var(--space-xs)' }}>{step.title}</h3>
+                    <p className="result-body" style={{ marginBottom: 0 }}>{rt(step.description)}</p>
                   </div>
-                  <h3 className="connectors-phase-title">{phase.title}</h3>
-                  <p className="connectors-phase-desc">{phase.description}</p>
-                </div>
+                </li>
               ))}
-            </div>
+            </ol>
           </section>
 
           {/* FAQ */}
@@ -276,7 +281,7 @@ export default async function ConnectorsPage({
               color: 'var(--neon-cyan)',
               fontWeight: 600,
             }}>
-              {content.tiers.paymentNote}
+              {rt(content.tiers.paymentNote)}
             </p>
 
             <div className="connectors-tiers">
@@ -353,12 +358,19 @@ export default async function ConnectorsPage({
                 <div className="connectors-roi-label">Один клиент за 50 000 &#8381;</div>
                 <div className="connectors-roi-value connectors-roi-value-gain">50 000 &#8381;</div>
               </div>
+              <div className="connectors-roi-divider">
+                <span style={{ fontSize: '0.7rem' }}>&#8595;</span>
+              </div>
+              <div className="connectors-roi-row">
+                <div className="connectors-roi-label">Ваш доход при 500К/мес за год</div>
+                <div className="connectors-roi-value connectors-roi-value-gain">6 000 000 &#8381;</div>
+              </div>
               <div className="connectors-roi-result">
                 <span className="connectors-roi-result-text">
-                  2-3 клиента полностью окупают программу
+                  Программа = 2% годового дохода
                 </span>
                 <span className="connectors-roi-result-sub">
-                  Средний участник находит первого клиента на 2-3 неделе
+                  2-3 клиента окупают программу в первый месяц
                 </span>
               </div>
             </div>
@@ -378,7 +390,7 @@ export default async function ConnectorsPage({
                 {content.important.title}
               </h3>
               <p className="result-body" style={{ textAlign: 'center', marginBottom: 0 }}>
-                {content.important.text}
+                {rt(content.important.text)}
               </p>
             </div>
           </section>
@@ -389,7 +401,7 @@ export default async function ConnectorsPage({
             <div className="card">
               <ul className="connectors-checklist">
                 {content.forYouIf.items.map((item, index) => (
-                  <li key={index}>{item}</li>
+                  <li key={index}>{rt(item)}</li>
                 ))}
               </ul>
             </div>
@@ -402,7 +414,7 @@ export default async function ConnectorsPage({
                 {content.cta.title}
               </h2>
               <p className="cta-subtitle" style={{ marginBottom: 'var(--space-lg)' }}>
-                {content.cta.subtitle}
+                {rt(content.cta.subtitle)}
               </p>
 
               <ConnectorsCTA
