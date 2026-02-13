@@ -25,22 +25,34 @@ export default function Home() {
   const waitingForReturn = useRef(false);
   const hasTrackedResult = useRef(false);
 
+  const [utmSource, setUtmSource] = useState<string | null>(null);
+
   const { user, userId, isTelegramContext, webApp } = useTelegram();
-  const { trackQuizComplete, trackResultView, trackPaymentClick } = useTracking(user);
+  const { trackQuizOpen, trackQuizComplete, trackResultView, trackPaymentClick } = useTracking(user, utmSource);
 
   const CHANNEL_URL = 'https://t.me/sashatoyz';
 
-  // Detect ?payment=success on mount
+  // Read utm_source and detect ?payment=success on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    const source = params.get('utm_source');
+    if (source) {
+      setUtmSource(source);
+    }
+
     if (params.get('payment') === 'success') {
       setState('payment-success');
-      // Clean up URL
+    }
+
+    // Clean up URL params
+    if (params.toString()) {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
 
   const handleStart = () => {
+    trackQuizOpen();
     setState('quiz');
   };
 

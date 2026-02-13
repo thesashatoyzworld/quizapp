@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-type EventType = 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
+type EventType = 'quiz_open' | 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
 
 interface TelegramUser {
   id: number;
@@ -17,10 +17,11 @@ interface TrackEventOptions {
   result_stage?: string;
   result_title?: string;
   amount?: number;
+  utm_source?: string;
   metadata?: Record<string, unknown>;
 }
 
-export function useTracking(user?: TelegramUser | null) {
+export function useTracking(user?: TelegramUser | null, utmSource?: string | null) {
   const trackEvent = useCallback(async (
     eventType: EventType,
     options?: TrackEventOptions
@@ -34,13 +35,18 @@ export function useTracking(user?: TelegramUser | null) {
           user_id: user?.id ?? options?.user_id,
           username: user?.username ?? options?.username,
           first_name: user?.first_name ?? options?.first_name,
+          utm_source: utmSource || options?.utm_source || undefined,
           ...options,
         }),
       });
     } catch (error) {
       console.error('Track event failed:', error);
     }
-  }, [user]);
+  }, [user, utmSource]);
+
+  const trackQuizOpen = useCallback(() => {
+    trackEvent('quiz_open');
+  }, [trackEvent]);
 
   const trackQuizComplete = useCallback((resultTitle: string, resultStage?: string, resultId?: string) => {
     trackEvent('quiz_complete', { result_title: resultTitle, result_stage: resultStage, result_id: resultId });
@@ -60,6 +66,7 @@ export function useTracking(user?: TelegramUser | null) {
 
   return {
     trackEvent,
+    trackQuizOpen,
     trackQuizComplete,
     trackResultView,
     trackPaymentClick,

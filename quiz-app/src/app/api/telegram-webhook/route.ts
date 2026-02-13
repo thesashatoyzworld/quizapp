@@ -48,6 +48,13 @@ export async function POST(request: NextRequest) {
       const chatId = update.message.chat.id;
       const firstName = update.message.from?.first_name || 'друг';
 
+      // Parse UTM source from /start parameter (e.g. "/start youtube")
+      const parts = update.message.text.split(' ');
+      const startParam = parts.length > 1 ? parts[1].trim() : '';
+      const webappUrl = startParam
+        ? `${WEBAPP_URL}?utm_source=${encodeURIComponent(startParam)}`
+        : WEBAPP_URL;
+
       const welcomeText = `Привет, ${firstName}! 👋
 
 🎯 <b>Диагностика контента</b>
@@ -61,7 +68,7 @@ export async function POST(request: NextRequest) {
           [
             {
               text: '🚀 Пройти диагностику',
-              web_app: { url: WEBAPP_URL },
+              web_app: { url: webappUrl },
             },
           ],
         ],

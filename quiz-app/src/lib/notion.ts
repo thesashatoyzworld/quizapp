@@ -12,6 +12,7 @@ interface TrackEventPayload {
   result_title?: string;
   result_stage?: string;
   amount?: number;
+  utm_source?: string;
 }
 
 export async function trackEvent(payload: TrackEventPayload) {
@@ -36,6 +37,9 @@ export async function trackEvent(payload: TrackEventPayload) {
         },
         amount: {
           number: payload.amount ?? null,
+        },
+        utm_source: {
+          rich_text: [{ text: { content: payload.utm_source || '' } }],
         },
         timestamp: {
           date: { start: new Date().toISOString() },
