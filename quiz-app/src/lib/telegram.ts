@@ -75,34 +75,35 @@ export async function sendTelegramVideo(
     return sendTelegramMessage(chatId, caption, paymentUrl);
   }
 
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`;
+  // Step 1: Send video (no caption — Telegram limits caption to 1024 chars)
+  const videoUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`;
   try {
-    const response = await fetch(url, {
+    const videoResponse = await fetch(videoUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
         video: videoFileId,
-        caption,
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '\uD83D\uDCB3 Оплатить мастер-класс — 3 450₽', url: paymentUrl },
-          ]],
-        },
       }),
     });
-    const data = await response.json();
+    const videoData = await videoResponse.json();
 
-    if (data.ok === false && data.error_code === 403) {
+    if (videoData.ok === false && videoData.error_code === 403) {
       return { ok: false, blocked: true };
     }
 
-    return { ok: data.ok === true };
+    if (!videoData.ok) {
+      // Video failed — fall back to text-only
+      return sendTelegramMessage(chatId, caption, paymentUrl);
+    }
   } catch (error) {
     console.error(`Failed to send video to ${chatId}:`, error);
-    return { ok: false };
+    // Fall back to text-only
+    return sendTelegramMessage(chatId, caption, paymentUrl);
   }
+
+  // Step 2: Send text message with payment button
+  return sendTelegramMessage(chatId, caption, paymentUrl);
 }
 
 export async function notifyAdmin(text: string) {
