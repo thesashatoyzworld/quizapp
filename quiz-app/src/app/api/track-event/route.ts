@@ -5,7 +5,7 @@ import { scheduleFollowUp } from '@/lib/qstash';
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
 interface TrackEventPayload {
-  event_type: 'quiz_open' | 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
+  event_type: 'bot_start' | 'webapp_open' | 'quiz_start' | 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
   user_id?: number;
   result_id?: string;
   result_stage?: string;

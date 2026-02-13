@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-type EventType = 'quiz_open' | 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
+type EventType = 'webapp_open' | 'quiz_start' | 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
 
 interface TelegramUser {
   id: number;
@@ -44,8 +44,12 @@ export function useTracking(user?: TelegramUser | null, utmSource?: string | nul
     }
   }, [user, utmSource]);
 
-  const trackQuizOpen = useCallback(() => {
-    trackEvent('quiz_open');
+  const trackWebappOpen = useCallback(() => {
+    trackEvent('webapp_open');
+  }, [trackEvent]);
+
+  const trackQuizStart = useCallback(() => {
+    trackEvent('quiz_start');
   }, [trackEvent]);
 
   const trackQuizComplete = useCallback((resultTitle: string, resultStage?: string, resultId?: string) => {
@@ -66,7 +70,8 @@ export function useTracking(user?: TelegramUser | null, utmSource?: string | nul
 
   return {
     trackEvent,
-    trackQuizOpen,
+    trackWebappOpen,
+    trackQuizStart,
     trackQuizComplete,
     trackResultView,
     trackPaymentClick,

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { trackEvent } from '@/lib/notion';
+
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
 
@@ -75,6 +77,13 @@ export async function POST(request: NextRequest) {
       };
 
       await sendMessage(chatId, welcomeText, replyMarkup);
+
+      // Track bot_start event (user clicked the link and opened the bot)
+      trackEvent({
+        event_type: 'bot_start',
+        user_id: chatId,
+        utm_source: startParam || undefined,
+      }).catch(() => {}); // fire-and-forget
     }
 
     return NextResponse.json({ ok: true });

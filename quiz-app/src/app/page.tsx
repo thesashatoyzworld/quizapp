@@ -28,11 +28,11 @@ export default function Home() {
   const [utmSource, setUtmSource] = useState<string | null>(null);
 
   const { user, userId, isTelegramContext, webApp } = useTelegram();
-  const { trackQuizOpen, trackQuizComplete, trackResultView, trackPaymentClick } = useTracking(user, utmSource);
+  const { trackWebappOpen, trackQuizStart, trackQuizComplete, trackResultView, trackPaymentClick } = useTracking(user, utmSource);
 
   const CHANNEL_URL = 'https://t.me/sashatoyz';
 
-  // Read utm_source and detect ?payment=success on mount
+  // Read utm_source, detect ?payment=success, and track webapp_open on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
 
@@ -43,6 +43,21 @@ export default function Home() {
 
     if (params.get('payment') === 'success') {
       setState('payment-success');
+    } else {
+      // Track webapp_open (user clicked "Пройти диагностику")
+      // Read Telegram user directly — state may not be set yet
+      const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      fetch('/api/track-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'webapp_open',
+          user_id: tgUser?.id,
+          username: tgUser?.username,
+          first_name: tgUser?.first_name,
+          utm_source: source || undefined,
+        }),
+      }).catch(() => {});
     }
 
     // Clean up URL params
@@ -52,7 +67,7 @@ export default function Home() {
   }, []);
 
   const handleStart = () => {
-    trackQuizOpen();
+    trackQuizStart();
     setState('quiz');
   };
 
