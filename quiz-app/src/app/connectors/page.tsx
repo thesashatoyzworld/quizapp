@@ -1,6 +1,9 @@
 import { Metadata } from 'next';
-import { getConnectorsContent } from '@/data/connectors';
+import { getConnectorsContent, faqData, valueStackData } from '@/data/connectors';
 import { ScrollFix } from './ScrollFix';
+import { ConnectorsCTA, ConnectorsTierButtons } from './ConnectorsCTA';
+import { FaqAccordion } from './FaqAccordion';
+import { StickyCta } from './StickyCta';
 
 export const metadata: Metadata = {
   title: 'Коннекторы | TheSasha',
@@ -20,9 +23,13 @@ export default async function ConnectorsPage({
   // Valid type = merged personalized content
   const content = getConnectorsContent(type);
 
+  const totalValue = valueStackData.reduce((sum, item) => sum + parseInt(item.value.replace(/\s/g, '')), 0);
+  const totalValueFormatted = totalValue.toLocaleString('ru-RU');
+
   return (
     <>
       <ScrollFix />
+      <StickyCta buttonText={content.cta.buttonText} />
       <div className="connectors-page">
         <div className="grid-bg" />
         <div className="scanlines" />
@@ -232,6 +239,33 @@ export default async function ConnectorsPage({
             </div>
           </section>
 
+          {/* FAQ */}
+          <section className="connectors-section">
+            <h2 className="section-title">Частые вопросы</h2>
+            <FaqAccordion items={faqData} />
+          </section>
+
+          {/* Value Stack */}
+          <section className="connectors-section">
+            <h2 className="section-title">Что вы получаете</h2>
+
+            <div className="connectors-value-stack">
+              {valueStackData.map((item, index) => (
+                <div key={index} className="connectors-value-item">
+                  <span className="connectors-value-item-name">{item.item}</span>
+                  <span className="connectors-value-item-price">{item.value} &#8381;</span>
+                </div>
+              ))}
+              <div className="connectors-value-total">
+                <span className="connectors-value-total-label">Общая ценность:</span>
+                <span className="connectors-value-total-amount">{totalValueFormatted} &#8381;</span>
+              </div>
+              <p className="connectors-value-note">
+                Вы получаете всё это от 120 000 &#8381;
+              </p>
+            </div>
+          </section>
+
           {/* Pricing (Tiers) */}
           <section className="connectors-section">
             <h2 className="section-title">{content.tiers.title}</h2>
@@ -283,6 +317,51 @@ export default async function ConnectorsPage({
                 </ul>
               </div>
             </div>
+
+            <ConnectorsTierButtons
+              resultType={type}
+              basicLabel={content.tiers.basic.name}
+              premiumLabel={content.tiers.premium.name}
+              basicPriceWeekly={content.tiers.basic.priceWeekly}
+              premiumPriceWeekly={content.tiers.premium.priceWeekly}
+            />
+          </section>
+
+          {/* Scarcity Banner */}
+          <section className="connectors-section">
+            <div className="connectors-scarcity">
+              <div className="connectors-scarcity-icon">&#9888;</div>
+              <div className="connectors-scarcity-text">
+                <span className="connectors-scarcity-count">Осталось 7 мест из 10</span>
+                <span className="connectors-scarcity-note">Набор закрывается при заполнении группы</span>
+              </div>
+            </div>
+          </section>
+
+          {/* ROI Calculator */}
+          <section className="connectors-section">
+            <h2 className="section-title">Окупаемость</h2>
+            <div className="connectors-roi">
+              <div className="connectors-roi-row">
+                <div className="connectors-roi-label">Стоимость программы (Базовый)</div>
+                <div className="connectors-roi-value connectors-roi-value-cost">120 000 &#8381;</div>
+              </div>
+              <div className="connectors-roi-divider">
+                <span>VS</span>
+              </div>
+              <div className="connectors-roi-row">
+                <div className="connectors-roi-label">Один клиент за 50 000 &#8381;</div>
+                <div className="connectors-roi-value connectors-roi-value-gain">50 000 &#8381;</div>
+              </div>
+              <div className="connectors-roi-result">
+                <span className="connectors-roi-result-text">
+                  2-3 клиента полностью окупают программу
+                </span>
+                <span className="connectors-roi-result-sub">
+                  Средний участник находит первого клиента на 2-3 неделе
+                </span>
+              </div>
+            </div>
           </section>
 
           {/* Important */}
@@ -326,20 +405,14 @@ export default async function ConnectorsPage({
                 {content.cta.subtitle}
               </p>
 
-              <button
-                className="btn-neon"
-                disabled
-                style={{
-                  marginBottom: 'var(--space-md)',
-                  cursor: 'not-allowed'
-                }}
-              >
-                {content.cta.buttonText}
-              </button>
-
-              <p className="text-muted" style={{ fontSize: '0.85rem', textAlign: 'center' }}>
-                Оплата будет доступна скоро
-              </p>
+              <ConnectorsCTA
+                resultType={type}
+                basicLabel={content.tiers.basic.name}
+                premiumLabel={content.tiers.premium.name}
+                basicPriceWeekly={content.tiers.basic.priceWeekly}
+                premiumPriceWeekly={content.tiers.premium.priceWeekly}
+                ctaButtonText={content.cta.buttonText}
+              />
             </div>
           </section>
         </div>

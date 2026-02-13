@@ -121,6 +121,57 @@ async function sendMidSequenceThankYou(tgUserId: number) {
   }
 }
 
+async function sendConnectorsConfirmation(tgUserId: number, tierLabel: string) {
+  if (!BOT_TOKEN) return;
+
+  const message = `Оплата получена!
+
+Программа "Коннекторы" — тариф "${tierLabel}"
+
+Саша свяжется с вами в ближайшее время для организации старта.
+
+Если возникнут вопросы — напишите сюда.`;
+
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: tgUserId,
+        text: message,
+        parse_mode: 'HTML',
+      }),
+    });
+  } catch (error) {
+    console.error('Failed to send connectors confirmation:', error);
+  }
+}
+
+async function notifyAdminConnectors(tgUserId: number, tierLabel: string, amount: number, resultId: string) {
+  if (!BOT_TOKEN) return;
+
+  const adminChatId = await getAdminChatId();
+  if (!adminChatId) return;
+
+  const text = `Коннекторы: оплата ${amount.toLocaleString('ru-RU')} руб (${tierLabel}) от user ${tgUserId} (результат: ${resultId})`;
+
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: adminChatId,
+        text,
+        parse_mode: 'HTML',
+      }),
+    });
+  } catch (error) {
+    console.error('Failed to notify admin about connectors payment:', error);
+  }
+}
+
 async function notifyAdminError(errorMessage: string) {
   if (!BOT_TOKEN) return;
 
@@ -172,38 +223,70 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // Extract tg_user_id and result_id from order_id (format: "userId_resultId")
-    let tgUserId: number | null = null;
-    let resultId = 'unknown';
-
     const orderId = body.order_id || body.order_num || '';
-    if (typeof orderId === 'string' && orderId.includes('_')) {
-      const [userPart, ...resultParts] = orderId.split('_');
-      const parsed = parseInt(userPart, 10);
-      if (parsed > 0) tgUserId = parsed;
-      resultId = resultParts.join('_') || 'unknown';
+    const isConnectors = typeof orderId === 'string' && orderId.startsWith('conn_');
+
+    if (isConnectors) {
+      // Connectors payment: order_id format "conn_userId_tier_resultId"
+      const parts = orderId.split('_');
+      // parts: ["conn", <userId>, <tier>, <resultId>]
+      const tgUserId = parts.length >= 3 ? parseInt(parts[1], 10) : null;
+      const tier = parts.length >= 3 ? parts[2] : 'unknown';
+      const resultId = parts.length >= 4 ? parts[3] : 'unknown';
+
+      if (!tgUserId || tgUserId <= 0) {
+        console.error('No tg_user_id in connectors order_id:', orderId);
+        return NextResponse.json({ success: true });
+      }
+
+      const tierLabel = tier === 'premium' ? 'Премиум' : 'Базовый';
+      const amount = tier === 'premium' ? 20000 : 10000;
+
+      await Promise.all([
+        sendConnectorsConfirmation(tgUserId, tierLabel),
+        notifyAdminConnectors(tgUserId, tierLabel, amount, resultId),
+        trackEvent({
+          event_type: 'connectors_payment',
+          user_id: tgUserId,
+          result_title: tier,
+          result_id: resultId,
+          amount,
+        }),
+      ]);
+
+      console.log(`[Prodamus Webhook] Connectors ${tierLabel} payment from user ${tgUserId}, result: ${resultId}`);
+    } else {
+      // Masterclass payment: order_id format "userId_resultId"
+      let tgUserId: number | null = null;
+      let resultId = 'unknown';
+
+      if (typeof orderId === 'string' && orderId.includes('_')) {
+        const [userPart, ...resultParts] = orderId.split('_');
+        const parsed = parseInt(userPart, 10);
+        if (parsed > 0) tgUserId = parsed;
+        resultId = resultParts.join('_') || 'unknown';
+      }
+
+      if (!tgUserId) {
+        console.error('No tg_user_id in order_id:', orderId);
+        return NextResponse.json({ success: true });
+      }
+
+      await Promise.all([
+        sendMaterialsToUser(tgUserId),
+        notifyAdmin(tgUserId, resultId),
+        trackEvent({
+          event_type: 'payment_success',
+          user_id: tgUserId,
+          result_title: resultId,
+          amount: 3450,
+        }),
+        markFollowUpPaid(tgUserId),
+        sendMidSequenceThankYou(tgUserId),
+      ]);
+
+      console.log(`[Prodamus Webhook] Payment success for user ${tgUserId}, result: ${resultId}`);
     }
-
-    if (!tgUserId) {
-      console.error('No tg_user_id in order_id:', orderId);
-      return NextResponse.json({ success: true });
-    }
-
-    // Execute all post-payment actions in parallel
-    await Promise.all([
-      sendMaterialsToUser(tgUserId),
-      notifyAdmin(tgUserId, resultId),
-      trackEvent({
-        event_type: 'payment_success',
-        user_id: tgUserId,
-        result_title: resultId,
-        amount: 3450,
-      }),
-      markFollowUpPaid(tgUserId),
-      sendMidSequenceThankYou(tgUserId),
-    ]);
-
-    console.log(`[Prodamus Webhook] Payment success for user ${tgUserId}, result: ${resultId}`);
 
     return NextResponse.json({ success: true });
   } catch (error) {

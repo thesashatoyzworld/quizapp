@@ -2524,3 +2524,462 @@ body {
 .connectors-section:last-child {
   margin-bottom: 0;
 }
+
+/* Connectors CTA buttons */
+.connectors-cta-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.connectors-cta-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  font-size: 1rem;
+}
+
+.connectors-cta-btn-secondary {
+  background: transparent;
+  border: 2px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+}
+
+.connectors-cta-btn-secondary:hover {
+  background: rgba(0, 240, 255, 0.1);
+}
+
+/* Tier payment buttons */
+.connectors-tier-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  padding: var(--space-sm) var(--space-md);
+  margin-top: var(--space-md);
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: 2px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.connectors-tier-btn:hover {
+  background: rgba(0, 240, 255, 0.1);
+}
+
+.connectors-tier-btn-premium {
+  border-color: var(--neon-magenta);
+  color: var(--bg-primary);
+  background: var(--neon-magenta);
+}
+
+.connectors-tier-btn-premium:hover {
+  background: rgba(255, 0, 170, 0.85);
+}
+
+/* ========================================
+   FAQ ACCORDION (Phase 12.2)
+   ======================================== */
+
+.connectors-faq {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.connectors-faq-item {
+  display: block;
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+  font-family: var(--font-body);
+  color: var(--text-primary);
+}
+
+.connectors-faq-item:hover {
+  border-color: rgba(0, 240, 255, 0.4);
+}
+
+.connectors-faq-item-open {
+  border-color: var(--neon-cyan);
+}
+
+.connectors-faq-question {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.connectors-faq-chevron {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--neon-cyan);
+  transition: transform 0.3s ease;
+}
+
+.connectors-faq-chevron-open {
+  transform: rotate(180deg);
+}
+
+.connectors-faq-answer-wrapper {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, opacity 0.3s ease;
+}
+
+.connectors-faq-answer {
+  padding: 0 var(--space-md) var(--space-md);
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  border-top: 1px solid rgba(0, 240, 255, 0.1);
+  padding-top: var(--space-md);
+  margin: 0;
+}
+
+/* ========================================
+   VALUE STACK (Phase 12.2)
+   ======================================== */
+
+.connectors-value-stack {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  padding: var(--space-md);
+  position: relative;
+}
+
+.connectors-value-stack::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--neon-cyan), var(--neon-purple));
+}
+
+.connectors-value-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: var(--space-sm);
+}
+
+.connectors-value-item:last-of-type {
+  border-bottom: none;
+}
+
+.connectors-value-item-name {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.connectors-value-item-price {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.connectors-value-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) 0 var(--space-sm);
+  margin-top: var(--space-sm);
+  border-top: 2px solid rgba(0, 240, 255, 0.3);
+  gap: var(--space-sm);
+}
+
+.connectors-value-total-label {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.connectors-value-total-amount {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--text-muted);
+  text-decoration: line-through;
+  white-space: nowrap;
+}
+
+.connectors-value-note {
+  text-align: center;
+  margin-top: var(--space-md);
+  margin-bottom: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px var(--glow-cyan);
+}
+
+/* ========================================
+   STICKY CTA (Phase 12.2)
+   ======================================== */
+
+.connectors-sticky-cta {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
+  padding: var(--space-sm) var(--space-md);
+  background: linear-gradient(180deg, transparent, var(--bg-primary) 30%);
+  animation: stickySlideUp 0.3s ease forwards;
+}
+
+@keyframes stickySlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.connectors-sticky-cta-btn {
+  display: block;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: var(--space-sm) var(--space-lg);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bg-primary);
+  background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+  border: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.3);
+}
+
+.connectors-sticky-cta-btn:active {
+  transform: scale(0.97);
+}
+
+.connectors-sticky-cta-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: btnShine 2s infinite;
+}
+
+/* ========================================
+   SCARCITY BANNER (Phase 12.2)
+   ======================================== */
+
+.connectors-scarcity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: rgba(255, 42, 109, 0.08);
+  border: 2px solid var(--danger);
+  animation: scarcityPulse 3s ease-in-out infinite;
+}
+
+@keyframes scarcityPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 42, 109, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 42, 109, 0.4), 0 0 40px rgba(255, 42, 109, 0.15);
+  }
+}
+
+.connectors-scarcity-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  color: var(--danger);
+  line-height: 1;
+}
+
+.connectors-scarcity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.connectors-scarcity-count {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--danger);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.connectors-scarcity-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* ========================================
+   ROI CALCULATOR (Phase 12.2)
+   ======================================== */
+
+.connectors-roi {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  padding: var(--space-lg);
+  position: relative;
+}
+
+.connectors-roi::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--danger), var(--success));
+}
+
+.connectors-roi-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) 0;
+  gap: var(--space-sm);
+}
+
+.connectors-roi-label {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.connectors-roi-value {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.connectors-roi-value-cost {
+  color: var(--danger);
+}
+
+.connectors-roi-value-gain {
+  color: var(--success);
+}
+
+.connectors-roi-divider {
+  text-align: center;
+  padding: var(--space-xs) 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+  margin: var(--space-xs) 0;
+}
+
+.connectors-roi-divider span {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 0.2em;
+}
+
+.connectors-roi-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 2px solid rgba(0, 255, 136, 0.3);
+  text-align: center;
+}
+
+.connectors-roi-result-text {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.connectors-roi-result-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Mobile adjustments for Phase 12.2 components */
+@media (max-width: 480px) {
+  .connectors-faq-question {
+    font-size: 0.9rem;
+    padding: var(--space-sm);
+  }
+
+  .connectors-faq-answer {
+    font-size: 0.85rem;
+    padding: 0 var(--space-sm) var(--space-sm);
+    padding-top: var(--space-sm);
+  }
+
+  .connectors-value-item-name {
+    font-size: 0.85rem;
+  }
+
+  .connectors-value-item-price {
+    font-size: 0.8rem;
+  }
+
+  .connectors-value-total-amount {
+    font-size: 1.1rem;
+  }
+
+  .connectors-scarcity {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .connectors-scarcity-count {
+    font-size: 0.95rem;
+  }
+
+  .connectors-roi {
+    padding: var(--space-md);
+  }
+
+  .connectors-roi-label {
+    font-size: 0.85rem;
+  }
+
+  .connectors-roi-value {
+    font-size: 0.95rem;
+  }
+
+  .connectors-sticky-cta-btn {
+    font-size: 0.85rem;
+  }
+}
