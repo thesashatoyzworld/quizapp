@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from '@upstash/qstash';
 import followUpMessages, { ResultId } from '@/data/followup-messages';
-import { isFollowUpPaid, updateFollowUpSent, markUserBlocked } from '@/lib/notion';
+import { isFollowUpPaid, updateFollowUpSent, markUserBlocked, getFollowUpUsername } from '@/lib/notion';
 import { sendTelegramMessage, sendTelegramVideo, buildPaymentUrl, notifyAdmin, VIDEO_FILE_ID } from '@/lib/telegram';
 import { scheduleFollowUp } from '@/lib/qstash';
 
@@ -62,14 +62,18 @@ export async function POST(request: NextRequest) {
     result = await sendTelegramMessage(userId, message.text, paymentUrl);
   }
 
+  // Get username for admin notifications
+  const username = await getFollowUpUsername(userId);
+  const userLabel = username ? `@${username}` : `user ${userId}`;
+
   if (result.blocked) {
     await markUserBlocked(userId);
-    await notifyAdmin(`\uD83D\uDEAB User ${userId} blocked the bot during follow-up #${messageIndex + 1}`);
+    await notifyAdmin(`\uD83D\uDEAB ${userLabel} blocked the bot during follow-up #${messageIndex + 1}`);
     return NextResponse.json({ success: true, blocked: true });
   }
 
   if (!result.ok) {
-    await notifyAdmin(`\u274C Failed to send follow-up #${messageIndex + 1} to user ${userId}`);
+    await notifyAdmin(`\u274C Failed to send follow-up #${messageIndex + 1} to ${userLabel}`);
     return NextResponse.json({ success: false, error: 'Send failed' }, { status: 500 });
   }
 
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest) {
   }
 
   const timestamp = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
-  await notifyAdmin(`\uD83D\uDCE8 Follow-up #${messageIndex + 1} sent to user ${userId} (${resultId})\n\u23F0 ${timestamp}`);
+  await notifyAdmin(`\uD83D\uDCE8 Follow-up #${messageIndex + 1} sent to ${userLabel} (${resultId})\n\u23F0 ${timestamp}`);
 
   console.log(`[send-followup] Message #${messageIndex + 1} sent to user ${userId}`);
 

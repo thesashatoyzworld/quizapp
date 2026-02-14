@@ -7,6 +7,8 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 interface TrackEventPayload {
   event_type: 'bot_start' | 'webapp_open' | 'quiz_start' | 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
   user_id?: number;
+  username?: string;
+  first_name?: string;
   result_id?: string;
   result_stage?: string;
   result_title?: string;
@@ -20,9 +22,13 @@ function formatEventMessage(payload: TrackEventPayload): string {
   const timestamp = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
 
   if (payload.event_type === 'payment_success') {
+    const userInfo = payload.username
+      ? `@${payload.username} (${payload.first_name || ''})`.trim()
+      : payload.first_name || `ID: ${payload.user_id || 'unknown'}`;
     return `✅ <b>ОПЛАТА ПОЛУЧЕНА!</b>
 
-👤 User ID: <code>${payload.user_id || 'unknown'}</code>
+👤 ${userInfo}
+🆔 <code>${payload.user_id || 'unknown'}</code>
 💰 Сумма: <b>${payload.amount || 3450}₽</b>
 📊 Этап: <b>${payload.result_title || 'N/A'}</b>
 ⏰ ${timestamp}`;
@@ -83,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     // Регистрируем в очереди follow-up и планируем первое сообщение через 3 мин
     if (payload.event_type === 'quiz_complete' && payload.user_id && payload.result_id) {
-      const isNew = await registerFollowUp(payload.user_id, payload.result_id);
+      const isNew = await registerFollowUp(payload.user_id, payload.result_id, payload.username, payload.first_name);
       if (isNew) {
         await scheduleFollowUp(payload.user_id, payload.result_id, 0, 180);
       }

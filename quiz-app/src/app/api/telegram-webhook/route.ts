@@ -12,6 +12,8 @@ interface TelegramUpdate {
     text?: string;
     from?: {
       first_name?: string;
+      last_name?: string;
+      username?: string;
     };
   };
 }
@@ -49,6 +51,8 @@ export async function POST(request: NextRequest) {
     if (update.message?.text?.startsWith('/start')) {
       const chatId = update.message.chat.id;
       const firstName = update.message.from?.first_name || 'друг';
+      const username = update.message.from?.username || '';
+      const fullName = [update.message.from?.first_name, update.message.from?.last_name].filter(Boolean).join(' ');
 
       // Parse UTM source from /start parameter (e.g. "/start youtube")
       const parts = update.message.text.split(' ');
@@ -82,6 +86,8 @@ export async function POST(request: NextRequest) {
       trackEvent({
         event_type: 'bot_start',
         user_id: chatId,
+        username: username || undefined,
+        first_name: fullName || undefined,
         utm_source: startParam || undefined,
       }).catch(() => {}); // fire-and-forget
     }

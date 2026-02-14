@@ -8,6 +8,8 @@ const FOLLOWUP_DS_ID = process.env.NOTION_FOLLOWUP_DB_ID || '';
 interface TrackEventPayload {
   event_type: string;
   user_id?: number;
+  username?: string;
+  first_name?: string;
   result_id?: string;
   result_title?: string;
   result_stage?: string;
@@ -25,6 +27,12 @@ export async function trackEvent(payload: TrackEventPayload) {
         },
         user_id: {
           number: payload.user_id ?? null,
+        },
+        username: {
+          rich_text: [{ text: { content: payload.username || '' } }],
+        },
+        first_name: {
+          rich_text: [{ text: { content: payload.first_name || '' } }],
         },
         result_id: {
           rich_text: [{ text: { content: payload.result_id || '' } }],
@@ -51,7 +59,7 @@ export async function trackEvent(payload: TrackEventPayload) {
   }
 }
 
-export async function registerFollowUp(userId: number, resultId: string): Promise<boolean> {
+export async function registerFollowUp(userId: number, resultId: string, username?: string, firstName?: string): Promise<boolean> {
   try {
     // Deduplicate: check if user already exists in FollowUpQueue
     const existing = await notion.dataSources.query({
@@ -75,6 +83,12 @@ export async function registerFollowUp(userId: number, resultId: string): Promis
         user_id: {
           number: userId,
         },
+        username: {
+          rich_text: [{ text: { content: username || '' } }],
+        },
+        first_name: {
+          rich_text: [{ text: { content: firstName || '' } }],
+        },
         result_id: {
           select: { name: resultId },
         },
@@ -93,6 +107,28 @@ export async function registerFollowUp(userId: number, resultId: string): Promis
   } catch (error) {
     console.error('Failed to register follow-up in Notion:', error);
     return false;
+  }
+}
+
+export async function getFollowUpUsername(userId: number): Promise<string> {
+  try {
+    const results = await notion.dataSources.query({
+      data_source_id: FOLLOWUP_DS_ID,
+      filter: {
+        property: 'user_id',
+        number: { equals: userId },
+      },
+    });
+
+    if (results.results.length === 0) return '';
+
+    const page = results.results[0];
+    const props = (page as Record<string, unknown>).properties as Record<string, unknown>;
+    const usernameProp = props.username as { rich_text: Array<{ plain_text: string }> } | undefined;
+    return usernameProp?.rich_text?.[0]?.plain_text || '';
+  } catch (error) {
+    console.error(`Failed to get username for user ${userId}:`, error);
+    return '';
   }
 }
 
