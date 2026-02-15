@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-type EventType = 'webapp_open' | 'quiz_start' | 'quiz_complete' | 'payment_click' | 'payment_success' | 'result_view';
+type EventType = 'webapp_open' | 'quiz_start' | 'quiz_complete' | 'subscribe_click' | 'payment_click' | 'payment_success' | 'result_view';
 
 interface TelegramUser {
   id: number;

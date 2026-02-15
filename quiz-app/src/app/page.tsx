@@ -28,7 +28,7 @@ export default function Home() {
   const [utmSource, setUtmSource] = useState<string | null>(null);
 
   const { user, userId, isTelegramContext, webApp } = useTelegram();
-  const { trackWebappOpen, trackQuizStart, trackQuizComplete, trackResultView, trackPaymentClick } = useTracking(user, utmSource);
+  const { trackEvent, trackWebappOpen, trackQuizStart, trackQuizComplete, trackResultView, trackPaymentClick } = useTracking(user, utmSource);
 
   const CHANNEL_URL = 'https://t.me/sashatoyz';
 
@@ -132,7 +132,7 @@ export default function Home() {
     } finally {
       setIsCheckingSubscription(false);
     }
-  }, [userId]);
+  }, [userId, result, trackResultView]);
 
   // Автопроверка подписки при возврате в приложение
   useEffect(() => {
@@ -159,6 +159,9 @@ export default function Home() {
   const confirmOpenChannel = () => {
     setShowSubscribePopup(false);
     waitingForReturn.current = true;
+
+    // Track that user is going to subscribe (key drop-off point)
+    trackEvent('subscribe_click', { result_title: result?.title });
 
     // Открываем канал
     if (webApp && isTelegramContext) {
