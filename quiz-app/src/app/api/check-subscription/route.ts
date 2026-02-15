@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { registerFollowUp } from '@/lib/notion';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL_USERNAME = '@sashatoyz';
 
 export async function POST(request: NextRequest) {
   try {
-    const { user_id } = await request.json();
+    const { user_id, result_id, username, first_name } = await request.json();
 
     if (!user_id) {
       return NextResponse.json(
@@ -40,6 +41,12 @@ export async function POST(request: NextRequest) {
     // Check if user is a member (not 'left' or 'kicked')
     const status = data.result?.status;
     const isSubscribed = ['member', 'administrator', 'creator'].includes(status);
+
+    // Backup: if subscribed and we have result_id, ensure user is in FollowUpQueue
+    // This catches cases where the client-side quiz_complete tracking failed
+    if (isSubscribed && result_id && user_id) {
+      registerFollowUp(user_id, result_id, username, first_name).catch(() => {});
+    }
 
     return NextResponse.json({ subscribed: isSubscribed, status });
   } catch (error) {
