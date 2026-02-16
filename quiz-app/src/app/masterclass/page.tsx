@@ -45,13 +45,7 @@ export default function MasterclassPage() {
     }
 
     try {
-      const paymentUrl = await buildPaymentUrl(
-        userId,
-        'Мастер-класс "Продающий контент"',
-        3450,
-        user?.username,
-        user?.first_name
-      );
+      const paymentUrl = buildPaymentUrl(userId, 'masterclass_direct');
 
       if (webApp) {
         webApp.openLink(paymentUrl);
