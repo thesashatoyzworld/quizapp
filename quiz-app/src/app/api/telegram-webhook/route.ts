@@ -57,6 +57,57 @@ export async function POST(request: NextRequest) {
       // Parse UTM source from /start parameter (e.g. "/start youtube")
       const parts = update.message.text.split(' ');
       const startParam = parts.length > 1 ? parts[1].trim() : '';
+
+      // Special handling for masterclass deep link
+      if (startParam === 'masterclass' || startParam === 'buy_mc') {
+        const masterclassUrl = `${WEBAPP_URL}/masterclass?utm_source=telegram_bot`;
+        const masterclassText = `Привет, ${firstName}! 👋
+
+📚 <b>Мастер-класс «ПРОДАЮЩИЙ КОНТЕНТ»</b>
+
+Как создавать контент, который продаёт. Без танцев в сторис. Без "давай пользу и жди".
+
+📅 24 февраля, 17:00 мск
+⏱ 2 часа
+💰 3 450 руб
+
+<b>Что будет:</b>
+✓ Схема сборки Продающего Контента
+✓ 3 промпта для нейросетей
+✓ Готовая воронка (8000 подписчиков, 300+ продаж)
+✓ Методика лид-магнитов
+✓ «Фирменный рецепт»
+
+<b>Бонус:</b> Шаблон «Богатая ЦА» сразу после оплаты
+
+<b>Гарантия:</b> Если не подойдёт — верну деньги`;
+
+        const masterclassMarkup = {
+          inline_keyboard: [
+            [
+              {
+                text: '🎓 Купить мастер-класс',
+                web_app: { url: masterclassUrl },
+              },
+            ],
+          ],
+        };
+
+        await sendMessage(chatId, masterclassText, masterclassMarkup);
+
+        // Track bot_start with masterclass source
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'telegram_bot_masterclass',
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Default quiz flow
       const webappUrl = startParam
         ? `${WEBAPP_URL}?utm_source=${encodeURIComponent(startParam)}`
         : WEBAPP_URL;
