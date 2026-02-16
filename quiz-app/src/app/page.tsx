@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { questions, calculateScores, determineResult, QuizResult, Category } from '@/data/quiz';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useTracking } from '@/hooks/useTracking';
+import { loadQuizState, saveQuizState, clearQuizState, PersistedQuizState } from '@/hooks/useQuizPersistence';
 import InvisibleResult from '@/components/results/InvisibleResult';
 import DoerResult from '@/components/results/DoerResult';
 import GenerousResult from '@/components/results/GenerousResult';
@@ -24,6 +25,8 @@ export default function Home() {
   const [showSubscribePopup, setShowSubscribePopup] = useState(false);
   const waitingForReturn = useRef(false);
   const hasTrackedResult = useRef(false);
+  const quizStartedAt = useRef<number>(Date.now());
+  const [pendingRestore, setPendingRestore] = useState<PersistedQuizState | null>(null);
 
   const [utmSource, setUtmSource] = useState<string | null>(null);
 
@@ -64,10 +67,35 @@ export default function Home() {
     if (params.toString()) {
       window.history.replaceState({}, '', window.location.pathname);
     }
+
+    // Check for saved quiz progress
+    if (params.get('payment') !== 'success') {
+      const saved = loadQuizState();
+      if (saved) {
+        setPendingRestore(saved);
+      }
+    }
   }, []);
+
+  const handleRestoreQuiz = () => {
+    if (pendingRestore) {
+      setCurrentQuestion(pendingRestore.currentQuestion);
+      setAnswers(pendingRestore.answers);
+      quizStartedAt.current = pendingRestore.startedAt;
+      setState('quiz');
+      setPendingRestore(null);
+    }
+  };
+
+  const handleDeclineRestore = () => {
+    clearQuizState();
+    setPendingRestore(null);
+  };
 
   const handleStart = () => {
     trackQuizStart();
+    quizStartedAt.current = Date.now();
+    clearQuizState();
     setState('quiz');
   };
 
@@ -76,13 +104,20 @@ export default function Home() {
     setAnswers(newAnswers);
 
     if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
+      const nextQuestion = currentQuestion + 1;
+      setCurrentQuestion(nextQuestion);
+
+      // Save progress to localStorage
+      saveQuizState(nextQuestion, newAnswers, quizStartedAt.current);
     } else {
       const calculatedScores = calculateScores(newAnswers);
       const quizResult = determineResult(newAnswers, calculatedScores);
       setScores(calculatedScores);
       setResult(quizResult);
       setState('result-preview');
+
+      // Quiz completed — clear saved progress
+      clearQuizState();
 
       // Track quiz completion
       trackQuizComplete(quizResult.title, String(quizResult.stage), quizResult.id);
@@ -194,8 +229,44 @@ export default function Home() {
 
       <main className="quiz-container">
         <div className="quiz-content">
+          {/* ==================== RESTORE PROMPT ==================== */}
+          {state === 'welcome' && pendingRestore && (
+            <div key="restore-prompt">
+              <h1 className="title-xl animate-1">
+                Диагностика контента
+              </h1>
+              <div className="title-line animate-2" />
+
+              <div className="card mb-lg animate-3" style={{ textAlign: 'center' }}>
+                <p className="text-cyan mb-sm" style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}>
+                  У вас есть незавершённый тест
+                </p>
+                <p className="text-secondary mb-lg" style={{ fontSize: '0.95rem' }}>
+                  Вопрос {pendingRestore.answers.length} из {questions.length}. Продолжить с того места?
+                </p>
+
+                <div style={{ display: 'flex', gap: 'var(--space-sm)', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleRestoreQuiz}
+                    className="btn-neon"
+                    style={{ minWidth: '160px' }}
+                  >
+                    Продолжить
+                  </button>
+                  <button
+                    onClick={handleDeclineRestore}
+                    className="btn-option"
+                    style={{ minWidth: '160px', justifyContent: 'center' }}
+                  >
+                    Начать заново
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ==================== WELCOME SCREEN ==================== */}
-          {state === 'welcome' && (
+          {state === 'welcome' && !pendingRestore && (
             <div key="welcome">
               <h1 className="title-xl animate-1">
                 Диагностика контента

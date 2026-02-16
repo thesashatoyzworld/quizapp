@@ -58,8 +58,12 @@ export async function POST(request: NextRequest) {
       const parts = update.message.text.split(' ');
       const startParam = parts.length > 1 ? parts[1].trim() : '';
 
+      // Debug logging
+      console.log('Webhook received:', { text: update.message.text, startParam });
+
       // Special handling for masterclass deep link
       if (startParam === 'masterclass' || startParam === 'buy_mc') {
+        console.log('Masterclass flow triggered!');
         const masterclassUrl = `${WEBAPP_URL}/masterclass?utm_source=telegram_bot`;
         const masterclassText = `Привет, ${firstName}! 👋
 

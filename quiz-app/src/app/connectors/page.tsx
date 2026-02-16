@@ -5,6 +5,7 @@ import { ScrollFix } from './ScrollFix';
 import { ConnectorsCTA, ConnectorsTierButtons } from './ConnectorsCTA';
 import { FaqAccordion } from './FaqAccordion';
 import { StickyCta } from './StickyCta';
+import { ValueStack } from './ValueStack';
 
 function rt(text: string): React.ReactNode {
   if (!text.includes('**')) return text;
@@ -30,9 +31,6 @@ export default async function ConnectorsPage({
   // No type or invalid type = base content (generic landing)
   // Valid type = merged personalized content
   const content = getConnectorsContent(type);
-
-  const totalValue = valueStackData.reduce((sum, item) => sum + parseInt(item.value.replace(/\s/g, '')), 0);
-  const totalValueFormatted = totalValue.toLocaleString('ru-RU');
 
   return (
     <>
@@ -250,29 +248,18 @@ export default async function ConnectorsPage({
             <FaqAccordion items={faqData} />
           </section>
 
-          {/* Value Stack */}
+          {/* Value Stack (before pricing) */}
           <section className="connectors-section">
             <h2 className="section-title">Что вы получаете</h2>
-
-            <div className="connectors-value-stack">
-              {valueStackData.map((item, index) => (
-                <div key={index} className="connectors-value-item">
-                  <span className="connectors-value-item-name">{item.item}</span>
-                  <span className="connectors-value-item-price">{item.value} &#8381;</span>
-                </div>
-              ))}
-              <div className="connectors-value-total">
-                <span className="connectors-value-total-label">Общая ценность:</span>
-                <span className="connectors-value-total-amount">{totalValueFormatted} &#8381;</span>
-              </div>
-              <p className="connectors-value-note">
-                Вы получаете всё это от 120 000 &#8381;
-              </p>
-            </div>
+            <ValueStack
+              items={valueStackData}
+              basicPriceWeekly={content.tiers.basic.priceWeekly}
+              premiumPriceWeekly={content.tiers.premium.priceWeekly}
+            />
           </section>
 
           {/* Pricing (Tiers) */}
-          <section className="connectors-section">
+          <section id="pricing" className="connectors-section">
             <h2 className="section-title">{content.tiers.title}</h2>
 
             <p className="result-body" style={{

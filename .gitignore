@@ -1,0 +1,11 @@
+# MCP config (contains API tokens)
+.mcp.json
+
+# Planning files
+.planning/
+
+# Misc
+nul
+
+.vercel
+.env*.local
