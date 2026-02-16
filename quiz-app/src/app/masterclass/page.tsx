@@ -86,7 +86,7 @@ export default function MasterclassPage() {
 
           <div className="card animate-2" style={{ marginBottom: 'var(--space-xl)' }}>
             <p className="text-secondary text-center mb-lg" style={{ fontSize: '1.1rem' }}>
-              Как создавать контент, который продаёт. Без танцев в сторис. Без "давай пользу и жди"
+              Как трансформировать контент в продажи через соц. сети
             </p>
 
             <div className="cta-details">
@@ -94,25 +94,37 @@ export default function MasterclassPage() {
               <span>17:00 мск</span>
               <span>2 часа</span>
             </div>
+
+            <p className="text-secondary mt-lg" style={{ fontSize: '0.95rem', lineHeight: '1.6' }}>
+              Это не лекция про теорию.<br/>
+              Это разбор конкретных постов и трансформация в режиме реального времени.
+            </p>
           </div>
 
           <div className="card animate-3" style={{ marginBottom: 'var(--space-lg)' }}>
             <h3 className="label mb-md">Что будет на мастер-классе:</h3>
             <ul className="cta-list">
               <li>
-                <strong>Схема сборки Продающего Контента</strong> — пошаговый алгоритм, который превращает "обучающие" посты в "продающие"
+                <strong>1. Схема сборки Продающего Контента</strong><br/>
+                Пошаговый алгоритм, который превращает "обучающие" посты в "продающие".<br/>
+                Тот же, что использовал Женя для роста с $2000 до $8000/месяц.<br/>
+                Тот же, что вывел Васю с 100 тыс до 500 тыс₽/месяц при 500 подписчиках.
               </li>
               <li>
-                <strong>3 промпта для нейросетей</strong> — вставляете в нейронку, получаете готовый продающий контент за минуты
+                <strong>2. 3 промпта для нейросетей</strong><br/>
+                Вставляете в нейронку, получаете готовый продающий контент за минуты вместо часов мучений.
               </li>
               <li>
-                <strong>Готовая воронка</strong>, которая принесла 8 000 подписчиков и 300+ продаж с 4 рилсов
+                <strong>3. Готовая воронка</strong><br/>
+                Которая принесла 8 000 подписчиков и 350+ продаж с 4 рилсов — не теория, а реальная система.
               </li>
               <li>
-                <strong>Методика создания лид-магнитов</strong>, за которыми люди приходят сами толпами
+                <strong>4. Методика создания лид-магнитов</strong><br/>
+                За которыми люди приходят сами толпами.
               </li>
               <li>
-                <strong>«Фирменный рецепт»</strong> — секретный ингредиент, который выделит вас среди тысяч других экспертов
+                <strong>5. «Фирменный рецепт»</strong><br/>
+                Секретный ингредиент, который выделит вас среди тысяч других экспертов.
               </li>
             </ul>
           </div>
@@ -126,25 +138,33 @@ export default function MasterclassPage() {
             </ul>
           </div>
 
-          <div className="card animate-5" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(0, 240, 255, 0.1)', border: '1px solid rgba(0, 240, 255, 0.3)' }}>
+          <div className="card animate-5" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(0, 255, 136, 0.1)', border: '1px solid rgba(0, 255, 136, 0.3)' }}>
+            <h4 className="label mb-sm">Результат:</h4>
+            <p className="text-secondary">
+              Цель: окупить мастер-класс минимум в 3 раза за 14 дней.<br/>
+              Вы создадите контент, который приводит клиентов — без танцев в сторис и бесплатных созвонов.
+            </p>
+          </div>
+
+          <div className="card animate-6" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(0, 240, 255, 0.1)', border: '1px solid rgba(0, 240, 255, 0.3)' }}>
             <h4 className="label mb-sm">Бонус сразу после оплаты:</h4>
             <p className="text-cyan mb-sm"><strong>Шаблон «Богатая ЦА»</strong></p>
             <p className="text-secondary">
-              2 промта скормленные нейронке и у вас за 20 минут на руках вся информация по вашей целевой аудитории и самым платежеспособным сегментам.
+              За 20 минут получите всю информацию по вашей целевой аудитории и самым платежеспособным сегментам.
             </p>
           </div>
 
-          <div className="card animate-6" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(157, 78, 221, 0.1)', border: '1px solid rgba(157, 78, 221, 0.3)' }}>
+          <div className="card animate-7" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(157, 78, 221, 0.1)', border: '1px solid rgba(157, 78, 221, 0.3)' }}>
             <h4 className="label mb-sm">Гарантия:</h4>
             <p className="text-secondary">
-              Если после мастер-класса поймёте, что система не подходит — верну деньги. Без вопросов. Весь риск на мне.
+              Если после мастер-класса поймёте, что система не подходит — верну деньги. Без вопросов.
             </p>
           </div>
 
-          <div className="card card-cta animate-7" style={{ marginBottom: 'var(--space-xl)' }}>
+          <div className="card card-cta animate-8" style={{ marginBottom: 'var(--space-xl)' }}>
             <div className="cta-price">
               <span className="price-amount">3 450</span>
-              <span className="price-currency">руб</span>
+              <span className="price-currency">₽</span>
             </div>
 
             <p className="cta-note" style={{ marginBottom: 'var(--space-lg)' }}>
@@ -161,7 +181,7 @@ export default function MasterclassPage() {
             </button>
           </div>
 
-          <div className="animate-8" style={{ textAlign: 'center' }}>
+          <div className="animate-9" style={{ textAlign: 'center' }}>
             <p className="text-muted" style={{ fontSize: '0.9rem' }}>
               <strong>P.S.</strong> Живой разбор. Реальные кейсы. Без воды и теории.
             </p>
