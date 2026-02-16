@@ -288,6 +288,35 @@ export async function saveAdminChatId(chatId: number) {
 }
 
 /**
+ * Check if user has a bot_start event (for backfilling missing events)
+ */
+export async function hasBotStart(userId: number): Promise<boolean> {
+  try {
+    const results = await notion.dataSources.query({
+      data_source_id: EVENTS_DS_ID,
+      filter: {
+        and: [
+          {
+            property: 'event_type',
+            title: { equals: 'bot_start' },
+          },
+          {
+            property: 'user_id',
+            number: { equals: userId },
+          },
+        ],
+      },
+      page_size: 1,
+    });
+
+    return results.results.length > 0;
+  } catch (error) {
+    console.error('Failed to check bot_start:', error);
+    return false;
+  }
+}
+
+/**
  * Get admin chat_id from Notion or env var fallback.
  * Priority: ADMIN_CHAT_ID env var > Notion admin_config
  */

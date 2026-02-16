@@ -47,20 +47,41 @@ export default function Home() {
     if (params.get('payment') === 'success') {
       setState('payment-success');
     } else {
-      // Track webapp_open (user clicked "Пройти диагностику")
-      // Read Telegram user directly — state may not be set yet
-      const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      fetch('/api/track-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_type: 'webapp_open',
-          user_id: tgUser?.id,
-          username: tgUser?.username,
-          first_name: tgUser?.first_name,
-          utm_source: source || undefined,
-        }),
-      }).catch(() => {});
+      // Track webapp_open with retry logic for user data
+      const trackWebappOpenWithRetry = async (attempt = 1, maxAttempts = 5) => {
+        const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+
+        // If user_id is null and we haven't exhausted retries, wait and try again
+        if (!tgUser?.id && attempt < maxAttempts) {
+          console.log(`[webapp_open] User data not ready, retry ${attempt}/${maxAttempts} in 500ms`);
+          setTimeout(() => trackWebappOpenWithRetry(attempt + 1, maxAttempts), 500);
+          return;
+        }
+
+        // Track even if user_id is null (for debugging), but log it
+        if (!tgUser?.id) {
+          console.warn('[webapp_open] User ID still null after retries, tracking anyway');
+        }
+
+        try {
+          await fetch('/api/track-event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event_type: 'webapp_open',
+              user_id: tgUser?.id || null,
+              username: tgUser?.username,
+              first_name: tgUser?.first_name,
+              utm_source: source || undefined,
+            }),
+          });
+          console.log('[webapp_open] Tracked successfully', { user_id: tgUser?.id, attempt });
+        } catch (error) {
+          console.error('[webapp_open] Tracking failed:', error);
+        }
+      };
+
+      trackWebappOpenWithRetry();
     }
 
     // Clean up URL params
