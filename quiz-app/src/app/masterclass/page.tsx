@@ -138,15 +138,51 @@ export default function MasterclassPage() {
             </ul>
           </div>
 
-          <div className="card animate-5" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(0, 255, 136, 0.1)', border: '1px solid rgba(0, 255, 136, 0.3)' }}>
-            <h4 className="label mb-sm">Результат:</h4>
+          <div className="card animate-5" style={{ marginBottom: 'var(--space-lg)' }}>
+            <h3 className="label mb-md text-center">Та же схема дала такие результаты:</h3>
+
+            <div style={{ display: 'grid', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+              <div style={{ padding: 'var(--space-md)', background: 'rgba(0, 240, 255, 0.1)', border: '1px solid rgba(0, 240, 255, 0.3)', borderRadius: '8px' }}>
+                <p className="text-cyan mb-sm"><strong>Маша — коммерческий сценарист</strong></p>
+                <p className="text-secondary" style={{ fontSize: '0.9rem' }}>
+                  4 рилса → 2 000 000 ₽ за месяц<br/>
+                  350+ продаж мастер-класса<br/>
+                  10 000+ подписчиков в воронке
+                </p>
+              </div>
+
+              <div style={{ padding: 'var(--space-md)', background: 'rgba(157, 78, 221, 0.1)', border: '1px solid rgba(157, 78, 221, 0.3)', borderRadius: '8px' }}>
+                <p className="text-magenta mb-sm"><strong>Вася — фитнес-тренер</strong></p>
+                <p className="text-secondary" style={{ fontSize: '0.9rem' }}>
+                  С 100 000 до 500 000 ₽/месяц<br/>
+                  При 500 подписчиках<br/>
+                  Стабильный доход каждый месяц
+                </p>
+              </div>
+
+              <div style={{ padding: 'var(--space-md)', background: 'rgba(0, 255, 136, 0.1)', border: '1px solid rgba(0, 255, 136, 0.3)', borderRadius: '8px' }}>
+                <p className="text-green mb-sm"><strong>Женя</strong></p>
+                <p className="text-secondary" style={{ fontSize: '0.9rem' }}>
+                  С $2 000 до $8 000/месяц<br/>
+                  Используя ту же схему контента
+                </p>
+              </div>
+            </div>
+
+            <p className="text-center text-secondary" style={{ fontSize: '0.95rem' }}>
+              Эту же систему вы получите на мастер-классе
+            </p>
+          </div>
+
+          <div className="card animate-6" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(0, 255, 136, 0.1)', border: '1px solid rgba(0, 255, 136, 0.3)' }}>
+            <h4 className="label mb-sm">Ваш результат:</h4>
             <p className="text-secondary">
               Цель: окупить мастер-класс минимум в 3 раза за 14 дней.<br/>
               Вы создадите контент, который приводит клиентов — без танцев в сторис и бесплатных созвонов.
             </p>
           </div>
 
-          <div className="card animate-6" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(0, 240, 255, 0.1)', border: '1px solid rgba(0, 240, 255, 0.3)' }}>
+          <div className="card animate-7" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(0, 240, 255, 0.1)', border: '1px solid rgba(0, 240, 255, 0.3)' }}>
             <h4 className="label mb-sm">Бонус сразу после оплаты:</h4>
             <p className="text-cyan mb-sm"><strong>Шаблон «Богатая ЦА»</strong></p>
             <p className="text-secondary">
@@ -154,14 +190,14 @@ export default function MasterclassPage() {
             </p>
           </div>
 
-          <div className="card animate-7" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(157, 78, 221, 0.1)', border: '1px solid rgba(157, 78, 221, 0.3)' }}>
+          <div className="card animate-8" style={{ marginBottom: 'var(--space-lg)', background: 'rgba(157, 78, 221, 0.1)', border: '1px solid rgba(157, 78, 221, 0.3)' }}>
             <h4 className="label mb-sm">Гарантия:</h4>
             <p className="text-secondary">
               Если после мастер-класса поймёте, что система не подходит — верну деньги. Без вопросов.
             </p>
           </div>
 
-          <div className="card card-cta animate-8" style={{ marginBottom: 'var(--space-xl)' }}>
+          <div className="card card-cta animate-9" style={{ marginBottom: 'var(--space-xl)' }}>
             <div className="cta-price">
               <span className="price-amount">3 450</span>
               <span className="price-currency">₽</span>
@@ -181,7 +217,7 @@ export default function MasterclassPage() {
             </button>
           </div>
 
-          <div className="animate-9" style={{ textAlign: 'center' }}>
+          <div className="animate-10" style={{ textAlign: 'center' }}>
             <p className="text-muted" style={{ fontSize: '0.9rem' }}>
               <strong>P.S.</strong> Живой разбор. Реальные кейсы. Без воды и теории.
             </p>
