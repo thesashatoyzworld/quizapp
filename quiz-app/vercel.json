@@ -1,1 +1,8 @@
-{}
+{
+  "crons": [
+    {
+      "path": "/api/cron-funnel-report",
+      "schedule": "0 7 * * *"
+    }
+  ]
+}
