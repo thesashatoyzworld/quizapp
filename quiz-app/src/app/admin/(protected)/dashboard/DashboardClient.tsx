@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 
 export interface RawEvent {
   type: string;
@@ -60,7 +60,14 @@ function buildFunnel(events: RawEvent[], steps = FUNNEL_STEPS_QUIZ) {
   }));
 }
 
-function FunnelBlock({ steps }: { steps: ReturnType<typeof buildFunnel> }) {
+type OutreachStatus = { dm_sent: boolean; dm_replied: boolean };
+type OutreachAction = 'admin_dm_sent' | 'admin_dm_replied';
+
+function FunnelBlock({ steps, getOutreachStatus, onOutreach }: {
+  steps: ReturnType<typeof buildFunnel>;
+  getOutreachStatus: (userId: number | null) => OutreachStatus;
+  onOutreach: (userId: number, action: OutreachAction, username: string, firstName: string) => void;
+}) {
   const [open, setOpen] = useState<string | null>(null);
 
   return (
@@ -71,6 +78,10 @@ function FunnelBlock({ steps }: { steps: ReturnType<typeof buildFunnel> }) {
         const isLast = i === steps.length - 1;
         const isOpen = open === step.key;
         const isPaid = step.key === 'payment_success';
+
+        const nextStepUserIds = !isLast
+          ? new Set(steps[i + 1].users.map(u => u.user_id ? String(u.user_id) : '').filter(Boolean))
+          : null;
 
         return (
           <div key={step.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
@@ -109,25 +120,82 @@ function FunnelBlock({ steps }: { steps: ReturnType<typeof buildFunnel> }) {
                 borderTop: 'none',
                 borderRadius: '0 0 8px 8px',
                 marginBottom: '4px',
-                maxHeight: '280px',
+                maxHeight: '320px',
                 overflowY: 'auto',
               }}>
                 {step.users.length === 0 ? (
                   <div style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center' }}>Нет данных</div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
                     <tbody>
-                      {step.users.map((u, j) => (
-                        <tr key={j} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                          <td style={{ padding: '8px 16px', color: 'var(--neon-cyan)', width: '35%' }}>
-                            {u.username ? `@${u.username}` : u.user_id ? `[${u.user_id}]` : '—'}
-                          </td>
-                          <td style={{ padding: '8px 8px', color: 'var(--text-secondary)', width: '20%' }}>{u.first_name || '—'}</td>
-                          <td style={{ padding: '8px 8px', color: 'var(--text-muted)', width: '15%' }}>{u.result_id || '—'}</td>
-                          <td style={{ padding: '8px 8px', color: 'var(--text-muted)', width: '20%', fontSize: '0.65rem' }}>{u.utm_source || '—'}</td>
-                          <td style={{ padding: '8px 16px', color: 'var(--text-muted)', width: '10%', whiteSpace: 'nowrap', fontSize: '0.65rem' }}>{formatDate(u.timestamp)}</td>
-                        </tr>
-                      ))}
+                      {step.users.map((u, j) => {
+                        const status = getOutreachStatus(u.user_id);
+                        const movedToNext = nextStepUserIds && u.user_id
+                          ? nextStepUserIds.has(String(u.user_id))
+                          : undefined;
+                        return (
+                          <tr key={j} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                            <td style={{ padding: '7px 12px', color: 'var(--neon-cyan)', width: '28%' }}>
+                              {u.username ? `@${u.username}` : u.user_id ? `[${u.user_id}]` : '—'}
+                            </td>
+                            <td style={{ padding: '7px 6px', color: 'var(--text-secondary)', width: '16%' }}>{u.first_name || '—'}</td>
+                            <td style={{ padding: '7px 6px', color: 'var(--text-muted)', width: '12%' }}>{u.result_id || '—'}</td>
+                            <td style={{ padding: '7px 6px', color: 'var(--text-muted)', width: '12%', fontSize: '0.62rem', whiteSpace: 'nowrap' }}>{formatDate(u.timestamp)}</td>
+                            <td style={{ padding: '7px 12px 7px 4px', width: '32%' }}>
+                              {u.user_id ? (
+                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                  <button
+                                    onClick={() => !status.dm_sent && onOutreach(u.user_id!, 'admin_dm_sent', u.username, u.first_name)}
+                                    title="Написали ДМ"
+                                    style={{
+                                      padding: '2px 7px',
+                                      fontSize: '0.62rem',
+                                      fontFamily: 'var(--font-body)',
+                                      borderRadius: '3px',
+                                      border: `1px solid ${status.dm_sent ? 'rgba(0,255,136,0.4)' : 'rgba(255,255,255,0.12)'}`,
+                                      cursor: status.dm_sent ? 'default' : 'pointer',
+                                      background: status.dm_sent ? 'rgba(0,255,136,0.12)' : 'transparent',
+                                      color: status.dm_sent ? 'var(--success)' : 'var(--text-muted)',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {status.dm_sent ? '✓ ДМ' : 'ДМ'}
+                                  </button>
+                                  <button
+                                    onClick={() => status.dm_sent && !status.dm_replied && onOutreach(u.user_id!, 'admin_dm_replied', u.username, u.first_name)}
+                                    title="Ответил"
+                                    style={{
+                                      padding: '2px 7px',
+                                      fontSize: '0.62rem',
+                                      fontFamily: 'var(--font-body)',
+                                      borderRadius: '3px',
+                                      border: `1px solid ${status.dm_replied ? 'rgba(0,255,136,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                                      cursor: status.dm_replied ? 'default' : status.dm_sent ? 'pointer' : 'not-allowed',
+                                      background: status.dm_replied ? 'rgba(0,255,136,0.12)' : 'transparent',
+                                      color: status.dm_replied ? 'var(--success)' : status.dm_sent ? 'var(--text-muted)' : 'rgba(255,255,255,0.2)',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {status.dm_replied ? '✓ Отв' : 'Отв'}
+                                  </button>
+                                  {movedToNext !== undefined && (
+                                    <span
+                                      title={movedToNext ? 'Перешёл на следующий этап' : 'Не перешёл'}
+                                      style={{
+                                        fontSize: '0.65rem',
+                                        color: movedToNext ? 'var(--success)' : 'rgba(255,255,255,0.2)',
+                                        paddingLeft: '2px',
+                                      }}
+                                    >
+                                      {movedToNext ? '✓→' : '→'}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : null}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
@@ -186,6 +254,7 @@ function filterByBranch(events: RawEvent[], branch: string): RawEvent[] {
 
 export default function DashboardClient({ events }: { events: RawEvent[] }) {
   const [branch, setBranch] = useState('__all__');
+  const [localOutreach, setLocalOutreach] = useState<Map<string, OutreachStatus>>(new Map());
 
   const filteredEvents = useMemo(() => filterByBranch(events, branch), [events, branch]);
 
@@ -196,10 +265,59 @@ export default function DashboardClient({ events }: { events: RawEvent[] }) {
 
   const recent = useMemo(() =>
     [...filteredEvents]
+      .filter(e => !e.type.startsWith('admin_'))
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 10),
     [filteredEvents]
   );
+
+  // Build outreach map from events (admin_dm_sent / admin_dm_replied)
+  const outreachMap = useMemo(() => {
+    const map = new Map<string, OutreachStatus>();
+    for (const e of events) {
+      if (!e.user_id) continue;
+      const key = String(e.user_id);
+      if (e.type === 'admin_dm_sent') {
+        const cur = map.get(key) || { dm_sent: false, dm_replied: false };
+        map.set(key, { ...cur, dm_sent: true });
+      } else if (e.type === 'admin_dm_replied') {
+        const cur = map.get(key) || { dm_sent: false, dm_replied: false };
+        map.set(key, { ...cur, dm_replied: true });
+      }
+    }
+    return map;
+  }, [events]);
+
+  const getOutreachStatus = useCallback((userId: number | null): OutreachStatus => {
+    if (!userId) return { dm_sent: false, dm_replied: false };
+    const key = String(userId);
+    const base = outreachMap.get(key) || { dm_sent: false, dm_replied: false };
+    const local = localOutreach.get(key) || { dm_sent: false, dm_replied: false };
+    return {
+      dm_sent: base.dm_sent || local.dm_sent,
+      dm_replied: base.dm_replied || local.dm_replied,
+    };
+  }, [outreachMap, localOutreach]);
+
+  const handleOutreach = useCallback(async (userId: number, action: OutreachAction, username: string, firstName: string) => {
+    // Optimistic update
+    setLocalOutreach(prev => {
+      const next = new Map(prev);
+      const key = String(userId);
+      const cur = next.get(key) || { dm_sent: false, dm_replied: false };
+      next.set(key, {
+        dm_sent: cur.dm_sent || action === 'admin_dm_sent',
+        dm_replied: cur.dm_replied || action === 'admin_dm_replied',
+      });
+      return next;
+    });
+    // Save to Notion
+    await fetch('/api/admin/outreach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: action, user_id: userId, username, first_name: firstName }),
+    });
+  }, []);
 
   const getStep = (key: string) => funnelSteps.find(s => s.key === key);
 
@@ -271,7 +389,7 @@ export default function DashboardClient({ events }: { events: RawEvent[] }) {
         <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Воронка — нажми на этап чтобы увидеть людей
         </h2>
-        <FunnelBlock steps={funnelSteps} />
+        <FunnelBlock steps={funnelSteps} getOutreachStatus={getOutreachStatus} onOutreach={handleOutreach} />
       </div>
 
       {/* Recent events */}
