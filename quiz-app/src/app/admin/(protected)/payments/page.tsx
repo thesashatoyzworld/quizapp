@@ -2,6 +2,29 @@ import { Client } from '@notionhq/client';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const EVENTS_DB_ID = process.env.NOTION_EVENTS_DB_ID!;
+const FOLLOWUP_DB_ID = process.env.NOTION_FOLLOWUP_DB_ID!;
+
+async function getUsernameMap(): Promise<Map<number, { username: string; first_name: string }>> {
+  const map = new Map<number, { username: string; first_name: string }>();
+  let cursor: string | undefined;
+  do {
+    const response = await notion.dataSources.query({
+      data_source_id: FOLLOWUP_DB_ID,
+      page_size: 100,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
+    for (const p of response.results as any[]) {
+      const uid = p.properties.user_id?.number as number | null;
+      if (!uid) continue;
+      map.set(uid, {
+        username: (p.properties.username?.rich_text?.[0]?.plain_text as string) || '',
+        first_name: (p.properties.first_name?.rich_text?.[0]?.plain_text as string) || '',
+      });
+    }
+    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return map;
+}
 
 interface Payment {
   id: string;
@@ -70,7 +93,18 @@ function formatDate(iso: string) {
 }
 
 export default async function PaymentsPage() {
-  const { payments, total } = await getPayments();
+  const [{ payments, total }, usernameMap] = await Promise.all([getPayments(), getUsernameMap()]);
+
+  // Enrich payments with username from FollowUpQueue
+  for (const p of payments) {
+    if (p.user_id && (!p.username || !p.first_name)) {
+      const found = usernameMap.get(p.user_id);
+      if (found) {
+        if (!p.username) p.username = found.username;
+        if (!p.first_name) p.first_name = found.first_name;
+      }
+    }
+  }
 
   return (
     <div>
