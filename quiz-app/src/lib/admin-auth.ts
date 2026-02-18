@@ -39,8 +39,10 @@ export function verifyTelegramAuth(data: TelegramAuthData): boolean {
   }
 }
 
+const ALLOWED_USERNAMES = ['sashatoyzwork', 'EkaterinaRyleeva'];
+
 export function isAdminUser(id: string, username?: string): boolean {
-  return id === ADMIN_CHAT_ID || username === 'sashatoyzwork';
+  return id === ADMIN_CHAT_ID || (!!username && ALLOWED_USERNAMES.includes(username));
 }
 
 export function createSessionToken(userId: string): string {
