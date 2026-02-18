@@ -3,7 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect, Suspense } from 'react';
 
-const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
+const WEBAPP_URL = 'https://quizapp-ivory-delta.vercel.app';
 
 const ERROR_MESSAGES: Record<string, string> = {
   missing: 'Данные авторизации отсутствуют.',
