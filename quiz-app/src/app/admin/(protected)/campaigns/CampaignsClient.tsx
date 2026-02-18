@@ -11,18 +11,14 @@ export interface Campaign {
   date: string;
 }
 
-export interface FunnelTotals {
-  reels: number;
-  comments: number;
-  keywords: number;
-  botStart?: number;
+export interface FunnelStats {
+  botStart: number;
   quizCompleted: number;
   sales: number;
 }
 
 interface Props {
-  oldFunnel: FunnelTotals;
-  newFunnel: FunnelTotals;
+  stats: FunnelStats;
   campaigns: Campaign[];
 }
 
@@ -44,7 +40,7 @@ const PLATFORM_LABEL: Record<string, string> = {
   other: 'Другое',
 };
 
-export default function CampaignsClient({ oldFunnel, newFunnel, campaigns: initial }: Props) {
+export default function CampaignsClient({ stats, campaigns: initial }: Props) {
   const [campaigns, setCampaigns] = useState<Campaign[]>(initial);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -56,11 +52,8 @@ export default function CampaignsClient({ oldFunnel, newFunnel, campaigns: initi
     keywords: '',
   });
 
-  const totals = {
-    reels: campaigns.length,
-    comments: campaigns.reduce((s, c) => s + c.comments, 0),
-    keywords: campaigns.reduce((s, c) => s + c.keywords, 0),
-  };
+  const totalComments = campaigns.reduce((s, c) => s + c.comments, 0);
+  const totalKeywords = campaigns.reduce((s, c) => s + c.keywords, 0);
 
   const handleAdd = async () => {
     if (!form.name.trim() || saving) return;
@@ -72,15 +65,14 @@ export default function CampaignsClient({ oldFunnel, newFunnel, campaigns: initi
     });
     const data = await res.json();
     if (data.ok) {
-      const newC: Campaign = {
+      setCampaigns(prev => [{
         pageId: data.pageId,
         name: form.name.trim(),
         platform: form.platform,
         date: form.date,
         comments: Number(form.comments) || 0,
         keywords: Number(form.keywords) || 0,
-      };
-      setCampaigns(prev => [newC, ...prev]);
+      }, ...prev]);
       setForm({ name: '', platform: 'instagram', date: new Date().toISOString().slice(0, 10), comments: '', keywords: '' });
       setShowForm(false);
     }
@@ -115,60 +107,50 @@ export default function CampaignsClient({ oldFunnel, newFunnel, campaigns: initi
     display: 'block' as const,
   };
 
-  // Comparison rows
-  const rows: { label: string; old: string; new_: string; highlight?: boolean }[] = [
-    { label: 'Рилсов', old: String(oldFunnel.reels), new_: String(newFunnel.reels) },
-    { label: 'Комментариев', old: String(oldFunnel.comments), new_: String(totals.comments) },
-    { label: 'Ключевых слов / DM', old: String(oldFunnel.keywords), new_: String(totals.keywords) },
-    ...(newFunnel.botStart !== undefined ? [{ label: 'Открыли бота', old: '—', new_: String(newFunnel.botStart) }] : []),
-    { label: 'Квиз завершили', old: String(oldFunnel.quizCompleted), new_: String(newFunnel.quizCompleted) },
-    { label: 'Продаж', old: String(oldFunnel.sales), new_: String(newFunnel.sales), highlight: true },
-    { label: 'Квиз → Продажа', old: pct(oldFunnel.sales, oldFunnel.quizCompleted), new_: pct(newFunnel.sales, newFunnel.quizCompleted), highlight: true },
-    { label: 'Коммент → Продажа', old: pct(oldFunnel.sales, oldFunnel.comments), new_: pct(newFunnel.sales, totals.comments) },
+  // Funnel steps: manual → auto
+  const steps = [
+    { label: 'Комментов', value: totalComments, note: 'ручной ввод', color: 'var(--text-secondary)' },
+    { label: 'DM отправлено', value: totalKeywords, note: 'ручной ввод', color: 'var(--text-secondary)', cr: pct(totalKeywords, totalComments) },
+    { label: 'Открыли бота', value: stats.botStart, note: 'instagram utm', color: 'var(--neon-cyan)', cr: pct(stats.botStart, totalKeywords) },
+    { label: 'Прошли квиз', value: stats.quizCompleted, note: 'все источники', color: 'var(--neon-cyan)', cr: pct(stats.quizCompleted, stats.botStart) },
+    { label: 'Купили', value: stats.sales, note: 'все источники', color: 'var(--success)', cr: pct(stats.sales, stats.quizCompleted) },
   ];
 
   return (
     <div>
-      {/* Comparison table */}
-      <div style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: '10px', overflow: 'hidden', marginBottom: '28px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)' }}>
-              <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Метрика</th>
-              <th style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 500 }}>Старая воронка</th>
-              <th style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--neon-cyan)', fontWeight: 500 }}>Новая воронка</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <td style={{ padding: '10px 16px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{r.label}</td>
-                <td style={{
-                  padding: '10px 16px', textAlign: 'center',
-                  color: r.highlight ? 'rgba(255,255,255,0.7)' : 'var(--text-secondary)',
-                  fontWeight: r.highlight ? 600 : 400,
-                }}>
-                  {r.old}
-                </td>
-                <td style={{
-                  padding: '10px 16px', textAlign: 'center',
-                  color: r.highlight ? 'var(--neon-cyan)' : 'var(--text-primary)',
-                  fontWeight: r.highlight ? 700 : 400,
-                }}>
-                  {r.new_}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Funnel cards */}
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: '0', marginBottom: '32px', flexWrap: 'wrap', gap: '8px' }}>
+        {steps.map((step, i) => (
+          <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              background: 'var(--bg-secondary)',
+              border: `1px solid ${step.color === 'var(--success)' ? 'rgba(0,255,136,0.2)' : step.color === 'var(--neon-cyan)' ? 'rgba(0,240,255,0.2)' : 'rgba(255,255,255,0.08)'}`,
+              borderRadius: '10px',
+              padding: '16px 20px',
+              minWidth: '120px',
+            }}>
+              <div style={{ fontSize: '1.6rem', fontWeight: 700, color: step.color, fontFamily: 'var(--font-display)', lineHeight: 1, marginBottom: '4px' }}>
+                {step.value || 0}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', marginBottom: '2px' }}>{step.label}</div>
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{step.note}</div>
+              {step.cr && step.cr !== '—' && (
+                <div style={{ fontSize: '0.68rem', color: 'rgba(0,240,255,0.6)', marginTop: '4px' }}>CR {step.cr}</div>
+              )}
+            </div>
+            {i < steps.length - 1 && (
+              <div style={{ color: 'rgba(255,255,255,0.15)', fontSize: '1.2rem', flexShrink: 0 }}>→</div>
+            )}
+          </div>
+        ))}
       </div>
 
       {/* Campaign list header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-          Рилсы новой воронки
+          Рилсы
           <span style={{ marginLeft: '8px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-            {campaigns.length} шт
+            {campaigns.length} шт · {totalComments} комментов · {totalKeywords} DM
           </span>
         </div>
         <button
@@ -197,12 +179,13 @@ export default function CampaignsClient({ oldFunnel, newFunnel, campaigns: initi
           padding: '20px',
           marginBottom: '20px',
         }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>Название / тема</label>
+              <label style={labelStyle}>Название / тема рилса</label>
               <input
                 value={form.name}
                 onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
                 placeholder="Рилс про контент-план"
                 style={inputStyle}
               />
@@ -221,7 +204,7 @@ export default function CampaignsClient({ oldFunnel, newFunnel, campaigns: initi
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Дата публикации</label>
+              <label style={labelStyle}>Дата</label>
               <input
                 type="date"
                 value={form.date}
@@ -229,27 +212,25 @@ export default function CampaignsClient({ oldFunnel, newFunnel, campaigns: initi
                 style={inputStyle}
               />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <div>
-                <label style={labelStyle}>Комментов</label>
-                <input
-                  type="number"
-                  value={form.comments}
-                  onChange={e => setForm(p => ({ ...p, comments: e.target.value }))}
-                  placeholder="0"
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Ключевых слов</label>
-                <input
-                  type="number"
-                  value={form.keywords}
-                  onChange={e => setForm(p => ({ ...p, keywords: e.target.value }))}
-                  placeholder="0"
-                  style={inputStyle}
-                />
-              </div>
+            <div>
+              <label style={labelStyle}>Комментов</label>
+              <input
+                type="number"
+                value={form.comments}
+                onChange={e => setForm(p => ({ ...p, comments: e.target.value }))}
+                placeholder="0"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>DM отправлено</label>
+              <input
+                type="number"
+                value={form.keywords}
+                onChange={e => setForm(p => ({ ...p, keywords: e.target.value }))}
+                placeholder="0"
+                style={inputStyle}
+              />
             </div>
           </div>
           <button
@@ -279,7 +260,7 @@ export default function CampaignsClient({ oldFunnel, newFunnel, campaigns: initi
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)' }}>
-                  {['Дата', 'Рилс', 'Площадка', 'Комментов', 'Ключевых', 'CR ком→кл', ''].map(h => (
+                  {['Дата', 'Рилс', 'Площадка', 'Комментов', 'DM', 'CR', ''].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap', fontSize: '0.75rem' }}>{h}</th>
                   ))}
                 </tr>
@@ -288,28 +269,24 @@ export default function CampaignsClient({ oldFunnel, newFunnel, campaigns: initi
                 {campaigns.map(c => (
                   <tr key={c.pageId} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                     <td style={{ padding: '10px 14px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatDate(c.date)}</td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-primary)', maxWidth: '200px' }}>{c.name}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-primary)', maxWidth: '220px' }}>{c.name}</td>
                     <td style={{ padding: '10px 14px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{PLATFORM_LABEL[c.platform] || c.platform}</td>
                     <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', textAlign: 'right' }}>{c.comments}</td>
                     <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', textAlign: 'right' }}>{c.keywords}</td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)', textAlign: 'right' }}>{pct(c.keywords, c.comments)}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)', textAlign: 'right', fontSize: '0.75rem' }}>{pct(c.keywords, c.comments)}</td>
                     <td style={{ padding: '10px 14px' }}>
                       <button
                         onClick={() => handleDelete(c.pageId)}
                         style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: '0.85rem', padding: '2px 4px' }}
-                        title="Удалить"
-                      >
-                        ✕
-                      </button>
+                      >✕</button>
                     </td>
                   </tr>
                 ))}
-                {/* Totals row */}
                 <tr style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.15)' }}>
                   <td colSpan={3} style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>Итого</td>
-                  <td style={{ padding: '10px 14px', color: 'var(--neon-cyan)', fontWeight: 600, textAlign: 'right' }}>{totals.comments}</td>
-                  <td style={{ padding: '10px 14px', color: 'var(--neon-cyan)', fontWeight: 600, textAlign: 'right' }}>{totals.keywords}</td>
-                  <td style={{ padding: '10px 14px', color: 'var(--text-muted)', textAlign: 'right' }}>{pct(totals.keywords, totals.comments)}</td>
+                  <td style={{ padding: '10px 14px', color: 'var(--neon-cyan)', fontWeight: 600, textAlign: 'right' }}>{totalComments}</td>
+                  <td style={{ padding: '10px 14px', color: 'var(--neon-cyan)', fontWeight: 600, textAlign: 'right' }}>{totalKeywords}</td>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-muted)', textAlign: 'right', fontSize: '0.75rem' }}>{pct(totalKeywords, totalComments)}</td>
                   <td />
                 </tr>
               </tbody>
