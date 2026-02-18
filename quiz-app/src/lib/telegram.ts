@@ -2,7 +2,8 @@ import { getAdminChatId } from '@/lib/notion';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const PRODAMUS_FORM_URL = process.env.NEXT_PUBLIC_PRODAMUS_FORM_URL || '';
-const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || '';
+// Fallback to custom domain ensures urlNotification is always included in payment links
+const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quiz.thesashatoyz.com';
 const VIDEO_FILE_ID = process.env.FOLLOWUP_VIDEO_FILE_ID || '';
 
 export { VIDEO_FILE_ID };
