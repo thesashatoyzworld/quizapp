@@ -27,6 +27,7 @@ async function getAllEvents(): Promise<RawEvent[]> {
         username: (p.properties.username?.rich_text?.[0]?.plain_text as string) || '',
         first_name: (p.properties.first_name?.rich_text?.[0]?.plain_text as string) || '',
         result_id: (p.properties.result_id?.rich_text?.[0]?.plain_text as string) || '',
+        result_title: (p.properties.result_title?.rich_text?.[0]?.plain_text as string) || '',
         utm_source: (p.properties.utm_source?.rich_text?.[0]?.plain_text as string) || '',
       });
     }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 const NAV_LINKS = [
   { href: '/admin/dashboard', label: 'Дашборд' },
+  { href: '/admin/queue', label: 'Очередь' },
   { href: '/admin/users', label: 'Пользователи' },
   { href: '/admin/payments', label: 'Оплаты' },
   { href: '/admin/broadcasts', label: 'Рассылки' },

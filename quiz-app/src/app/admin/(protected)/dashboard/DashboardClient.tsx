@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import UserCard, { UserCardNote } from './UserCard';
 
 export interface RawEvent {
   pageId: string;
@@ -10,6 +11,7 @@ export interface RawEvent {
   username: string;
   first_name: string;
   result_id: string;
+  result_title: string;
   utm_source: string;
 }
 
@@ -75,11 +77,12 @@ const EMPTY_OUTREACH: OutreachStatus = {
   dm_replied: false, dm_replied_at: '', dm_replied_pageId: '',
 };
 
-function FunnelBlock({ steps, getOutreachStatus, onSet, onUndo }: {
+function FunnelBlock({ steps, getOutreachStatus, onSet, onUndo, onSelectUser }: {
   steps: ReturnType<typeof buildFunnel>;
   getOutreachStatus: (userId: number | null) => OutreachStatus;
   onSet: (userId: number, action: 'admin_dm_sent' | 'admin_dm_replied', username: string, firstName: string) => void;
   onUndo: (userId: number, field: 'dm_sent' | 'dm_replied') => void;
+  onSelectUser: (u: SelectedUser) => void;
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const [filterNotContacted, setFilterNotContacted] = useState<Record<string, boolean>>({});
@@ -224,8 +227,20 @@ function FunnelBlock({ steps, getOutreachStatus, onSet, onUndo }: {
 
                         return (
                           <tr key={j} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                            <td style={{ padding: '7px 12px', color: 'var(--neon-cyan)', width: '26%' }}>
-                              {u.username ? `@${u.username}` : u.user_id ? `[${u.user_id}]` : '—'}
+                            <td style={{ padding: '7px 12px', width: '26%' }}>
+                              <button
+                                onClick={() => u.user_id && onSelectUser({ userId: u.user_id, username: u.username, firstName: u.first_name })}
+                                title="Открыть карточку"
+                                style={{
+                                  background: 'none', border: 'none', cursor: u.user_id ? 'pointer' : 'default',
+                                  color: 'var(--neon-cyan)', fontSize: '0.72rem', padding: 0,
+                                  textDecoration: u.user_id ? 'underline' : 'none',
+                                  textDecorationColor: 'rgba(0,240,255,0.3)',
+                                  fontFamily: 'var(--font-body)',
+                                }}
+                              >
+                                {u.username ? `@${u.username}` : u.user_id ? `[${u.user_id}]` : '—'}
+                              </button>
                             </td>
                             <td style={{ padding: '7px 4px', color: 'var(--text-secondary)', width: '14%' }}>{u.first_name || '—'}</td>
                             <td style={{ padding: '7px 4px', color: 'var(--text-muted)', width: '10%' }}>{u.result_id || '—'}</td>
@@ -352,9 +367,70 @@ function filterByBranch(events: RawEvent[], branch: string): RawEvent[] {
   });
 }
 
+type SelectedUser = { userId: number; username: string; firstName: string };
+
 export default function DashboardClient({ events }: { events: RawEvent[] }) {
   const [branch, setBranch] = useState('__all__');
   const [localOutreach, setLocalOutreach] = useState<Map<string, Partial<OutreachStatus>>>(new Map());
+  const [selectedUser, setSelectedUser] = useState<SelectedUser | null>(null);
+  const [localNotes, setLocalNotes] = useState<Map<string, UserCardNote[]>>(new Map());
+
+  // All non-admin funnel events per user (sorted chronologically)
+  const userEventsMap = useMemo(() => {
+    const map = new Map<string, RawEvent[]>();
+    for (const e of events) {
+      if (!e.user_id || e.type.startsWith('admin_')) continue;
+      const key = String(e.user_id);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(e);
+    }
+    for (const arr of map.values()) {
+      arr.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    }
+    return map;
+  }, [events]);
+
+  // Notes per user from events (admin_note type)
+  const userNotesBaseMap = useMemo(() => {
+    const map = new Map<string, UserCardNote[]>();
+    for (const e of events) {
+      if (!e.user_id || e.type !== 'admin_note') continue;
+      const key = String(e.user_id);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push({ pageId: e.pageId, text: e.result_title, timestamp: e.timestamp });
+    }
+    for (const arr of map.values()) {
+      arr.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    }
+    return map;
+  }, [events]);
+
+  function getUserNotes(userId: number): UserCardNote[] {
+    const key = String(userId);
+    const base = userNotesBaseMap.get(key) || [];
+    const local = localNotes.get(key) || [];
+    return [...base, ...local].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  }
+
+  async function handleAddNote(userId: number, username: string, firstName: string, text: string) {
+    const res = await fetch('/api/admin/note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, username, first_name: firstName, note: text }),
+    });
+    const data = await res.json().catch(() => ({}));
+    const newNote: UserCardNote = {
+      pageId: data.pageId || '',
+      text,
+      timestamp: new Date().toISOString(),
+    };
+    setLocalNotes(prev => {
+      const next = new Map(prev);
+      const key = String(userId);
+      next.set(key, [...(next.get(key) || []), newNote]);
+      return next;
+    });
+  }
 
   const filteredEvents = useMemo(() => filterByBranch(events, branch), [events, branch]);
 
@@ -530,7 +606,13 @@ export default function DashboardClient({ events }: { events: RawEvent[] }) {
         <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Воронка — нажми на этап чтобы увидеть людей
         </h2>
-        <FunnelBlock steps={funnelSteps} getOutreachStatus={getOutreachStatus} onSet={handleSet} onUndo={handleUndo} />
+        <FunnelBlock
+          steps={funnelSteps}
+          getOutreachStatus={getOutreachStatus}
+          onSet={handleSet}
+          onUndo={handleUndo}
+          onSelectUser={setSelectedUser}
+        />
       </div>
 
       {/* Recent events */}
@@ -564,6 +646,19 @@ export default function DashboardClient({ events }: { events: RawEvent[] }) {
           </table>
         </div>
       </div>
+      {/* User card modal */}
+      {selectedUser && (
+        <UserCard
+          userId={selectedUser.userId}
+          username={selectedUser.username}
+          firstName={selectedUser.firstName}
+          events={userEventsMap.get(String(selectedUser.userId)) || []}
+          notes={getUserNotes(selectedUser.userId)}
+          outreachStatus={getOutreachStatus(selectedUser.userId)}
+          onClose={() => setSelectedUser(null)}
+          onAddNote={text => handleAddNote(selectedUser.userId, selectedUser.username, selectedUser.firstName, text)}
+        />
+      )}
     </>
   );
 }
