@@ -209,18 +209,18 @@ export async function POST(request: NextRequest) {
       body = JSON.parse(text);
     }
 
-    // Extract signature from body (Prodamus sends it as _signature field)
-    const signature = typeof body._signature === 'string' ? body._signature : '';
+    // Prodamus sends signature in 'Sign' header (not in body)
+    let signature = request.headers.get('sign') || request.headers.get('Sign') || '';
+    // Strip "Sign: " prefix if present in header value
+    if (signature.startsWith('Sign: ')) signature = signature.slice(6);
+
     if (!signature) {
-      console.error('No signature in webhook payload');
+      console.error('No signature in Sign header');
       return NextResponse.json({ success: false }, { status: 400 });
     }
 
-    // Remove _signature from body before verification
-    const { _signature, ...bodyWithoutSignature } = body;
-
-    // Verify HMAC signature
-    if (!verifySignature(bodyWithoutSignature, signature)) {
+    // Verify HMAC signature over the full body (signature is separate in header)
+    if (!verifySignature(body, signature)) {
       console.error('Invalid webhook signature');
       return NextResponse.json({ success: false }, { status: 403 });
     }
@@ -232,7 +232,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    const orderId = body.order_id || body.order_num || '';
+    // Prodamus puts their internal order_id in body.order_id,
+    // our order ID (userId_resultId) comes in body.order_num
+    const orderId = body.order_num || body.order_id || '';
     const isConnectors = typeof orderId === 'string' && orderId.startsWith('conn_');
 
     if (isConnectors) {
