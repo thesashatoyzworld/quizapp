@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract signature from body (Prodamus sends it as _signature field)
-    const signature = body._signature || '';
+    const signature = typeof body._signature === 'string' ? body._signature : '';
     if (!signature) {
       console.error('No signature in webhook payload');
       return NextResponse.json({ success: false }, { status: 400 });
