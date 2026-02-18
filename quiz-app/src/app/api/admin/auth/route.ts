@@ -28,8 +28,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin?error=invalid', request.url));
   }
 
-  if (!isAdminUser(authData.id)) {
-    return NextResponse.redirect(new URL('/admin?error=forbidden', request.url));
+  if (!isAdminUser(authData.id, authData.username)) {
+    // Redirect with actual id for debugging
+    return NextResponse.redirect(new URL(`/admin?error=forbidden&uid=${authData.id}&un=${authData.username || ''}`, request.url));
   }
 
   const token = createSessionToken(authData.id);
