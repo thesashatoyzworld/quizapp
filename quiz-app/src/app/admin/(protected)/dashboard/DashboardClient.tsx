@@ -152,9 +152,27 @@ const BRANCHES = [
 
 function filterByBranch(events: RawEvent[], branch: string): RawEvent[] {
   if (branch === '__all__') return events;
-  if (branch === '__quiz__') return events.filter(e => !(e.utm_source || '').includes('masterclass'));
-  if (branch === '__masterclass__') return events.filter(e => (e.utm_source || '').includes('masterclass'));
-  return events;
+
+  // Determine each user's branch from their bot_start utm_source
+  const userBranch = new Map<string, string>();
+  for (const e of events) {
+    if (e.type !== 'bot_start' || !e.user_id) continue;
+    const key = String(e.user_id);
+    const utm = e.utm_source || '';
+    userBranch.set(key, utm.includes('masterclass') ? '__masterclass__' : '__quiz__');
+  }
+
+  return events.filter(e => {
+    if (!e.user_id) return false;
+    const ub = userBranch.get(String(e.user_id));
+    // If user has no bot_start yet — classify by event's own utm
+    if (!ub) {
+      const utm = e.utm_source || '';
+      const evBranch = utm.includes('masterclass') ? '__masterclass__' : '__quiz__';
+      return evBranch === branch;
+    }
+    return ub === branch;
+  });
 }
 
 export default function DashboardClient({ events }: { events: RawEvent[] }) {
