@@ -20,6 +20,7 @@ async function getAllEvents(): Promise<RawEvent[]> {
       const type = p.properties.event_type?.title?.[0]?.plain_text as string;
       if (!type || type === 'admin_config') continue;
       all.push({
+        pageId: p.id as string,
         type,
         timestamp: (p.properties.timestamp?.date?.start as string) || '',
         user_id: p.properties.user_id?.number as number | null,

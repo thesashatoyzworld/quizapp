@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 
 export interface RawEvent {
+  pageId: string;
   type: string;
   timestamp: string;
   user_id: number | null;
@@ -60,13 +61,25 @@ function buildFunnel(events: RawEvent[], steps = FUNNEL_STEPS_QUIZ) {
   }));
 }
 
-type OutreachStatus = { dm_sent: boolean; dm_replied: boolean };
-type OutreachAction = 'admin_dm_sent' | 'admin_dm_replied';
+interface OutreachStatus {
+  dm_sent: boolean;
+  dm_sent_at: string;
+  dm_sent_pageId: string;
+  dm_replied: boolean;
+  dm_replied_at: string;
+  dm_replied_pageId: string;
+}
 
-function FunnelBlock({ steps, getOutreachStatus, onOutreach }: {
+const EMPTY_OUTREACH: OutreachStatus = {
+  dm_sent: false, dm_sent_at: '', dm_sent_pageId: '',
+  dm_replied: false, dm_replied_at: '', dm_replied_pageId: '',
+};
+
+function FunnelBlock({ steps, getOutreachStatus, onSet, onUndo }: {
   steps: ReturnType<typeof buildFunnel>;
   getOutreachStatus: (userId: number | null) => OutreachStatus;
-  onOutreach: (userId: number, action: OutreachAction, username: string, firstName: string) => void;
+  onSet: (userId: number, action: 'admin_dm_sent' | 'admin_dm_replied', username: string, firstName: string) => void;
+  onUndo: (userId: number, field: 'dm_sent' | 'dm_replied') => void;
 }) {
   const [open, setOpen] = useState<string | null>(null);
 
@@ -79,8 +92,11 @@ function FunnelBlock({ steps, getOutreachStatus, onOutreach }: {
         const isOpen = open === step.key;
         const isPaid = step.key === 'payment_success';
 
-        const nextStepUserIds = !isLast
-          ? new Set(steps[i + 1].users.map(u => u.user_id ? String(u.user_id) : '').filter(Boolean))
+        // Map of userId → their event in the NEXT step (for timing comparison)
+        const nextStepMap = !isLast
+          ? new Map(steps[i + 1].users
+              .filter(u => u.user_id)
+              .map(u => [String(u.user_id), u]))
           : null;
 
         return (
@@ -89,7 +105,7 @@ function FunnelBlock({ steps, getOutreachStatus, onOutreach }: {
               onClick={() => setOpen(isOpen ? null : step.key)}
               style={{
                 width: '100%',
-                maxWidth: '520px',
+                maxWidth: '560px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -114,13 +130,13 @@ function FunnelBlock({ steps, getOutreachStatus, onOutreach }: {
             {isOpen && (
               <div style={{
                 width: '100%',
-                maxWidth: '520px',
+                maxWidth: '560px',
                 background: 'rgba(0,0,0,0.2)',
                 border: '1px solid rgba(0, 240, 255, 0.2)',
                 borderTop: 'none',
                 borderRadius: '0 0 8px 8px',
                 marginBottom: '4px',
-                maxHeight: '320px',
+                maxHeight: '360px',
                 overflowY: 'auto',
               }}>
                 {step.users.length === 0 ? (
@@ -130,64 +146,116 @@ function FunnelBlock({ steps, getOutreachStatus, onOutreach }: {
                     <tbody>
                       {step.users.map((u, j) => {
                         const status = getOutreachStatus(u.user_id);
-                        const movedToNext = nextStepUserIds && u.user_id
-                          ? nextStepUserIds.has(String(u.user_id))
-                          : undefined;
+                        const nextUser = nextStepMap && u.user_id ? nextStepMap.get(String(u.user_id)) : undefined;
+                        const movedToNext = !!nextUser;
+
+                        // Did they move to next step AFTER we DMed them?
+                        const movedAfterDm = movedToNext && status.dm_sent && status.dm_sent_at && nextUser
+                          ? new Date(nextUser.timestamp) > new Date(status.dm_sent_at)
+                          : false;
+
+                        // Funnel movement indicator
+                        let moveLabel = '';
+                        let moveColor = 'rgba(255,255,255,0.15)';
+                        let moveTitle = '';
+                        if (nextStepMap) {
+                          if (status.dm_sent && movedAfterDm) {
+                            moveLabel = 'ДМ сработал';
+                            moveColor = 'var(--success)';
+                            moveTitle = `Перешёл на следующий этап после ДМ (${formatDate(nextUser!.timestamp)})`;
+                          } else if (movedToNext && !status.dm_sent) {
+                            moveLabel = '→ сам';
+                            moveColor = 'rgba(255,255,255,0.3)';
+                            moveTitle = `Перешёл самостоятельно (${formatDate(nextUser!.timestamp)})`;
+                          } else if (movedToNext && status.dm_sent && !movedAfterDm) {
+                            moveLabel = '→ до ДМ';
+                            moveColor = 'rgba(255,255,255,0.3)';
+                            moveTitle = 'Перешёл ещё до того, как мы написали';
+                          } else if (status.dm_sent && !movedToNext) {
+                            moveLabel = '→ ждём';
+                            moveColor = 'rgba(255, 180, 0, 0.7)';
+                            moveTitle = 'Написали, ждём реакции';
+                          }
+                        }
+
+                        const btnBase: React.CSSProperties = {
+                          padding: '2px 7px',
+                          fontSize: '0.62rem',
+                          fontFamily: 'var(--font-body)',
+                          borderRadius: '3px',
+                          border: '1px solid',
+                          whiteSpace: 'nowrap',
+                          lineHeight: '1.6',
+                        };
+
                         return (
                           <tr key={j} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                            <td style={{ padding: '7px 12px', color: 'var(--neon-cyan)', width: '28%' }}>
+                            <td style={{ padding: '7px 12px', color: 'var(--neon-cyan)', width: '26%' }}>
                               {u.username ? `@${u.username}` : u.user_id ? `[${u.user_id}]` : '—'}
                             </td>
-                            <td style={{ padding: '7px 6px', color: 'var(--text-secondary)', width: '16%' }}>{u.first_name || '—'}</td>
-                            <td style={{ padding: '7px 6px', color: 'var(--text-muted)', width: '12%' }}>{u.result_id || '—'}</td>
-                            <td style={{ padding: '7px 6px', color: 'var(--text-muted)', width: '12%', fontSize: '0.62rem', whiteSpace: 'nowrap' }}>{formatDate(u.timestamp)}</td>
-                            <td style={{ padding: '7px 12px 7px 4px', width: '32%' }}>
+                            <td style={{ padding: '7px 4px', color: 'var(--text-secondary)', width: '14%' }}>{u.first_name || '—'}</td>
+                            <td style={{ padding: '7px 4px', color: 'var(--text-muted)', width: '10%' }}>{u.result_id || '—'}</td>
+                            <td style={{ padding: '7px 4px', color: 'var(--text-muted)', width: '12%', fontSize: '0.6rem', whiteSpace: 'nowrap' }}>{formatDate(u.timestamp)}</td>
+                            <td style={{ padding: '7px 8px 7px 4px', width: '38%' }}>
                               {u.user_id ? (
-                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'nowrap' }}>
+                                  {/* ДМ button */}
                                   <button
-                                    onClick={() => !status.dm_sent && onOutreach(u.user_id!, 'admin_dm_sent', u.username, u.first_name)}
-                                    title="Написали ДМ"
+                                    onClick={() => {
+                                      if (status.dm_sent) {
+                                        onUndo(u.user_id!, 'dm_sent');
+                                      } else {
+                                        onSet(u.user_id!, 'admin_dm_sent', u.username, u.first_name);
+                                      }
+                                    }}
+                                    title={status.dm_sent ? 'Нажми чтобы отменить' : 'Написали ДМ'}
                                     style={{
-                                      padding: '2px 7px',
-                                      fontSize: '0.62rem',
-                                      fontFamily: 'var(--font-body)',
-                                      borderRadius: '3px',
-                                      border: `1px solid ${status.dm_sent ? 'rgba(0,255,136,0.4)' : 'rgba(255,255,255,0.12)'}`,
-                                      cursor: status.dm_sent ? 'default' : 'pointer',
+                                      ...btnBase,
+                                      cursor: 'pointer',
+                                      borderColor: status.dm_sent ? 'rgba(0,255,136,0.4)' : 'rgba(255,255,255,0.12)',
                                       background: status.dm_sent ? 'rgba(0,255,136,0.12)' : 'transparent',
                                       color: status.dm_sent ? 'var(--success)' : 'var(--text-muted)',
-                                      whiteSpace: 'nowrap',
                                     }}
                                   >
                                     {status.dm_sent ? '✓ ДМ' : 'ДМ'}
                                   </button>
+
+                                  {/* Отв button */}
                                   <button
-                                    onClick={() => status.dm_sent && !status.dm_replied && onOutreach(u.user_id!, 'admin_dm_replied', u.username, u.first_name)}
-                                    title="Ответил"
+                                    onClick={() => {
+                                      if (!status.dm_sent) return;
+                                      if (status.dm_replied) {
+                                        onUndo(u.user_id!, 'dm_replied');
+                                      } else {
+                                        onSet(u.user_id!, 'admin_dm_replied', u.username, u.first_name);
+                                      }
+                                    }}
+                                    title={status.dm_replied ? 'Нажми чтобы отменить' : status.dm_sent ? 'Ответил' : 'Сначала отметь ДМ'}
                                     style={{
-                                      padding: '2px 7px',
-                                      fontSize: '0.62rem',
-                                      fontFamily: 'var(--font-body)',
-                                      borderRadius: '3px',
-                                      border: `1px solid ${status.dm_replied ? 'rgba(0,255,136,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                                      cursor: status.dm_replied ? 'default' : status.dm_sent ? 'pointer' : 'not-allowed',
+                                      ...btnBase,
+                                      cursor: status.dm_sent ? 'pointer' : 'not-allowed',
+                                      borderColor: status.dm_replied ? 'rgba(0,255,136,0.4)' : 'rgba(255,255,255,0.08)',
                                       background: status.dm_replied ? 'rgba(0,255,136,0.12)' : 'transparent',
                                       color: status.dm_replied ? 'var(--success)' : status.dm_sent ? 'var(--text-muted)' : 'rgba(255,255,255,0.2)',
-                                      whiteSpace: 'nowrap',
+                                      opacity: status.dm_sent ? 1 : 0.4,
                                     }}
                                   >
                                     {status.dm_replied ? '✓ Отв' : 'Отв'}
                                   </button>
-                                  {movedToNext !== undefined && (
+
+                                  {/* Movement indicator */}
+                                  {moveLabel && (
                                     <span
-                                      title={movedToNext ? 'Перешёл на следующий этап' : 'Не перешёл'}
+                                      title={moveTitle}
                                       style={{
-                                        fontSize: '0.65rem',
-                                        color: movedToNext ? 'var(--success)' : 'rgba(255,255,255,0.2)',
+                                        fontSize: '0.6rem',
+                                        color: moveColor,
                                         paddingLeft: '2px',
+                                        whiteSpace: 'nowrap',
+                                        fontWeight: moveColor === 'var(--success)' ? 600 : 400,
                                       }}
                                     >
-                                      {movedToNext ? '✓→' : '→'}
+                                      {moveLabel}
                                     </span>
                                   )}
                                 </div>
@@ -230,7 +298,6 @@ const BRANCHES = [
 function filterByBranch(events: RawEvent[], branch: string): RawEvent[] {
   if (branch === '__all__') return events;
 
-  // Determine each user's branch from their bot_start utm_source
   const userBranch = new Map<string, string>();
   for (const e of events) {
     if (e.type !== 'bot_start' || !e.user_id) continue;
@@ -242,11 +309,9 @@ function filterByBranch(events: RawEvent[], branch: string): RawEvent[] {
   return events.filter(e => {
     if (!e.user_id) return false;
     const ub = userBranch.get(String(e.user_id));
-    // If user has no bot_start yet — classify by event's own utm
     if (!ub) {
       const utm = e.utm_source || '';
-      const evBranch = utm.includes('masterclass') ? '__masterclass__' : '__quiz__';
-      return evBranch === branch;
+      return (utm.includes('masterclass') ? '__masterclass__' : '__quiz__') === branch;
     }
     return ub === branch;
   });
@@ -254,7 +319,7 @@ function filterByBranch(events: RawEvent[], branch: string): RawEvent[] {
 
 export default function DashboardClient({ events }: { events: RawEvent[] }) {
   const [branch, setBranch] = useState('__all__');
-  const [localOutreach, setLocalOutreach] = useState<Map<string, OutreachStatus>>(new Map());
+  const [localOutreach, setLocalOutreach] = useState<Map<string, Partial<OutreachStatus>>>(new Map());
 
   const filteredEvents = useMemo(() => filterByBranch(events, branch), [events, branch]);
 
@@ -271,53 +336,94 @@ export default function DashboardClient({ events }: { events: RawEvent[] }) {
     [filteredEvents]
   );
 
-  // Build outreach map from events (admin_dm_sent / admin_dm_replied)
-  const outreachMap = useMemo(() => {
-    const map = new Map<string, OutreachStatus>();
+  // Build outreach base map from events (persisted data)
+  const outreachBaseMap = useMemo(() => {
+    const map = new Map<string, Partial<OutreachStatus>>();
     for (const e of events) {
       if (!e.user_id) continue;
       const key = String(e.user_id);
       if (e.type === 'admin_dm_sent') {
-        const cur = map.get(key) || { dm_sent: false, dm_replied: false };
-        map.set(key, { ...cur, dm_sent: true });
+        const cur = map.get(key) || {};
+        map.set(key, { ...cur, dm_sent: true, dm_sent_at: e.timestamp, dm_sent_pageId: e.pageId });
       } else if (e.type === 'admin_dm_replied') {
-        const cur = map.get(key) || { dm_sent: false, dm_replied: false };
-        map.set(key, { ...cur, dm_replied: true });
+        const cur = map.get(key) || {};
+        map.set(key, { ...cur, dm_replied: true, dm_replied_at: e.timestamp, dm_replied_pageId: e.pageId });
       }
     }
     return map;
   }, [events]);
 
-  const getOutreachStatus = useCallback((userId: number | null): OutreachStatus => {
-    if (!userId) return { dm_sent: false, dm_replied: false };
+  function getOutreachStatus(userId: number | null): OutreachStatus {
+    if (!userId) return { ...EMPTY_OUTREACH };
     const key = String(userId);
-    const base = outreachMap.get(key) || { dm_sent: false, dm_replied: false };
-    const local = localOutreach.get(key) || { dm_sent: false, dm_replied: false };
-    return {
-      dm_sent: base.dm_sent || local.dm_sent,
-      dm_replied: base.dm_replied || local.dm_replied,
-    };
-  }, [outreachMap, localOutreach]);
+    const base = outreachBaseMap.get(key) || {};
+    const local = localOutreach.get(key) || {};
+    return { ...EMPTY_OUTREACH, ...base, ...local };
+  }
 
-  const handleOutreach = useCallback(async (userId: number, action: OutreachAction, username: string, firstName: string) => {
+  async function handleSet(userId: number, action: 'admin_dm_sent' | 'admin_dm_replied', username: string, firstName: string) {
+    const key = String(userId);
+    const now = new Date().toISOString();
+
     // Optimistic update
     setLocalOutreach(prev => {
       const next = new Map(prev);
-      const key = String(userId);
-      const cur = next.get(key) || { dm_sent: false, dm_replied: false };
-      next.set(key, {
-        dm_sent: cur.dm_sent || action === 'admin_dm_sent',
-        dm_replied: cur.dm_replied || action === 'admin_dm_replied',
-      });
+      const cur = { ...EMPTY_OUTREACH, ...(outreachBaseMap.get(key) || {}), ...(prev.get(key) || {}) };
+      if (action === 'admin_dm_sent') {
+        next.set(key, { ...cur, dm_sent: true, dm_sent_at: now });
+      } else {
+        next.set(key, { ...cur, dm_replied: true, dm_replied_at: now });
+      }
       return next;
     });
-    // Save to Notion
-    await fetch('/api/admin/outreach', {
+
+    const res = await fetch('/api/admin/outreach', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event_type: action, user_id: userId, username, first_name: firstName }),
     });
-  }, []);
+    const data = await res.json().catch(() => ({}));
+
+    // Store the pageId for future undo
+    if (data.pageId) {
+      setLocalOutreach(prev => {
+        const next = new Map(prev);
+        const cur = prev.get(key) || {};
+        if (action === 'admin_dm_sent') {
+          next.set(key, { ...cur, dm_sent_pageId: data.pageId });
+        } else {
+          next.set(key, { ...cur, dm_replied_pageId: data.pageId });
+        }
+        return next;
+      });
+    }
+  }
+
+  async function handleUndo(userId: number, field: 'dm_sent' | 'dm_replied') {
+    const key = String(userId);
+    const status = getOutreachStatus(userId);
+    const pageId = field === 'dm_sent' ? status.dm_sent_pageId : status.dm_replied_pageId;
+
+    if (!pageId) return;
+
+    // Optimistic update
+    setLocalOutreach(prev => {
+      const next = new Map(prev);
+      const cur = { ...EMPTY_OUTREACH, ...(outreachBaseMap.get(key) || {}), ...(prev.get(key) || {}) };
+      if (field === 'dm_sent') {
+        next.set(key, { ...cur, dm_sent: false, dm_sent_at: '', dm_sent_pageId: '' });
+      } else {
+        next.set(key, { ...cur, dm_replied: false, dm_replied_at: '', dm_replied_pageId: '' });
+      }
+      return next;
+    });
+
+    await fetch('/api/admin/outreach', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageId }),
+    });
+  }
 
   const getStep = (key: string) => funnelSteps.find(s => s.key === key);
 
@@ -389,7 +495,7 @@ export default function DashboardClient({ events }: { events: RawEvent[] }) {
         <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Воронка — нажми на этап чтобы увидеть людей
         </h2>
-        <FunnelBlock steps={funnelSteps} getOutreachStatus={getOutreachStatus} onOutreach={handleOutreach} />
+        <FunnelBlock steps={funnelSteps} getOutreachStatus={getOutreachStatus} onSet={handleSet} onUndo={handleUndo} />
       </div>
 
       {/* Recent events */}
