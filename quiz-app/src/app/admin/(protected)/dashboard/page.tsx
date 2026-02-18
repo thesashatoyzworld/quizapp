@@ -1,4 +1,5 @@
 import { Client } from '@notionhq/client';
+import Link from 'next/link';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const EVENTS_DB_ID = process.env.NOTION_EVENTS_DB_ID!;
@@ -145,20 +146,26 @@ export default async function DashboardPage() {
 
             return (
               <div key={step.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {/* Block */}
-                <div style={{
-                  width: '100%',
-                  maxWidth: '480px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  background: step.key === 'payment_success'
-                    ? 'rgba(0, 255, 136, 0.08)'
-                    : 'rgba(0, 240, 255, 0.05)',
-                  border: `1px solid ${step.key === 'payment_success' ? 'rgba(0, 255, 136, 0.3)' : 'rgba(0, 240, 255, 0.2)'}`,
-                  borderRadius: '8px',
-                  padding: '12px 20px',
-                }}>
+                {/* Block — clickable */}
+                <Link
+                  href={`/admin/funnel?step=${step.key}`}
+                  style={{
+                    width: '100%',
+                    maxWidth: '480px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: step.key === 'payment_success'
+                      ? 'rgba(0, 255, 136, 0.08)'
+                      : 'rgba(0, 240, 255, 0.05)',
+                    border: `1px solid ${step.key === 'payment_success' ? 'rgba(0, 255, 136, 0.3)' : 'rgba(0, 240, 255, 0.2)'}`,
+                    borderRadius: '8px',
+                    padding: '12px 20px',
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s',
+                  }}
+                >
                   <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                     {step.label}
                   </span>
@@ -170,7 +177,7 @@ export default async function DashboardPage() {
                   }}>
                     {step.count}
                   </span>
-                </div>
+                </Link>
 
                 {/* Arrow + conversion */}
                 {!isLast && (
