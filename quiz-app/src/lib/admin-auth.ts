@@ -2,7 +2,7 @@ import { createHmac, createHash, timingSafeEqual } from 'crypto';
 import { cookies } from 'next/headers';
 
 const SESSION_SECRET = process.env.BOT_TOKEN!;
-const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID || '788334680';
+const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID || '6013902004';
 
 export interface TelegramAuthData {
   id: string;
@@ -40,7 +40,7 @@ export function verifyTelegramAuth(data: TelegramAuthData): boolean {
 }
 
 export function isAdminUser(id: string, username?: string): boolean {
-  return id === ADMIN_CHAT_ID || username === 'thesashatoyz';
+  return id === ADMIN_CHAT_ID || username === 'sashatoyzwork';
 }
 
 export function createSessionToken(userId: string): string {
