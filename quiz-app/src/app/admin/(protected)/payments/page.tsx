@@ -3,7 +3,32 @@ import { Client } from '@notionhq/client';
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const EVENTS_DB_ID = process.env.NOTION_EVENTS_DB_ID!;
 const FOLLOWUP_DB_ID = process.env.NOTION_FOLLOWUP_DB_ID!;
-const BOT_TOKEN = process.env.BOT_TOKEN!;
+const BOT_TOKEN = process.env.BOT_TOKEN;
+
+async function getEventsUsernameMap(): Promise<Map<number, { username: string; first_name: string }>> {
+  const map = new Map<number, { username: string; first_name: string }>();
+  let cursor: string | undefined;
+  do {
+    const response = await notion.dataSources.query({
+      data_source_id: EVENTS_DB_ID,
+      page_size: 100,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
+    for (const p of response.results as any[]) {
+      const uid = p.properties.user_id?.number as number | null;
+      if (!uid) continue;
+      const username = (p.properties.username?.rich_text?.[0]?.plain_text as string) || '';
+      const first_name = (p.properties.first_name?.rich_text?.[0]?.plain_text as string) || '';
+      if (!username && !first_name) continue;
+      const existing = map.get(uid);
+      if (!existing || (username && !existing.username)) {
+        map.set(uid, { username, first_name });
+      }
+    }
+    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return map;
+};
 
 async function getTelegramUser(userId: number): Promise<{ username: string; first_name: string } | null> {
   try {
@@ -108,18 +133,28 @@ function formatDate(iso: string) {
 }
 
 export default async function PaymentsPage() {
-  const [{ payments, total }, usernameMap] = await Promise.all([getPayments(), getUsernameMap()]);
+  const [{ payments, total }, usernameMap, eventsUsernameMap] = await Promise.all([
+    getPayments(),
+    getUsernameMap(),
+    getEventsUsernameMap(),
+  ]);
 
-  // Enrich: FollowUpQueue first, then Telegram API as fallback
+  // Enrich: Events DB → FollowUpQueue → Telegram API as fallback
   await Promise.all(payments.map(async (p) => {
     if (!p.user_id) return;
-    // 1. Try FollowUpQueue
-    const found = usernameMap.get(p.user_id);
-    if (found) {
-      if (!p.username) p.username = found.username;
-      if (!p.first_name) p.first_name = found.first_name;
+    // 1. Try events DB (payment_click etc. have username)
+    const fromEvents = eventsUsernameMap.get(p.user_id);
+    if (fromEvents) {
+      if (!p.username) p.username = fromEvents.username;
+      if (!p.first_name) p.first_name = fromEvents.first_name;
     }
-    // 2. Still missing — ask Telegram directly
+    // 2. Try FollowUpQueue
+    const fromQueue = usernameMap.get(p.user_id);
+    if (fromQueue) {
+      if (!p.username) p.username = fromQueue.username;
+      if (!p.first_name) p.first_name = fromQueue.first_name;
+    }
+    // 3. Still missing — ask Telegram directly
     if (!p.username && !p.first_name) {
       const tg = await getTelegramUser(p.user_id);
       if (tg) {

@@ -65,14 +65,29 @@ async function getUsernameMap(): Promise<Map<number, { username: string; first_n
 export default async function DashboardPage() {
   const [events, usernameMap] = await Promise.all([getAllEvents(), getUsernameMap()]);
 
-  // Enrich events with usernames from FollowUpQueue
+  // Build username map from the events themselves (payment_click, quiz_complete, etc. have username)
+  const eventUsernameMap = new Map<number, { username: string; first_name: string }>();
   for (const e of events) {
-    if (e.user_id && (!e.username || !e.first_name)) {
-      const found = usernameMap.get(e.user_id);
-      if (found) {
-        if (!e.username) e.username = found.username;
-        if (!e.first_name) e.first_name = found.first_name;
+    if (e.user_id && (e.username || e.first_name)) {
+      const existing = eventUsernameMap.get(e.user_id);
+      if (!existing || (e.username && !existing.username)) {
+        eventUsernameMap.set(e.user_id, { username: e.username, first_name: e.first_name });
       }
+    }
+  }
+
+  // Enrich events missing username — check FollowUpQueue, then events map
+  for (const e of events) {
+    if (!e.user_id || (e.username && e.first_name)) continue;
+    const fromQueue = usernameMap.get(e.user_id);
+    if (fromQueue) {
+      if (!e.username) e.username = fromQueue.username;
+      if (!e.first_name) e.first_name = fromQueue.first_name;
+    }
+    const fromEvents = eventUsernameMap.get(e.user_id);
+    if (fromEvents) {
+      if (!e.username) e.username = fromEvents.username;
+      if (!e.first_name) e.first_name = fromEvents.first_name;
     }
   }
 
