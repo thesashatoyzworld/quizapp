@@ -82,6 +82,7 @@ function FunnelBlock({ steps, getOutreachStatus, onSet, onUndo }: {
   onUndo: (userId: number, field: 'dm_sent' | 'dm_replied') => void;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [filterNotContacted, setFilterNotContacted] = useState<Record<string, boolean>>({});
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 0 }}>
@@ -98,6 +99,12 @@ function FunnelBlock({ steps, getOutreachStatus, onSet, onUndo }: {
               .filter(u => u.user_id)
               .map(u => [String(u.user_id), u]))
           : null;
+
+        const onlyNew = !!filterNotContacted[step.key];
+        const notContactedCount = step.users.filter(u => !getOutreachStatus(u.user_id).dm_sent).length;
+        const visibleUsers = onlyNew
+          ? step.users.filter(u => !getOutreachStatus(u.user_id).dm_sent)
+          : step.users;
 
         return (
           <div key={step.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
@@ -136,15 +143,42 @@ function FunnelBlock({ steps, getOutreachStatus, onSet, onUndo }: {
                 borderTop: 'none',
                 borderRadius: '0 0 8px 8px',
                 marginBottom: '4px',
-                maxHeight: '360px',
-                overflowY: 'auto',
               }}>
+                {/* Filter bar */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    {notContactedCount > 0
+                      ? <span>Не написанных: <span style={{ color: notContactedCount > 0 ? 'rgba(255,180,0,0.8)' : 'var(--text-muted)', fontWeight: 600 }}>{notContactedCount}</span> из {step.users.length}</span>
+                      : <span style={{ color: 'var(--success)' }}>Все охвачены</span>
+                    }
+                  </span>
+                  {notContactedCount > 0 && notContactedCount < step.users.length && (
+                    <button
+                      onClick={() => setFilterNotContacted(prev => ({ ...prev, [step.key]: !prev[step.key] }))}
+                      style={{
+                        fontSize: '0.65rem',
+                        padding: '2px 8px',
+                        borderRadius: '3px',
+                        border: `1px solid ${onlyNew ? 'rgba(255,180,0,0.5)' : 'rgba(255,255,255,0.12)'}`,
+                        background: onlyNew ? 'rgba(255,180,0,0.1)' : 'transparent',
+                        color: onlyNew ? 'rgba(255,180,0,0.9)' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-body)',
+                      }}
+                    >
+                      {onlyNew ? 'Показать всех' : 'Только не написанные'}
+                    </button>
+                  )}
+                </div>
+                <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
                 {step.users.length === 0 ? (
                   <div style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.8rem', textAlign: 'center' }}>Нет данных</div>
+                ) : visibleUsers.length === 0 ? (
+                  <div style={{ padding: '16px', color: 'var(--success)', fontSize: '0.8rem', textAlign: 'center' }}>Всем написали</div>
                 ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
                     <tbody>
-                      {step.users.map((u, j) => {
+                      {visibleUsers.map((u, j) => {
                         const status = getOutreachStatus(u.user_id);
                         const nextUser = nextStepMap && u.user_id ? nextStepMap.get(String(u.user_id)) : undefined;
                         const movedToNext = !!nextUser;
@@ -267,6 +301,7 @@ function FunnelBlock({ steps, getOutreachStatus, onSet, onUndo }: {
                     </tbody>
                   </table>
                 )}
+                </div>
               </div>
             )}
 
