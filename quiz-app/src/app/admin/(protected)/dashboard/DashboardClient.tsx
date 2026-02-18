@@ -12,7 +12,7 @@ export interface RawEvent {
   utm_source: string;
 }
 
-const FUNNEL_STEPS = [
+const FUNNEL_STEPS_QUIZ = [
   { key: 'bot_start', label: 'Запуск бота' },
   { key: 'webapp_open', label: 'Открыл приложение' },
   { key: 'quiz_start', label: 'Начал квиз' },
@@ -23,6 +23,15 @@ const FUNNEL_STEPS = [
   { key: 'payment_success', label: 'Оплатил' },
 ];
 
+const FUNNEL_STEPS_MASTERCLASS = [
+  { key: 'bot_start', label: 'Запуск бота' },
+  { key: 'masterclass_view', label: 'Открыл МК страницу' },
+  { key: 'payment_click', label: 'Нажал оплатить' },
+  { key: 'payment_success', label: 'Оплатил' },
+];
+
+const FUNNEL_STEPS_ALL = FUNNEL_STEPS_QUIZ;
+
 function formatDate(iso: string) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -30,9 +39,9 @@ function formatDate(iso: string) {
     d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 
-function buildFunnel(events: RawEvent[]) {
+function buildFunnel(events: RawEvent[], steps = FUNNEL_STEPS_QUIZ) {
   const stepUsersMap: Record<string, Map<string, RawEvent>> = {};
-  FUNNEL_STEPS.forEach(s => { stepUsersMap[s.key] = new Map(); });
+  steps.forEach(s => { stepUsersMap[s.key] = new Map(); });
 
   for (const e of events) {
     if (!stepUsersMap[e.type]) continue;
@@ -43,7 +52,7 @@ function buildFunnel(events: RawEvent[]) {
     }
   }
 
-  return FUNNEL_STEPS.map(s => ({
+  return steps.map(s => ({
     ...s,
     count: stepUsersMap[s.key].size,
     users: Array.from(stepUsersMap[s.key].values())
@@ -180,7 +189,10 @@ export default function DashboardClient({ events }: { events: RawEvent[] }) {
 
   const filteredEvents = useMemo(() => filterByBranch(events, branch), [events, branch]);
 
-  const funnelSteps = useMemo(() => buildFunnel(filteredEvents), [filteredEvents]);
+  const funnelSteps = useMemo(
+    () => buildFunnel(filteredEvents, branch === '__masterclass__' ? FUNNEL_STEPS_MASTERCLASS : FUNNEL_STEPS_ALL),
+    [filteredEvents, branch]
+  );
 
   const recent = useMemo(() =>
     [...filteredEvents]
@@ -189,13 +201,22 @@ export default function DashboardClient({ events }: { events: RawEvent[] }) {
     [filteredEvents]
   );
 
-  const metricCards = [
-    { label: 'Запусков бота', value: funnelSteps[0].count },
-    { label: 'Квиз пройден', value: funnelSteps[3].count },
-    { label: 'Подписались', value: funnelSteps[4].count },
-    { label: 'Кликнули оплатить', value: funnelSteps[6].count },
-    { label: 'Оплатили', value: funnelSteps[7].count, highlight: true },
-  ];
+  const getStep = (key: string) => funnelSteps.find(s => s.key === key);
+
+  const metricCards = branch === '__masterclass__'
+    ? [
+        { label: 'Запусков бота', value: getStep('bot_start')?.count ?? 0 },
+        { label: 'Открыли МК', value: getStep('masterclass_view')?.count ?? 0 },
+        { label: 'Кликнули оплатить', value: getStep('payment_click')?.count ?? 0 },
+        { label: 'Оплатили', value: getStep('payment_success')?.count ?? 0, highlight: true },
+      ]
+    : [
+        { label: 'Запусков бота', value: getStep('bot_start')?.count ?? 0 },
+        { label: 'Квиз пройден', value: getStep('quiz_complete')?.count ?? 0 },
+        { label: 'Подписались', value: getStep('subscribe_click')?.count ?? 0 },
+        { label: 'Кликнули оплатить', value: getStep('payment_click')?.count ?? 0 },
+        { label: 'Оплатили', value: getStep('payment_success')?.count ?? 0, highlight: true },
+      ];
 
   const cardStyle: React.CSSProperties = {
     background: 'var(--bg-secondary)',
