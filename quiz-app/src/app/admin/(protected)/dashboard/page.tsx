@@ -1,19 +1,21 @@
 import { Client } from '@notionhq/client';
-import Link from 'next/link';
+import FunnelChart from './FunnelChart';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const EVENTS_DB_ID = process.env.NOTION_EVENTS_DB_ID!;
+const FOLLOWUP_DB_ID = process.env.NOTION_FOLLOWUP_DB_ID!;
 
 interface EventRow {
   type: string;
   timestamp: string;
   user_id: number | null;
   username: string;
+  first_name: string;
   result_id: string;
 }
 
 async function getAllEvents(): Promise<EventRow[]> {
-  const allResults: EventRow[] = [];
+  const all: EventRow[] = [];
   let cursor: string | undefined;
 
   do {
@@ -26,11 +28,12 @@ async function getAllEvents(): Promise<EventRow[]> {
     for (const p of response.results as any[]) {
       const type = p.properties.event_type?.title?.[0]?.plain_text as string;
       if (!type || type === 'admin_config') continue;
-      allResults.push({
+      all.push({
         type,
         timestamp: (p.properties.timestamp?.date?.start as string) || '',
         user_id: p.properties.user_id?.number as number | null,
         username: (p.properties.username?.rich_text?.[0]?.plain_text as string) || '',
+        first_name: (p.properties.first_name?.rich_text?.[0]?.plain_text as string) || '',
         result_id: (p.properties.result_id?.rich_text?.[0]?.plain_text as string) || '',
       });
     }
@@ -38,7 +41,34 @@ async function getAllEvents(): Promise<EventRow[]> {
     cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
   } while (cursor);
 
-  return allResults;
+  return all;
+}
+
+// Load username map from FollowUpQueue (uid → {username, first_name})
+async function getUsernameMap(): Promise<Map<number, { username: string; first_name: string }>> {
+  const map = new Map<number, { username: string; first_name: string }>();
+  let cursor: string | undefined;
+
+  do {
+    const response = await notion.dataSources.query({
+      data_source_id: FOLLOWUP_DB_ID,
+      page_size: 100,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
+
+    for (const p of response.results as any[]) {
+      const uid = p.properties.user_id?.number as number | null;
+      if (!uid) continue;
+      map.set(uid, {
+        username: (p.properties.username?.rich_text?.[0]?.plain_text as string) || '',
+        first_name: (p.properties.first_name?.rich_text?.[0]?.plain_text as string) || '',
+      });
+    }
+
+    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+
+  return map;
 }
 
 const FUNNEL_STEPS = [
@@ -60,29 +90,62 @@ function formatDate(iso: string) {
 }
 
 export default async function DashboardPage() {
-  const events = await getAllEvents();
+  const [events, usernameMap] = await Promise.all([getAllEvents(), getUsernameMap()]);
 
-  const uniqueByStep: Record<string, Set<number>> = {};
-  FUNNEL_STEPS.forEach(s => { uniqueByStep[s.key] = new Set(); });
+  // Enrich events with username from FollowUpQueue if missing
+  for (const e of events) {
+    if (e.user_id && (!e.username || !e.first_name)) {
+      const found = usernameMap.get(e.user_id);
+      if (found) {
+        if (!e.username) e.username = found.username;
+        if (!e.first_name) e.first_name = found.first_name;
+      }
+    }
+  }
+
+  // Build funnel: unique users per step, deduplicated
+  const stepUsersMap: Record<string, Map<string, EventRow>> = {};
+  FUNNEL_STEPS.forEach(s => { stepUsersMap[s.key] = new Map(); });
+
   const counts: Record<string, number> = {};
 
-  events.forEach(e => {
+  for (const e of events) {
     counts[e.type] = (counts[e.type] || 0) + 1;
-    if (e.user_id && uniqueByStep[e.type]) uniqueByStep[e.type].add(e.user_id);
-  });
+    if (stepUsersMap[e.type]) {
+      const key = e.user_id ? String(e.user_id) : `anon_${e.timestamp}`;
+      const existing = stepUsersMap[e.type].get(key);
+      // Keep latest event per user per step
+      if (!existing || new Date(e.timestamp) > new Date(existing.timestamp)) {
+        stepUsersMap[e.type].set(key, e);
+      }
+    }
+  }
 
-  const funnel = FUNNEL_STEPS.map(s => ({ ...s, count: uniqueByStep[s.key].size }));
+  const funnelSteps = FUNNEL_STEPS.map(s => ({
+    key: s.key,
+    label: s.label,
+    count: stepUsersMap[s.key].size,
+    users: Array.from(stepUsersMap[s.key].values())
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .map(u => ({
+        user_id: u.user_id,
+        username: u.username,
+        first_name: u.first_name,
+        result_id: u.result_id,
+        timestamp: u.timestamp,
+      })),
+  }));
 
   const recent = [...events]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 10);
 
   const metricCards = [
-    { label: 'Запусков бота', value: funnel[0].count },
-    { label: 'Квиз пройден', value: funnel[3].count },
-    { label: 'Подписались', value: funnel[4].count },
-    { label: 'Кликнули оплатить', value: funnel[6].count },
-    { label: 'Оплатили', value: funnel[7].count, highlight: true },
+    { label: 'Запусков бота', value: funnelSteps[0].count },
+    { label: 'Квиз пройден', value: funnelSteps[3].count },
+    { label: 'Подписались', value: funnelSteps[4].count },
+    { label: 'Кликнули оплатить', value: funnelSteps[6].count },
+    { label: 'Оплатили', value: funnelSteps[7].count, highlight: true },
   ];
 
   const cardStyle: React.CSSProperties = {
@@ -127,7 +190,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Funnel block diagram */}
+      {/* Funnel with toggles */}
       <div style={{
         background: 'var(--bg-secondary)',
         border: '1px solid rgba(0, 240, 255, 0.15)',
@@ -136,74 +199,9 @@ export default async function DashboardPage() {
         marginBottom: '32px',
       }}>
         <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Воронка
+          Воронка — нажми на этап чтобы увидеть людей
         </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 0 }}>
-          {funnel.map((step, i) => {
-            const prev = i > 0 ? funnel[i - 1].count : step.count;
-            const conv = prev > 0 ? Math.round((step.count / prev) * 100) : 100;
-            const isLast = i === funnel.length - 1;
-
-            return (
-              <div key={step.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {/* Block — clickable */}
-                <Link
-                  href={`/admin/funnel?step=${step.key}`}
-                  style={{
-                    width: '100%',
-                    maxWidth: '480px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    background: step.key === 'payment_success'
-                      ? 'rgba(0, 255, 136, 0.08)'
-                      : 'rgba(0, 240, 255, 0.05)',
-                    border: `1px solid ${step.key === 'payment_success' ? 'rgba(0, 255, 136, 0.3)' : 'rgba(0, 240, 255, 0.2)'}`,
-                    borderRadius: '8px',
-                    padding: '12px 20px',
-                    textDecoration: 'none',
-                    cursor: 'pointer',
-                    transition: 'background 0.15s',
-                  }}
-                >
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                    {step.label}
-                  </span>
-                  <span style={{
-                    color: step.key === 'payment_success' ? 'var(--success)' : 'var(--neon-cyan)',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                  }}>
-                    {step.count}
-                  </span>
-                </Link>
-
-                {/* Arrow + conversion */}
-                {!isLast && (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: '4px 0',
-                    gap: '0',
-                  }}>
-                    <div style={{ width: '1px', height: '8px', background: 'rgba(255,255,255,0.15)' }} />
-                    <div style={{
-                      fontSize: '0.7rem',
-                      color: conv >= 70 ? 'var(--success)' : conv >= 40 ? 'var(--neon-cyan)' : 'rgba(255,42,109,0.8)',
-                      padding: '2px 8px',
-                    }}>
-                      {i > 0 ? `${conv}%` : ''}
-                    </div>
-                    <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem', lineHeight: 1 }}>▼</div>
-                    <div style={{ width: '1px', height: '4px', background: 'rgba(255,255,255,0.15)' }} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <FunnelChart steps={funnelSteps} />
       </div>
 
       {/* Recent events */}
