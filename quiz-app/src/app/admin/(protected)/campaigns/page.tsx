@@ -1,17 +1,8 @@
 import { Client } from '@notionhq/client';
-import CampaignsClient, { Campaign, FunnelTotals } from './CampaignsClient';
+import CampaignsClient, { Campaign, FunnelStats } from './CampaignsClient';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const EVENTS_DB_ID = process.env.NOTION_EVENTS_DB_ID!;
-
-// Historical old funnel data (Instagram → DM-bot → quiz)
-const OLD_FUNNEL: FunnelTotals = {
-  reels: 9,       // 7 основных + 3 пробных − 1 удалённый
-  comments: 338,
-  keywords: 112,  // 92 «Тест» + 20 «Инсайт»
-  quizCompleted: 136,
-  sales: 8,
-};
 
 async function getCampaigns(): Promise<Campaign[]> {
   const all: Campaign[] = [];
@@ -48,7 +39,7 @@ async function getCampaigns(): Promise<Campaign[]> {
   return all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-async function getFunnelStats(): Promise<{ botStart: number; quizCompleted: number; sales: number }> {
+async function getFunnelStats(): Promise<FunnelStats> {
   let botStart = 0;
   let quizCompleted = 0;
   let sales = 0;
@@ -79,15 +70,6 @@ async function getFunnelStats(): Promise<{ botStart: number; quizCompleted: numb
 export default async function CampaignsPage() {
   const [campaigns, stats] = await Promise.all([getCampaigns(), getFunnelStats()]);
 
-  const newFunnel: FunnelTotals = {
-    reels: campaigns.length,
-    comments: campaigns.reduce((s, c) => s + c.comments, 0),
-    keywords: campaigns.reduce((s, c) => s + c.keywords, 0),
-    botStart: stats.botStart,
-    quizCompleted: stats.quizCompleted,
-    sales: stats.sales,
-  };
-
   return (
     <div>
       <div style={{ marginBottom: '24px' }}>
@@ -95,11 +77,11 @@ export default async function CampaignsPage() {
           Кампании
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-          Сравнение старой и новой воронки
+          Воронка по рилсам
         </p>
       </div>
 
-      <CampaignsClient oldFunnel={OLD_FUNNEL} newFunnel={newFunnel} campaigns={campaigns} />
+      <CampaignsClient stats={stats} campaigns={campaigns} />
     </div>
   );
 }
