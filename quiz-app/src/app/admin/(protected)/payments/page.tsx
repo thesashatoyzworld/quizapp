@@ -3,6 +3,21 @@ import { Client } from '@notionhq/client';
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const EVENTS_DB_ID = process.env.NOTION_EVENTS_DB_ID!;
 const FOLLOWUP_DB_ID = process.env.NOTION_FOLLOWUP_DB_ID!;
+const BOT_TOKEN = process.env.BOT_TOKEN!;
+
+async function getTelegramUser(userId: number): Promise<{ username: string; first_name: string } | null> {
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getChat?chat_id=${userId}`);
+    const data = await r.json();
+    if (!data.ok) return null;
+    return {
+      username: data.result.username || '',
+      first_name: data.result.first_name || '',
+    };
+  } catch {
+    return null;
+  }
+}
 
 async function getUsernameMap(): Promise<Map<number, { username: string; first_name: string }>> {
   const map = new Map<number, { username: string; first_name: string }>();
@@ -95,16 +110,24 @@ function formatDate(iso: string) {
 export default async function PaymentsPage() {
   const [{ payments, total }, usernameMap] = await Promise.all([getPayments(), getUsernameMap()]);
 
-  // Enrich payments with username from FollowUpQueue
-  for (const p of payments) {
-    if (p.user_id && (!p.username || !p.first_name)) {
-      const found = usernameMap.get(p.user_id);
-      if (found) {
-        if (!p.username) p.username = found.username;
-        if (!p.first_name) p.first_name = found.first_name;
+  // Enrich: FollowUpQueue first, then Telegram API as fallback
+  await Promise.all(payments.map(async (p) => {
+    if (!p.user_id) return;
+    // 1. Try FollowUpQueue
+    const found = usernameMap.get(p.user_id);
+    if (found) {
+      if (!p.username) p.username = found.username;
+      if (!p.first_name) p.first_name = found.first_name;
+    }
+    // 2. Still missing — ask Telegram directly
+    if (!p.username && !p.first_name) {
+      const tg = await getTelegramUser(p.user_id);
+      if (tg) {
+        p.username = tg.username;
+        p.first_name = tg.first_name;
       }
     }
-  }
+  }));
 
   return (
     <div>
