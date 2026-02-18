@@ -81,16 +81,16 @@ export default async function UsersPage({ searchParams }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Users</h1>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Пользователи</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-          {total} users · {paid} paid
+          {total} пользователей · {paid} оплатили
         </p>
       </div>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-        <Link href="/admin/users" style={filterLinkStyle(filter === 'all')}>All</Link>
-        <Link href="/admin/users?filter=paid" style={filterLinkStyle(filter === 'paid')}>Paid</Link>
+        <Link href="/admin/users" style={filterLinkStyle(filter === 'all')}>Все</Link>
+        <Link href="/admin/users?filter=paid" style={filterLinkStyle(filter === 'paid')}>Оплатили</Link>
         {Object.entries(RESULT_LABELS).map(([id, label]) => (
           <Link
             key={id}
@@ -113,7 +113,7 @@ export default async function UsersPage({ searchParams }: PageProps) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)' }}>
-                {['Username', 'Name', 'Archetype', 'Registered', 'Msgs', 'Paid'].map(h => (
+                {['Username', 'Имя', 'Архетип', 'Дата', 'Сообщ.', 'Оплата'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>

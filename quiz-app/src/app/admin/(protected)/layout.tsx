@@ -3,10 +3,10 @@ import { getAdminSession } from '@/lib/admin-auth';
 import Link from 'next/link';
 
 const NAV_LINKS = [
-  { href: '/admin/dashboard', label: 'Dashboard' },
-  { href: '/admin/users', label: 'Users' },
-  { href: '/admin/payments', label: 'Payments' },
-  { href: '/admin/broadcasts', label: 'Broadcasts' },
+  { href: '/admin/dashboard', label: 'Дашборд' },
+  { href: '/admin/users', label: 'Пользователи' },
+  { href: '/admin/payments', label: 'Оплаты' },
+  { href: '/admin/broadcasts', label: 'Рассылки' },
 ];
 
 export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {

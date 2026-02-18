@@ -11,51 +11,45 @@ interface EventRow {
   result_id: string;
 }
 
-async function getDashboardData() {
-  const response = await notion.dataSources.query({
-    data_source_id: EVENTS_DB_ID,
-    page_size: 100,
-  });
+async function getAllEvents(): Promise<EventRow[]> {
+  const allResults: EventRow[] = [];
+  let cursor: string | undefined;
 
-  const events: EventRow[] = (response.results as any[])
-    .map((p) => ({
-      type: p.properties.event_type?.title?.[0]?.plain_text as string,
-      timestamp: (p.properties.timestamp?.date?.start as string) || '',
-      user_id: p.properties.user_id?.number as number | null,
-      username: (p.properties.username?.rich_text?.[0]?.plain_text as string) || '',
-      result_id: (p.properties.result_id?.rich_text?.[0]?.plain_text as string) || '',
-    }))
-    .filter(e => e.type && e.type !== 'admin_config');
+  do {
+    const response = await notion.dataSources.query({
+      data_source_id: EVENTS_DB_ID,
+      page_size: 100,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
 
-  const funnelSteps = ['bot_start', 'webapp_open', 'quiz_complete', 'subscribe_click', 'payment_click', 'payment_success'];
-  const uniqueByStep: Record<string, Set<number>> = {};
-  funnelSteps.forEach(s => { uniqueByStep[s] = new Set(); });
+    for (const p of response.results as any[]) {
+      const type = p.properties.event_type?.title?.[0]?.plain_text as string;
+      if (!type || type === 'admin_config') continue;
+      allResults.push({
+        type,
+        timestamp: (p.properties.timestamp?.date?.start as string) || '',
+        user_id: p.properties.user_id?.number as number | null,
+        username: (p.properties.username?.rich_text?.[0]?.plain_text as string) || '',
+        result_id: (p.properties.result_id?.rich_text?.[0]?.plain_text as string) || '',
+      });
+    }
 
-  const counts: Record<string, number> = {};
+    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  } while (cursor);
 
-  events.forEach(e => {
-    counts[e.type] = (counts[e.type] || 0) + 1;
-    if (e.user_id && uniqueByStep[e.type]) uniqueByStep[e.type].add(e.user_id);
-  });
-
-  const funnel = funnelSteps.map(step => ({ step, count: uniqueByStep[step].size }));
-  const maxCount = Math.max(...funnel.map(f => f.count), 1);
-
-  const recent = [...events]
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 10);
-
-  return { funnel, maxCount, counts, recent, total: events.length };
+  return allResults;
 }
 
-const STEP_LABELS: Record<string, string> = {
-  bot_start: 'Bot Start',
-  webapp_open: 'WebApp Open',
-  quiz_complete: 'Quiz Complete',
-  subscribe_click: 'Subscribe Click',
-  payment_click: 'Payment Click',
-  payment_success: 'Payment Success',
-};
+const FUNNEL_STEPS = [
+  { key: 'bot_start', label: 'Запуск бота' },
+  { key: 'webapp_open', label: 'Открыл приложение' },
+  { key: 'quiz_start', label: 'Начал квиз' },
+  { key: 'quiz_complete', label: 'Завершил квиз' },
+  { key: 'subscribe_click', label: 'Подписался' },
+  { key: 'result_view', label: 'Просмотрел результат' },
+  { key: 'payment_click', label: 'Нажал оплатить' },
+  { key: 'payment_success', label: 'Оплатил' },
+];
 
 function formatDate(iso: string) {
   if (!iso) return '—';
@@ -65,7 +59,30 @@ function formatDate(iso: string) {
 }
 
 export default async function DashboardPage() {
-  const { funnel, maxCount, counts, recent, total } = await getDashboardData();
+  const events = await getAllEvents();
+
+  const uniqueByStep: Record<string, Set<number>> = {};
+  FUNNEL_STEPS.forEach(s => { uniqueByStep[s.key] = new Set(); });
+  const counts: Record<string, number> = {};
+
+  events.forEach(e => {
+    counts[e.type] = (counts[e.type] || 0) + 1;
+    if (e.user_id && uniqueByStep[e.type]) uniqueByStep[e.type].add(e.user_id);
+  });
+
+  const funnel = FUNNEL_STEPS.map(s => ({ ...s, count: uniqueByStep[s.key].size }));
+
+  const recent = [...events]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 10);
+
+  const metricCards = [
+    { label: 'Запусков бота', value: funnel[0].count },
+    { label: 'Квиз пройден', value: funnel[3].count },
+    { label: 'Подписались', value: funnel[4].count },
+    { label: 'Кликнули оплатить', value: funnel[6].count },
+    { label: 'Оплатили', value: funnel[7].count, highlight: true },
+  ];
 
   const cardStyle: React.CSSProperties = {
     background: 'var(--bg-secondary)',
@@ -76,22 +93,14 @@ export default async function DashboardPage() {
     minWidth: '140px',
   };
 
-  const metricCards = [
-    { label: 'Bot Starts', value: counts['bot_start'] || 0 },
-    { label: 'Quiz Done', value: counts['quiz_complete'] || 0 },
-    { label: 'Subscribed', value: counts['subscribe_click'] || 0 },
-    { label: 'Pay Clicks', value: counts['payment_click'] || 0 },
-    { label: 'Paid', value: counts['payment_success'] || 0, highlight: true },
-  ];
-
   return (
     <div>
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
-          Dashboard
+          Дашборд
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-          {total} events total
+          {events.length} событий всего
         </p>
       </div>
 
@@ -117,7 +126,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Funnel */}
+      {/* Funnel block diagram */}
       <div style={{
         background: 'var(--bg-secondary)',
         border: '1px solid rgba(0, 240, 255, 0.15)',
@@ -125,32 +134,65 @@ export default async function DashboardPage() {
         padding: '24px',
         marginBottom: '32px',
       }}>
-        <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Воронка
         </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {funnel.map(({ step, count }, i) => {
-            const prev = i > 0 ? funnel[i - 1].count : count;
-            const conv = prev > 0 ? Math.round((count / prev) * 100) : 100;
-            const width = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 0 }}>
+          {funnel.map((step, i) => {
+            const prev = i > 0 ? funnel[i - 1].count : step.count;
+            const conv = prev > 0 ? Math.round((step.count / prev) * 100) : 100;
+            const isLast = i === funnel.length - 1;
+
             return (
-              <div key={step}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{STEP_LABELS[step]}</span>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {count}
-                    {i > 0 && <span style={{ marginLeft: '8px', color: conv >= 50 ? 'var(--success)' : 'var(--danger)', fontSize: '0.75rem' }}>{conv}%</span>}
+              <div key={step.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                {/* Block */}
+                <div style={{
+                  width: '100%',
+                  maxWidth: '480px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: step.key === 'payment_success'
+                    ? 'rgba(0, 255, 136, 0.08)'
+                    : 'rgba(0, 240, 255, 0.05)',
+                  border: `1px solid ${step.key === 'payment_success' ? 'rgba(0, 255, 136, 0.3)' : 'rgba(0, 240, 255, 0.2)'}`,
+                  borderRadius: '8px',
+                  padding: '12px 20px',
+                }}>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    {step.label}
+                  </span>
+                  <span style={{
+                    color: step.key === 'payment_success' ? 'var(--success)' : 'var(--neon-cyan)',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                  }}>
+                    {step.count}
                   </span>
                 </div>
-                <div style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+
+                {/* Arrow + conversion */}
+                {!isLast && (
                   <div style={{
-                    height: '100%',
-                    width: `${width}%`,
-                    background: 'var(--neon-cyan)',
-                    borderRadius: '3px',
-                    transition: 'width 0.3s',
-                  }} />
-                </div>
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '4px 0',
+                    gap: '0',
+                  }}>
+                    <div style={{ width: '1px', height: '8px', background: 'rgba(255,255,255,0.15)' }} />
+                    <div style={{
+                      fontSize: '0.7rem',
+                      color: conv >= 70 ? 'var(--success)' : conv >= 40 ? 'var(--neon-cyan)' : 'rgba(255,42,109,0.8)',
+                      padding: '2px 8px',
+                    }}>
+                      {i > 0 ? `${conv}%` : ''}
+                    </div>
+                    <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem', lineHeight: 1 }}>▼</div>
+                    <div style={{ width: '1px', height: '4px', background: 'rgba(255,255,255,0.15)' }} />
+                  </div>
+                )}
               </div>
             );
           })}
@@ -171,7 +213,7 @@ export default async function DashboardPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                {['Время', 'Событие', 'Username', 'Result'].map(h => (
+                {['Время', 'Событие', 'Username', 'Архетип'].map(h => (
                   <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>{h}</th>
                 ))}
               </tr>

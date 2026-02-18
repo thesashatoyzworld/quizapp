@@ -15,27 +15,48 @@ interface Payment {
 }
 
 async function getPayments(): Promise<{ payments: Payment[]; total: number }> {
-  const response = await notion.dataSources.query({
-    data_source_id: EVENTS_DB_ID,
-    filter: {
-      property: 'event_type',
-      title: { equals: 'payment_success' },
-    },
-    page_size: 100,
-  });
+  const allResults: Payment[] = [];
+  let cursor: string | undefined;
 
-  const payments: Payment[] = (response.results as any[])
-    .map((p) => ({
-      id: p.id as string,
-      timestamp: (p.properties.timestamp?.date?.start as string) || '',
-      username: (p.properties.username?.rich_text?.[0]?.plain_text as string) || '',
-      first_name: (p.properties.first_name?.rich_text?.[0]?.plain_text as string) || '',
-      user_id: p.properties.user_id?.number as number | null,
-      result_id: (p.properties.result_id?.rich_text?.[0]?.plain_text as string) || '',
-      amount: (p.properties.amount?.number as number) ?? 0,
-      utm_source: (p.properties.utm_source?.rich_text?.[0]?.plain_text as string) || '',
-    }))
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  do {
+    const response = await notion.dataSources.query({
+      data_source_id: EVENTS_DB_ID,
+      filter: {
+        property: 'event_type',
+        title: { equals: 'payment_success' },
+      },
+      page_size: 100,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
+
+    for (const p of response.results as any[]) {
+      allResults.push({
+        id: p.id as string,
+        timestamp: (p.properties.timestamp?.date?.start as string) || '',
+        username: (p.properties.username?.rich_text?.[0]?.plain_text as string) || '',
+        first_name: (p.properties.first_name?.rich_text?.[0]?.plain_text as string) || '',
+        user_id: p.properties.user_id?.number as number | null,
+        result_id: (p.properties.result_id?.rich_text?.[0]?.plain_text as string) || '',
+        amount: (p.properties.amount?.number as number) ?? 0,
+        utm_source: (p.properties.utm_source?.rich_text?.[0]?.plain_text as string) || '',
+      });
+    }
+
+    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+
+  // Deduplicate: one payment per user (keep the one with highest amount, then latest)
+  const seen = new Map<string, Payment>();
+  for (const p of allResults.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())) {
+    const key = p.user_id ? String(p.user_id) : p.id;
+    if (!seen.has(key) || (p.amount > (seen.get(key)?.amount ?? 0))) {
+      seen.set(key, p);
+    }
+  }
+
+  const payments = Array.from(seen.values()).sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
 
   const total = payments.reduce((sum, p) => sum + p.amount, 0);
   return { payments, total };
@@ -55,23 +76,17 @@ export default async function PaymentsPage() {
     <div>
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
-          Payments
+          Оплаты
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-          {payments.length} оплат · итого:{' '}
+          {payments.length} покупок · итого:{' '}
           <span style={{ color: 'var(--success)', fontWeight: 600 }}>
             {total.toLocaleString('ru-RU')} ₽
           </span>
         </p>
       </div>
 
-      {/* Summary card */}
-      <div style={{
-        display: 'flex',
-        gap: '16px',
-        flexWrap: 'wrap',
-        marginBottom: '24px',
-      }}>
+      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '24px' }}>
         <div style={{
           background: 'var(--bg-secondary)',
           border: '1px solid rgba(0, 255, 136, 0.2)',
@@ -94,11 +109,10 @@ export default async function PaymentsPage() {
           <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--neon-cyan)', fontFamily: 'var(--font-display)', lineHeight: 1, marginBottom: '6px' }}>
             {payments.length}
           </div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Покупок</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Покупателей</div>
         </div>
       </div>
 
-      {/* Table */}
       <div style={{
         background: 'var(--bg-secondary)',
         border: '1px solid rgba(0, 240, 255, 0.15)',
@@ -109,7 +123,7 @@ export default async function PaymentsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)' }}>
-                {['Дата', 'Username', 'Имя', 'Archetype', 'Сумма', 'UTM'].map(h => (
+                {['Дата', 'Username', 'Имя', 'Архетип', 'Сумма', 'Источник'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
