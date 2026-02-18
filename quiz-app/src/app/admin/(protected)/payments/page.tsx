@@ -1,0 +1,145 @@
+import { Client } from '@notionhq/client';
+
+const notion = new Client({ auth: process.env.NOTION_API_KEY });
+const EVENTS_DB_ID = process.env.NOTION_EVENTS_DB_ID!;
+
+interface Payment {
+  id: string;
+  timestamp: string;
+  username: string;
+  first_name: string;
+  user_id: number | null;
+  result_id: string;
+  amount: number;
+  utm_source: string;
+}
+
+async function getPayments(): Promise<{ payments: Payment[]; total: number }> {
+  const response = await notion.dataSources.query({
+    data_source_id: EVENTS_DB_ID,
+    filter: {
+      property: 'event_type',
+      title: { equals: 'payment_success' },
+    },
+    page_size: 100,
+  });
+
+  const payments: Payment[] = (response.results as any[])
+    .map((p) => ({
+      id: p.id as string,
+      timestamp: (p.properties.timestamp?.date?.start as string) || '',
+      username: (p.properties.username?.rich_text?.[0]?.plain_text as string) || '',
+      first_name: (p.properties.first_name?.rich_text?.[0]?.plain_text as string) || '',
+      user_id: p.properties.user_id?.number as number | null,
+      result_id: (p.properties.result_id?.rich_text?.[0]?.plain_text as string) || '',
+      amount: (p.properties.amount?.number as number) ?? 0,
+      utm_source: (p.properties.utm_source?.rich_text?.[0]?.plain_text as string) || '',
+    }))
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  const total = payments.reduce((sum, p) => sum + p.amount, 0);
+  return { payments, total };
+}
+
+function formatDate(iso: string) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' }) + ' ' +
+    d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+export default async function PaymentsPage() {
+  const { payments, total } = await getPayments();
+
+  return (
+    <div>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+          Payments
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+          {payments.length} оплат · итого:{' '}
+          <span style={{ color: 'var(--success)', fontWeight: 600 }}>
+            {total.toLocaleString('ru-RU')} ₽
+          </span>
+        </p>
+      </div>
+
+      {/* Summary card */}
+      <div style={{
+        display: 'flex',
+        gap: '16px',
+        flexWrap: 'wrap',
+        marginBottom: '24px',
+      }}>
+        <div style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid rgba(0, 255, 136, 0.2)',
+          borderRadius: '10px',
+          padding: '20px 24px',
+          minWidth: '180px',
+        }}>
+          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--success)', fontFamily: 'var(--font-display)', lineHeight: 1, marginBottom: '6px' }}>
+            {total.toLocaleString('ru-RU')} ₽
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Всего оплачено</div>
+        </div>
+        <div style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid rgba(0, 240, 255, 0.15)',
+          borderRadius: '10px',
+          padding: '20px 24px',
+          minWidth: '140px',
+        }}>
+          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--neon-cyan)', fontFamily: 'var(--font-display)', lineHeight: 1, marginBottom: '6px' }}>
+            {payments.length}
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Покупок</div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{
+        background: 'var(--bg-secondary)',
+        border: '1px solid rgba(0, 240, 255, 0.15)',
+        borderRadius: '10px',
+        overflow: 'hidden',
+      }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)' }}>
+                {['Дата', 'Username', 'Имя', 'Archetype', 'Сумма', 'UTM'].map(h => (
+                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((p) => (
+                <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <td style={{ padding: '10px 16px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatDate(p.timestamp)}</td>
+                  <td style={{ padding: '10px 16px', color: 'var(--neon-cyan)' }}>
+                    {p.username ? `@${p.username}` : `[${p.user_id}]`}
+                  </td>
+                  <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{p.first_name || '—'}</td>
+                  <td style={{ padding: '10px 16px', color: 'var(--text-secondary)' }}>{p.result_id || '—'}</td>
+                  <td style={{ padding: '10px 16px', color: 'var(--success)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {p.amount.toLocaleString('ru-RU')} ₽
+                  </td>
+                  <td style={{ padding: '10px 16px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{p.utm_source || '—'}</td>
+                </tr>
+              ))}
+              {payments.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Нет оплат
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
