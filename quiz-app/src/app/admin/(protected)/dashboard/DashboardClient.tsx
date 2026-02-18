@@ -144,49 +144,23 @@ function FunnelBlock({ steps }: { steps: ReturnType<typeof buildFunnel> }) {
   );
 }
 
+const BRANCHES = [
+  { key: '__all__', label: 'Все' },
+  { key: '__quiz__', label: 'Квиз' },
+  { key: '__masterclass__', label: 'Мастер-класс' },
+];
+
+function filterByBranch(events: RawEvent[], branch: string): RawEvent[] {
+  if (branch === '__all__') return events;
+  if (branch === '__quiz__') return events.filter(e => !(e.utm_source || '').includes('masterclass'));
+  if (branch === '__masterclass__') return events.filter(e => (e.utm_source || '').includes('masterclass'));
+  return events;
+}
+
 export default function DashboardClient({ events }: { events: RawEvent[] }) {
-  // Detect all unique branches from utm_source
-  const branches = useMemo(() => {
-    const utmSet = new Set<string>();
-    for (const e of events) utmSet.add(e.utm_source || '');
-    const utms = Array.from(utmSet);
-
-    const result: { key: string; label: string }[] = [{ key: '__all__', label: 'Все' }];
-
-    // Group utm_sources into logical branches
-    const quizUtms = utms.filter(u => !u.includes('masterclass') && !u.includes('youtube') && !u.includes('instagram'));
-    const masterclassUtms = utms.filter(u => u.includes('masterclass'));
-    const youtubeUtms = utms.filter(u => u.includes('youtube'));
-    const instagramUtms = utms.filter(u => u.includes('instagram'));
-
-    if (quizUtms.length > 0) result.push({ key: '__quiz__', label: 'Квиз' });
-    if (masterclassUtms.length > 0) result.push({ key: '__masterclass__', label: 'Прямая ссылка' });
-    if (youtubeUtms.length > 0) result.push({ key: '__youtube__', label: 'YouTube' });
-    if (instagramUtms.length > 0) result.push({ key: '__instagram__', label: 'Instagram' });
-
-    // Also add raw unique utm_sources if more than a few
-    for (const utm of utms) {
-      if (utm && !result.find(r => r.key === utm)) {
-        result.push({ key: utm, label: utm });
-      }
-    }
-
-    return result;
-  }, [events]);
-
   const [branch, setBranch] = useState('__all__');
 
-  const filteredEvents = useMemo(() => {
-    if (branch === '__all__') return events;
-    if (branch === '__quiz__') return events.filter(e => {
-      const u = e.utm_source || '';
-      return !u.includes('masterclass') && !u.includes('youtube') && !u.includes('instagram');
-    });
-    if (branch === '__masterclass__') return events.filter(e => (e.utm_source || '').includes('masterclass'));
-    if (branch === '__youtube__') return events.filter(e => (e.utm_source || '').includes('youtube'));
-    if (branch === '__instagram__') return events.filter(e => (e.utm_source || '').includes('instagram'));
-    return events.filter(e => e.utm_source === branch);
-  }, [events, branch]);
+  const filteredEvents = useMemo(() => filterByBranch(events, branch), [events, branch]);
 
   const funnelSteps = useMemo(() => buildFunnel(filteredEvents), [filteredEvents]);
 
@@ -218,7 +192,7 @@ export default function DashboardClient({ events }: { events: RawEvent[] }) {
     <>
       {/* Branch selector */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-        {branches.map(b => (
+        {BRANCHES.map(b => (
           <button
             key={b.key}
             onClick={() => setBranch(b.key)}
