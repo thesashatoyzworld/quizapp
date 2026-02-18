@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { trackEvent, registerFollowUp, getAdminChatId } from '@/lib/notion';
+import { trackEvent, registerFollowUp, getAdminChatId, hasBotStart } from '@/lib/notion';
 import { scheduleFollowUp } from '@/lib/qstash';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -82,6 +82,21 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'event_type is required' },
         { status: 400 }
       );
+    }
+
+    // BACKUP: если получили webapp_open с user_id, но нет bot_start — создаём bot_start
+    if (payload.event_type === 'webapp_open' && payload.user_id) {
+      const hasStart = await hasBotStart(payload.user_id);
+      if (!hasStart) {
+        console.log(`[Backup] Creating missing bot_start for user ${payload.user_id}`);
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: payload.user_id,
+          username: payload.username,
+          first_name: payload.first_name,
+          utm_source: payload.utm_source,
+        });
+      }
     }
 
     // Отправляем в Notion (все события)

@@ -198,7 +198,16 @@ async function notifyAdminError(errorMessage: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const text = await request.text();
+    const contentType = request.headers.get('content-type') || '';
+
+    let body: Record<string, unknown>;
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      const params = new URLSearchParams(text);
+      body = Object.fromEntries(params.entries());
+    } else {
+      body = JSON.parse(text);
+    }
 
     // Extract signature from body (Prodamus sends it as _signature field)
     const signature = body._signature || '';
