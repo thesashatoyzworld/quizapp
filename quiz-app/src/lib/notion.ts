@@ -110,6 +110,36 @@ export async function registerFollowUp(userId: number, resultId: string, usernam
   }
 }
 
+export async function getUserInfo(userId: number): Promise<{ username: string; first_name: string }> {
+  try {
+    const results = await notion.dataSources.query({
+      data_source_id: FOLLOWUP_DS_ID,
+      filter: { property: 'user_id', number: { equals: userId } },
+    });
+    if (results.results.length > 0) {
+      const props = (results.results[0] as Record<string, unknown>).properties as Record<string, unknown>;
+      const username = (props.username as { rich_text: Array<{ plain_text: string }> })?.rich_text?.[0]?.plain_text || '';
+      const first_name = (props.first_name as { rich_text: Array<{ plain_text: string }> })?.rich_text?.[0]?.plain_text || '';
+      if (username || first_name) return { username, first_name };
+    }
+    // Fallback: check Events DB for any event with this user_id
+    const evResults = await notion.dataSources.query({
+      data_source_id: EVENTS_DS_ID,
+      filter: { property: 'user_id', number: { equals: userId } },
+      page_size: 1,
+    });
+    if (evResults.results.length > 0) {
+      const props = (evResults.results[0] as Record<string, unknown>).properties as Record<string, unknown>;
+      const username = (props.username as { rich_text: Array<{ plain_text: string }> })?.rich_text?.[0]?.plain_text || '';
+      const first_name = (props.first_name as { rich_text: Array<{ plain_text: string }> })?.rich_text?.[0]?.plain_text || '';
+      return { username, first_name };
+    }
+  } catch (error) {
+    console.error(`Failed to get user info for ${userId}:`, error);
+  }
+  return { username: '', first_name: '' };
+}
+
 export async function getFollowUpUsername(userId: number): Promise<string> {
   try {
     const results = await notion.dataSources.query({
