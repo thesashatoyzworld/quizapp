@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { trackEvent, markFollowUpPaid, getAdminChatId } from '@/lib/notion';
+import { trackEvent, markFollowUpPaid, getAdminChatId, getUserInfo } from '@/lib/notion';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -304,12 +304,16 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true });
       }
 
+      const userInfo = await getUserInfo(tgUserId);
+
       await Promise.all([
         sendMaterialsToUser(tgUserId),
         notifyAdmin(tgUserId, resultId),
         trackEvent({
           event_type: 'payment_success',
           user_id: tgUserId,
+          username: userInfo.username,
+          first_name: userInfo.first_name,
           result_title: resultId,
           amount: 3450,
         }),
