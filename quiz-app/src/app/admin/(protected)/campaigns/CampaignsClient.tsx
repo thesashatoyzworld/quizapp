@@ -119,7 +119,7 @@ export default function CampaignsClient({ stats, campaigns: initial }: Props) {
   return (
     <div>
       {/* Funnel cards */}
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: '0', marginBottom: '32px', flexWrap: 'wrap', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', marginBottom: '32px', flexWrap: 'wrap', gap: '8px' }}>
         {steps.map((step, i) => (
           <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
