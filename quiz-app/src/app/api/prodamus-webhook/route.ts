@@ -6,17 +6,39 @@ const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const MASTERCLASS_CHANNEL_LINK = process.env.MASTERCLASS_CHANNEL_LINK;
 
-function sortObject(obj: Record<string, unknown>): Record<string, unknown> {
-  const sorted: Record<string, unknown> = {};
-  for (const key of Object.keys(obj).sort()) {
-    const val = obj[key];
-    if (val && typeof val === 'object' && !Array.isArray(val)) {
-      sorted[key] = sortObject(val as Record<string, unknown>);
-    } else {
-      sorted[key] = val;
+function sortDeep(val: unknown): unknown {
+  if (Array.isArray(val)) return val.map(sortDeep);
+  if (val && typeof val === 'object') {
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(val as Record<string, unknown>).sort()) {
+      sorted[key] = sortDeep((val as Record<string, unknown>)[key]);
     }
+    return sorted;
   }
-  return sorted;
+  return val;
+}
+
+// Parse form-urlencoded body into nested structure.
+// Prodamus sends products as products[0][name], products[0][price], etc.
+// URLSearchParams gives flat keys — we need to reconstruct the nested object.
+function parseFormNested(text: string): Record<string, unknown> {
+  const params = new URLSearchParams(text);
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of params.entries()) {
+    // Convert "products[0][name]" to path ["products", "0", "name"]
+    const parts = key.replace(/\[([^\]]*)\]/g, '.$1').split('.');
+    let cur: Record<string, unknown> = result;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      const next = parts[i + 1];
+      if (cur[part] === undefined) {
+        cur[part] = /^\d+$/.test(next) ? [] : {};
+      }
+      cur = cur[part] as Record<string, unknown>;
+    }
+    cur[parts[parts.length - 1]] = value;
+  }
+  return result;
 }
 
 function verifySignature(body: Record<string, unknown>, signature: string): boolean {
@@ -25,7 +47,7 @@ function verifySignature(body: Record<string, unknown>, signature: string): bool
     return false;
   }
 
-  const sorted = sortObject(body);
+  const sorted = sortDeep(body);
   const json = JSON.stringify(sorted);
   const hmac = crypto.createHmac('sha256', PRODAMUS_SECRET_KEY).update(json).digest('hex');
   return hmac === signature;
@@ -203,8 +225,7 @@ export async function POST(request: NextRequest) {
 
     let body: Record<string, unknown>;
     if (contentType.includes('application/x-www-form-urlencoded')) {
-      const params = new URLSearchParams(text);
-      body = Object.fromEntries(params.entries());
+      body = parseFormNested(text);
     } else {
       body = JSON.parse(text);
     }
