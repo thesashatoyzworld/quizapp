@@ -1,38 +1,45 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useEffect, Suspense } from 'react';
-
-const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
+import { useState, Suspense } from 'react';
 
 const ERROR_MESSAGES: Record<string, string> = {
-  missing: 'Данные авторизации отсутствуют.',
-  expired: 'Время авторизации истекло. Попробуйте снова.',
-  invalid: 'Неверная подпись авторизации.',
-  forbidden: 'Доступ запрещён.',
+  missing: 'Введите пароль.',
+  invalid: 'Неверный пароль.',
 };
 
 function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  useEffect(() => {
-    const container = document.getElementById('tg-login-container');
-    if (!container) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim()) return;
+    setLoading(true);
+    setErrorMsg('');
 
-    const script = document.createElement('script');
-    script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.setAttribute('data-telegram-login', 'testtoyzbot');
-    script.setAttribute('data-size', 'large');
-    script.setAttribute('data-auth-url', `${WEBAPP_URL}/api/admin/auth`);
-    script.setAttribute('data-request-access', 'write');
-    script.async = true;
-    container.appendChild(script);
+    try {
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
 
-    return () => {
-      if (container.contains(script)) container.removeChild(script);
-    };
-  }, []);
+      if (res.ok) {
+        window.location.href = '/admin/dashboard';
+      } else {
+        const data = await res.json();
+        setErrorMsg(ERROR_MESSAGES[data.error] || 'Ошибка авторизации.');
+        setLoading(false);
+      }
+    } catch {
+      setErrorMsg('Ошибка соединения.');
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{
@@ -74,10 +81,10 @@ function LoginContent() {
           fontSize: '0.875rem',
           marginBottom: '32px',
         }}>
-          Войдите через Telegram
+          Введите пароль
         </p>
 
-        {error && (
+        {(error || errorMsg) && (
           <div style={{
             background: 'rgba(255, 42, 109, 0.1)',
             border: '1px solid rgba(255, 42, 109, 0.3)',
@@ -87,11 +94,49 @@ function LoginContent() {
             fontSize: '0.875rem',
             marginBottom: '24px',
           }}>
-            {ERROR_MESSAGES[error] || 'Ошибка авторизации.'}
+            {errorMsg || ERROR_MESSAGES[error!] || 'Ошибка авторизации.'}
           </div>
         )}
 
-        <div id="tg-login-container" style={{ display: 'flex', justifyContent: 'center' }} />
+        <form onSubmit={handleSubmit}>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Пароль"
+            autoFocus
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              background: 'rgba(0, 240, 255, 0.05)',
+              border: '1px solid rgba(0, 240, 255, 0.2)',
+              borderRadius: '8px',
+              color: 'var(--text-primary)',
+              fontSize: '1rem',
+              outline: 'none',
+              marginBottom: '16px',
+              boxSizing: 'border-box',
+            }}
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              background: loading ? 'rgba(0, 240, 255, 0.2)' : 'rgba(0, 240, 255, 0.15)',
+              border: '1px solid rgba(0, 240, 255, 0.4)',
+              borderRadius: '8px',
+              color: 'var(--neon-cyan)',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              cursor: loading ? 'wait' : 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            {loading ? 'Вход...' : 'Войти'}
+          </button>
+        </form>
       </div>
     </div>
   );
