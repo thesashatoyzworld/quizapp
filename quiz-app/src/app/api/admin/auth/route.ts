@@ -1,41 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyTelegramAuth, isAdminUser, createSessionToken, TelegramAuthData } from '@/lib/admin-auth';
+import { createSessionToken } from '@/lib/admin-auth';
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  const password = body.password || '';
 
-  const authData: TelegramAuthData = {
-    id: searchParams.get('id') || '',
-    first_name: searchParams.get('first_name') || undefined,
-    last_name: searchParams.get('last_name') || undefined,
-    username: searchParams.get('username') || undefined,
-    photo_url: searchParams.get('photo_url') || undefined,
-    auth_date: searchParams.get('auth_date') || '',
-    hash: searchParams.get('hash') || '',
-  };
-
-  if (!authData.id || !authData.auth_date || !authData.hash) {
-    return NextResponse.redirect(new URL('/admin?error=missing', request.url));
+  if (!password) {
+    return NextResponse.json({ error: 'missing' }, { status: 400 });
   }
 
-  // Check auth_date is fresh (within 1 hour)
-  const authAge = Date.now() / 1000 - parseInt(authData.auth_date, 10);
-  if (authAge > 3600) {
-    return NextResponse.redirect(new URL('/admin?error=expired', request.url));
+  if (password !== process.env.ADMIN_PASSWORD) {
+    return NextResponse.json({ error: 'invalid' }, { status: 401 });
   }
 
-  if (!verifyTelegramAuth(authData)) {
-    return NextResponse.redirect(new URL('/admin?error=invalid', request.url));
-  }
+  const token = createSessionToken('admin');
 
-  if (!isAdminUser(authData.id, authData.username)) {
-    // Redirect with actual id for debugging
-    return NextResponse.redirect(new URL(`/admin?error=forbidden&uid=${authData.id}&un=${authData.username || ''}`, request.url));
-  }
-
-  const token = createSessionToken(authData.id);
-
-  const response = NextResponse.redirect(new URL('/admin/dashboard', request.url));
+  const response = NextResponse.json({ ok: true });
   response.cookies.set('admin_session', token, {
     httpOnly: true,
     sameSite: 'lax',
