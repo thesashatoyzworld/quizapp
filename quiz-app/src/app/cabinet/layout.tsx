@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './cabinet.css';
+import { PreviewProvider } from './PreviewContext';
+import PreviewBanner from './PreviewBanner';
 
 export const metadata: Metadata = {
   title: 'Кабинет | TheSasha',
@@ -12,16 +15,19 @@ export default function CabinetLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <div className="grid-bg" />
-      <div className="scanlines" />
-      <div className="glow-sphere glow-sphere-1" />
-      <div className="glow-sphere glow-sphere-2" />
-      <div className="cabinet-page">
-        <div className="cabinet-content">
-          {children}
+    <Suspense fallback={null}>
+      <PreviewProvider>
+        <div className="grid-bg" />
+        <div className="scanlines" />
+        <div className="glow-sphere glow-sphere-1" />
+        <div className="glow-sphere glow-sphere-2" />
+        <PreviewBanner />
+        <div className="cabinet-page">
+          <div className="cabinet-content">
+            {children}
+          </div>
         </div>
-      </div>
-    </>
+      </PreviewProvider>
+    </Suspense>
   );
 }

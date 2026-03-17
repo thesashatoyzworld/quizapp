@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useTelegram } from '@/hooks/useTelegram';
+import { usePreview, resolveAccess } from '../PreviewContext';
 import CabinetNav from '../CabinetNav';
 
 interface MetodichkaData {
@@ -20,14 +21,17 @@ interface MetodichkaData {
 
 export default function MetodichkiPage() {
   const { userId, isReady, webApp } = useTelegram();
+  const { previewMode, isPreview } = usePreview();
   const [metodichki, setMetodichki] = useState<MetodichkaData[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const previewQs = previewMode ? `?preview=${previewMode}` : '';
 
   useEffect(() => {
     if (!isReady) return;
 
     // Track section view
-    if (userId) {
+    if (userId && !isPreview) {
       fetch('/api/cabinet/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,13 +61,14 @@ export default function MetodichkiPage() {
     }
 
     fetchMetodichki();
-  }, [userId, isReady]);
+  }, [userId, isReady, isPreview]);
 
   const handleItemClick = useCallback((item: MetodichkaData) => {
-    if (!item.hasAccess || !item.url) return;
+    const hasAccess = resolveAccess(item, previewMode);
+    if (!hasAccess || !item.url) return;
 
     // Track view
-    if (userId) {
+    if (userId && !isPreview) {
       fetch('/api/cabinet/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,12 +84,14 @@ export default function MetodichkiPage() {
       }).catch(() => {});
     }
 
+    if (isPreview) return;
+
     if (webApp) {
       webApp.openLink(item.url);
     } else {
       window.open(item.url, '_blank');
     }
-  }, [userId, webApp]);
+  }, [userId, webApp, previewMode, isPreview]);
 
   if (!isReady || loading) {
     return (
@@ -98,13 +105,12 @@ export default function MetodichkiPage() {
     );
   }
 
-  const freeCount = metodichki.filter(m => m.isFree).length;
-  const accessibleCount = metodichki.filter(m => m.hasAccess).length;
+  const accessibleCount = metodichki.filter(m => resolveAccess(m, previewMode)).length;
 
   return (
     <>
-      <Link href="/cabinet" className="cabinet-back animate-1">
-        {'<'} Назад
+      <Link href={`/cabinet${previewQs}`} className="cabinet-back animate-1">
+        {'\u2190'} Назад
       </Link>
 
       <h1 className="cabinet-page-title animate-1">Методички</h1>
@@ -112,65 +118,68 @@ export default function MetodichkiPage() {
       <div className="cabinet-metodichki-intro animate-2">
         Пошаговые гайды и фреймворки для работы с контентом, аудиторией и продажами.
         {accessibleCount < metodichki.length && (
-          <> {freeCount} из {metodichki.length} доступно бесплатно.</>
+          <> {accessibleCount} из {metodichki.length} доступно.</>
         )}
       </div>
 
       <div className="animate-3">
-        {metodichki.map((item) => (
-          <div
-            key={item.id}
-            className={`cabinet-metodichka-card ${!item.hasAccess ? 'cabinet-metodichka-card--locked' : ''}`}
-            onClick={() => handleItemClick(item)}
-          >
-            {/* Header row */}
-            <div className="cabinet-metodichka-header">
-              <div className="cabinet-metodichka-title">
-                {item.title}
-                {item.isFree && (
-                  <span className="cabinet-badge cabinet-badge--free">FREE</span>
+        {metodichki.map((item) => {
+          const hasAccess = resolveAccess(item, previewMode);
+          return (
+            <div
+              key={item.id}
+              className={`cabinet-metodichka-card ${!hasAccess ? 'cabinet-metodichka-card--locked' : ''}`}
+              onClick={() => handleItemClick(item)}
+            >
+              {/* Header row */}
+              <div className="cabinet-metodichka-header">
+                <div className="cabinet-metodichka-title">
+                  {item.title}
+                  {item.isFree && (
+                    <span className="cabinet-badge cabinet-badge--free">FREE</span>
+                  )}
+                </div>
+                {hasAccess ? (
+                  <span className="cabinet-material-arrow">{'\u203A'}</span>
+                ) : (
+                  <span className="cabinet-lock-icon">{'\u{1F512}'}</span>
                 )}
               </div>
-              {item.hasAccess ? (
-                <span className="cabinet-material-arrow">{'\u203A'}</span>
-              ) : (
-                <span className="cabinet-lock-icon">{'\u{1F512}'}</span>
-              )}
-            </div>
 
-            {/* Description */}
-            <div className="cabinet-metodichka-desc">{item.description}</div>
+              {/* Description */}
+              <div className="cabinet-metodichka-desc">{item.description}</div>
 
-            {/* Meta row */}
-            <div className="cabinet-metodichka-meta">
-              <span className="cabinet-metodichka-meta-item">
-                {item.stepsCount} шагов
-              </span>
-              <span className="cabinet-metodichka-meta-divider">{'\u00B7'}</span>
-              <span className="cabinet-metodichka-meta-item">
-                {item.estimatedTime}
-              </span>
-            </div>
-
-            {/* Tags */}
-            <div className="cabinet-metodichka-tags">
-              {item.tags.map((tag) => (
-                <span key={tag} className="cabinet-metodichka-tag">
-                  {tag}
+              {/* Meta row */}
+              <div className="cabinet-metodichka-meta">
+                <span className="cabinet-metodichka-meta-item">
+                  {item.stepsCount} шагов
                 </span>
-              ))}
-            </div>
-
-            {/* Locked overlay */}
-            {!item.hasAccess && (
-              <div className="cabinet-locked-overlay">
-                <span className="cabinet-locked-overlay-text">
-                  Доступно в программе
+                <span className="cabinet-metodichka-meta-divider">{'\u00B7'}</span>
+                <span className="cabinet-metodichka-meta-item">
+                  {item.estimatedTime}
                 </span>
               </div>
-            )}
-          </div>
-        ))}
+
+              {/* Tags */}
+              <div className="cabinet-metodichka-tags">
+                {item.tags.map((tag) => (
+                  <span key={tag} className="cabinet-metodichka-tag">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              {/* Locked overlay */}
+              {!hasAccess && (
+                <div className="cabinet-locked-overlay">
+                  <span className="cabinet-locked-overlay-text">
+                    Доступно в программе
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Upgrade CTA */}

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTelegram } from '@/hooks/useTelegram';
+import { usePreview } from '../PreviewContext';
 import CabinetNav from '../CabinetNav';
 
 interface Announcement {
@@ -29,15 +30,18 @@ function formatDate(dateStr: string): string {
 
 export default function AnnouncementsPage() {
   const { userId, isReady } = useTelegram();
+  const { previewMode, isPreview } = usePreview();
   const router = useRouter();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const previewQs = previewMode ? `?preview=${previewMode}` : '';
 
   useEffect(() => {
     if (!isReady) return;
 
     // Track section view
-    if (userId) {
+    if (userId && !isPreview) {
       fetch('/api/cabinet/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -64,7 +68,7 @@ export default function AnnouncementsPage() {
     }
 
     fetchAnnouncements();
-  }, [userId, isReady]);
+  }, [userId, isReady, isPreview]);
 
   if (!isReady || loading) {
     return (
@@ -80,8 +84,8 @@ export default function AnnouncementsPage() {
 
   return (
     <>
-      <Link href="/cabinet" className="cabinet-back animate-1">
-        {'<'} Назад
+      <Link href={`/cabinet${previewQs}`} className="cabinet-back animate-1">
+        {'\u2190'} Назад
       </Link>
 
       <h1 className="cabinet-page-title animate-1">Анонсы</h1>
@@ -104,7 +108,9 @@ export default function AnnouncementsPage() {
               {ann.actionText && ann.actionUrl && (
                 <button
                   className="cabinet-announcement-action"
-                  onClick={() => router.push(ann.actionUrl!)}
+                  onClick={() => {
+                    if (!isPreview) router.push(ann.actionUrl!);
+                  }}
                 >
                   {ann.actionText} {'\u2192'}
                 </button>

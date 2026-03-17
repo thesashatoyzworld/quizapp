@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useTelegram } from '@/hooks/useTelegram';
+import { usePreview, resolveAccess } from '../PreviewContext';
 import CabinetNav from '../CabinetNav';
 
 interface CatalogItem {
@@ -37,15 +38,18 @@ function getMaterialIcon(type: string): string {
 
 export default function MaterialsPage() {
   const { userId, isReady, webApp } = useTelegram();
+  const { previewMode, isPreview } = usePreview();
   const [sections, setSections] = useState<CatalogSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
+  const previewQs = previewMode ? `?preview=${previewMode}` : '';
+
   useEffect(() => {
     if (!isReady) return;
 
-    // Track section view
-    if (userId) {
+    // Track section view (skip in preview mode)
+    if (userId && !isPreview) {
       fetch('/api/cabinet/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -66,10 +70,9 @@ export default function MaterialsPage() {
         const data = await res.json();
         if (data.success) {
           setSections(data.sections);
-          // Auto-expand free section
-          const freeSection = data.sections.find((s: CatalogSection) => s.id === 'free-materials');
-          if (freeSection) {
-            setExpandedSections(new Set([freeSection.id]));
+          // Auto-expand first section
+          if (data.sections.length > 0) {
+            setExpandedSections(new Set([data.sections[0].id]));
           }
         }
       } catch (error) {
@@ -80,7 +83,7 @@ export default function MaterialsPage() {
     }
 
     fetchCatalog();
-  }, [userId, isReady]);
+  }, [userId, isReady, isPreview]);
 
   const toggleSection = useCallback((sectionId: string) => {
     setExpandedSections(prev => {
@@ -95,10 +98,11 @@ export default function MaterialsPage() {
   }, []);
 
   const handleItemClick = useCallback((item: CatalogItem) => {
-    if (!item.hasAccess || !item.url) return;
+    const hasAccess = resolveAccess(item, previewMode);
+    if (!hasAccess || !item.url) return;
 
     // Track material view
-    if (userId) {
+    if (userId && !isPreview) {
       fetch('/api/cabinet/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,6 +118,9 @@ export default function MaterialsPage() {
       }).catch(() => {});
     }
 
+    // In preview mode, don't actually open links
+    if (isPreview) return;
+
     // Open the URL
     if (item.type === 'telegram_group' && webApp) {
       webApp.openTelegramLink(item.url);
@@ -122,7 +129,7 @@ export default function MaterialsPage() {
     } else {
       window.open(item.url, '_blank');
     }
-  }, [userId, webApp]);
+  }, [userId, webApp, previewMode, isPreview]);
 
   if (!isReady || loading) {
     return (
@@ -136,18 +143,16 @@ export default function MaterialsPage() {
     );
   }
 
-  const totalFree = sections.reduce(
-    (sum, s) => sum + s.items.filter(i => i.isFree).length, 0
-  );
-  const totalAccessible = sections.reduce(
-    (sum, s) => sum + s.items.filter(i => i.hasAccess).length, 0
-  );
+  // Compute counts with preview mode awareness
   const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
+  const totalAccessible = sections.reduce(
+    (sum, s) => sum + s.items.filter(i => resolveAccess(i, previewMode)).length, 0
+  );
 
   return (
     <>
-      <Link href="/cabinet" className="cabinet-back animate-1">
-        {'<'} Назад
+      <Link href={`/cabinet${previewQs}`} className="cabinet-back animate-1">
+        {'\u2190'} Назад
       </Link>
 
       <h1 className="cabinet-page-title animate-1">Материалы</h1>
@@ -168,7 +173,7 @@ export default function MaterialsPage() {
       <div className="animate-3">
         {sections.map((section) => {
           const isExpanded = expandedSections.has(section.id);
-          const accessibleCount = section.items.filter(i => i.hasAccess).length;
+          const sectionAccessible = section.items.filter(i => resolveAccess(i, previewMode)).length;
           const isFreeSection = section.id === 'free-materials';
 
           return (
@@ -180,9 +185,9 @@ export default function MaterialsPage() {
                 <div className="cabinet-product-header-info">
                   <span className="cabinet-product-name">{section.name}</span>
                   <span className="cabinet-product-count">
-                    {accessibleCount === section.items.length
+                    {sectionAccessible === section.items.length
                       ? `${section.items.length} материалов`
-                      : `${accessibleCount} из ${section.items.length} доступно`
+                      : `${sectionAccessible} из ${section.items.length} доступно`
                     }
                   </span>
                 </div>
@@ -193,36 +198,39 @@ export default function MaterialsPage() {
 
               {isExpanded && (
                 <div className="cabinet-materials-list">
-                  {section.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`cabinet-material-item ${!item.hasAccess ? 'cabinet-material-item--locked' : ''}`}
-                      onClick={() => handleItemClick(item)}
-                    >
-                      <span className="cabinet-material-icon">
-                        {getMaterialIcon(item.type)}
-                      </span>
-                      <div className="cabinet-material-info">
-                        <div className="cabinet-material-title">
-                          {item.title}
-                          {item.isFree && (
-                            <span className="cabinet-badge cabinet-badge--free">FREE</span>
+                  {section.items.map((item) => {
+                    const hasAccess = resolveAccess(item, previewMode);
+                    return (
+                      <div
+                        key={item.id}
+                        className={`cabinet-material-item ${!hasAccess ? 'cabinet-material-item--locked' : ''}`}
+                        onClick={() => handleItemClick(item)}
+                      >
+                        <span className="cabinet-material-icon">
+                          {getMaterialIcon(item.type)}
+                        </span>
+                        <div className="cabinet-material-info">
+                          <div className="cabinet-material-title">
+                            {item.title}
+                            {item.isFree && (
+                              <span className="cabinet-badge cabinet-badge--free">FREE</span>
+                            )}
+                          </div>
+                          {item.description && (
+                            <div className="cabinet-material-desc">{item.description}</div>
                           )}
                         </div>
-                        {item.description && (
-                          <div className="cabinet-material-desc">{item.description}</div>
+                        {hasAccess ? (
+                          <span className="cabinet-material-arrow">{'\u203A'}</span>
+                        ) : (
+                          <span className="cabinet-lock-icon">{'\u{1F512}'}</span>
                         )}
                       </div>
-                      {item.hasAccess ? (
-                        <span className="cabinet-material-arrow">{'\u203A'}</span>
-                      ) : (
-                        <span className="cabinet-lock-icon">{'\u{1F512}'}</span>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {/* CTA for locked sections */}
-                  {accessibleCount < section.items.length && !isFreeSection && (
+                  {sectionAccessible < section.items.length && !isFreeSection && (
                     <div className="cabinet-paywall-cta">
                       <div className="cabinet-paywall-text">
                         Получите доступ ко всем материалам
@@ -240,7 +248,7 @@ export default function MaterialsPage() {
       </div>
 
       {/* Global CTA for free users */}
-      {totalAccessible <= totalFree && (
+      {totalAccessible < totalItems && (
         <div className="cabinet-upgrade-banner animate-4">
           <div className="cabinet-upgrade-title">Хотите больше?</div>
           <div className="cabinet-upgrade-text">

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { usePreview } from './PreviewContext';
 
 const navItems = [
   { href: '/cabinet', icon: '\u2302', label: 'Главная' },
@@ -13,6 +14,8 @@ const navItems = [
 
 export default function CabinetNav() {
   const pathname = usePathname();
+  const { previewMode } = usePreview();
+  const previewQs = previewMode ? `?preview=${previewMode}` : '';
 
   return (
     <nav className="cabinet-nav">
@@ -21,7 +24,7 @@ export default function CabinetNav() {
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={`${item.href}${previewQs}`}
             className={`cabinet-nav-item ${isActive ? 'active' : ''}`}
           >
             <span className="cabinet-nav-icon">{item.icon}</span>

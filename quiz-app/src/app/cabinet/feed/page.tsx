@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTelegram } from '@/hooks/useTelegram';
+import { usePreview } from '../PreviewContext';
 import CabinetNav from '../CabinetNav';
 
 interface ConnectorPost {
@@ -55,15 +56,18 @@ function formatDate(dateStr: string): string {
 
 export default function FeedPage() {
   const { userId, isReady } = useTelegram();
+  const { previewMode, isPreview, isClientPreview } = usePreview();
   const [posts, setPosts] = useState<ConnectorPost[]>([]);
   const [feed, setFeed] = useState<FeedData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const previewQs = previewMode ? `?preview=${previewMode}` : '';
 
   useEffect(() => {
     if (!isReady) return;
 
     // Track section view
-    if (userId) {
+    if (userId && !isPreview) {
       fetch('/api/cabinet/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,8 +88,16 @@ export default function FeedPage() {
           setPosts(postsData.posts);
         }
 
-        // Fetch personalized feed if user has quiz result
-        if (userId) {
+        // For preview mode, provide mock archetype feed
+        if (isPreview) {
+          const archetype = isClientPreview ? 'doer' : 'invisible';
+          const feedRes = await fetch(`/api/cabinet/feed?archetype=${archetype}`);
+          const feedData = await feedRes.json();
+          if (feedData.success) {
+            setFeed(feedData.feed);
+          }
+        } else if (userId) {
+          // Fetch personalized feed if user has quiz result
           const userRes = await fetch(`/api/cabinet/user?telegramId=${userId}`);
           const userData = await userRes.json();
 
@@ -105,7 +117,7 @@ export default function FeedPage() {
     }
 
     fetchData();
-  }, [userId, isReady]);
+  }, [userId, isReady, isPreview, isClientPreview]);
 
   if (!isReady || loading) {
     return (
@@ -121,8 +133,8 @@ export default function FeedPage() {
 
   return (
     <>
-      <Link href="/cabinet" className="cabinet-back animate-1">
-        {'<'} Назад
+      <Link href={`/cabinet${previewQs}`} className="cabinet-back animate-1">
+        {'\u2190'} Назад
       </Link>
 
       <h1 className="cabinet-page-title animate-1">Лента Коннектора</h1>
@@ -182,7 +194,7 @@ export default function FeedPage() {
       )}
 
       {/* No quiz result prompt */}
-      {!feed && (
+      {!feed && !isPreview && (
         <div className="animate-3" style={{ marginTop: 'var(--space-lg)' }}>
           <div className="cabinet-section-title">Персональные рекомендации</div>
           <div className="cabinet-empty">
