@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ═══════════════════════════════════════
+// ПОЛЬЗОВАТЕЛИ
+// ═══════════════════════════════════════
+
+model User {
+  id           String   @id @default(uuid())
+  telegramId   BigInt   @unique @map("telegram_id")
+  username     String?
+  firstName    String?  @map("first_name")
+  quizResult   String?  @map("quiz_result")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  purchases    Purchase[]
+  events       Event[]
+
+  @@map("users")
+}
+
+// ═══════════════════════════════════════
+// ПРОДУКТЫ И ДОСТУП
+// ═══════════════════════════════════════
+
+model Product {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  price       Int
+  type        String   @default("one_time")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  materials   Material[]
+  purchases   Purchase[]
+
+  @@map("products")
+}
+
+model Purchase {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id])
+  productId       String   @map("product_id")
+  product         Product  @relation(fields: [productId], references: [id])
+  amount          Int
+  source          String?
+  utmSource       String?  @map("utm_source")
+  utmMedium       String?  @map("utm_medium")
+  utmCampaign     String?  @map("utm_campaign")
+  prodamusOrderId String?  @map("prodamus_order_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("purchases")
+}
+
+model Material {
+  id          String   @id @default(uuid())
+  productId   String   @map("product_id")
+  product     Product  @relation(fields: [productId], references: [id])
+  title       String
+  description String?
+  type        String
+  url         String
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("materials")
+}
+
+// ═══════════════════════════════════════
+// СОБЫТИЯ (АНАЛИТИКА)
+// ═══════════════════════════════════════
+
+model Event {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+  user        User?    @relation(fields: [userId], references: [id])
+  telegramId  BigInt?  @map("telegram_id")
+  type        String
+  source      String   @default("thesasha")
+  funnel      String?
+  productSlug String?  @map("product_slug")
+  utmSource   String?  @map("utm_source")
+  utmMedium   String?  @map("utm_medium")
+  utmCampaign String?  @map("utm_campaign")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([type])
+  @@index([source])
+  @@index([telegramId])
+  @@index([createdAt])
+  @@map("events")
+}
+
+// ═══════════════════════════════════════
+// ФОЛЛОУ-АП ОЧЕРЕДЬ
+// ═══════════════════════════════════════
+
+model FollowUp {
+  id           String    @id @default(uuid())
+  telegramId   BigInt    @map("telegram_id")
+  username     String?
+  resultId     String?   @map("result_id")
+  messagesSent Int       @default(0) @map("messages_sent")
+  lastSentAt   DateTime? @map("last_sent_at")
+  paid         Boolean   @default(false)
+  registeredAt DateTime  @default(now()) @map("registered_at")
+
+  @@unique([telegramId])
+  @@map("follow_ups")
+}
+
+// ═══════════════════════════════════════
+// СПРИНТ ВЕЙТЛИСТ
+// ═══════════════════════════════════════
+
+model SprintWaitlist {
+  id           Int      @id @default(autoincrement())
+  telegramId   String?  @map("telegram_id")
+  name         String
+  telegram     String
+  occupation   String
+  hasSite      String   @map("has_site")
+  needs        String[]
+  aiExperience String   @map("ai_experience")
+  source       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("sprint_waitlist")
+}

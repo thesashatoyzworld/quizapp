@@ -61,6 +61,43 @@ export async function POST(request: NextRequest) {
       // Debug logging
       console.log('Webhook received:', { text: update.message.text, startParam });
 
+      // Sprint waitlist deep link
+      if (startParam === 'sprint') {
+        const sprintUrl = `${WEBAPP_URL}/sprint`;
+        const sprintText = `Привет, ${firstName}! 🔥
+
+<b>Спринт: Собери digital-систему за день</b>
+
+8 часов в Zoom → уходишь с рабочим сайтом, формой заявок и уведомлениями в Telegram.
+
+А потом сам меняешь что угодно — голосом, без программиста.
+
+Заполни анкету — расскажу детали 👇`;
+
+        const sprintMarkup = {
+          inline_keyboard: [
+            [
+              {
+                text: '📋 Заполнить анкету',
+                web_app: { url: sprintUrl },
+              },
+            ],
+          ],
+        };
+
+        await sendMessage(chatId, sprintText, sprintMarkup);
+
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'sprint',
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
       // Special handling for masterclass deep link
       if (startParam === 'masterclass' || startParam === 'buy_mc') {
         console.log('Masterclass flow triggered!');
