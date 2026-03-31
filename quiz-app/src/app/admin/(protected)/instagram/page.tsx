@@ -7,7 +7,7 @@ export type IgKeywordData = {
   replyText: string;
   active: boolean;
   createdAt: string;
-  _count: { replies: number };
+  replyCount: number;
 };
 
 export type IgReplyData = {
@@ -35,24 +35,65 @@ export type IgStats = {
 };
 
 export default async function InstagramPage() {
-  const [keywords, replies, logs, totalReplies, successReplies, activeKeywords] = await Promise.all([
-    prisma.igKeyword.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { replies: true } } },
-    }),
-    prisma.igReply.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      include: { keyword: { select: { keyword: true } } },
-    }),
-    prisma.igWebhookLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 30,
-    }),
-    prisma.igReply.count(),
-    prisma.igReply.count({ where: { replySent: true } }),
-    prisma.igKeyword.count({ where: { active: true } }),
-  ]);
+  let keywordsRaw, repliesRaw, logsRaw, totalReplies, successReplies, activeKeywords;
+
+  try {
+    [keywordsRaw, repliesRaw, logsRaw, totalReplies, successReplies, activeKeywords] = await Promise.all([
+      prisma.igKeyword.findMany({ orderBy: { createdAt: 'desc' } }),
+      prisma.igReply.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: { keyword: { select: { keyword: true } } },
+      }),
+      prisma.igWebhookLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+      }),
+      prisma.igReply.count(),
+      prisma.igReply.count({ where: { replySent: true } }),
+      prisma.igKeyword.count({ where: { active: true } }),
+    ]);
+  } catch (e) {
+    console.error('[Instagram page] DB error:', e);
+    return (
+      <div>
+        <h1 style={{ color: 'var(--text-primary)' }}>Instagram Auto-Reply</h1>
+        <p style={{ color: '#ff4444' }}>Database error: {String(e)}</p>
+      </div>
+    );
+  }
+
+  // Count replies per keyword
+  const replyCountMap = new Map<number, number>();
+  for (const r of repliesRaw) {
+    replyCountMap.set(r.keywordId, (replyCountMap.get(r.keywordId) || 0) + 1);
+  }
+
+  const keywords: IgKeywordData[] = keywordsRaw.map(kw => ({
+    id: kw.id,
+    keyword: kw.keyword,
+    replyText: kw.replyText,
+    active: kw.active,
+    createdAt: kw.createdAt.toISOString(),
+    replyCount: replyCountMap.get(kw.id) || 0,
+  }));
+
+  const replies: IgReplyData[] = repliesRaw.map(r => ({
+    id: r.id,
+    commentId: r.commentId,
+    igUsername: r.igUsername,
+    commentText: r.commentText,
+    replySent: r.replySent,
+    error: r.error,
+    createdAt: r.createdAt.toISOString(),
+    keyword: r.keyword,
+  }));
+
+  const logs: IgLogData[] = logsRaw.map(l => ({
+    id: l.id,
+    payload: l.payload,
+    createdAt: l.createdAt.toISOString(),
+  }));
 
   const stats: IgStats = {
     totalReplies,
@@ -73,9 +114,9 @@ export default async function InstagramPage() {
       </div>
 
       <InstagramClient
-        initialKeywords={JSON.parse(JSON.stringify(keywords))}
-        initialReplies={JSON.parse(JSON.stringify(replies))}
-        initialLogs={JSON.parse(JSON.stringify(logs))}
+        initialKeywords={keywords}
+        initialReplies={replies}
+        initialLogs={logs}
         initialStats={stats}
       />
     </div>

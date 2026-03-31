@@ -314,7 +314,7 @@ export default function InstagramClient({ initialKeywords, initialReplies, initi
                 <td style={{ ...tdStyle, maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {kw.replyText}
                 </td>
-                <td style={tdStyle}>{kw._count.replies}</td>
+                <td style={tdStyle}>{kw.replyCount}</td>
                 <td style={tdStyle}>
                   <span style={{
                     padding: '2px 8px',

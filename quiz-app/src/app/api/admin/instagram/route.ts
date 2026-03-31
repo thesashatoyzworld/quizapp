@@ -12,9 +12,18 @@ export async function GET(request: NextRequest) {
   if (tab === 'keywords') {
     const keywords = await prisma.igKeyword.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { replies: true } } },
     });
-    return NextResponse.json({ keywords });
+    // Count replies per keyword
+    const replyCounts = await prisma.igReply.groupBy({
+      by: ['keywordId'],
+      _count: true,
+    });
+    const countMap = new Map(replyCounts.map(r => [r.keywordId, r._count]));
+    const result = keywords.map(kw => ({
+      ...kw,
+      replyCount: countMap.get(kw.id) || 0,
+    }));
+    return NextResponse.json({ keywords: result });
   }
 
   if (tab === 'replies') {
