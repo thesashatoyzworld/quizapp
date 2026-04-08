@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
+import { notifyAdmin } from '@/lib/telegram';
+import { prisma } from '@/lib/prisma';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
@@ -14,6 +16,20 @@ interface TelegramUpdate {
       first_name?: string;
       last_name?: string;
       username?: string;
+    };
+  };
+  callback_query?: {
+    id: string;
+    data?: string;
+    from: {
+      id: number;
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+    };
+    message?: {
+      chat: { id: number };
+      message_id: number;
     };
   };
 }
@@ -43,9 +59,107 @@ async function sendMessage(chatId: number, text: string, replyMarkup?: object) {
   return result;
 }
 
+async function answerCallbackQuery(callbackQueryId: string, text?: string) {
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`;
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      callback_query_id: callbackQueryId,
+      text,
+      show_alert: false,
+    }),
+  });
+}
+
+async function editMessageText(chatId: number, messageId: number, text: string) {
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`;
+  await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'HTML',
+    }),
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const update: TelegramUpdate = await request.json();
+
+    // Handle inline button callbacks
+    if (update.callback_query) {
+      const cb = update.callback_query;
+      const data = cb.data || '';
+
+      // Masterclass SYNC waitlist join
+      if (data === 'mcsync_join' && cb.message) {
+        const tgUserId = cb.from.id;
+        const username = cb.from.username || null;
+        const firstName = cb.from.first_name || null;
+        const lastName = cb.from.last_name || null;
+        const chatId = cb.message.chat.id;
+        const messageId = cb.message.message_id;
+
+        try {
+          const existing = await prisma.masterclassSyncWaitlist.findUnique({
+            where: { telegramId: BigInt(tgUserId) },
+          });
+
+          if (existing) {
+            await answerCallbackQuery(cb.id, 'Ты уже в списке ✓');
+            await editMessageText(
+              chatId,
+              messageId,
+              `Ты уже в листе ожидания ✓\n\nКак только появятся новости — напишу первым.`
+            );
+          } else {
+            await prisma.masterclassSyncWaitlist.create({
+              data: {
+                telegramId: BigInt(tgUserId),
+                username,
+                firstName,
+                lastName,
+              },
+            });
+
+            await answerCallbackQuery(cb.id, 'Ты в списке ✓');
+            await editMessageText(
+              chatId,
+              messageId,
+              `Готово ⚡\n\nТы в листе ожидания мастеркласса <b>SYNC</b>.\n\nКак только появятся даты и детали — напишу первым.`
+            );
+
+            await notifyAdmin(
+              `📌 <b>Новая запись в waitlist SYNC</b>\n\n` +
+              `👤 ${[firstName, lastName].filter(Boolean).join(' ') || '—'}\n` +
+              `💬 ${username ? '@' + username : 'без username'}\n` +
+              `🆔 <code>${tgUserId}</code>`
+            );
+
+            await trackEvent({
+              event_type: 'masterclasssync_waitlist_join',
+              user_id: tgUserId,
+              username: username || undefined,
+              first_name: firstName || undefined,
+              utm_source: 'masterclasssync',
+            });
+          }
+        } catch (err) {
+          console.error('mcsync_join error:', err);
+          await answerCallbackQuery(cb.id, 'Что-то пошло не так, попробуй ещё раз');
+        }
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Unknown callback — just ack
+      await answerCallbackQuery(cb.id);
+      return NextResponse.json({ ok: true });
+    }
 
     // Handle /start command (with or without parameters)
     if (update.message?.text?.startsWith('/start')) {
@@ -93,6 +207,40 @@ export async function POST(request: NextRequest) {
           username: username || undefined,
           first_name: fullName || undefined,
           utm_source: 'sprint',
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Masterclass SYNC waitlist deep link
+      if (startParam === 'masterclasssync') {
+        const mcsyncText = `Привет, ${firstName}! ⚡
+
+<b>Мастеркласс SYNC</b>
+
+[Описание мастеркласса появится позже]
+
+Запишись в лист ожидания — напишу первым, когда откроются места и появятся детали 👇`;
+
+        const mcsyncMarkup = {
+          inline_keyboard: [
+            [
+              {
+                text: '📌 Записаться в лист ожидания',
+                callback_data: 'mcsync_join',
+              },
+            ],
+          ],
+        };
+
+        await sendMessage(chatId, mcsyncText, mcsyncMarkup);
+
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'masterclasssync',
         });
 
         return NextResponse.json({ ok: true });

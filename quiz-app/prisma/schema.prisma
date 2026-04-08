@@ -137,3 +137,18 @@ model SprintWaitlist {
 
   @@map("sprint_waitlist")
 }
+
+// ═══════════════════════════════════════
+// МАСТЕРКЛАСС SYNC ВЕЙТЛИСТ
+// ═══════════════════════════════════════
+
+model MasterclassSyncWaitlist {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique @map("telegram_id")
+  username   String?
+  firstName  String?  @map("first_name")
+  lastName   String?  @map("last_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("masterclass_sync_waitlist")
+}
