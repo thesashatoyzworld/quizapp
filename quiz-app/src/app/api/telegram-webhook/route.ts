@@ -246,6 +246,28 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // МК Синхронизация deep link
+      if (startParam === 'sync_mk') {
+        const mkSyncUrl = 'https://thesashatoyz.com/sync/mk';
+        const syncText = `Привет, ${firstName}!
+
+<b>МК «Синхронизация» — 27 апреля, 17:00 МСК</b>
+
+За 2 часа уберём шум, найдём ваше «хочу» — фундамент, на котором собирается проект всей жизни.
+
+2 450 ₽ (первые 10 мест) → потом 3 450 ₽
+Запись + методичка навсегда.`;
+
+        const syncMarkup = {
+          inline_keyboard: [
+            [{ text: 'Открыть лендинг', web_app: { url: mkSyncUrl } }],
+          ],
+        };
+
+        await sendMessage(chatId, syncText, syncMarkup);
+        return NextResponse.json({ ok: true });
+      }
+
       // Special handling for masterclass deep link
       if (startParam === 'masterclass' || startParam === 'buy_mc') {
         console.log('Masterclass flow triggered!');
