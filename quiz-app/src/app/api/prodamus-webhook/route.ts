@@ -320,13 +320,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Track in Notion
-      await trackEvent({
-        event_type: 'sync_mk_payment',
-        result_title: productName,
-        amount: parseInt(String(amount), 10) || 0,
-      });
-
       console.log(`[Prodamus Webhook] Sync MK payment: ${productName}, ${amount} rub, contact: ${contact}`);
     } else if (isConnectors) {
       // Connectors payment: order_id format "conn_userId_tier_resultId"
