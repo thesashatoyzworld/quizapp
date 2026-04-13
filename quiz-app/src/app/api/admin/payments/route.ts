@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/admin-auth';
-import { Client } from '@notionhq/client';
-
-const notion = new Client({ auth: process.env.NOTION_API_KEY });
-const EVENTS_DB_ID = process.env.NOTION_EVENTS_DB_ID!;
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   const session = await getAdminSession();
@@ -12,25 +9,25 @@ export async function GET(request: NextRequest) {
   void request;
 
   try {
-    const response = await notion.dataSources.query({
-      data_source_id: EVENTS_DB_ID,
-      filter: {
-        property: 'event_type',
-        title: { equals: 'payment_success' },
+    const purchases = await prisma.purchase.findMany({
+      include: {
+        user: true,
+        product: true,
       },
-      page_size: 100,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
     });
 
-    const payments = (response.results as any[]).map((p) => ({
-      id: p.id as string,
-      timestamp: (p.properties.timestamp?.date?.start as string) || '',
-      username: (p.properties.username?.rich_text?.[0]?.plain_text as string) || '',
-      first_name: (p.properties.first_name?.rich_text?.[0]?.plain_text as string) || '',
-      user_id: p.properties.user_id?.number as number | null,
-      result_id: (p.properties.result_id?.rich_text?.[0]?.plain_text as string) || '',
-      amount: (p.properties.amount?.number as number) ?? 0,
-      utm_source: (p.properties.utm_source?.rich_text?.[0]?.plain_text as string) || '',
-    })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const payments = purchases.map((p) => ({
+      id: p.id,
+      timestamp: p.createdAt.toISOString(),
+      user_id: Number(p.user.telegramId) || null,
+      product: p.product.name,
+      product_slug: p.product.slug,
+      amount: p.amount,
+      source: p.source || '',
+      order_id: p.prodamusOrderId || '',
+    }));
 
     const total = payments.reduce((sum, p) => sum + p.amount, 0);
 

@@ -63,14 +63,12 @@ async function createPurchase(tgUserId: number, productSlug: string, amount: num
       update: {},
     });
 
-    // Find product
-    const product = await prisma.product.findUnique({
+    // Find or create product
+    const product = await prisma.product.upsert({
       where: { slug: productSlug },
+      create: { slug: productSlug, name: productSlug, price: amount },
+      update: {},
     });
-    if (!product) {
-      console.error(`[Supabase] Product not found: ${productSlug}`);
-      return;
-    }
 
     // Create purchase
     await prisma.purchase.create({
@@ -344,6 +342,12 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({ chat_id: adminChatId, text }),
           });
         }
+      }
+
+      // Record purchase in Supabase
+      const parsedAmount = parseInt(String(amount), 10) || 0;
+      if (tgUserId) {
+        await createPurchase(tgUserId, 'sync-mk', parsedAmount, 'sync_mk_landing', orderId as string);
       }
 
       console.log(`[Prodamus Webhook] Sync MK payment: ${productName}, ${amount} rub, contact: ${contact}, tgUser: ${tgUserId}`);
