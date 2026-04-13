@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { trackEvent, markFollowUpPaid, getAdminChatId, getUserInfo } from '@/lib/notion';
+import { prisma } from '@/lib/prisma';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -51,6 +52,41 @@ function verifySignature(body: Record<string, unknown>, signature: string): bool
   const json = JSON.stringify(sorted);
   const hmac = crypto.createHmac('sha256', PRODAMUS_SECRET_KEY).update(json).digest('hex');
   return hmac === signature;
+}
+
+async function createPurchase(tgUserId: number, productSlug: string, amount: number, source: string, orderId: string) {
+  try {
+    // Upsert user
+    const user = await prisma.user.upsert({
+      where: { telegramId: BigInt(tgUserId) },
+      create: { telegramId: BigInt(tgUserId) },
+      update: {},
+    });
+
+    // Find product
+    const product = await prisma.product.findUnique({
+      where: { slug: productSlug },
+    });
+    if (!product) {
+      console.error(`[Supabase] Product not found: ${productSlug}`);
+      return;
+    }
+
+    // Create purchase
+    await prisma.purchase.create({
+      data: {
+        userId: user.id,
+        productId: product.id,
+        amount,
+        source,
+        prodamusOrderId: orderId,
+      },
+    });
+
+    console.log(`[Supabase] Purchase created: ${productSlug} for user ${tgUserId}`);
+  } catch (error) {
+    console.error('[Supabase] Failed to create purchase:', error);
+  }
 }
 
 async function sendMaterialsToUser(tgUserId: number) {
@@ -256,9 +292,43 @@ export async function POST(request: NextRequest) {
     // Prodamus puts their internal order_id in body.order_id,
     // our order ID (userId_resultId) comes in body.order_num
     const orderId = body.order_num || body.order_id || '';
+    const isSyncMk = typeof orderId === 'string' && orderId.startsWith('sync_mk');
     const isConnectors = typeof orderId === 'string' && orderId.startsWith('conn_');
 
-    if (isConnectors) {
+    if (isSyncMk) {
+      // МК Синхронизация payment (from public landing page — no TG user context)
+      const products = body.products as Record<string, Record<string, string>> | undefined;
+      const productName = products?.['0']?.name || 'МК Синхронизация';
+      const amount = products?.['0']?.price || '?';
+      const customerEmail = (body.customer_email || body.email || '') as string;
+      const customerPhone = (body.customer_phone || body.phone || '') as string;
+      const customerName = (body.customer_extra?.name || body.customer_name || '') as string;
+
+      const contact = customerEmail || customerPhone || 'нет контакта';
+      const name = customerName ? ` (${customerName})` : '';
+
+      // Notify admin
+      if (BOT_TOKEN) {
+        const adminChatId = await getAdminChatId();
+        if (adminChatId) {
+          const text = `Оплата МК Синхронизация!\n\n${productName} — ${amount} руб\nКонтакт: ${contact}${name}\nOrder: ${orderId}`;
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: adminChatId, text, parse_mode: 'HTML' }),
+          });
+        }
+      }
+
+      // Track in Notion
+      await trackEvent({
+        event_type: 'sync_mk_payment',
+        result_title: productName,
+        amount: parseInt(String(amount), 10) || 0,
+      });
+
+      console.log(`[Prodamus Webhook] Sync MK payment: ${productName}, ${amount} rub, contact: ${contact}`);
+    } else if (isConnectors) {
       // Connectors payment: order_id format "conn_userId_tier_resultId"
       const parts = orderId.split('_');
       // parts: ["conn", <userId>, <tier>, <resultId>]
@@ -284,6 +354,7 @@ export async function POST(request: NextRequest) {
           result_id: resultId,
           amount,
         }),
+        createPurchase(tgUserId, tier === 'premium' ? 'connectors-premium' : 'connectors-basic', amount, 'connectors', orderId as string),
       ]);
 
       console.log(`[Prodamus Webhook] Connectors ${tierLabel} payment from user ${tgUserId}, result: ${resultId}`);
@@ -319,6 +390,7 @@ export async function POST(request: NextRequest) {
         }),
         markFollowUpPaid(tgUserId),
         sendMidSequenceThankYou(tgUserId),
+        createPurchase(tgUserId, 'masterclass', 3450, 'quiz', orderId as string),
       ]);
 
       console.log(`[Prodamus Webhook] Payment success for user ${tgUserId}, result: ${resultId}`);
