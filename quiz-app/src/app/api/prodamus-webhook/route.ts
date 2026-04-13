@@ -296,31 +296,57 @@ export async function POST(request: NextRequest) {
     const isConnectors = typeof orderId === 'string' && orderId.startsWith('conn_');
 
     if (isSyncMk) {
-      // МК Синхронизация payment (from public landing page — no TG user context)
+      // МК Синхронизация payment
+      // order_id formats: sync_mk_[ts] (no TG) or sync_mk_[userId]_[ts] (from TG Mini App)
+      // early bird: sync_mk_eb_[ts] or sync_mk_eb_[userId]_[ts]
       const products = body.products as Record<string, Record<string, string>> | undefined;
       const productName = products?.['0']?.name || 'МК Синхронизация';
       const amount = products?.['0']?.price || '?';
       const customerEmail = (body.customer_email || body.email || '') as string;
       const customerPhone = (body.customer_phone || body.phone || '') as string;
-      const customerName = (body.customer_extra?.name || body.customer_name || '') as string;
 
-      const contact = customerEmail || customerPhone || 'нет контакта';
-      const name = customerName ? ` (${customerName})` : '';
+      // Extract TG user ID if present in order_id
+      let tgUserId: number | null = null;
+      if (typeof orderId === 'string') {
+        // sync_mk_[userId]_[ts] or sync_mk_eb_[userId]_[ts]
+        const parts = orderId.split('_');
+        // Find the numeric part that looks like a TG user ID (>1000, not a timestamp)
+        for (const part of parts) {
+          const num = parseInt(part, 10);
+          if (num > 1000 && num < 10000000000) { // TG IDs are typically 6-10 digits
+            tgUserId = num;
+            break;
+          }
+        }
+      }
 
-      // Notify admin
+      const contact = customerEmail || customerPhone || (tgUserId ? `TG user ${tgUserId}` : 'нет контакта');
+
+      // If opened from TG Mini App — send materials to user
+      if (tgUserId && BOT_TOKEN) {
+        const mkMessage = `Оплата получена!\n\nМК «Синхронизация» — 27 апреля, 17:00 МСК\n\nСсылка на Zoom и инструкция придут отдельным сообщением ближе к дате.\n\nЕсли возникнут вопросы — напишите сюда.`;
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: tgUserId, text: mkMessage }),
+        });
+      }
+
+      // Always notify admin
       if (BOT_TOKEN) {
         const adminChatId = await getAdminChatId();
         if (adminChatId) {
-          const text = `Оплата МК Синхронизация!\n\n${productName} — ${amount} руб\nКонтакт: ${contact}${name}\nOrder: ${orderId}`;
+          const src = tgUserId ? `TG Mini App (user ${tgUserId})` : 'Сайт';
+          const text = `Оплата МК Синхронизация!\n\n${productName} — ${amount} руб\nИсточник: ${src}\nКонтакт: ${contact}\nOrder: ${orderId}`;
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: adminChatId, text, parse_mode: 'HTML' }),
+            body: JSON.stringify({ chat_id: adminChatId, text }),
           });
         }
       }
 
-      console.log(`[Prodamus Webhook] Sync MK payment: ${productName}, ${amount} rub, contact: ${contact}`);
+      console.log(`[Prodamus Webhook] Sync MK payment: ${productName}, ${amount} rub, contact: ${contact}, tgUser: ${tgUserId}`);
     } else if (isConnectors) {
       // Connectors payment: order_id format "conn_userId_tier_resultId"
       const parts = orderId.split('_');
