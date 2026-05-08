@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useTracking } from '@/hooks/useTracking';
-import { buildPaymentUrl } from '@/lib/telegram';
+import { buildPaymentUrl } from '@/lib/payment';
 
 export default function MasterclassPage() {
   const [utmSource, setUtmSource] = useState<string | null>(null);

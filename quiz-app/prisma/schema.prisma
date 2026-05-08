@@ -120,6 +120,65 @@ model FollowUp {
 }
 
 // ═══════════════════════════════════════
+// SYNC ВЕЙТЛИСТ
+// ═══════════════════════════════════════
+
+model SyncWaitlist {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @map("telegram_id")
+  username   String?
+  firstName  String?  @map("first_name")
+  tier       String   // easy, mid, hard
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([telegramId, tier])
+  @@index([tier])
+  @@map("sync_waitlist")
+}
+
+// ═══════════════════════════════════════
+// INSTAGRAM АВТООТВЕТЫ
+// ═══════════════════════════════════════
+
+model IgKeyword {
+  id          Int      @id @default(autoincrement())
+  keyword     String   @unique // ключевое слово (регистронезависимо)
+  replyText   String   @map("reply_text") // текст private reply
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  replies     IgReply[]
+
+  @@map("ig_keywords")
+}
+
+model IgReply {
+  id              Int      @id @default(autoincrement())
+  keywordId       Int      @map("keyword_id")
+  keyword         IgKeyword @relation(fields: [keywordId], references: [id])
+  commentId       String   @unique @map("comment_id") // для дедупликации
+  igUserId        String   @map("ig_user_id")
+  igUsername       String?  @map("ig_username")
+  mediaId         String?  @map("media_id")
+  commentText     String?  @map("comment_text")
+  replySent       Boolean  @default(false) @map("reply_sent")
+  error           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([igUserId])
+  @@index([createdAt])
+  @@map("ig_replies")
+}
+
+model IgWebhookLog {
+  id        Int      @id @default(autoincrement())
+  payload   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("ig_webhook_logs")
+}
+
+// ═══════════════════════════════════════
 // СПРИНТ ВЕЙТЛИСТ
 // ═══════════════════════════════════════
 
