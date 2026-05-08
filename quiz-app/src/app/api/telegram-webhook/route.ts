@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { notifyAdmin } from '@/lib/telegram';
 import { prisma } from '@/lib/prisma';
+import { getLeadMagnet } from '@/lib/leadmagnets';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
@@ -174,6 +175,47 @@ export async function POST(request: NextRequest) {
 
       // Debug logging
       console.log('Webhook received:', { text: update.message.text, startParam });
+
+      // Lead-magnet deep link (slug from content/leadmagnets.json)
+      if (startParam) {
+        const lm = getLeadMagnet(startParam);
+        if (lm) {
+          const lmText = `Привет, ${firstName}!
+
+${lm.intro}
+
+${lm.softPitch}`;
+
+          const lmMarkup = {
+            inline_keyboard: [
+              [{ text: '📖 Открыть статью', url: lm.url }],
+              [{ text: '📢 Подписаться на канал', url: `https://t.me/${lm.channelUsername}` }],
+            ],
+          };
+
+          await sendMessage(chatId, lmText, lmMarkup);
+
+          await Promise.all([
+            trackEvent({
+              event_type: 'leadmagnet_delivered',
+              user_id: chatId,
+              username: username || undefined,
+              first_name: fullName || undefined,
+              utm_source: `leadmagnet_${startParam}`,
+            }),
+            notifyAdmin(
+              `🪝 <b>Лид-магнит выдан</b>\n\n` +
+              `Материал: ${lm.title}\n` +
+              `Slug: <code>${startParam}</code>\n` +
+              `👤 ${fullName || '—'}\n` +
+              `💬 ${username ? '@' + username : 'без username'}\n` +
+              `🆔 <code>${chatId}</code>`
+            ),
+          ]);
+
+          return NextResponse.json({ ok: true });
+        }
+      }
 
       // Sprint waitlist deep link
       if (startParam === 'sprint') {
