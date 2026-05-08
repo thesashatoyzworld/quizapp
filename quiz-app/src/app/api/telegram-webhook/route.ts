@@ -180,16 +180,11 @@ export async function POST(request: NextRequest) {
       if (startParam) {
         const lm = getLeadMagnet(startParam);
         if (lm) {
-          const lmText = `Привет, ${firstName}!
-
-${lm.intro}
-
-${lm.softPitch}`;
+          const lmText = `привет, ${firstName}\n\n${lm.intro}${lm.softPitch ? '\n\n' + lm.softPitch : ''}`;
 
           const lmMarkup = {
             inline_keyboard: [
-              [{ text: '📖 Открыть статью', url: lm.url }],
-              [{ text: '📢 Подписаться на канал', url: `https://t.me/${lm.channelUsername}` }],
+              [{ text: '📖 Открыть гайд', url: lm.url }],
             ],
           };
 

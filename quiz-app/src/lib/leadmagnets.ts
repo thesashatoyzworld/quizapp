@@ -6,7 +6,7 @@ export interface LeadMagnet {
   url: string;
   channelUsername: string;
   intro: string;
-  softPitch: string;
+  softPitch?: string;
 }
 
 let cache: Record<string, LeadMagnet> | null = null;
