@@ -1,4 +1,5 @@
 import { Client } from '@notionhq/client';
+import { prisma } from '@/lib/prisma';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
@@ -17,7 +18,28 @@ interface TrackEventPayload {
   utm_source?: string;
 }
 
+// Upsert user in Supabase (create if not exists, update username/firstName if provided)
+async function upsertUser(telegramId: number, username?: string, firstName?: string) {
+  try {
+    await prisma.user.upsert({
+      where: { telegramId: BigInt(telegramId) },
+      create: {
+        telegramId: BigInt(telegramId),
+        username: username || null,
+        firstName: firstName || null,
+      },
+      update: {
+        ...(username ? { username } : {}),
+        ...(firstName ? { firstName } : {}),
+      },
+    });
+  } catch (error) {
+    console.error('[Supabase] Failed to upsert user:', error);
+  }
+}
+
 export async function trackEvent(payload: TrackEventPayload) {
+  // Notion write (existing)
   try {
     await notion.pages.create({
       parent: { data_source_id: EVENTS_DS_ID },
@@ -57,11 +79,53 @@ export async function trackEvent(payload: TrackEventPayload) {
   } catch (error) {
     console.error('Failed to track event to Notion:', error);
   }
+
+  // Supabase dual-write
+  try {
+    // Upsert user if we have telegram_id
+    if (payload.user_id) {
+      await upsertUser(payload.user_id, payload.username, payload.first_name);
+      // Update quiz result if this is a quiz_complete event
+      if (payload.event_type === 'quiz_complete' && payload.result_id) {
+        await prisma.user.update({
+          where: { telegramId: BigInt(payload.user_id) },
+          data: { quizResult: payload.result_id },
+        });
+      }
+    }
+
+    // Find user id for relation (optional)
+    let userId: string | undefined;
+    if (payload.user_id) {
+      const user = await prisma.user.findUnique({
+        where: { telegramId: BigInt(payload.user_id) },
+        select: { id: true },
+      });
+      userId = user?.id;
+    }
+
+    await prisma.event.create({
+      data: {
+        type: payload.event_type,
+        userId: userId || null,
+        telegramId: payload.user_id ? BigInt(payload.user_id) : null,
+        source: 'thesasha',
+        funnel: 'quiz',
+        productSlug: payload.amount ? 'masterclass' : null,
+        utmSource: payload.utm_source || null,
+        metadata: payload.result_title || payload.result_id
+          ? { result_id: payload.result_id, result_title: payload.result_title, result_stage: payload.result_stage, amount: payload.amount }
+          : undefined,
+      },
+    });
+  } catch (error) {
+    console.error('[Supabase] Failed to track event:', error);
+  }
 }
 
 export async function registerFollowUp(userId: number, resultId: string, username?: string, firstName?: string): Promise<boolean> {
+  // Notion write (existing)
   try {
-    // Deduplicate: check if user already exists in FollowUpQueue
     const existing = await notion.dataSources.query({
       data_source_id: FOLLOWUP_DS_ID,
       filter: {
@@ -71,7 +135,21 @@ export async function registerFollowUp(userId: number, resultId: string, usernam
     });
 
     if (existing.results.length > 0) {
-      return false; // Already registered
+      // Still write to Supabase in case it's missing there
+      try {
+        await prisma.followUp.upsert({
+          where: { telegramId: BigInt(userId) },
+          create: {
+            telegramId: BigInt(userId),
+            username: username || null,
+            resultId: resultId,
+          },
+          update: {},
+        });
+      } catch (e) {
+        console.error('[Supabase] Failed to upsert follow-up:', e);
+      }
+      return false;
     }
 
     await notion.pages.create({
@@ -103,14 +181,44 @@ export async function registerFollowUp(userId: number, resultId: string, usernam
         },
       },
     });
-    return true; // New entry created
   } catch (error) {
     console.error('Failed to register follow-up in Notion:', error);
-    return false;
   }
+
+  // Supabase dual-write
+  try {
+    await upsertUser(userId, username, firstName);
+    await prisma.followUp.upsert({
+      where: { telegramId: BigInt(userId) },
+      create: {
+        telegramId: BigInt(userId),
+        username: username || null,
+        resultId: resultId,
+      },
+      update: {},
+    });
+  } catch (error) {
+    console.error('[Supabase] Failed to register follow-up:', error);
+  }
+
+  return true;
 }
 
 export async function getUserInfo(userId: number): Promise<{ username: string; first_name: string }> {
+  // Try Supabase first
+  try {
+    const user = await prisma.user.findUnique({
+      where: { telegramId: BigInt(userId) },
+      select: { username: true, firstName: true },
+    });
+    if (user && (user.username || user.firstName)) {
+      return { username: user.username || '', first_name: user.firstName || '' };
+    }
+  } catch (error) {
+    console.error('[Supabase] Failed to get user info:', error);
+  }
+
+  // Fallback to Notion
   try {
     const results = await notion.dataSources.query({
       data_source_id: FOLLOWUP_DS_ID,
@@ -122,7 +230,6 @@ export async function getUserInfo(userId: number): Promise<{ username: string; f
       const first_name = (props.first_name as { rich_text: Array<{ plain_text: string }> })?.rich_text?.[0]?.plain_text || '';
       if (username || first_name) return { username, first_name };
     }
-    // Fallback: check Events DB for any event with this user_id
     const evResults = await notion.dataSources.query({
       data_source_id: EVENTS_DS_ID,
       filter: { property: 'user_id', number: { equals: userId } },
@@ -141,6 +248,18 @@ export async function getUserInfo(userId: number): Promise<{ username: string; f
 }
 
 export async function getFollowUpUsername(userId: number): Promise<string> {
+  // Try Supabase first
+  try {
+    const followUp = await prisma.followUp.findUnique({
+      where: { telegramId: BigInt(userId) },
+      select: { username: true },
+    });
+    if (followUp?.username) return followUp.username;
+  } catch (error) {
+    console.error('[Supabase] Failed to get follow-up username:', error);
+  }
+
+  // Fallback to Notion
   try {
     const results = await notion.dataSources.query({
       data_source_id: FOLLOWUP_DS_ID,
@@ -163,6 +282,18 @@ export async function getFollowUpUsername(userId: number): Promise<string> {
 }
 
 export async function isFollowUpPaid(userId: number): Promise<boolean> {
+  // Try Supabase first
+  try {
+    const followUp = await prisma.followUp.findUnique({
+      where: { telegramId: BigInt(userId) },
+      select: { paid: true },
+    });
+    if (followUp) return followUp.paid;
+  } catch (error) {
+    console.error('[Supabase] Failed to check paid status:', error);
+  }
+
+  // Fallback to Notion
   try {
     const results = await notion.dataSources.query({
       data_source_id: FOLLOWUP_DS_ID,
@@ -185,6 +316,7 @@ export async function isFollowUpPaid(userId: number): Promise<boolean> {
 }
 
 export async function markFollowUpPaid(userId: number) {
+  // Notion write
   try {
     const results = await notion.dataSources.query({
       data_source_id: FOLLOWUP_DS_ID,
@@ -194,21 +326,32 @@ export async function markFollowUpPaid(userId: number) {
       },
     });
 
-    if (results.results.length === 0) return;
-
-    const pageId = results.results[0].id;
-    await notion.pages.update({
-      page_id: pageId,
-      properties: {
-        paid: { checkbox: true },
-      },
-    });
+    if (results.results.length > 0) {
+      const pageId = results.results[0].id;
+      await notion.pages.update({
+        page_id: pageId,
+        properties: {
+          paid: { checkbox: true },
+        },
+      });
+    }
   } catch (error) {
     console.error('Failed to mark follow-up as paid in Notion:', error);
+  }
+
+  // Supabase dual-write
+  try {
+    await prisma.followUp.updateMany({
+      where: { telegramId: BigInt(userId) },
+      data: { paid: true },
+    });
+  } catch (error) {
+    console.error('[Supabase] Failed to mark follow-up as paid:', error);
   }
 }
 
 export async function updateFollowUpSent(userId: number) {
+  // Notion write
   try {
     const results = await notion.dataSources.query({
       data_source_id: FOLLOWUP_DS_ID,
@@ -218,30 +361,46 @@ export async function updateFollowUpSent(userId: number) {
       },
     });
 
-    if (results.results.length === 0) return;
+    if (results.results.length > 0) {
+      const page = results.results[0];
+      const props = (page as Record<string, unknown>).properties as Record<string, unknown>;
+      const messagesSentProp = props.messages_sent as { number: number | null } | undefined;
+      const currentCount = messagesSentProp?.number ?? 0;
 
-    const page = results.results[0];
-    const props = (page as Record<string, unknown>).properties as Record<string, unknown>;
-    const messagesSentProp = props.messages_sent as { number: number | null } | undefined;
-    const currentCount = messagesSentProp?.number ?? 0;
-
-    await notion.pages.update({
-      page_id: page.id,
-      properties: {
-        messages_sent: { number: currentCount + 1 },
-        last_sent_at: { date: { start: new Date().toISOString() } },
-      },
-    });
+      await notion.pages.update({
+        page_id: page.id,
+        properties: {
+          messages_sent: { number: currentCount + 1 },
+          last_sent_at: { date: { start: new Date().toISOString() } },
+        },
+      });
+    }
   } catch (error) {
     console.error(`Failed to update follow-up sent for user ${userId}:`, error);
   }
+
+  // Supabase dual-write
+  try {
+    const existing = await prisma.followUp.findUnique({
+      where: { telegramId: BigInt(userId) },
+      select: { messagesSent: true },
+    });
+    if (existing) {
+      await prisma.followUp.update({
+        where: { telegramId: BigInt(userId) },
+        data: {
+          messagesSent: existing.messagesSent + 1,
+          lastSentAt: new Date(),
+        },
+      });
+    }
+  } catch (error) {
+    console.error('[Supabase] Failed to update follow-up sent:', error);
+  }
 }
 
-/**
- * Mark user as blocked when bot receives 403 error.
- * Sets paid=true to stop future sends (reusing existing field instead of adding new property).
- */
 export async function markUserBlocked(userId: number) {
+  // Notion write
   try {
     const results = await notion.dataSources.query({
       data_source_id: FOLLOWUP_DS_ID,
@@ -251,30 +410,34 @@ export async function markUserBlocked(userId: number) {
       },
     });
 
-    if (results.results.length === 0) return;
-
-    const pageId = results.results[0].id;
-    await notion.pages.update({
-      page_id: pageId,
-      properties: {
-        paid: { checkbox: true }, // Reuse paid field to mean "stop sending"
-      },
-    });
+    if (results.results.length > 0) {
+      const pageId = results.results[0].id;
+      await notion.pages.update({
+        page_id: pageId,
+        properties: {
+          paid: { checkbox: true },
+        },
+      });
+    }
 
     console.log(`User ${userId} marked as blocked`);
   } catch (error) {
     console.error(`Failed to mark user ${userId} as blocked:`, error);
   }
+
+  // Supabase dual-write
+  try {
+    await prisma.followUp.updateMany({
+      where: { telegramId: BigInt(userId) },
+      data: { paid: true },
+    });
+  } catch (error) {
+    console.error('[Supabase] Failed to mark user as blocked:', error);
+  }
 }
 
-/**
- * Save admin chat_id to Notion Events DB.
- * Uses event_type="admin_config" to store admin chat_id.
- * Note: Last person to /start the bot becomes the admin (single-admin bot).
- */
 export async function saveAdminChatId(chatId: number) {
   try {
-    // Check if admin_config entry already exists
     const existing = await notion.dataSources.query({
       data_source_id: EVENTS_DS_ID,
       filter: {
@@ -284,7 +447,6 @@ export async function saveAdminChatId(chatId: number) {
     });
 
     if (existing.results.length > 0) {
-      // Update existing admin_config
       const pageId = existing.results[0].id;
       await notion.pages.update({
         page_id: pageId,
@@ -294,7 +456,6 @@ export async function saveAdminChatId(chatId: number) {
         },
       });
     } else {
-      // Create new admin_config entry
       await notion.pages.create({
         parent: { data_source_id: EVENTS_DS_ID },
         properties: {
@@ -317,10 +478,21 @@ export async function saveAdminChatId(chatId: number) {
   }
 }
 
-/**
- * Check if user has a bot_start event (for backfilling missing events)
- */
 export async function hasBotStart(userId: number): Promise<boolean> {
+  // Try Supabase first
+  try {
+    const count = await prisma.event.count({
+      where: {
+        type: 'bot_start',
+        telegramId: BigInt(userId),
+      },
+    });
+    if (count > 0) return true;
+  } catch (error) {
+    console.error('[Supabase] Failed to check bot_start:', error);
+  }
+
+  // Fallback to Notion
   try {
     const results = await notion.dataSources.query({
       data_source_id: EVENTS_DS_ID,
@@ -346,18 +518,12 @@ export async function hasBotStart(userId: number): Promise<boolean> {
   }
 }
 
-/**
- * Get admin chat_id from Notion or env var fallback.
- * Priority: ADMIN_CHAT_ID env var > Notion admin_config
- */
 export async function getAdminChatId(): Promise<string | null> {
-  // Check env var first (fallback/override)
   const envChatId = process.env.ADMIN_CHAT_ID;
   if (envChatId && envChatId.trim() !== '') {
     return envChatId.trim();
   }
 
-  // Query Notion for admin_config
   try {
     const results = await notion.dataSources.query({
       data_source_id: EVENTS_DS_ID,

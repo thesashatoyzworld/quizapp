@@ -1,64 +1,13 @@
 import { getAdminChatId } from '@/lib/notion';
 
+// Re-export client-safe functions for backward compatibility
+export { buildPaymentUrl, buildConnectorsPaymentUrl } from '@/lib/payment';
+export type { ConnectorsTier } from '@/lib/payment';
+
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const PRODAMUS_FORM_URL = process.env.NEXT_PUBLIC_PRODAMUS_FORM_URL || '';
-// Fallback to custom domain ensures urlNotification is always included in payment links
-const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quiz.thesashatoyz.com';
 const VIDEO_FILE_ID = process.env.FOLLOWUP_VIDEO_FILE_ID || '';
 
 export { VIDEO_FILE_ID };
-
-export type ConnectorsTier = 'basic' | 'premium';
-
-const CONNECTORS_TIER_CONFIG: Record<ConnectorsTier, { name: string; price: number }> = {
-  basic: { name: 'Коннекторы — Базовый', price: 10000 },
-  premium: { name: 'Коннекторы — Премиум', price: 20000 },
-};
-
-export function buildConnectorsPaymentUrl(userId: number, resultId: string, tier: ConnectorsTier): string {
-  if (!PRODAMUS_FORM_URL) {
-    return 'https://t.me/testtoyzbot';
-  }
-
-  const config = CONNECTORS_TIER_CONFIG[tier];
-  const orderId = `conn_${userId}_${tier}_${resultId}`;
-  const parts = [
-    'do=pay',
-    `products[0][name]=${encodeURIComponent(config.name)}`,
-    `products[0][price]=${config.price}`,
-    'products[0][quantity]=1',
-    `order_id=${encodeURIComponent(orderId)}`,
-  ];
-
-  if (WEBAPP_URL) {
-    parts.push(`urlNotification=${encodeURIComponent(`${WEBAPP_URL}/api/prodamus-webhook`)}`);
-    parts.push(`urlSuccess=${encodeURIComponent(`${WEBAPP_URL}/connectors?payment=success`)}`);
-  }
-
-  return `${PRODAMUS_FORM_URL}?${parts.join('&')}`;
-}
-
-export function buildPaymentUrl(userId: number, resultId: string): string {
-  if (!PRODAMUS_FORM_URL) {
-    return 'https://t.me/sashatoyz_bot?start=pay_masterclass';
-  }
-
-  const orderId = `${userId}_${resultId}`;
-  const parts = [
-    'do=pay',
-    `products[0][name]=${encodeURIComponent('Мастер-класс «Продающий контент»')}`,
-    'products[0][price]=3450',
-    'products[0][quantity]=1',
-    `order_id=${encodeURIComponent(orderId)}`,
-  ];
-
-  if (WEBAPP_URL) {
-    parts.push(`urlNotification=${encodeURIComponent(`${WEBAPP_URL}/api/prodamus-webhook`)}`);
-    parts.push(`urlSuccess=${encodeURIComponent(`${WEBAPP_URL}?payment=success`)}`);
-  }
-
-  return `${PRODAMUS_FORM_URL}?${parts.join('&')}`;
-}
 
 export async function sendTelegramMessage(
   chatId: number,
@@ -106,7 +55,6 @@ export async function sendTelegramVideo(
     return sendTelegramMessage(chatId, caption, paymentUrl);
   }
 
-  // Step 1: Send video (no caption — Telegram limits caption to 1024 chars)
   const videoUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`;
   try {
     const videoResponse = await fetch(videoUrl, {
@@ -124,16 +72,13 @@ export async function sendTelegramVideo(
     }
 
     if (!videoData.ok) {
-      // Video failed — fall back to text-only
       return sendTelegramMessage(chatId, caption, paymentUrl);
     }
   } catch (error) {
     console.error(`Failed to send video to ${chatId}:`, error);
-    // Fall back to text-only
     return sendTelegramMessage(chatId, caption, paymentUrl);
   }
 
-  // Step 2: Send text message with payment button
   return sendTelegramMessage(chatId, caption, paymentUrl);
 }
 

@@ -1,22 +1,35 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════
-   SPRINT — Warm Minimalism Design Tokens
+   SPRINT — Brand DNA Design System
+   Unbounded + Inter / Cream + Charcoal + #FF5C3A
    ═══════════════════════════════════════ */
 
 :root {
-  --sprint-bg: #FFFCFA;
-  --sprint-surface: #F5F5F4;
-  --sprint-heading: #1C1917;
-  --sprint-body: #78716C;
-  --sprint-meta: #A8A29E;
-  --sprint-accent: #FF5C3A;
-  --sprint-border: rgba(28, 25, 23, 0.1);
-  --sprint-btn-bg: #1C1917;
-  --sprint-btn-text: #FFFCFA;
+  --bg-primary: #FFFCFA;
+  --bg-surface: #F5F5F4;
+  --bg-surface-alt: #F8F7F5;
+  --text-heading: #1C1917;
+  --text-body: #78716C;
+  --text-emphasis: #44403C;
+  --text-meta: #A8A29E;
+  --accent: #FF5C3A;
+  --tag-bg: #1C1917;
+  --tag-text: #FFFCFA;
+  --border: rgba(28, 25, 23, 0.06);
 
   --font-display: 'Unbounded', sans-serif;
   --font-body: 'Inter', sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+
+  --space-section: 48px;
+  --space-block: 28px;
+  --space-element: 16px;
+
+  --shadow: 0px 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 *, *::before, *::after {
@@ -30,22 +43,46 @@ html {
 }
 
 body {
-  background: var(--sprint-bg);
+  background: var(--bg-primary);
   font-family: var(--font-body);
-  color: var(--sprint-body);
+  color: var(--text-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* ═══════════════════════════════════════
-   PAGE LAYOUT
+   PAGE LAYOUT — Website format: max 680px, 48px padding
    ═══════════════════════════════════════ */
 
 .sprint-page {
   min-height: 100dvh;
-  max-width: 480px;
+  max-width: 520px;
   margin: 0 auto;
-  padding: 24px 20px 40px;
+  padding: var(--space-section) 24px 60px;
+}
+
+@media (max-width: 480px) {
+  .sprint-page {
+    padding: 28px 20px 48px;
+  }
+}
+
+/* ═══════════════════════════════════════
+   TAG — Charcoal bg, cream text, Unbounded 700, uppercase
+   ═══════════════════════════════════════ */
+
+.sprint-tag {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--tag-text);
+  background: var(--tag-bg);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-block);
 }
 
 /* ═══════════════════════════════════════
@@ -53,27 +90,129 @@ body {
    ═══════════════════════════════════════ */
 
 .sprint-hero {
-  margin-bottom: 32px;
+  margin-bottom: var(--space-section);
 }
 
 .sprint-title {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 24px;
-  line-height: 1.25;
-  color: var(--sprint-heading);
-  margin-bottom: 12px;
+  font-size: 32px;
+  line-height: 1.15;
+  color: var(--text-heading);
+  margin-bottom: var(--space-element);
+}
+
+@media (max-width: 480px) {
+  .sprint-title {
+    font-size: 26px;
+  }
+}
+
+.sprint-accent {
+  color: var(--accent);
 }
 
 .sprint-subtitle {
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--sprint-body);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-body);
+  max-width: 440px;
 }
 
 /* ═══════════════════════════════════════
-   FORM
+   DETAILS SECTION
    ═══════════════════════════════════════ */
+
+.sprint-details {
+  margin-bottom: var(--space-section);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-block);
+}
+
+/* Insight Box — Brand DNA component */
+.sprint-insight-box {
+  background: var(--bg-surface);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  padding: 24px;
+}
+
+.sprint-insight-label {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-meta);
+  margin-bottom: var(--space-element);
+}
+
+.sprint-insight-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sprint-insight-list li {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-body);
+}
+
+.sprint-insight-list li strong {
+  font-weight: 600;
+  color: var(--text-emphasis);
+}
+
+/* Meta row — big numbers */
+.sprint-meta-row {
+  display: flex;
+  gap: 16px;
+}
+
+.sprint-meta-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px 12px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+}
+
+.sprint-meta-value {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--text-heading);
+}
+
+.sprint-meta-label {
+  font-size: 12px;
+  color: var(--text-meta);
+  text-align: center;
+}
+
+/* ═══════════════════════════════════════
+   FORM SECTION
+   ═══════════════════════════════════════ */
+
+.sprint-form-section {
+  margin-bottom: var(--space-section);
+}
+
+.sprint-form-heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text-heading);
+  margin-bottom: var(--space-block);
+}
 
 .sprint-form {
   display: flex;
@@ -90,18 +229,18 @@ body {
 .sprint-label {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 14px;
-  color: var(--sprint-heading);
+  font-size: 13px;
+  color: var(--text-heading);
 }
 
 .sprint-input,
 .sprint-textarea {
   font-family: var(--font-body);
   font-size: 15px;
-  color: var(--sprint-heading);
-  background: var(--sprint-bg);
-  border: 1.5px solid var(--sprint-border);
-  border-radius: 12px;
+  color: var(--text-heading);
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 14px 16px;
   outline: none;
   transition: border-color 0.2s ease;
@@ -110,21 +249,21 @@ body {
 
 .sprint-input::placeholder,
 .sprint-textarea::placeholder {
-  color: var(--sprint-meta);
+  color: var(--text-meta);
 }
 
 .sprint-input:focus,
 .sprint-textarea:focus {
-  border-color: var(--sprint-accent);
+  border-color: var(--accent);
 }
 
 .sprint-textarea {
   resize: none;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* ═══════════════════════════════════════
-   SELECT BUTTONS (single select)
+   SELECT BUTTONS
    ═══════════════════════════════════════ */
 
 .sprint-select-group {
@@ -136,30 +275,30 @@ body {
 .sprint-select-btn {
   font-family: var(--font-body);
   font-size: 14px;
-  color: var(--sprint-body);
-  background: var(--sprint-surface);
-  border: 1.5px solid var(--sprint-border);
-  border-radius: 10px;
+  color: var(--text-body);
+  background: var(--bg-surface);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
   padding: 12px 16px;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 .sprint-select-btn:hover {
-  border-color: var(--sprint-meta);
+  background: var(--bg-surface-alt);
 }
 
 .sprint-select-btn.active {
-  background: var(--sprint-bg);
-  border-color: var(--sprint-accent);
-  color: var(--sprint-heading);
+  background: var(--bg-primary);
+  border-color: var(--accent);
+  color: var(--text-heading);
   font-weight: 500;
 }
 
 /* ═══════════════════════════════════════
-   CHECKBOX BUTTONS (multi select)
+   CHECKBOX BUTTONS
    ═══════════════════════════════════════ */
 
 .sprint-checkbox-group {
@@ -174,25 +313,25 @@ body {
   gap: 12px;
   font-family: var(--font-body);
   font-size: 14px;
-  color: var(--sprint-body);
-  background: var(--sprint-surface);
-  border: 1.5px solid var(--sprint-border);
-  border-radius: 10px;
+  color: var(--text-body);
+  background: var(--bg-surface);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
   padding: 12px 16px;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 .sprint-checkbox-btn:hover {
-  border-color: var(--sprint-meta);
+  background: var(--bg-surface-alt);
 }
 
 .sprint-checkbox-btn.active {
-  background: var(--sprint-bg);
-  border-color: var(--sprint-accent);
-  color: var(--sprint-heading);
+  background: var(--bg-primary);
+  border-color: var(--accent);
+  color: var(--text-heading);
   font-weight: 500;
 }
 
@@ -203,49 +342,48 @@ body {
   width: 22px;
   height: 22px;
   min-width: 22px;
-  border-radius: 6px;
-  border: 1.5px solid var(--sprint-border);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
   font-size: 13px;
   color: white;
   background: transparent;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .sprint-checkbox-btn.active .sprint-checkbox-indicator {
-  background: var(--sprint-accent);
-  border-color: var(--sprint-accent);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 /* ═══════════════════════════════════════
-   SUBMIT BUTTON
+   SUBMIT — CTA Button: Charcoal bg, cream text, Unbounded 700
    ═══════════════════════════════════════ */
 
 .sprint-submit {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 16px;
-  color: var(--sprint-btn-text);
-  background: var(--sprint-btn-bg);
+  font-size: 15px;
+  color: var(--tag-text);
+  background: var(--tag-bg);
   border: none;
-  border-radius: 10px;
-  padding: 16px 24px;
+  border-radius: var(--radius-md);
+  padding: 18px 24px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   -webkit-tap-highlight-color: transparent;
   margin-top: 8px;
 }
 
 .sprint-submit:hover:not(:disabled) {
-  opacity: 0.9;
-  transform: translateY(-1px);
+  opacity: 0.92;
 }
 
 .sprint-submit:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.99);
 }
 
 .sprint-submit:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
@@ -255,8 +393,8 @@ body {
 
 .sprint-error {
   font-size: 14px;
-  color: #ef4444;
-  text-align: center;
+  color: var(--accent);
+  text-align: left;
 }
 
 /* ═══════════════════════════════════════
@@ -266,27 +404,30 @@ body {
 .sprint-success {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   min-height: 60dvh;
-  text-align: center;
-  gap: 16px;
-}
-
-.sprint-success-icon {
-  font-size: 48px;
-  line-height: 1;
+  gap: var(--space-element);
 }
 
 .sprint-success-title {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 28px;
-  color: var(--sprint-heading);
+  font-size: 36px;
+  line-height: 1.15;
+  color: var(--text-heading);
 }
 
 .sprint-success-text {
   font-size: 16px;
-  line-height: 1.5;
-  color: var(--sprint-body);
+  line-height: 1.7;
+  color: var(--text-body);
+}
+
+.sprint-success-accent {
+  width: 48px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  margin-top: 8px;
 }
