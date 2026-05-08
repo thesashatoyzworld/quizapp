@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
 
           const lmMarkup = {
             inline_keyboard: [
-              [{ text: '📖 Открыть гайд', url: lm.url }],
+              [{ text: '📖 Открыть гайд', web_app: { url: lm.url } }],
             ],
           };
 
