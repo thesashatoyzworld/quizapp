@@ -27,7 +27,11 @@ export default function BroadcastsPage() {
 
   // Form state
   const [broadcastId, setBroadcastId] = useState('');
+  const [mediaType, setMediaType] = useState<'photo' | 'video'>('photo');
   const [photoFileId, setPhotoFileId] = useState(DEFAULT_PHOTO_FILE_ID);
+  const [videoFileId, setVideoFileId] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [caption, setCaption] = useState('');
   const [linkOffset, setLinkOffset] = useState('');
   const [linkLength, setLinkLength] = useState('');
@@ -47,16 +51,27 @@ export default function BroadcastsPage() {
       return;
     }
 
+    if (mediaType === 'video' && !videoFileId.trim()) {
+      alert('Загрузи видео перед отправкой');
+      return;
+    }
+
     setSending(true);
     setResult(null);
 
     try {
       const body: Record<string, unknown> = {
         broadcastId: broadcastId.trim(),
-        photoFileId: photoFileId.trim() || DEFAULT_PHOTO_FILE_ID,
+        mediaType,
         caption: caption.trim(),
         dryRun,
       };
+
+      if (mediaType === 'photo') {
+        body.photoFileId = photoFileId.trim() || DEFAULT_PHOTO_FILE_ID;
+      } else {
+        body.videoFileId = videoFileId.trim();
+      }
 
       if (linkOffset && linkLength) {
         body.linkOffset = parseInt(linkOffset, 10);
@@ -82,6 +97,47 @@ export default function BroadcastsPage() {
       setResult({ success: false, error: String(e) });
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (mediaType === 'video' && file.size > 50 * 1024 * 1024) {
+      setUploadError(`Видео слишком большое: ${(file.size / 1024 / 1024).toFixed(1)} MB. Bot API лимит 50 MB.`);
+      return;
+    }
+
+    setUploading(true);
+    setUploadError('');
+
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('type', mediaType);
+
+      const resp = await fetch('/api/admin/media-upload', {
+        method: 'POST',
+        body: form,
+      });
+
+      const data = (await resp.json()) as { success?: boolean; fileId?: string; error?: string };
+
+      if (!data.success || !data.fileId) {
+        setUploadError(data.error || 'Не удалось загрузить файл');
+        return;
+      }
+
+      if (mediaType === 'photo') {
+        setPhotoFileId(data.fileId);
+      } else {
+        setVideoFileId(data.fileId);
+      }
+    } catch (err) {
+      setUploadError(String(err));
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -187,13 +243,75 @@ export default function BroadcastsPage() {
 
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              Photo File ID
+              Тип медиа
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['photo', 'video'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setMediaType(t)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid',
+                    borderColor: mediaType === t ? 'var(--neon-cyan)' : 'rgba(255,255,255,0.15)',
+                    background: mediaType === t ? 'rgba(0, 240, 255, 0.12)' : 'transparent',
+                    color: mediaType === t ? 'var(--neon-cyan)' : 'var(--text-muted)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {t === 'photo' ? '🖼  Photo' : '🎬  Video (до 50 MB)'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
+              {mediaType === 'photo' ? 'Photo File ID' : 'Video File ID'}
             </label>
             <input
               style={inputStyle}
-              value={photoFileId}
-              onChange={e => setPhotoFileId(e.target.value)}
+              placeholder={mediaType === 'photo' ? 'AgACAg... или загрузи файл ниже' : 'Загрузи видео ниже чтобы получить file_id'}
+              value={mediaType === 'photo' ? photoFileId : videoFileId}
+              onChange={e => (mediaType === 'photo' ? setPhotoFileId(e.target.value) : setVideoFileId(e.target.value))}
             />
+            <div style={{ marginTop: '8px' }}>
+              <label
+                style={{
+                  display: 'inline-block',
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  border: '1px dashed rgba(0, 240, 255, 0.3)',
+                  background: 'rgba(0, 240, 255, 0.04)',
+                  color: uploading ? 'var(--text-muted)' : 'var(--neon-cyan)',
+                  fontSize: '0.8rem',
+                  cursor: uploading ? 'not-allowed' : 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                {uploading
+                  ? 'Загрузка...'
+                  : `↑ Загрузить ${mediaType === 'photo' ? 'фото' : 'видео'} (через @testtoyzbot)`}
+                <input
+                  type="file"
+                  accept={mediaType === 'photo' ? 'image/*' : 'video/mp4,video/quicktime,video/*'}
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {uploadError && (
+                <div style={{ marginTop: '6px', fontSize: '0.75rem', color: 'var(--danger)' }}>
+                  {uploadError}
+                </div>
+              )}
+            </div>
           </div>
 
           <div>

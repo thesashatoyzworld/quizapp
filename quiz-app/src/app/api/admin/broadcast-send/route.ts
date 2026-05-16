@@ -58,7 +58,9 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json() as {
     broadcastId: string;
-    photoFileId: string;
+    photoFileId?: string;
+    videoFileId?: string;
+    mediaType?: 'photo' | 'video';
     caption: string;
     linkOffset?: number;
     linkLength?: number;
@@ -66,10 +68,15 @@ export async function POST(request: NextRequest) {
     dryRun?: boolean;
   };
 
-  const { broadcastId, photoFileId, caption, linkOffset, linkLength, dryRun } = body;
+  const { broadcastId, photoFileId, videoFileId, caption, linkOffset, linkLength, dryRun } = body;
+  const mediaType: 'photo' | 'video' = body.mediaType || 'photo';
+  const mediaFileId = mediaType === 'video' ? videoFileId : photoFileId;
 
-  if (!broadcastId || !photoFileId || !caption) {
-    return NextResponse.json({ error: 'broadcastId, photoFileId, caption required' }, { status: 400 });
+  if (!broadcastId || !mediaFileId || !caption) {
+    return NextResponse.json(
+      { error: `broadcastId, ${mediaType}FileId, caption required` },
+      { status: 400 }
+    );
   }
 
   try {
@@ -96,15 +103,21 @@ export async function POST(request: NextRequest) {
         entities.push({ offset: linkOffset, length: linkLength, type: 'text_link', url: trackUrl });
       }
 
-      const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+      const tgMethod = mediaType === 'video' ? 'sendVideo' : 'sendPhoto';
+      const tgPayload: Record<string, unknown> = {
+        chat_id: user.uid,
+        [mediaType]: mediaFileId,
+        caption,
+        ...(entities.length > 0 ? { caption_entities: entities } : {}),
+      };
+      if (mediaType === 'video') {
+        tgPayload.supports_streaming = true;
+      }
+
+      const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${tgMethod}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: user.uid,
-          photo: photoFileId,
-          caption,
-          ...(entities.length > 0 ? { caption_entities: entities } : {}),
-        }),
+        body: JSON.stringify(tgPayload),
       });
 
       const data = await resp.json() as { ok: boolean; error_code?: number; description?: string };
