@@ -173,16 +173,16 @@ export default function AnalyticsClient({ data }: { data: Analytics }) {
       </Section>
 
       {/* Lead magnets */}
-      <Section title="Лид-магниты" hint="выдано ботом · показов гейта">
+      <Section title="Лид-магниты" hint="выдано ботом">
         {data.leadmagnets.length === 0 ? (
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Нет выдач за период.</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={th}>Магнит</th><th style={{ ...th, textAlign: 'right' }}>Выдано</th><th style={{ ...th, textAlign: 'right' }}>Гейт показан</th></tr></thead>
+              <thead><tr><th style={th}>Магнит</th><th style={{ ...th, textAlign: 'right' }}>Выдано</th></tr></thead>
               <tbody>
                 {data.leadmagnets.map((m) => (
-                  <tr key={m.slug}><td style={td}>{titleOf(m.slug)}</td><td style={tdNum}>{m.delivered}</td><td style={tdNum}>{m.gated}</td></tr>
+                  <tr key={m.slug}><td style={td}>{titleOf(m.slug)}</td><td style={tdNum}>{m.delivered}</td></tr>
                 ))}
               </tbody>
             </table>
