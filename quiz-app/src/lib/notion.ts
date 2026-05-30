@@ -1,4 +1,5 @@
 import { Client } from '@notionhq/client';
+import { Prisma } from '../generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
@@ -16,6 +17,8 @@ interface TrackEventPayload {
   result_stage?: string;
   amount?: number;
   utm_source?: string;
+  /** Arbitrary structured data persisted to the Supabase event metadata column. */
+  metadata?: Record<string, unknown>;
 }
 
 // Upsert user in Supabase (create if not exists, update username/firstName if provided)
@@ -113,7 +116,9 @@ export async function trackEvent(payload: TrackEventPayload) {
         funnel: 'quiz',
         productSlug: payload.amount ? 'masterclass' : null,
         utmSource: payload.utm_source || null,
-        metadata: payload.result_title || payload.result_id
+        metadata: payload.metadata
+          ? (payload.metadata as Prisma.InputJsonValue)
+          : payload.result_title || payload.result_id
           ? { result_id: payload.result_id, result_title: payload.result_title, result_stage: payload.result_stage, amount: payload.amount }
           : undefined,
       },

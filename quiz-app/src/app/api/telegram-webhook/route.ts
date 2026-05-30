@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { notifyAdmin } from '@/lib/telegram';
 import { prisma } from '@/lib/prisma';
-import { getLeadMagnet } from '@/lib/leadmagnets';
+import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
@@ -87,6 +87,83 @@ async function editMessageText(chatId: number, messageId: number, text: string) 
   });
 }
 
+// Check whether a user is a member of a public channel.
+// Requires @testtoyzbot to be an admin of that channel, otherwise Telegram
+// returns an error and we fail open (treat as subscribed) to avoid blocking
+// users on a misconfiguration.
+async function isChannelMember(channelUsername: string, userId: number): Promise<boolean> {
+  const channel = channelUsername.startsWith('@') ? channelUsername : `@${channelUsername}`;
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${encodeURIComponent(channel)}&user_id=${userId}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.ok) {
+      console.error('getChatMember failed:', JSON.stringify(data));
+      return true; // fail open — don't lock people out if the bot isn't admin yet
+    }
+    const status = data.result?.status as string;
+    return ['creator', 'administrator', 'member'].includes(status);
+  } catch (err) {
+    console.error('getChatMember error:', err);
+    return true; // fail open on network errors
+  }
+}
+
+// Deliver a lead magnet: warm message + web_app button, plus analytics.
+async function deliverLeadMagnet(
+  chatId: number,
+  slug: string,
+  lm: LeadMagnet,
+  firstName: string,
+  username: string,
+  fullName: string,
+) {
+  const lmText = `привет, ${firstName}\n\n${lm.intro}${lm.softPitch ? '\n\n' + lm.softPitch : ''}`;
+  const lmMarkup = {
+    inline_keyboard: [
+      [{ text: '📖 Открыть гайд', web_app: { url: lm.url } }],
+    ],
+  };
+
+  await sendMessage(chatId, lmText, lmMarkup);
+
+  await Promise.all([
+    trackEvent({
+      event_type: 'leadmagnet_delivered',
+      user_id: chatId,
+      username: username || undefined,
+      first_name: fullName || undefined,
+      utm_source: `leadmagnet_${slug}`,
+      metadata: { slug },
+    }),
+    notifyAdmin(
+      `🪝 <b>Лид-магнит выдан</b>\n\n` +
+      `Материал: ${lm.title}\n` +
+      `Slug: <code>${slug}</code>\n` +
+      `👤 ${fullName || '—'}\n` +
+      `💬 ${username ? '@' + username : 'без username'}\n` +
+      `🆔 <code>${chatId}</code>`
+    ),
+  ]);
+}
+
+// Ask a non-subscriber to join the channel before getting the magnet.
+async function sendSubscriptionGate(chatId: number, slug: string, lm: LeadMagnet, firstName: string) {
+  const channel = lm.channelUsername.startsWith('@') ? lm.channelUsername : `@${lm.channelUsername}`;
+  const gateText =
+    lm.gateText ||
+    `привет, ${firstName}\n\nчтобы забрать материал — подпишись на канал, оттуда я и делюсь всем этим\n\nподписался? жми кнопку ниже 👇`;
+
+  const gateMarkup = {
+    inline_keyboard: [
+      [{ text: '📲 Подписаться на канал', url: `https://t.me/${channel.replace(/^@/, '')}` }],
+      [{ text: '✅ Я подписался', callback_data: `checksub:${slug}` }],
+    ],
+  };
+
+  await sendMessage(chatId, gateText, gateMarkup);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const update: TelegramUpdate = await request.json();
@@ -157,6 +234,33 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Subscription gate re-check: "Я подписался"
+      if (data.startsWith('checksub:') && cb.message) {
+        const slug = data.slice('checksub:'.length);
+        const userId = cb.from.id;
+        const chatId = cb.message.chat.id;
+        const firstName = cb.from.first_name || 'друг';
+        const username = cb.from.username || '';
+        const fullName = [cb.from.first_name, cb.from.last_name].filter(Boolean).join(' ');
+
+        const lm = getLeadMagnet(slug);
+        if (!lm) {
+          await answerCallbackQuery(cb.id, 'Материал не найден');
+          return NextResponse.json({ ok: true });
+        }
+
+        const subscribed = await isChannelMember(lm.channelUsername, userId);
+        if (subscribed) {
+          await answerCallbackQuery(cb.id, 'Готово ✓');
+          await editMessageText(chatId, cb.message.message_id, 'спасибо, что подписался 🤝 держи материал ниже');
+          await deliverLeadMagnet(chatId, slug, lm, firstName, username, fullName);
+        } else {
+          await answerCallbackQuery(cb.id, 'Пока не вижу подписку — подпишись и нажми ещё раз');
+        }
+
+        return NextResponse.json({ ok: true });
+      }
+
       // Unknown callback — just ack
       await answerCallbackQuery(cb.id);
       return NextResponse.json({ ok: true });
@@ -180,34 +284,25 @@ export async function POST(request: NextRequest) {
       if (startParam) {
         const lm = getLeadMagnet(startParam);
         if (lm) {
-          const lmText = `привет, ${firstName}\n\n${lm.intro}${lm.softPitch ? '\n\n' + lm.softPitch : ''}`;
+          // Subscription gate: hold the magnet until the user joins the channel.
+          // In a private chat the chat.id equals the user's telegram id.
+          if (lm.requireSub) {
+            const subscribed = await isChannelMember(lm.channelUsername, chatId);
+            if (!subscribed) {
+              await sendSubscriptionGate(chatId, startParam, lm, firstName);
+              await trackEvent({
+                event_type: 'leadmagnet_gated',
+                user_id: chatId,
+                username: username || undefined,
+                first_name: fullName || undefined,
+                utm_source: `leadmagnet_${startParam}`,
+                metadata: { slug: startParam },
+              });
+              return NextResponse.json({ ok: true });
+            }
+          }
 
-          const lmMarkup = {
-            inline_keyboard: [
-              [{ text: '📖 Открыть гайд', web_app: { url: lm.url } }],
-            ],
-          };
-
-          await sendMessage(chatId, lmText, lmMarkup);
-
-          await Promise.all([
-            trackEvent({
-              event_type: 'leadmagnet_delivered',
-              user_id: chatId,
-              username: username || undefined,
-              first_name: fullName || undefined,
-              utm_source: `leadmagnet_${startParam}`,
-            }),
-            notifyAdmin(
-              `🪝 <b>Лид-магнит выдан</b>\n\n` +
-              `Материал: ${lm.title}\n` +
-              `Slug: <code>${startParam}</code>\n` +
-              `👤 ${fullName || '—'}\n` +
-              `💬 ${username ? '@' + username : 'без username'}\n` +
-              `🆔 <code>${chatId}</code>`
-            ),
-          ]);
-
+          await deliverLeadMagnet(chatId, startParam, lm, firstName, username, fullName);
           return NextResponse.json({ ok: true });
         }
       }

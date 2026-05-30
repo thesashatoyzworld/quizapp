@@ -7,6 +7,10 @@ export interface LeadMagnet {
   channelUsername: string;
   intro: string;
   softPitch?: string;
+  /** When true, the bot checks channel subscription before delivering the magnet. */
+  requireSub?: boolean;
+  /** Text shown to a non-subscriber asking them to join the channel first. */
+  gateText?: string;
 }
 
 let cache: Record<string, LeadMagnet> | null = null;
