@@ -272,12 +272,8 @@ export async function POST(request: NextRequest) {
               `готово ⚡\n\nты в листе ожидания «Разрешение быстрых денег».\n\nсейчас добиваю инфраструктуру и программу — как открою даты, напишу тебе одному из первых.`
             );
 
-            await notifyAdmin(
-              `📌 <b>Новая запись в waitlist «Разрешение денег»</b>\n\n` +
-              `👤 ${[firstName, lastName].filter(Boolean).join(' ') || '—'}\n` +
-              `💬 ${username ? '@' + username : 'без username'}\n` +
-              `🆔 <code>${tgUserId}</code>`
-            );
+            // Уведомление админу для этого МК намеренно отключено —
+            // список смотрим вручную через check-moneymk-waitlist.cjs.
 
             await trackEvent({
               event_type: 'moneymk_waitlist_join',
