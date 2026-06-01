@@ -2,7 +2,7 @@
 <html lang="ru"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Слайд 3 — замкнутый круг (анимация)</title>
+<title>Слайд 3 — замкнутый круг</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -10,38 +10,37 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0e0c0b;font-family:var(--body);color:var(--cream);padding:30px 16px 50px;display:flex;justify-content:center}
 .card{width:100%;max-width:390px;aspect-ratio:9/17;background:var(--char);border-radius:28px;padding:34px 22px 30px;display:flex;flex-direction:column;position:relative;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.55)}
-.glow{position:absolute;width:320px;height:320px;border-radius:50%;background:var(--orange);filter:blur(90px);opacity:.16;top:48%;left:50%;transform:translate(-50%,-50%)}
+.glow{position:absolute;width:300px;height:300px;border-radius:50%;background:var(--orange);filter:blur(90px);opacity:.15;top:48%;left:50%;transform:translate(-50%,-50%)}
 .kick{font-family:var(--body);font-weight:600;font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);position:relative;z-index:2}
 .bn{font-family:var(--disp);font-weight:900;font-size:2.05rem;letter-spacing:-.03em;margin:9px 0 0;position:relative;z-index:2}
 .vis{flex:1;display:flex;align-items:center;justify-content:center;position:relative;z-index:2}
-svg{width:100%;height:auto;overflow:visible}
+svg{width:100%;max-width:296px;height:auto;overflow:visible}
 
-.track{fill:none;stroke:rgba(244,236,224,.13);stroke-width:3}
+.track{fill:none;stroke:rgba(244,236,224,.12);stroke-width:3}
 .draw{fill:none;stroke:var(--orange);stroke-width:3;stroke-linecap:round;
-  stroke-dasharray:741;stroke-dashoffset:741;
-  transform:rotate(-90deg);transform-origin:210px 180px;
-  animation:draw 1.3s cubic-bezier(.4,.0,.2,1) .2s forwards}
+  stroke-dasharray:653;stroke-dashoffset:653;
+  transform:rotate(-90deg);transform-origin:180px 180px;
+  animation:draw 2.6s linear .35s forwards}
 @keyframes draw{to{stroke-dashoffset:0}}
 
-.comet{transform-origin:210px 180px;animation:spin 4.6s linear 1.5s infinite}
-.comet .dot{fill:var(--orange);filter:drop-shadow(0 0 7px var(--orange))}
-@keyframes spin{to{transform:rotate(360deg)}}
+.comet{transform-origin:180px 180px;animation:spin 2.6s linear .35s infinite}
+.comet .dot{fill:var(--orange);filter:drop-shadow(0 0 8px var(--orange))}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 
-.node{opacity:0;transform-box:fill-box;transform-origin:center;animation:pop .5s cubic-bezier(.2,.75,.25,1) forwards}
+.node{opacity:0;transform-box:fill-box;transform-origin:center;animation:pop .45s cubic-bezier(.2,.75,.25,1) forwards}
 .node circle{fill:var(--orange)}
 .node text{fill:var(--char);font-family:var(--disp);font-weight:800;font-size:15px;text-anchor:middle;dominant-baseline:central}
-.n1{animation-delay:.45s}.n2{animation-delay:.85s}.n3{animation-delay:1.25s}.n4{animation-delay:1.65s}
+.n1{animation-delay:.55s}.n2{animation-delay:1.2s}.n3{animation-delay:1.85s}.n4{animation-delay:2.5s}
 @keyframes pop{0%{opacity:0;transform:scale(.4)}70%{transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
 
-.lbl{fill:var(--cream);font-family:var(--body);font-weight:600;font-size:15px;opacity:0;animation:fade .5s ease forwards}
-.l1{animation-delay:.6s}.l2{animation-delay:1s}.l3{animation-delay:1.4s}.l4{animation-delay:1.8s}
+.lbl{fill:var(--cream);font-family:var(--body);font-weight:600;font-size:14px;opacity:0;animation:fade .45s ease forwards}
+.l1{animation-delay:.7s}.l2{animation-delay:1.35s}.l3{animation-delay:2s}.l4{animation-delay:2.65s}
 @keyframes fade{to{opacity:1}}
 
-.ctr{fill:var(--orange);font-family:var(--disp);font-weight:800;font-size:15px;text-anchor:middle;opacity:0;animation:fade .6s ease 2s forwards}
-
-.cap{font-family:var(--body);font-size:1.04rem;line-height:1.45;text-align:center;position:relative;z-index:2;margin-top:4px;opacity:0;animation:fade .6s ease 2.2s forwards}
+.ctr{fill:var(--orange);font-family:var(--disp);font-weight:800;font-size:16px;text-anchor:middle;opacity:0;animation:fade .6s ease 3.1s forwards}
+.cap{font-family:var(--body);font-size:1.04rem;line-height:1.45;text-align:center;position:relative;z-index:2;margin-top:6px;opacity:0;animation:fade .6s ease 3.2s forwards}
 .cap b{color:var(--orange)}
-.optlbl{position:absolute;top:8px;left:0;right:0;text-align:center;font-family:var(--disp);font-weight:700;color:var(--orange);font-size:.7rem;opacity:.5;z-index:3}
+.optlbl{position:absolute;top:8px;left:0;right:0;text-align:center;font-family:var(--disp);font-weight:700;color:var(--orange);font-size:.66rem;opacity:.45;z-index:3}
 </style></head>
 <body>
 <div class="card"><div class="glow"></div>
@@ -49,27 +48,24 @@ svg{width:100%;height:auto;overflow:visible}
   <div class="kick">блок · основной</div>
   <div class="bn">УГОЖДЕНИЕ</div>
   <div class="vis">
-    <svg viewBox="0 0 420 360" role="img" aria-label="замкнутый круг">
-      <circle class="track" cx="210" cy="180" r="118"/>
-      <circle class="draw"  cx="210" cy="180" r="118"/>
+    <svg viewBox="0 0 360 360" role="img" aria-label="замкнутый круг">
+      <circle class="track" cx="180" cy="180" r="104"/>
+      <circle class="draw"  cx="180" cy="180" r="104"/>
 
-      <!-- бегущая точка по часовой -->
-      <g class="comet"><circle class="dot" cx="210" cy="62" r="6.5"/></g>
+      <g class="comet"><circle class="dot" cx="180" cy="76" r="6.5"/></g>
 
-      <!-- узлы 12/3/6/9 -->
-      <g class="node n1"><circle cx="210" cy="62"  r="17"/><text x="210" y="62">1</text></g>
-      <g class="node n2"><circle cx="328" cy="180" r="17"/><text x="328" y="180">2</text></g>
-      <g class="node n3"><circle cx="210" cy="298" r="17"/><text x="210" y="298">3</text></g>
-      <g class="node n4"><circle cx="92"  cy="180" r="17"/><text x="92"  y="180">4</text></g>
+      <g class="node n1"><circle cx="180" cy="76"  r="16"/><text x="180" y="76">1</text></g>
+      <g class="node n2"><circle cx="284" cy="180" r="16"/><text x="284" y="180">2</text></g>
+      <g class="node n3"><circle cx="180" cy="284" r="16"/><text x="180" y="284">3</text></g>
+      <g class="node n4"><circle cx="76"  cy="180" r="16"/><text x="76"  y="180">4</text></g>
 
-      <!-- подписи -->
-      <text class="lbl l1" x="210" y="32"  text-anchor="middle">стараюсь быть хорошим</text>
-      <text class="lbl l2" x="350" y="176" text-anchor="start">отдаю<tspan x="350" dy="19">даром</tspan></text>
-      <text class="lbl l3" x="210" y="334" text-anchor="middle">«спасибо», а денег нет</text>
-      <text class="lbl l4" x="70"  y="176" text-anchor="end">надо<tspan x="70" dy="19">ещё лучше</tspan></text>
+      <text class="lbl l1" x="180" y="44"  text-anchor="middle">стараюсь быть хорошим</text>
+      <text class="lbl l2" x="306" y="174" text-anchor="start">отдаю<tspan x="306" dy="18">даром</tspan></text>
+      <text class="lbl l3" x="180" y="324" text-anchor="middle">«спасибо», а денег нет</text>
+      <text class="lbl l4" x="54"  y="174" text-anchor="end">надо<tspan x="54" dy="18">лучше</tspan></text>
 
-      <text class="ctr" x="210" y="175">и так</text>
-      <text class="ctr" x="210" y="195">по кругу</text>
+      <text class="ctr" x="180" y="174">замкнутый</text>
+      <text class="ctr" x="180" y="194">круг</text>
     </svg>
   </div>
   <p class="cap">чем сильнее стараешься — <b>тем туже затягивает.</b></p>
