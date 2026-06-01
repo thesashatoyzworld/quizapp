@@ -127,6 +127,10 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
 .rank .row.dim .nm{color:rgba(28,25,23,.5);font-weight:600}
 .rank .tag{font-size:.66rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--orange);margin-top:5px}
 .rank .row.dim .tag{color:rgba(28,25,23,.4)}
+.verdict{opacity:0;margin-top:30px;border:2.5px solid var(--char);border-radius:18px;padding:24px 26px 26px;text-align:center;position:relative;z-index:1}
+.verdict .vt{display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;opacity:.6;margin-bottom:12px}
+.verdict .vn{font-family:var(--disp);font-weight:900;font-size:clamp(2.3rem,13cqw,3.2rem);line-height:.98;letter-spacing:-.02em}
+.slide.active .verdict{animation:pop .65s cubic-bezier(.2,.75,.25,1) .45s forwards}
 
 .gauge{position:relative;width:188px;height:188px;margin:8px auto 6px;display:flex;align-items:center;justify-content:center}
 .gauge svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
@@ -191,14 +195,15 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
     </section>
 
     <!-- 2 РЕЗУЛЬТАТ -->
-    <section class="slide t-cream" data-theme="light">
+    <section class="slide t-orange" data-theme="light">
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">разрешение денег</span></div>
-      <div class="kicker ac r" style="animation-delay:.05s">результат</div>
+      <div class="kicker r" style="animation-delay:.05s">результат</div>
       <h1 class="lg r" style="animation-delay:.15s">вот что<br>перекрывает<br>тебе деньги</h1>
-      <div class="rank mt" style="align-items:center">
-        <div class="row r" style="animation-delay:.34s;border-bottom:none;flex-direction:column;align-items:center;gap:6px;text-align:center"><div class="nm" style="font-size:1.7rem">Угождение</div><div class="tag">основной блок</div></div>
+      <div class="verdict">
+        <span class="vt">основной блок</span>
+        <div class="vn">Угождение</div>
       </div>
-      <p class="muted r mt" style="animation-delay:.66s;font-size:.92rem;text-align:center">начнём с главного.</p>
+      <p class="lead b r mt" style="animation-delay:.95s;text-align:center">начнём с главного.</p>
     </section>
 
     <!-- 3 БЛОК + % -->
