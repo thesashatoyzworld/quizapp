@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Разрешение быстрых денег — у тебя всё хорошо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --orange:#FF5C3A;--cream:#FFFCFA;--char:#1C1917;--char2:#2a2724;
+  --green:#35b06a;
+  --muted:rgba(28,25,23,.55);--muted-l:rgba(255,252,250,.6);
+  --disp:'Unbounded',sans-serif;--body:'Inter',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:var(--body);background:#0d0c0b;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--char);}
+.phone{position:relative;width:100%;height:100%;max-width:440px;background:var(--char);overflow:hidden;container-type:inline-size;}
+@media(min-width:480px){body{padding:24px}.phone{height:min(900px,94vh);border-radius:40px;box-shadow:0 40px 120px rgba(0,0,0,.6),0 0 0 11px #1a1917,0 0 0 13px #2c2926}}
+
+.progress{position:absolute;top:0;left:0;right:0;z-index:40;display:flex;gap:5px;padding:14px 16px;}
+.seg{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.28);overflow:hidden}
+.seg i{display:block;height:100%;width:0;background:#fff;border-radius:3px;transition:width .35s ease}
+.seg.done i,.seg.cur i{width:100%}
+.story.on-light .seg{background:rgba(28,25,23,.18)}
+.story.on-light .seg i{background:var(--char)}
+
+.topbar{position:absolute;top:30px;left:30px;right:30px;z-index:30;display:flex;justify-content:space-between;align-items:center;font-family:var(--disp);font-weight:700;font-size:.7rem;letter-spacing:.02em;color:inherit;opacity:.5;pointer-events:none}
+.topbar .tb-r{font-family:var(--body);font-weight:600;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase}
+
+.story{position:absolute;inset:0}
+.slide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:70px 30px 64px;opacity:0;visibility:hidden;transform:translateX(40px) scale(.99);transition:opacity .45s ease,transform .55s cubic-bezier(.2,.7,.2,1),visibility .45s;overflow:hidden;}
+.slide.active{opacity:1;visibility:visible;transform:none}
+.slide.prev{transform:translateX(-40px) scale(.99)}
+
+.t-char{background:var(--char);color:var(--cream)}
+.t-orange{background:var(--orange);color:var(--char)}
+.t-cream{background:var(--cream);color:var(--char)}
+.t-green{background:var(--green);color:var(--cream)}
+.t-char .kicker,.t-char .muted{color:var(--muted-l)}
+.t-cream .kicker,.t-cream .muted{color:var(--muted)}
+.t-orange .kicker{color:rgba(28,25,23,.6)}
+.t-orange .muted{color:rgba(28,25,23,.68)}
+.t-green .kicker{color:rgba(255,252,250,.7)}
+.t-green .muted{color:rgba(255,252,250,.78)}
+
+.glow{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;pointer-events:none;z-index:0}
+.slide::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+.kicker{font-family:var(--body);font-weight:600;font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;margin-bottom:18px}
+h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em}
+.xxl{font-size:clamp(2.2rem,11cqw,3.1rem)}
+.xl{font-size:clamp(1.9rem,9.5cqw,2.7rem)}
+.lg{font-size:clamp(1.5rem,7.4cqw,2.05rem);line-height:1.05}
+.lead{font-size:1.06rem;line-height:1.5;font-weight:400}
+.lead.b{font-weight:600}
+.hi{background:linear-gradient(transparent 58%,rgba(53,176,106,.32) 58%);padding:0 .04em}
+.t-orange .hi{background:linear-gradient(transparent 56%,rgba(255,252,250,.55) 56%);color:inherit;padding:0 .05em}
+.t-green .hi{background:linear-gradient(transparent 56%,rgba(255,252,250,.4) 56%);color:inherit;padding:0 .05em}
+.ac{color:var(--green)}
+.t-orange .ac{color:var(--char)}
+
+.r{opacity:0}
+.slide.active .r{animation:rise .6s cubic-bezier(.2,.75,.25,1) forwards}
+@keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+
+.symlist{list-style:none;display:flex;flex-direction:column;gap:14px;margin-top:8px}
+.symlist li{font-size:1.05rem;line-height:1.35;font-weight:500;padding-left:26px;position:relative}
+.symlist li::before{content:"";position:absolute;left:0;top:.55em;width:9px;height:9px;border-radius:50%;background:var(--green)}
+.t-cream .symlist li::before{background:var(--green)}
+
+/* calm experience (экран 07): слайдер «насколько тебе ок» + зелёный датчик спокойствия */
+.pexp{margin-top:14px;position:relative}
+.pq{display:block;font-size:1.02rem;font-weight:600;margin-bottom:14px;line-height:1.3}
+.pmain{display:flex;gap:18px;align-items:flex-end;margin-top:8px}
+.pleft{flex:1;min-width:0}
+.plabel2{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.5;margin-bottom:6px}
+.ptime-row{font-size:1.04rem;font-weight:500}
+.ptime{font-family:var(--disp);font-weight:800;color:var(--green);transition:color .2s}
+.pslider{-webkit-appearance:none;appearance:none;width:100%;height:7px;border-radius:7px;background:rgba(255,252,250,.18);outline:none;margin-top:20px;cursor:grab}
+.pslider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:30px;height:30px;border-radius:50%;background:var(--green);box-shadow:0 4px 14px rgba(53,176,106,.5);border:3px solid var(--char)}
+.pslider::-moz-range-thumb{width:30px;height:30px;border:3px solid var(--char);border-radius:50%;background:var(--green)}
+.plabels{display:flex;justify-content:space-between;margin-top:9px;font-size:.64rem;font-weight:700;letter-spacing:.05em;opacity:.45;text-transform:uppercase}
+.thermo{display:flex;flex-direction:column;align-items:center;gap:7px;flex:none;width:46px}
+.thermo-lbl{font-size:.55rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;opacity:.5;text-align:center}
+.thermo-tube{width:20px;height:148px;border-radius:10px;background:rgba(255,252,250,.1);overflow:hidden;display:flex;align-items:flex-end}
+.thermo-fill{width:100%;height:0%;background:var(--green);transition:height .28s cubic-bezier(.2,.8,.2,1)}
+.thermo-bulb{width:30px;height:30px;border-radius:50%;background:var(--green);margin-top:-12px;box-shadow:0 0 0 4px var(--char)}
+.pcap{margin-top:20px;font-size:1rem;line-height:1.42;font-weight:500;min-height:2.6em;transition:opacity .2s}
+.pcap.final{font-weight:700;color:var(--cream)}
+
+.btn{display:block;text-align:center;text-decoration:none;font-family:var(--disp);font-weight:800;font-size:1.08rem;color:var(--cream);background:var(--green);padding:21px 24px;border-radius:18px;margin-top:24px;box-shadow:0 14px 34px rgba(53,176,106,.4);position:relative;z-index:30;transition:transform .15s ease;}
+.btn:active{transform:scale(.97)}
+.price{text-align:center;font-size:.85rem;color:inherit;opacity:.55;margin-top:14px;font-weight:500}
+
+.tap{position:absolute;top:0;bottom:0;width:38%;z-index:20;cursor:pointer}
+.tap.l{left:0}.tap.r{right:0;width:62%}
+.mt{margin-top:18px}.mt-s{margin-top:10px}
+.slide>*{position:relative;z-index:2}
+.slide>.glow{position:absolute;z-index:0}
+.slide>.topbar{position:absolute}
+.slide>.pexp{z-index:25}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="story" id="story">
+    <div class="progress" id="progress"></div>
+
+    <!-- 1 INTRO -->
+    <section class="slide t-char" data-theme="dark">
+      <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">разрешение денег</span></div>
+      <div class="glow" style="width:300px;height:300px;background:var(--green);top:-40px;right:-80px"></div>
+      <div class="kicker r" style="animation-delay:.05s">твой разбор</div>
+      <h1 class="xl r" style="animation-delay:.18s">ну что,<br>посмотрим<br>что у тебя <span class="ac">с деньгами</span></h1>
+      <p class="lead muted r mt" style="animation-delay:.4s">ты ответил на вопросы. сейчас покажу, что нашёл.</p>
+    </section>
+
+    <!-- 2 РЕЗУЛЬТАТ -->
+    <section class="slide t-cream" data-theme="light">
+      <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">разрешение денег</span></div>
+      <div class="kicker ac r" style="animation-delay:.05s">результат</div>
+      <h1 class="xl r" style="animation-delay:.15s">а у тебя —<br><span class="ac">чисто</span></h1>
+      <p class="lead b r mt" style="animation-delay:.4s">ни один блок не перекрывает тебе деньги.</p>
+      <p class="lead muted r mt-s" style="animation-delay:.56s">и это не ошибка теста.</p>
+    </section>
+
+    <!-- 3 BIG -->
+    <section class="slide t-green" data-theme="dark">
+      <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">честно</span></div>
+      <div class="glow" style="width:300px;height:300px;background:#fff;top:50%;left:50%;transform:translate(-50%,-50%);opacity:.18"></div>
+      <div class="kicker r" style="animation-delay:.05s">честно</div>
+      <h1 class="xxl r" style="animation-delay:.16s">у тебя<br>всё <span class="hi">хорошо</span></h1>
+      <p class="lead b r mt" style="animation-delay:.42s">правда. ты там, где должен быть. и тебя всё устраивает.</p>
+    </section>
+
+    <!-- 4 ЧТО ЗНАЧИТ -->
+    <section class="slide t-char" data-theme="dark">
+      <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">что это значит</span></div>
+      <div class="glow" style="width:240px;height:240px;background:var(--green);bottom:-70px;right:-50px;opacity:.3"></div>
+      <div class="kicker r" style="animation-delay:.05s">что это значит</div>
+      <h1 class="lg r" style="animation-delay:.15s">тебе не нужно<br>"чинить" деньги</h1>
+      <p class="lead muted r mt" style="animation-delay:.4s">у тебя с ними нормальные отношения. ты зарабатываешь столько, сколько тебе сейчас органично. без надрыва, без блоков, без гонки.</p>
+    </section>
+
+    <!-- 5 ВСКРЫТИЕ -->
+    <section class="slide t-char" data-theme="dark">
+      <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">но кое-что грызёт</span></div>
+      <div class="kicker r" style="animation-delay:.05s">но кое-что грызёт</div>
+      <h1 class="lg r" style="animation-delay:.14s">грызёт не<br>«мало денег».</h1>
+      <p class="lead b r mt-s" style="animation-delay:.3s">грызёт мысль, что <span class="hi">надо больше</span>.</p>
+      <p class="lead muted r mt" style="animation-delay:.48s">тебе кажется, что надо что-то делать, куда-то бежать, кем-то становиться. но если присмотреться — это не твоё желание.</p>
+    </section>
+
+    <!-- 6 ОТКУДА -->
+    <section class="slide t-cream" data-theme="light">
+      <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">откуда это</span></div>
+      <div class="kicker ac r" style="animation-delay:.05s">откуда это</div>
+      <h1 class="lg r" style="animation-delay:.15s">это <span class="hi">чужие</span> гонки</h1>
+      <ul class="symlist mt">
+        <li class="r" style="animation-delay:.3s">лента, где все «масштабируются»</li>
+        <li class="r" style="animation-delay:.42s">разговоры про «успешный успех»</li>
+        <li class="r" style="animation-delay:.54s">цифры, которые тебе вообще-то не нужны</li>
+      </ul>
+      <p class="lead muted r mt" style="animation-delay:.68s">ты насмотрелся — и начал себя за это пилить.</p>
+    </section>
+
+    <!-- 7 ПЕРЕЖИВАНИЕ (спокойный слайдер) -->
+    <section class="slide t-char" data-theme="dark">
+      <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r"></span></div>
+      <div class="glow" style="width:300px;height:300px;background:var(--green);top:50%;left:50%;transform:translate(-50%,-50%);opacity:.2"></div>
+      <div class="kicker r" style="animation-delay:.05s">а теперь честно</div>
+      <div class="pexp r" style="animation-delay:.2s">
+        <label class="pq">насколько тебя устраивает твоя жизнь прямо сейчас?</label>
+        <div class="pmain">
+          <div class="pleft">
+            <div class="ptime-row">сейчас тебе <span class="ptime" id="ptime">так себе</span></div>
+            <input id="pslider" class="pslider" type="range" min="1" max="5" step="1" value="1" aria-label="насколько устраивает">
+            <div class="plabels"><span>совсем нет</span><span>полностью</span></div>
+          </div>
+          <div class="thermo" aria-hidden="true">
+            <div class="thermo-lbl">спокой­ствие</div>
+            <div class="thermo-tube"><div class="thermo-fill" id="tfill"></div></div>
+            <div class="thermo-bulb"></div>
+          </div>
+        </div>
+        <p class="pcap" id="pcap">тащи ползунок. только честно, без оглядки на других.</p>
+      </div>
+    </section>
+
+    <!-- 8 РАЗВОРОТ -->
+    <section class="slide t-char" data-theme="dark">
+      <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r"></span></div>
+      <div class="glow" style="width:300px;height:300px;background:var(--green);top:-30px;left:-70px;opacity:.34"></div>
+      <div class="kicker r" style="animation-delay:.05s">вот в чём разворот</div>
+      <p class="lead r" style="animation-delay:.14s">«достаточно» — это не лень.</p>
+      <h1 class="lg r mt-s" style="animation-delay:.28s">это <span class="hi">зрелость</span></h1>
+      <p class="lead muted r mt" style="animation-delay:.5s">уметь сказать «мне хватает» — редкий навык. большинство гонится всю жизнь и не умеет остановиться. а ты умеешь быть здесь.</p>
+    </section>
+
+    <!-- 9 CTA (мягкий) -->
+    <section class="slide t-cream" data-theme="light">
+      <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">и всё же</span></div>
+      <div class="kicker ac r" style="animation-delay:.05s">и всё же</div>
+      <h1 class="lg r" style="animation-delay:.15s">захочешь больше —<br>приходи <span class="hi">из желания</span></h1>
+      <p class="lead muted r mt" style="animation-delay:.36s">а не из тревоги, что «отстаёшь». если однажды по-настоящему захочешь расти — МК «Разрешение быстрых денег» будет ждать. а пока выдохни. у тебя всё хорошо.</p>
+      <a class="btn r" style="animation-delay:.54s" href="#" id="cta">посмотреть МК →</a>
+      <div class="price r" style="animation-delay:.66s">8 / 10 / 12 июня · 4 884 ₽ · без давления</div>
+    </section>
+
+    <div class="tap l" id="tapL"></div>
+    <div class="tap r" id="tapR"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const story=document.getElementById('story');
+  const slides=[...story.querySelectorAll('.slide')];
+  const N=slides.length;
+  const prog=document.getElementById('progress');
+  let i=0;
+  for(let k=0;k<N;k++){const s=document.createElement('div');s.className='seg';s.innerHTML='<i></i>';prog.appendChild(s);}
+  const segs=[...prog.children];
+  slides.forEach((s,k)=>{const r=s.querySelector('.tb-r');if(r)r.textContent=String(k+1).padStart(2,'0')+' / '+N;});
+  // calm experience (экран 07): насколько тебе ок → зелёный датчик спокойствия
+  (function(){
+    const sl=document.getElementById('pslider');
+    if(!sl)return;
+    const ptime=document.getElementById('ptime'), cap=document.getElementById('pcap');
+    const fill=document.getElementById('tfill');
+    const times={1:'так себе',2:'ничего так',3:'нормально',4:'хорошо',5:'отлично'};
+    const caps={
+      1:'ну, тащи честно. без оглядки на ленту.',
+      2:'уже неплохо, да?',
+      3:'а если перестать сравнивать себя с другими?',
+      4:'смотри, как наполняется. это твоё, настоящее.',
+      5:'вот. тебе хорошо. так зачем ты себя пилишь?'
+    };
+    function upd(){
+      const v=+sl.value, t=(v-1)/4;
+      ptime.textContent=times[v];
+      fill.style.height=(t*100)+'%';
+      cap.textContent=caps[v];
+      cap.classList.toggle('final',v===5);
+    }
+    sl.addEventListener('input',upd);
+    ['touchstart','touchmove','touchend','pointerdown','mousedown'].forEach(ev=>sl.addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
+    upd();
+  })();
+  function show(n){
+    n=Math.max(0,Math.min(N-1,n));
+    slides.forEach((s,k)=>{s.classList.remove('active','prev');if(k===n)s.classList.add('active');else if(k<n)s.classList.add('prev');});
+    const cur=slides[n];
+    cur.querySelectorAll('.r').forEach(el=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});
+    segs.forEach((s,k)=>{s.classList.toggle('done',k<n);s.classList.toggle('cur',k===n);});
+    story.classList.toggle('on-light',cur.dataset.theme==='light');
+    i=n;
+  }
+  document.getElementById('tapR').addEventListener('click',()=>show(i+1));
+  document.getElementById('tapL').addEventListener('click',()=>show(i-1));
+  document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')show(i+1);if(e.key==='ArrowLeft')show(i-1);});
+  let sx=0;
+  story.addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
+  story.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx;if(dx<-40)show(i+1);else if(dx>40)show(i-1);},{passive:true});
+  document.getElementById('cta').addEventListener('click',e=>e.preventDefault());
+  show(0);
+})();
+</script>
+</body>
+</html>
