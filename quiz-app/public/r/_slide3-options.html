@@ -6,7 +6,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--char:#1f1c19;--cream:#f4ece0;--orange:#ff5c3a;--red:#d23a1d;--muted:rgba(244,236,224,.6);--disp:'Unbounded',sans-serif;--body:'Inter',sans-serif}
+:root{--char:#1f1c19;--cream:#f4ece0;--orange:#ff5c3a;--green:#37bd5c;--red:#d8381c;--muted:rgba(244,236,224,.6);--disp:'Unbounded',sans-serif;--body:'Inter',sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0e0c0b;font-family:var(--body);color:var(--cream);padding:24px 16px 44px;display:flex;justify-content:center}
 .card{width:100%;max-width:390px;aspect-ratio:9/17;background:var(--char);border-radius:28px;padding:24px 20px;display:flex;flex-direction:column;justify-content:center;gap:14px;position:relative;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.55)}
@@ -18,33 +18,32 @@ body{background:#0e0c0b;font-family:var(--body);color:var(--cream);padding:24px 
 svg{width:100%;max-width:278px;height:auto;overflow:visible}
 
 .track{fill:none;stroke:rgba(244,236,224,.12);stroke-width:3}
-.draw{fill:none;stroke:var(--orange);stroke-width:3;stroke-linecap:round;stroke-dasharray:653;stroke-dashoffset:653;transform:rotate(-90deg);transform-origin:230px 180px;animation:drawstep 6.4s linear .35s forwards}
+.draw{fill:none;stroke:var(--orange);stroke-width:3;stroke-linecap:round;stroke-dasharray:653;stroke-dashoffset:653;transform:rotate(-90deg);transform-origin:230px 180px;animation:drawstep 5.2s linear .35s forwards}
 @keyframes drawstep{0%,8%{stroke-dashoffset:653}23%,31%{stroke-dashoffset:490}46%,54%{stroke-dashoffset:327}69%,77%{stroke-dashoffset:163}92%,100%{stroke-dashoffset:0}}
-.comet{transform-origin:230px 180px;animation:step 6.4s linear .35s infinite}
+.comet{transform-origin:230px 180px;animation:step 5.2s linear .35s infinite}
 .comet .dot{fill:var(--orange);filter:drop-shadow(0 0 8px var(--orange))}
 @keyframes step{0%,8%{transform:rotate(0deg)}23%,31%{transform:rotate(90deg)}46%,54%{transform:rotate(180deg)}69%,77%{transform:rotate(270deg)}92%,100%{transform:rotate(360deg)}}
 .node{opacity:0;transform-box:fill-box;transform-origin:center;animation:pop .45s cubic-bezier(.2,.75,.25,1) forwards}
 .node circle{fill:var(--orange)}
 .node text{fill:var(--char);font-family:var(--disp);font-weight:800;font-size:15px;text-anchor:middle;dominant-baseline:central}
-.n1{animation-delay:.45s}.n2{animation-delay:1.8s}.n3{animation-delay:3.25s}.n4{animation-delay:4.7s}
+.n1{animation-delay:.4s}.n2{animation-delay:1.6s}.n3{animation-delay:2.8s}.n4{animation-delay:4s}
 @keyframes pop{0%{opacity:0;transform:scale(.4)}70%{transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
 .lbl{fill:var(--cream);font-family:var(--body);font-weight:600;font-size:13px;opacity:0;animation:fade .45s ease forwards}
-.l1{animation-delay:.6s}.l2{animation-delay:1.95s}.l3{animation-delay:3.4s}.l4{animation-delay:4.85s}
+.l1{animation-delay:.55s}.l2{animation-delay:1.75s}.l3{animation-delay:2.95s}.l4{animation-delay:4.15s}
 @keyframes fade{to{opacity:1}}
 .ctr{fill:var(--orange);font-family:var(--disp);font-weight:800;font-size:15px;text-anchor:middle;opacity:0;animation:fade .6s ease .9s forwards}
 
-/* bars */
-.bars{display:flex;justify-content:center;gap:50px;position:relative;z-index:2;opacity:0;animation:fade .5s ease .6s forwards}
+/* батарейки */
+.bars{display:flex;justify-content:center;gap:54px;position:relative;z-index:2;opacity:0;animation:fade .5s ease .6s forwards}
 .barwrap{text-align:center}
-.bar{width:40px;height:130px;background:rgba(244,236,224,.07);border-radius:10px;position:relative;overflow:hidden;margin:0 auto}
-.zero{position:absolute;left:0;right:0;bottom:64px;height:2px;background:rgba(244,236,224,.4);z-index:3}
-.reserve{position:absolute;left:0;right:0;bottom:64px;height:66px;background:var(--orange);border-radius:7px 7px 0 0;animation:reserve 19.2s linear .35s forwards}
-.debt{position:absolute;left:0;right:0;top:66px;height:0;background:var(--red);border-radius:0 0 7px 7px;animation:debt 19.2s linear .35s forwards}
-@keyframes reserve{0%{height:66px}33%{height:16px}66%{height:0}100%{height:0}}
-@keyframes debt{0%,33%{height:0}66%{height:26px}100%{height:54px}}
-.mfill{position:absolute;left:0;right:0;bottom:64px;height:9px;background:rgba(244,236,224,.5);border-radius:6px 6px 0 0}
-.bl{font-family:var(--body);font-weight:700;font-size:.7rem;color:var(--muted);margin-top:9px;text-transform:uppercase;letter-spacing:.08em}
-.credit{font-family:var(--body);font-weight:700;font-size:.64rem;color:var(--red);margin-top:3px;opacity:0;animation:fade .5s ease 13s forwards}
+.nub{width:20px;height:6px;border-radius:3px 3px 0 0;background:rgba(244,236,224,.5);margin:0 auto -1px}
+.bat{width:48px;height:116px;border:3px solid rgba(244,236,224,.5);border-radius:11px;position:relative;overflow:hidden;margin:0 auto;background:rgba(244,236,224,.05)}
+.fill{position:absolute;left:3px;right:3px;bottom:3px;border-radius:6px}
+.efill{height:88%;background:var(--green);animation:edh 13s linear .4s forwards, edc 13s linear .4s forwards}
+@keyframes edh{0%{height:88%}100%{height:10%}}
+@keyframes edc{0%{background:var(--green)}45%{background:#e8b53a}100%{background:var(--red)}}
+.mfill{height:7%;background:rgba(244,236,224,.4)}
+.bl{font-family:var(--body);font-weight:700;font-size:.7rem;color:var(--muted);margin-top:10px;text-transform:uppercase;letter-spacing:.08em}
 
 .cap{font-family:var(--body);font-size:1.02rem;line-height:1.4;text-align:center;position:relative;z-index:2;opacity:0;animation:fade .6s ease 1.1s forwards}
 .cap b{color:var(--orange)}
@@ -76,14 +75,16 @@ svg{width:100%;max-width:278px;height:auto;overflow:visible}
   </div>
   <div class="bars">
     <div class="barwrap">
-      <div class="bar"><div class="reserve"></div><div class="debt"></div><div class="zero"></div></div>
-      <div class="bl">энергия</div><div class="credit">в кредит</div>
+      <div class="nub"></div>
+      <div class="bat"><div class="fill efill"></div></div>
+      <div class="bl">энергия</div>
     </div>
     <div class="barwrap">
-      <div class="bar"><div class="mfill"></div><div class="zero"></div></div>
+      <div class="nub"></div>
+      <div class="bat"><div class="fill mfill"></div></div>
       <div class="bl">деньги</div>
     </div>
   </div>
-  <p class="cap">крутишься в кредит — <b>а денег столько же.</b></p>
+  <p class="cap">выгораешь по кругу — <b>а денег столько же.</b></p>
 </div>
 </body></html>
