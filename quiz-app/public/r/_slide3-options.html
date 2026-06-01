@@ -2,54 +2,75 @@
 <html lang="ru"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Слайд 3 — замкнутый круг</title>
+<title>Слайд 3 — замкнутый круг (анимация)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--char:#1f1c19;--cream:#f4ece0;--orange:#ff5c3a;--muted:rgba(244,236,224,.62);--disp:'Unbounded',sans-serif;--body:'Inter',sans-serif}
+:root{--char:#1f1c19;--cream:#f4ece0;--orange:#ff5c3a;--muted:rgba(244,236,224,.6);--disp:'Unbounded',sans-serif;--body:'Inter',sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0e0c0b;font-family:var(--body);color:var(--cream);padding:30px 16px 60px}
-.optlbl{font-family:var(--disp);font-weight:700;color:var(--orange);font-size:.9rem;text-align:center;margin-bottom:14px}
-.card{width:100%;max-width:390px;aspect-ratio:9/17;margin:0 auto;background:var(--char);border-radius:26px;padding:32px 24px;display:flex;flex-direction:column;position:relative;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.glow{position:absolute;width:300px;height:300px;border-radius:50%;background:var(--orange);filter:blur(85px);opacity:.18;top:46%;left:50%;transform:translate(-50%,-50%)}
+body{background:#0e0c0b;font-family:var(--body);color:var(--cream);padding:30px 16px 50px;display:flex;justify-content:center}
+.card{width:100%;max-width:390px;aspect-ratio:9/17;background:var(--char);border-radius:28px;padding:34px 22px 30px;display:flex;flex-direction:column;position:relative;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.55)}
+.glow{position:absolute;width:320px;height:320px;border-radius:50%;background:var(--orange);filter:blur(90px);opacity:.16;top:48%;left:50%;transform:translate(-50%,-50%)}
 .kick{font-family:var(--body);font-weight:600;font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);position:relative;z-index:2}
-.bn{font-family:var(--disp);font-weight:900;font-size:2.1rem;letter-spacing:-.03em;margin:10px 0 0;position:relative;z-index:2}
+.bn{font-family:var(--disp);font-weight:900;font-size:2.05rem;letter-spacing:-.03em;margin:9px 0 0;position:relative;z-index:2}
 .vis{flex:1;display:flex;align-items:center;justify-content:center;position:relative;z-index:2}
+svg{width:100%;height:auto;overflow:visible}
 
-.loop{position:relative;width:300px;height:300px}
-.loop svg{position:absolute;inset:0;width:100%;height:100%}
-.lc{position:absolute;text-align:center;font-family:var(--body);font-weight:600;font-size:.82rem;line-height:1.2;width:130px;left:50%;transform:translateX(-50%)}
-.lc.t{top:6px}
-.lc.r{top:50%;left:auto;right:-6px;transform:translateY(-50%);width:96px;text-align:left}
-.lc.b{bottom:4px}
-.lc.l{top:50%;left:-6px;transform:translateY(-50%);width:96px;text-align:right}
-.lc .n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--orange);color:var(--char);font-family:var(--disp);font-weight:800;font-size:.72rem;margin-bottom:5px}
-.center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;font-family:var(--disp);font-weight:800;font-size:.92rem;color:var(--orange);width:120px;line-height:1.15}
-.cap{font-family:var(--body);font-size:1.02rem;line-height:1.45;text-align:center;position:relative;z-index:2;margin-top:6px}
+.track{fill:none;stroke:rgba(244,236,224,.13);stroke-width:3}
+.draw{fill:none;stroke:var(--orange);stroke-width:3;stroke-linecap:round;
+  stroke-dasharray:741;stroke-dashoffset:741;
+  transform:rotate(-90deg);transform-origin:210px 180px;
+  animation:draw 1.3s cubic-bezier(.4,.0,.2,1) .2s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+.comet{transform-origin:210px 180px;animation:spin 4.6s linear 1.5s infinite}
+.comet .dot{fill:var(--orange);filter:drop-shadow(0 0 7px var(--orange))}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.node{opacity:0;transform-box:fill-box;transform-origin:center;animation:pop .5s cubic-bezier(.2,.75,.25,1) forwards}
+.node circle{fill:var(--orange)}
+.node text{fill:var(--char);font-family:var(--disp);font-weight:800;font-size:15px;text-anchor:middle;dominant-baseline:central}
+.n1{animation-delay:.45s}.n2{animation-delay:.85s}.n3{animation-delay:1.25s}.n4{animation-delay:1.65s}
+@keyframes pop{0%{opacity:0;transform:scale(.4)}70%{transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+
+.lbl{fill:var(--cream);font-family:var(--body);font-weight:600;font-size:15px;opacity:0;animation:fade .5s ease forwards}
+.l1{animation-delay:.6s}.l2{animation-delay:1s}.l3{animation-delay:1.4s}.l4{animation-delay:1.8s}
+@keyframes fade{to{opacity:1}}
+
+.ctr{fill:var(--orange);font-family:var(--disp);font-weight:800;font-size:15px;text-anchor:middle;opacity:0;animation:fade .6s ease 2s forwards}
+
+.cap{font-family:var(--body);font-size:1.04rem;line-height:1.45;text-align:center;position:relative;z-index:2;margin-top:4px;opacity:0;animation:fade .6s ease 2.2s forwards}
 .cap b{color:var(--orange)}
+.optlbl{position:absolute;top:8px;left:0;right:0;text-align:center;font-family:var(--disp);font-weight:700;color:var(--orange);font-size:.7rem;opacity:.5;z-index:3}
 </style></head>
 <body>
-<div class="optlbl">Слайд 3 · замкнутый круг</div>
 <div class="card"><div class="glow"></div>
+  <div class="optlbl">превью · анимация играет вживую</div>
   <div class="kick">блок · основной</div>
   <div class="bn">УГОЖДЕНИЕ</div>
   <div class="vis">
-    <div class="loop">
-      <svg viewBox="0 0 300 300" aria-hidden="true">
-        <defs><marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M0,0 L10,5 L0,10 z" fill="#ff5c3a"/></marker></defs>
-        <!-- four clockwise arcs between the 4 nodes -->
-        <path d="M150,38 A112,112 0 0,1 262,150" fill="none" stroke="#ff5c3a" stroke-width="3" stroke-linecap="round" marker-end="url(#ah)" opacity=".9"/>
-        <path d="M262,150 A112,112 0 0,1 150,262" fill="none" stroke="#ff5c3a" stroke-width="3" stroke-linecap="round" marker-end="url(#ah)" opacity=".9"/>
-        <path d="M150,262 A112,112 0 0,1 38,150" fill="none" stroke="#ff5c3a" stroke-width="3" stroke-linecap="round" marker-end="url(#ah)" opacity=".9"/>
-        <path d="M38,150 A112,112 0 0,1 150,38" fill="none" stroke="#ff5c3a" stroke-width="3" stroke-linecap="round" marker-end="url(#ah)" opacity=".9"/>
-      </svg>
-      <div class="lc t"><span class="n">1</span><br>стараюсь быть хорошим</div>
-      <div class="lc r"><span class="n">2</span><br>отдаю ещё больше</div>
-      <div class="lc b"><span class="n">3</span><br>«спасибо», а денег нет</div>
-      <div class="lc l"><span class="n">4</span><br>значит надо ещё лучше</div>
-      <div class="center">и так<br>по кругу</div>
-    </div>
+    <svg viewBox="0 0 420 360" role="img" aria-label="замкнутый круг">
+      <circle class="track" cx="210" cy="180" r="118"/>
+      <circle class="draw"  cx="210" cy="180" r="118"/>
+
+      <!-- бегущая точка по часовой -->
+      <g class="comet"><circle class="dot" cx="210" cy="62" r="6.5"/></g>
+
+      <!-- узлы 12/3/6/9 -->
+      <g class="node n1"><circle cx="210" cy="62"  r="17"/><text x="210" y="62">1</text></g>
+      <g class="node n2"><circle cx="328" cy="180" r="17"/><text x="328" y="180">2</text></g>
+      <g class="node n3"><circle cx="210" cy="298" r="17"/><text x="210" y="298">3</text></g>
+      <g class="node n4"><circle cx="92"  cy="180" r="17"/><text x="92"  y="180">4</text></g>
+
+      <!-- подписи -->
+      <text class="lbl l1" x="210" y="32"  text-anchor="middle">стараюсь быть хорошим</text>
+      <text class="lbl l2" x="352" y="184" text-anchor="start">отдаю даром</text>
+      <text class="lbl l3" x="210" y="334" text-anchor="middle">«спасибо», а денег нет</text>
+      <text class="lbl l4" x="68"  y="184" text-anchor="end">надо ещё лучше</text>
+
+      <text class="ctr" x="210" y="175">и так</text>
+      <text class="ctr" x="210" y="195">по кругу</text>
+    </svg>
   </div>
   <p class="cap">чем сильнее стараешься — <b>тем туже затягивает.</b></p>
 </div>
