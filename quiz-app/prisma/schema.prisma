@@ -211,3 +211,18 @@ model MasterclassSyncWaitlist {
 
   @@map("masterclass_sync_waitlist")
 }
+
+// ═══════════════════════════════════════
+// МК «РАЗРЕШЕНИЕ БЫСТРЫХ ДЕНЕГ» ВЕЙТЛИСТ
+// ═══════════════════════════════════════
+
+model MoneyMkWaitlist {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique @map("telegram_id")
+  username   String?
+  firstName  String?  @map("first_name")
+  lastName   String?  @map("last_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("money_mk_waitlist")
+}

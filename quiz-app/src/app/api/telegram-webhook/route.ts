@@ -234,6 +234,67 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // МК «Разрешение быстрых денег» waitlist join
+      if (data === 'rdmk_join' && cb.message) {
+        const tgUserId = cb.from.id;
+        const username = cb.from.username || null;
+        const firstName = cb.from.first_name || null;
+        const lastName = cb.from.last_name || null;
+        const chatId = cb.message.chat.id;
+        const messageId = cb.message.message_id;
+
+        try {
+          const existing = await prisma.moneyMkWaitlist.findUnique({
+            where: { telegramId: BigInt(tgUserId) },
+          });
+
+          if (existing) {
+            await answerCallbackQuery(cb.id, 'Ты уже в списке ✓');
+            await editMessageText(
+              chatId,
+              messageId,
+              `ты уже в списке ✓\n\nкак открою даты — напишу одному из первых.`
+            );
+          } else {
+            await prisma.moneyMkWaitlist.create({
+              data: {
+                telegramId: BigInt(tgUserId),
+                username,
+                firstName,
+                lastName,
+              },
+            });
+
+            await answerCallbackQuery(cb.id, 'Ты в списке ✓');
+            await editMessageText(
+              chatId,
+              messageId,
+              `готово ⚡\n\nты в листе ожидания «Разрешение быстрых денег».\n\nсейчас добиваю инфраструктуру и программу — как открою даты, напишу тебе одному из первых.`
+            );
+
+            await notifyAdmin(
+              `📌 <b>Новая запись в waitlist «Разрешение денег»</b>\n\n` +
+              `👤 ${[firstName, lastName].filter(Boolean).join(' ') || '—'}\n` +
+              `💬 ${username ? '@' + username : 'без username'}\n` +
+              `🆔 <code>${tgUserId}</code>`
+            );
+
+            await trackEvent({
+              event_type: 'moneymk_waitlist_join',
+              user_id: tgUserId,
+              username: username || undefined,
+              first_name: firstName || undefined,
+              utm_source: 'razreshenie_deneg',
+            });
+          }
+        } catch (err) {
+          console.error('rdmk_join error:', err);
+          await answerCallbackQuery(cb.id, 'Что-то пошло не так, попробуй ещё раз');
+        }
+
+        return NextResponse.json({ ok: true });
+      }
+
       // Subscription gate re-check: "Я подписался"
       if (data.startsWith('checksub:') && cb.message) {
         const slug = data.slice('checksub:'.length);
@@ -373,6 +434,42 @@ export async function POST(request: NextRequest) {
           username: username || undefined,
           first_name: fullName || undefined,
           utm_source: 'masterclasssync',
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // МК «Разрешение быстрых денег» waitlist deep link
+      if (startParam === 'razreshenie_deneg') {
+        const rdmkText = `${firstName}, ты почти в списке ⚡
+
+<b>«Разрешение быстрых денег»</b> — 7 дней, на которых я прокачу тебя на своей энергии на новый уровень.
+
+цель простая: помочь тебе перейти на ту сторону берега. где тебе можно проявляться и сиять. где можно получать любые деньги. где можно делать то, что ты хочешь.
+
+это не курс и не информация — это экшн. стык коучинга и маркетинга, который сразу закрепляем на практике. три этапа: голова, инструменты, действие.
+
+кто хочет быть в числе первых — жми 👇`;
+
+        const rdmkMarkup = {
+          inline_keyboard: [
+            [
+              {
+                text: '📌 Я в числе первых',
+                callback_data: 'rdmk_join',
+              },
+            ],
+          ],
+        };
+
+        await sendMessage(chatId, rdmkText, rdmkMarkup);
+
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'razreshenie_deneg',
         });
 
         return NextResponse.json({ ok: true });
