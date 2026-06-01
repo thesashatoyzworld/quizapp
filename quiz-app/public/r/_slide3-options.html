@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Слайд 3 — варианты визуала</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--char:#1f1c19;--cream:#f4ece0;--orange:#ff5c3a;--muted:rgba(244,236,224,.62);--disp:'Unbounded',sans-serif;--body:'Inter',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0e0c0b;font-family:var(--body);color:var(--cream);padding:30px 16px 60px}
+h2.pg{font-family:var(--body);font-weight:700;font-size:.8rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:24px}
+.wrap{display:flex;flex-direction:column;gap:34px;align-items:center}
+.card{width:100%;max-width:380px;aspect-ratio:9/17;background:var(--char);border-radius:26px;padding:34px 28px;display:flex;flex-direction:column;position:relative;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.glow{position:absolute;width:280px;height:280px;border-radius:50%;background:var(--orange);filter:blur(80px);opacity:.22;top:50%;left:50%;transform:translate(-50%,-50%)}
+.kick{font-family:var(--body);font-weight:600;font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);position:relative;z-index:1}
+.bn{font-family:var(--disp);font-weight:900;font-size:2.1rem;letter-spacing:-.03em;margin:10px 0 0;position:relative;z-index:1}
+.vis{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;z-index:1}
+.cap{font-family:var(--body);font-size:1.02rem;line-height:1.45;text-align:center;position:relative;z-index:1;margin-top:8px}
+.cap b{color:var(--orange)}
+.optlbl{font-family:var(--disp);font-weight:700;color:var(--orange);font-size:.9rem;letter-spacing:.04em;margin-bottom:2px}
+
+/* --- 1: ЦЕННИК --- */
+.tag{position:relative;background:var(--orange);color:var(--char);border-radius:14px;padding:30px 30px 30px 44px;transform:rotate(-5deg);box-shadow:0 14px 34px rgba(255,92,58,.35)}
+.tag::before{content:"";position:absolute;left:20px;top:50%;width:16px;height:16px;border-radius:50%;background:var(--char);transform:translateY(-50%)}
+.tag .tl{font-family:var(--body);font-weight:700;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;opacity:.6}
+.tag .tv{font-family:var(--disp);font-weight:900;font-size:1.5rem;line-height:1.05;margin-top:6px}
+.tag .tv s{opacity:.45}
+
+/* --- 2: СТАВКА-БАРЫ --- */
+.bars{width:100%;display:flex;flex-direction:column;gap:20px}
+.bar .bl{font-family:var(--disp);font-weight:700;font-size:.95rem;margin-bottom:8px;display:flex;justify-content:space-between}
+.track{height:16px;border-radius:9px;background:rgba(244,236,224,.12);overflow:hidden}
+.fillm{height:100%;border-radius:9px;background:var(--orange)}
+.dim{color:var(--muted)}.dim .fillm{background:rgba(244,236,224,.4)}
+
+/* --- 3: УРАВНЕНИЕ --- */
+.eq{display:flex;flex-direction:column;gap:26px;width:100%}
+.eq .row{display:flex;align-items:center;justify-content:center;gap:16px;font-family:var(--disp);font-weight:800;font-size:1.4rem}
+.eq .arr{font-size:1.6rem;color:var(--orange);position:relative}
+.eq .bad .arr::after{content:"";position:absolute;left:50%;top:50%;width:34px;height:3px;background:var(--orange);transform:translate(-50%,-50%) rotate(-20deg)}
+.eq .bad{opacity:.55}
+.eq .coin{font-size:1.5rem}
+
+/* --- 4: ЧЕК / ОТКЛОНЕНО --- */
+.recpt{width:210px;background:var(--cream);color:var(--char);border-radius:6px;padding:20px 18px;font-family:var(--body);box-shadow:0 14px 34px rgba(0,0,0,.4)}
+.recpt .rh{font-weight:700;font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;opacity:.55;text-align:center;border-bottom:1.5px dashed rgba(31,28,25,.3);padding-bottom:10px;margin-bottom:12px}
+.recpt .rl{display:flex;justify-content:space-between;font-size:.84rem;margin:7px 0}
+.recpt .decl{margin-top:14px;text-align:center;font-family:var(--disp);font-weight:800;font-size:1.05rem;color:#c0341a;border:2px solid #c0341a;border-radius:6px;padding:7px;transform:rotate(-4deg)}
+</style></head>
+<body>
+<div class="wrap">
+
+  <div style="text-align:center"><div class="optlbl">Вариант 1 · Ценник</div></div>
+  <div class="card"><div class="glow"></div>
+    <div class="kick">блок · основной</div>
+    <div class="bn">УГОЖДЕНИЕ</div>
+    <div class="vis">
+      <div class="tag"><div class="tl">твоя цена</div><div class="tv">«я хороший»<br>«я удобный»</div></div>
+    </div>
+    <p class="cap">ты вешаешь на себя ценник «хороший». <b>но платят не за это.</b></p>
+  </div>
+
+  <div style="text-align:center"><div class="optlbl">Вариант 2 · На что делаешь ставку</div></div>
+  <div class="card"><div class="glow"></div>
+    <div class="kick">блок · основной</div>
+    <div class="bn">УГОЖДЕНИЕ</div>
+    <div class="vis">
+      <div class="bars">
+        <div class="bar"><div class="bl"><span>быть хорошим</span></div><div class="track"><div class="fillm" style="width:92%"></div></div></div>
+        <div class="bar dim"><div class="bl"><span>своя ценность</span></div><div class="track"><div class="fillm" style="width:14%"></div></div></div>
+      </div>
+    </div>
+    <p class="cap">ты ставишь на «хорошесть». <b>а деньги — там, где ценность.</b></p>
+  </div>
+
+  <div style="text-align:center"><div class="optlbl">Вариант 3 · Уравнение</div></div>
+  <div class="card"><div class="glow"></div>
+    <div class="kick">блок · основной</div>
+    <div class="bn">УГОЖДЕНИЕ</div>
+    <div class="vis">
+      <div class="eq">
+        <div class="row bad"><span>ХОРОШИЙ</span><span class="arr">→</span><span class="coin">💰</span></div>
+        <div class="row"><span>ЦЕННОСТЬ</span><span class="arr">→</span><span class="coin">💰</span></div>
+      </div>
+    </div>
+    <p class="cap">деньги идут не за хорошесть. <b>за ценность.</b></p>
+  </div>
+
+  <div style="text-align:center"><div class="optlbl">Вариант 4 · Чек «отклонено»</div></div>
+  <div class="card"><div class="glow"></div>
+    <div class="kick">блок · основной</div>
+    <div class="bn">УГОЖДЕНИЕ</div>
+    <div class="vis">
+      <div class="recpt">
+        <div class="rh">оплата</div>
+        <div class="rl"><span>хорошесть</span><span>∞</span></div>
+        <div class="rl"><span>удобность</span><span>∞</span></div>
+        <div class="rl"><span>польза даром</span><span>∞</span></div>
+        <div class="decl">отклонено</div>
+      </div>
+    </div>
+    <p class="cap">сколько ни плати «хорошестью» — <b>деньгами не принимает.</b></p>
+  </div>
+
+</div>
+</body></html>
