@@ -400,13 +400,17 @@ export async function POST(request: NextRequest) {
         const email = (body.customer_email || body.email || '') as string;
         const phone = (body.customer_phone || body.phone || '') as string;
 
-        // Запись в Event для аналитики (userId/telegramId nullable — привязки нет).
+        // Код оплаты из order_id (mkdengi_web_<token>). По нему бот выдаст доступ.
+        const token = String(orderId).replace('mkdengi_web_', '');
+
+        // Запись в Event: подтверждённая оплата картой. consumed=false — доступ ещё
+        // не выдан; выдаст бот по /start paid_<token>. userId/telegramId nullable.
         await prisma.event.create({
           data: {
-            type: 'mk_dengi_payment_web',
+            type: 'mk_web_paid',
             source: 'thesasha',
             productSlug: 'mk-dengi',
-            metadata: { email, phone, amount, orderId: String(orderId) },
+            metadata: { token, email, phone, amount, orderId: String(orderId), consumed: false },
           },
         }).catch((e) => console.error('[Supabase] web sale event insert failed:', e));
 

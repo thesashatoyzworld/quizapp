@@ -337,6 +337,72 @@ export async function POST(request: NextRequest) {
       // Debug logging
       console.log('Webhook received:', { text: update.message.text, startParam });
 
+      // Авто-выдача доступа после оплаты картой на сайте: /start paid_<token>.
+      // Продамус редиректит сюда после успешной оплаты; код подтверждён вебхуком
+      // (Event type=mk_web_paid). Сверяем код и сами открываем доступ + кабинет.
+      if (startParam.startsWith('paid_')) {
+        const token = startParam.slice('paid_'.length);
+        try {
+          const ev = await prisma.event.findFirst({
+            where: { type: 'mk_web_paid', metadata: { path: ['token'], equals: token } },
+            orderBy: { createdAt: 'desc' },
+          });
+
+          if (!ev) {
+            // Оплата ещё не долетела вебхуком (или код не найден) — просим повторить.
+            await sendMessage(
+              chatId,
+              `${firstName}, вижу тебя 👋\n\nоплата ещё обрабатывается — нажми /start через минуту, и я открою доступ. если не поможет — напиши сюда.`
+            );
+            return NextResponse.json({ ok: true });
+          }
+
+          const meta = (ev.metadata || {}) as { consumed?: boolean; boundTelegramId?: number; amount?: number };
+          const amount = meta.amount || 4884;
+
+          if (meta.consumed && meta.boundTelegramId && meta.boundTelegramId !== chatId) {
+            await sendMessage(chatId, `этот код уже активирован на другом аккаунте. если это ошибка — напиши сюда.`);
+            return NextResponse.json({ ok: true });
+          }
+
+          // Идемпотентно: создаём юзера, покупку (если ещё не выдавали), помечаем код использованным.
+          const user = await prisma.user.upsert({
+            where: { telegramId: BigInt(chatId) },
+            create: { telegramId: BigInt(chatId), username: username || null, firstName: update.message.from?.first_name || null },
+            update: {},
+          });
+
+          if (!meta.consumed) {
+            const product = await prisma.product.findUnique({ where: { slug: 'mk-dengi' } });
+            if (product) {
+              await prisma.purchase.create({
+                data: { userId: user.id, productId: product.id, amount, source: 'web_redeem', prodamusOrderId: `paid_${token}` },
+              });
+            }
+          }
+
+          await prisma.event.update({
+            where: { id: ev.id },
+            data: { telegramId: BigInt(chatId), metadata: { ...meta, token, consumed: true, boundTelegramId: chatId } },
+          });
+
+          await sendMessage(
+            chatId,
+            `готово ⚡\n\nоплата подтверждена, доступ к мастер-классу <b>«Разрешение быстрых денег»</b> открыт. материалы — в кабинете, жми кнопку ниже.`,
+            { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: `${WEBAPP_URL}/cabinet` } }]] }
+          );
+
+          await notifyAdmin(
+            `✅ <b>Доступ выдан по коду</b> (оплата картой)\n\n👤 ${fullName || '—'}\n💬 ${username ? '@' + username : 'без username'}\n🆔 <code>${chatId}</code>\nToken: <code>${token}</code>`
+          );
+        } catch (err) {
+          console.error('paid redeem error:', err);
+          await sendMessage(chatId, `что-то пошло не так с активацией. напиши сюда — открою доступ вручную.`);
+        }
+
+        return NextResponse.json({ ok: true });
+      }
+
       // Lead-magnet deep link (slug from content/leadmagnets.json)
       if (startParam) {
         const lm = getLeadMagnet(startParam);
