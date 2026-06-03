@@ -14,6 +14,8 @@ import {
   resultSlug,
   blockMeta,
   VSE_HOROSHO,
+  OTHER_UNIQUE_THRESHOLD,
+  UNIQUE_SLUG,
   type MoneyResult,
 } from '@/data/quiz-money';
 
@@ -29,7 +31,11 @@ export default function QuizMoney() {
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [utmSource, setUtmSource] = useState<string | null>(null);
+  const [otherOpen, setOtherOpen] = useState(false);
+  const [otherText, setOtherText] = useState('');
+  const customRef = useRef<Record<number, string>>({}); // qIndex → свой вариант ответа («Другое»)
   const resultRef = useRef<MoneyResult | null>(null);
+  const uniqueRef = useRef(false); // «Другое» >= порога → ведём на страницу «уникальная ситуация»
 
   const { user } = useTelegram();
 
@@ -70,10 +76,15 @@ export default function QuizMoney() {
   };
 
   const goToResult = useCallback(() => {
+    const name = user?.first_name ? encodeURIComponent(user.first_name) : '';
+    // «Другое» >= порога — ситуация не лезет в шаблон, ведём на отдельную страницу.
+    if (uniqueRef.current) {
+      window.location.href = `/r/result-${UNIQUE_SLUG}.html?name=${name}`;
+      return;
+    }
     const r = resultRef.current;
     if (!r) return;
     const slug = resultSlug(r);
-    const name = user?.first_name ? encodeURIComponent(user.first_name) : '';
     const sec = r.secondary || '';
     window.location.href = `/r/result-${slug}.html?primary=${r.primary}&secondary=${sec}&pct=${r.overlapPercent}&name=${name}`;
   }, [user]);
@@ -81,6 +92,9 @@ export default function QuizMoney() {
   const answer = (idx: number) => {
     const next = [...answers, idx];
     setAnswers(next);
+    // сброс состояния «Другое» перед следующим вопросом
+    setOtherOpen(false);
+    setOtherText('');
 
     if (current < questions.length - 1) {
       setCurrent(current + 1);
@@ -91,16 +105,34 @@ export default function QuizMoney() {
     const result = determineResult(next, scores);
     resultRef.current = result;
 
-    const label =
-      result.primary === 'vse-horosho' ? VSE_HOROSHO.title : blockMeta[result.primary].title;
+    const otherCount = Object.keys(customRef.current).length;
+    uniqueRef.current = otherCount >= OTHER_UNIQUE_THRESHOLD;
+
+    const label = uniqueRef.current
+      ? 'unikalnaya'
+      : result.primary === 'vse-horosho'
+        ? VSE_HOROSHO.title
+        : blockMeta[result.primary].title;
     track('quiz_complete', {
-      primary: result.primary,
+      primary: uniqueRef.current ? 'unikalnaya' : result.primary,
       secondary: result.secondary,
       pct: result.overlapPercent,
       title: label,
+      other_count: otherCount,
+      custom: customRef.current, // свои варианты ответов (если выбирали «Другое»)
     });
 
     setScreen('analyzing');
+  };
+
+  // «Другое» — это всегда индекс ПОСЛЕ реальных опций вопроса.
+  // Скоринг такого ответа = 0 по всем блокам (scoringRules[q]?.[otherIdx] === undefined),
+  // так что свой вариант не двигает результат, но текст уходит в трекинг.
+  const submitOther = () => {
+    const text = otherText.trim();
+    if (!text) return;
+    customRef.current[current] = text;
+    answer(questions[current].options.length);
   };
 
   // Аналитический экран → редирект на result-HTML
@@ -178,6 +210,50 @@ export default function QuizMoney() {
                   {opt}
                 </button>
               ))}
+
+              {/* Другое — свой вариант */}
+              {!otherOpen ? (
+                <button
+                  onClick={() => setOtherOpen(true)}
+                  style={{ ...optionStyle, background: 'transparent', color: CHAR, opacity: 0.75, fontStyle: 'italic' }}
+                >
+                  Другое — свой вариант
+                </button>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <textarea
+                    value={otherText}
+                    onChange={(e) => setOtherText(e.target.value)}
+                    autoFocus
+                    rows={3}
+                    placeholder="Напиши своими словами, как это у тебя на самом деле"
+                    style={{
+                      width: '100%',
+                      background: CARD,
+                      color: CHAR,
+                      border: `1.5px solid ${TERRA}`,
+                      borderRadius: 14,
+                      padding: '14px 16px',
+                      fontSize: 16,
+                      lineHeight: 1.4,
+                      fontFamily: "'Inter', system-ui, sans-serif",
+                      resize: 'none',
+                      outline: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={submitOther}
+                    disabled={!otherText.trim()}
+                    style={{
+                      ...btnStyle,
+                      opacity: otherText.trim() ? 1 : 0.4,
+                      cursor: otherText.trim() ? 'pointer' : 'default',
+                    }}
+                  >
+                    Дальше
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
