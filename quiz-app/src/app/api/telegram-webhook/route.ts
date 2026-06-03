@@ -3,7 +3,6 @@ import { trackEvent } from '@/lib/notion';
 import { notifyAdmin } from '@/lib/telegram';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
-import { buildMkDengiPaymentUrl } from '@/lib/payment';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
@@ -472,26 +471,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // МК «Разрешение быстрых денег» — оплата (buy flow с лендинга, кнопка mk_dengi)
+      // МК «Разрешение быстрых денег» — открываем лендинг в мини-аппе,
+      // оплата идёт прямо из него (см. public/mk/index.html), вебхук ловит оплату.
       if (startParam === 'mk_dengi') {
-        const payUrl = buildMkDengiPaymentUrl(chatId);
-
-        // ⚠️ Копи-плейсхолдер в голосе Саши — заменить на финальный текст.
-        const mkText = `${firstName}, вот доступ к мастер-классу ⚡
-
-<b>«Разрешение быстрых денег»</b> — 7 дней, на которых я прокачу тебя на своей энергии на новый уровень.
-
-цель простая: помочь тебе перейти на ту сторону берега. где тебе можно проявляться и сиять. где можно получать любые деньги. где можно делать то, что ты хочешь.
-
-это не курс и не информация — это экшн. стык коучинга и маркетинга, который сразу закрепляем на практике. три этапа: голова, инструменты, действие.
-
-стоимость — <b>4 884 ₽</b>. после оплаты доступ открывается сразу, материалы появятся в кабинете здесь же, в боте.
-
-жми оплатить 👇`;
+        const mkText = `${firstName}, открываю мастер-класс ⚡`;
 
         const mkMarkup = {
           inline_keyboard: [
-            [{ text: '💳 Оплатить 4 884 ₽', url: payUrl }],
+            [{ text: '⚡ Открыть мастер-класс', web_app: { url: `${WEBAPP_URL}/mk/index.html` } }],
           ],
         };
 

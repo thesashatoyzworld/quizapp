@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<script>
+  // Когда лендинг открыт под /mk (прокси на thesashatoyz.com) — базовый URL со слэшем,
+  // чтобы относительные ассеты (screenshots/, about-photo.png) резолвились в /mk/, а не в корень.
+  // На прямом домене лендинга скрипт ничего не делает.
+  (function () {
+    if (!/\/mk-dengi\/?$/.test(location.pathname)) return;
+    var b = document.createElement("base");
+    b.href = "/mk-dengi/";
+    document.head.appendChild(b);
+    // base иначе увёл бы fragment-якоря на /mk/#... → лишняя навигация. Делаем их абсолютными к текущему пути.
+    document.addEventListener("DOMContentLoaded", function () {
+      document.querySelectorAll('a[href^="#"]').forEach(function (a) {
+        a.setAttribute("href", location.pathname.replace(/\/$/, "") + a.getAttribute("href"));
+      });
+    });
+  })();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Разрешение быстрых денег — мастеркласс Саши Toyz</title>
+<meta name="description" content="За 7 дней делаем так, чтобы в твоем будущем всегда были деньги и спокойствие за завтрашний день.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Manrope:wght@400;500;600;700&subset=cyrillic,latin&display=swap" rel="stylesheet">
+<style>
+:root {
+  --c-bg:           oklch(0.97 0.006 75);
+  --c-text:         oklch(0.16 0.015 55);
+  --c-muted:        oklch(0.42 0.012 55);
+  --c-accent:       oklch(0.60 0.19 52);
+  --c-accent-light: oklch(0.92 0.04 52);
+  --c-line:         oklch(0.89 0.008 75);
+  --c-surface:      oklch(0.95 0.004 75);
+  --c-dark:         oklch(0.14 0.015 55);
+  --c-on-dark:      oklch(0.93 0.006 75);
+  --font-display: 'Archivo', sans-serif;
+  --font-body:    'Manrope', sans-serif;
+  --w:     880px;
+  --w-sm:  660px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-body);
+  font-size: clamp(16px, 1vw + 13px, 18px);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══ SCREEN ═══ */
+.s {
+  min-height: 100vh; min-height: 100svh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 48px 24px;
+}
+.s-inner { width: 100%; max-width: var(--w); margin: 0 auto; }
+.s-narrow { max-width: var(--w-sm); }
+.centered { text-align: center; }
+
+/* ═══ TYPE ═══ */
+h1,h2,h3 { font-family: var(--font-display); letter-spacing: -0.03em; line-height: 1.1; }
+h1 { font-size: clamp(44px, calc(5vw + 16px), 76px); font-weight: 900; }
+h2 { font-size: clamp(28px,3vw+10px,42px); font-weight: 800; margin-bottom: 20px; }
+h3 { font-size: clamp(18px,1.2vw+10px,22px); font-weight: 800; margin-bottom: 8px; }
+p { margin-bottom: 12px; color: var(--c-muted); }
+p:last-child { margin-bottom: 0; }
+.eyebrow {
+  font-size: 0.78em; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--c-muted); margin-bottom: 16px;
+}
+.highlight { background: var(--c-accent-light); padding:.04em .2em; margin:0 -.2em; }
+
+/* ═══ BUTTONS ═══ */
+.btn {
+  display: inline-block; background: var(--c-accent); color: oklch(1 0 0);
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(15px,1vw+11px,18px); padding: 16px 36px;
+  text-decoration: none; border-radius: 4px; transition: opacity .15s;
+}
+.btn:hover { opacity: .88; }
+
+/* ═══ PLACEHOLDER ═══ */
+.ph {
+  background: var(--c-surface); border: 2px dashed var(--c-line); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--c-muted); font-size: .85em; text-align: center; padding: 20px;
+}
+
+/* ═══ 1. HERO ═══ */
+.s-hero { position: relative; }
+.s-hero h1 { font-size: clamp(48px, calc(6.5vw + 16px), 94px); }
+.hero-sub { font-size: clamp(18px, calc(1vw + 14px), 22px); color: var(--c-muted); margin: 24px auto 32px; max-width: 560px; }
+.hero-deadline { font-family: var(--font-display); font-weight: 700; font-size: clamp(15px, .7vw + 12px, 17px); color: var(--c-text); margin: 18px 0 0; }
+.hero-deadline b { color: var(--c-accent); }
+.hero-proof { font-size: clamp(13px, .5vw + 11px, 15px); color: var(--c-muted); margin: 6px 0 0; }
+.scroll-hint {
+  position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
+  width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--c-line);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--c-muted); text-decoration: none; font-size: 20px;
+  animation: bob 1.8s ease-in-out infinite;
+}
+.scroll-hint:hover { color: var(--c-accent); border-color: var(--c-accent); }
+@keyframes bob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(6px); } }
+/* ═══ 2. VIDEO ═══ */
+.hero-media { width: 100%; max-width: 860px; aspect-ratio: 16/9; margin: 0 auto; border-radius: 12px; }
+
+/* ═══ 2. SOCIAL PROOF ═══ */
+.proof { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; align-items: center; }
+.proof-item { font-family: var(--font-display); font-weight: 800; font-size: clamp(14px,.8vw+10px,16px); color: var(--c-muted); white-space: nowrap; }
+
+/* ═══ 3. COMPARISON ═══ */
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.cmp-card { padding: 28px; border-radius: 10px; }
+.cmp-old { background: var(--c-surface); }
+.cmp-new { background: var(--c-dark); color: var(--c-on-dark); }
+.cmp-tag { font-size: .72em; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; opacity: .5; }
+.cmp-card h3 { margin-bottom: 14px; }
+.cmp-card ul { list-style: none; padding: 0; }
+.cmp-card li { padding: 5px 0 5px 24px; position: relative; font-size: .92em; }
+.cmp-old li { color: var(--c-text); }
+.cmp-old li::before { content: '×'; position: absolute; left: 0; color: var(--c-muted); font-weight: 700; }
+.cmp-sub { display: block; font-size: .86em; color: var(--c-muted); margin-top: 3px; line-height: 1.45; }
+.cmp-new li { color: var(--c-on-dark); }
+.cmp-new li::before { content: '✓'; position: absolute; left: 0; color: var(--c-accent); font-weight: 700; }
+
+/* ═══ 4. TRANSFORM (флип До/После) ═══ */
+.xf-head { font-size: clamp(34px, 3.6vw + 14px, 58px); margin-bottom: 10px; }
+/* карусель из флип-карточек */
+.car { max-width: 540px; margin: 0 auto; }
+.car-track {
+  display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory;
+  scroll-behavior: smooth; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.car-track::-webkit-scrollbar { display: none; }
+.car-track .flip { flex: 0 0 100%; scroll-snap-align: center; }
+.car-nav { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 26px; }
+.car-btn {
+  width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--c-line);
+  background: var(--c-bg); color: var(--c-text); cursor: pointer;
+  font-family: var(--font-display); font-weight: 800; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, transform .15s, opacity .15s;
+}
+.car-btn:hover { background: var(--c-surface); transform: scale(1.06); }
+.car-btn:disabled { opacity: .28; cursor: default; transform: none; }
+.car-dots { display: flex; gap: 8px; align-items: center; }
+.car-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--c-line);
+  border: none; padding: 0; cursor: pointer; transition: width .2s, background .2s, border-radius .2s;
+}
+.car-dot.active { background: var(--c-accent); width: 24px; border-radius: 4px; }
+.flip {
+  border-radius: 18px; border: 1px solid var(--c-line); background: var(--c-surface);
+  padding: 26px 26px 30px; text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+  transition: background .35s ease, border-color .35s ease;
+}
+.flip[data-state="after"] { background: var(--c-dark); border-color: var(--c-dark); }
+/* toggle */
+.flip-toggle {
+  display: inline-flex; background: var(--c-bg); border: 1px solid var(--c-line);
+  border-radius: 999px; padding: 4px; margin-bottom: 24px; gap: 2px;
+  transition: background .35s, border-color .35s;
+}
+.flip[data-state="after"] .flip-toggle { background: oklch(0.21 0.015 55); border-color: oklch(0.30 0.02 55); }
+.flip-tab {
+  border: none; background: transparent; cursor: pointer; padding: 8px 20px;
+  border-radius: 999px; font-family: var(--font-display); font-weight: 700;
+  font-size: .8em; color: var(--c-muted); transition: background .2s, color .2s; white-space: nowrap;
+}
+.flip[data-state="after"] .flip-tab { color: oklch(0.68 0.02 55); }
+.flip-tab.active { background: var(--c-accent); color: oklch(1 0 0); }
+.flip[data-state="after"] .flip-tab.active { background: var(--c-accent); color: oklch(1 0 0); }
+/* body — две грани с кроссфейдом */
+.flip-body { position: relative; width: 100%; min-height: 188px; display: flex; }
+.flip-face {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .28s ease;
+}
+.flip[data-state="before"] .flip-before { opacity: 1; pointer-events: auto; }
+.flip[data-state="after"]  .flip-after  { opacity: 1; pointer-events: auto; }
+.flip-pain {
+  font-family: var(--font-display); font-weight: 900; line-height: 1.08;
+  font-size: clamp(32px, 2.6vw + 18px, 48px); color: var(--c-text);
+  letter-spacing: -.03em;
+  text-decoration: line-through; text-decoration-color: var(--c-accent);
+  text-decoration-thickness: 3px;
+}
+.flip-gain {
+  font-family: var(--font-display); font-weight: 800; line-height: 1.08;
+  font-size: clamp(25px, 1.9vw + 14px, 34px); color: var(--c-on-dark);
+  letter-spacing: -.02em; margin-bottom: 14px;
+}
+.flip-reveal { font-size: .9em; color: oklch(0.72 0.012 75); line-height: 1.5; margin: 0; max-width: 34ch; }
+
+/* ═══ 3.5 SKILL (навык, не информация) ═══ */
+.s-skill { background: var(--c-dark); color: var(--c-on-dark); }
+.s-skill .eyebrow { color: var(--c-accent); }
+.skill-claim {
+  font-family: var(--font-display); font-weight: 900; letter-spacing: -.03em;
+  line-height: 1.1; color: var(--c-on-dark); margin-bottom: 30px;
+  font-size: clamp(27px, 2.6vw + 13px, 44px); text-wrap: balance;
+}
+.skill-strike {
+  color: oklch(0.50 0.015 55); text-decoration: line-through;
+  text-decoration-color: oklch(0.42 0.02 55); text-decoration-thickness: 3px;
+}
+.skill-hl { color: var(--c-accent); }
+.skill-feats {
+  display: flex; justify-content: center; flex-wrap: nowrap;
+  margin: 8px auto 30px; max-width: 880px;
+}
+.skill-feat {
+  font-family: var(--font-display); font-weight: 800; white-space: nowrap;
+  font-size: clamp(14px, 0.7vw + 11px, 18px); color: var(--c-on-dark);
+  padding: 0 18px; position: relative; line-height: 1.3;
+}
+.skill-feat::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c-accent); margin-right: 9px; vertical-align: middle; }
+.skill-feat:not(:last-child)::after {
+  content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  width: 1px; height: 20px; background: oklch(0.34 0.02 55);
+}
+.skill-note {
+  font-size: clamp(16px, 0.9vw + 13px, 20px); color: oklch(0.68 0.012 75);
+  max-width: 780px; margin: 0 auto; line-height: 1.7; text-wrap: balance;
+  padding-top: 26px; border-top: 1px solid oklch(0.30 0.02 55);
+}
+
+/* ═══ 5. HOW IT WORKS (карусель дней) ═══ */
+.how-head { font-size: clamp(34px, 3.6vw + 14px, 58px); margin-bottom: 8px; }
+/* переиспользуемый аккордеон этапов */
+.stages { max-width: 720px; margin: 0 auto; }
+.stage {
+  border: 1px solid var(--c-line); border-radius: 16px; margin-bottom: 14px;
+  background: var(--c-surface); overflow: hidden; transition: border-color .25s, box-shadow .25s;
+}
+.stage.open { border-color: var(--c-accent); box-shadow: 0 10px 30px oklch(0.60 0.19 52 / .1); }
+.stage-head {
+  width: 100%; background: none; border: none; cursor: pointer; text-align: left;
+  padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; gap: 18px;
+}
+.stage-left { display: flex; flex-direction: column; }
+.stage-num { font-family: var(--font-display); font-weight: 800; font-size: .76em; text-transform: uppercase; letter-spacing: .07em; color: var(--c-accent); }
+.stage-date { font-size: .76em; color: var(--c-muted); margin-left: 10px; }
+.stage-title { font-family: var(--font-display); font-weight: 900; font-size: clamp(26px, 2vw + 13px, 40px); letter-spacing: -.02em; line-height: 1; color: var(--c-text); margin-top: 7px; }
+.stage-icon {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--c-line);
+  display: flex; align-items: center; justify-content: center; font-family: var(--font-display);
+  font-weight: 400; font-size: 26px; line-height: 0; color: var(--c-accent);
+  transition: transform .3s ease, background .25s, color .25s, border-color .25s;
+}
+.stage.open .stage-icon { transform: rotate(45deg); background: var(--c-accent); color: oklch(1 0 0); border-color: var(--c-accent); }
+.stage-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s ease; }
+.stage.open .stage-body { grid-template-rows: 1fr; }
+.stage-bodyinner { overflow: hidden; }
+.stage-content { padding: 4px 28px 30px; }
+.day-formula {
+  font-family: var(--font-display); font-weight: 700; color: var(--c-accent);
+  font-size: .96em; line-height: 1.55; margin-bottom: 24px;
+}
+.day-list { list-style: none; padding: 0; margin: 0 0 26px; }
+.day-list li { padding: 7px 0 7px 28px; position: relative; font-size: .96em; color: var(--c-text); line-height: 1.45; }
+.day-list li::before { content: '→'; position: absolute; left: 0; color: var(--c-accent); font-weight: 700; }
+.day-out { background: var(--c-dark); border-radius: 12px; padding: 18px 22px; }
+.day-out-label { font-size: .72em; text-transform: uppercase; letter-spacing: .1em; color: var(--c-accent); font-weight: 700; margin-bottom: 6px; }
+.day-out-text { font-family: var(--font-display); font-weight: 800; font-size: clamp(16px, 1vw + 11px, 21px); line-height: 1.2; color: var(--c-on-dark); }
+
+/* ═══ 6. CASES ═══ */
+.cases { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+.cases > div {
+  background: var(--c-surface); border: 1px solid var(--c-line);
+  border-radius: 14px; padding: 14px; display: flex; flex-direction: column;
+}
+.case-img {
+  display: block; width: 100%; height: 300px;
+  object-fit: contain; object-position: center;
+  border-radius: 8px; margin-bottom: 14px; background: oklch(1 0 0);
+  padding: 8px;
+}
+.case-name { font-family: var(--font-display); font-weight: 800; font-size: .95em; margin-bottom: 2px; }
+.case-body { font-size: .85em; color: var(--c-muted); margin-top: auto; }
+
+/* ═══ 6.5 ABOUT (про меня) ═══ */
+.about { display: grid; grid-template-columns: 0.78fr 1fr; gap: 44px; align-items: center; }
+.about-photo { width: 100%; aspect-ratio: 965/1253; object-fit: contain; filter: drop-shadow(0 24px 50px oklch(0.60 0.19 52 / .25)); }
+.about-name { font-family: var(--font-display); font-weight: 900; letter-spacing: -.03em; line-height: 1; font-size: clamp(34px, 3vw + 14px, 52px); margin-bottom: 6px; }
+.about-role { font-family: var(--font-display); font-weight: 700; color: var(--c-accent); font-size: clamp(15px, .9vw + 11px, 18px); margin-bottom: 20px; }
+.about-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+.about-stat { font-family: var(--font-display); font-weight: 800; font-size: .8em; color: var(--c-accent); background: var(--c-accent-light); padding: 8px 15px; border-radius: 999px; white-space: nowrap; }
+.about-bio p { color: var(--c-text); margin-bottom: 16px; line-height: 1.5; }
+.about-punch { font-family: var(--font-display); font-weight: 800; font-size: clamp(18px, 1vw + 13px, 22px); line-height: 1.3; color: var(--c-text) !important; letter-spacing: -.02em; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--c-line); }
+/* тёмный вариант секции «про меня» */
+.s-about { background: var(--c-dark); color: var(--c-on-dark); }
+.s-about .eyebrow { color: var(--c-accent); }
+.s-about .about-name { color: var(--c-on-dark); }
+.s-about .about-stat { background: oklch(0.60 0.19 52 / .16); color: var(--c-accent); border: 1px solid oklch(0.60 0.19 52 / .4); }
+.s-about .about-bio p { color: oklch(0.80 0.012 75); }
+.s-about .about-punch { color: var(--c-on-dark) !important; border-top-color: oklch(0.30 0.02 55); }
+@media(max-width:768px){
+  .about { grid-template-columns: 1fr; gap: 26px; }
+  .about-photo { max-width: 320px; margin: 0 auto; }
+}
+
+/* ═══ 7. PRICING (тарифы) ═══ */
+.tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 1040px; margin: 0 auto; align-items: stretch; }
+.tier {
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 16px;
+  padding: 32px 28px; display: flex; flex-direction: column; text-align: left; position: relative;
+}
+.tier-feat { border: 2px solid var(--c-accent); }
+.tier-badge {
+  position: absolute; top: -12px; left: 28px; background: var(--c-accent); color: oklch(1 0 0);
+  font-family: var(--font-display); font-weight: 700; font-size: .68em; text-transform: uppercase;
+  letter-spacing: .06em; padding: 5px 12px; border-radius: 999px;
+}
+.tier-name { font-family: var(--font-display); font-weight: 800; font-size: clamp(19px, 1vw + 13px, 24px); letter-spacing: -.02em; margin-bottom: 14px; }
+.tier-price { font-family: var(--font-display); font-weight: 900; font-size: clamp(30px, 2.2vw + 14px, 42px); letter-spacing: -.03em; line-height: 1; }
+.tier-per { color: var(--c-muted); font-size: .82em; margin: 6px 0 22px; }
+.tier-list { list-style: none; padding: 0; margin: 0 0 26px; flex: 1; }
+.tier-list li { padding: 9px 0 9px 26px; position: relative; font-size: .9em; line-height: 1.4; border-bottom: 1px solid var(--c-line); }
+.tier-list li:last-child { border-bottom: none; }
+.tier-list li::before { content: '✓'; position: absolute; left: 0; color: var(--c-accent); font-weight: 700; }
+.tier .btn { margin-top: auto; width: 100%; text-align: center; }
+
+/* приоритетная карточка МК + опции под ней */
+.tier-hero {
+  max-width: 640px; margin: 0 auto; background: var(--c-surface);
+  border: 2px solid var(--c-accent); border-radius: 20px; padding: 38px 38px 34px;
+  position: relative; box-shadow: 0 18px 44px oklch(0.60 0.19 52 / .14);
+}
+.tier-hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 24px; }
+.tier-hero .tier-name { font-size: clamp(24px, 1.6vw + 14px, 30px); margin-bottom: 4px; }
+.tier-hero .tier-per { margin: 0; }
+.tier-hero .tier-price { font-size: clamp(34px, 2.6vw + 16px, 50px); white-space: nowrap; line-height: 1; }
+.tier-list--cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 30px; }
+.tier-list--cols li { border-bottom: none; }
+.tier-deadline { text-align: center; font-family: var(--font-display); font-weight: 700; font-size: .82em; color: var(--c-text); margin-top: 14px; }
+.tier-deadline b { color: var(--c-accent); }
+.tiers-divider { text-align: center; color: var(--c-muted); font-size: .9em; margin: 36px auto 20px; max-width: 460px; }
+.tiers-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 640px; margin: 0 auto; }
+.tiers-opts .tier { padding: 28px 26px; }
+.tiers-opts .tier-name { margin-bottom: 10px; }
+.tiers-opts .tier-price { font-size: clamp(26px, 1.8vw + 13px, 34px); }
+/* плашка с главным отличием тарифа */
+.tier-diff { border-radius: 12px; padding: 14px 16px; margin: 20px 0 22px; text-align: center; background: var(--c-dark); min-height: 142px; display: flex; flex-direction: column; justify-content: center; }
+.tier-feat .tier-diff { background: var(--c-accent); }
+.tier-diff-label { font-size: .72em; text-transform: uppercase; letter-spacing: .07em; color: oklch(0.72 0.02 55); margin-bottom: 3px; }
+.tier-feat .tier-diff-label { color: oklch(0.98 0.02 52); }
+.tier-diff-val { font-family: var(--font-display); font-weight: 800; font-size: clamp(18px, 1.2vw + 12px, 23px); color: var(--c-accent); line-height: 1.1; }
+.tier-feat .tier-diff-val { color: oklch(1 0 0); }
+.tier-diff-bonus { font-size: .82em; font-weight: 600; color: oklch(0.99 0.015 52); margin-top: 8px; padding-top: 8px; border-top: 1px solid oklch(1 0 0 / .25); }
+.tier-period { font-size: .42em; font-weight: 700; color: var(--c-accent); margin-left: 3px; }
+.tier-per b { color: var(--c-text); font-weight: 700; }
+.tier-seats {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-display); font-weight: 700; font-size: .76em;
+  color: var(--c-accent); background: var(--c-accent-light);
+  padding: 6px 13px; border-radius: 999px; margin-top: 14px;
+}
+.tier-seats::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--c-accent); }
+/* «входит в тариф» */
+.tier-incl-label { font-size: .76em; text-transform: uppercase; letter-spacing: .06em; color: var(--c-muted); margin-bottom: 6px; }
+.tier-list li.incl { font-weight: 700; color: var(--c-text); }
+
+/* ═══ 8. FAQ ═══ */
+.faq { max-width: var(--w-sm); margin: 0 auto; }
+details { border-bottom: 1px solid var(--c-line); }
+summary {
+  padding: 18px 0; cursor: pointer; font-weight: 600; font-size: 1.02em;
+  list-style: none; display: flex; justify-content: space-between; align-items: center;
+}
+summary::after { content: '+'; font-size: 1.4em; color: var(--c-muted); transition: transform .2s; }
+details[open] summary::after { content: '−'; }
+details p { padding: 0 0 18px; font-size: .92em; }
+
+/* ═══ 9. CTA ═══ */
+.s-cta { background: var(--c-dark); color: var(--c-on-dark); }
+.s-cta h2 { color: var(--c-on-dark); }
+
+/* ═══ 10. FOOTER ═══ */
+.foot { padding: 28px 24px; text-align: center; font-size: .8em; color: var(--c-muted); }
+
+/* ═══ STICKY CTA ═══ */
+.sticky { display: none; }
+@media(max-width:768px){
+  .s { padding: 40px 20px; }
+  .cmp { grid-template-columns: 1fr; }
+  .flip-body { min-height: 160px; }
+  .skill-feats { flex-direction: column; gap: 12px; align-items: center; }
+  .skill-feat { padding: 0; }
+  .skill-feat:not(:last-child)::after { display: none; }
+  .steps { grid-template-columns: 1fr; gap: 24px; }
+  .cases { grid-template-columns: 1fr 1fr; }
+  .tier-hero { padding: 30px 24px; }
+  .tier-hero-top { flex-direction: column; gap: 8px; }
+  .tier-list--cols { grid-template-columns: 1fr; }
+  .tiers-opts { grid-template-columns: 1fr; max-width: 420px; }
+  .btn { display: block; text-align: center; }
+  .sticky {
+    display: block; position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+    background: var(--c-dark); padding: 12px 20px;
+  }
+  .sticky a {
+    display: block; background: var(--c-accent); color: oklch(1 0 0);
+    font-family: var(--font-display); font-weight: 800; font-size: 15px;
+    text-align: center; text-decoration: none; padding: 14px; border-radius: 4px;
+  }
+}
+@media(max-width:480px){ .cases { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- 1. HERO -->
+<section class="s s-hero">
+  <div class="s-inner centered">
+    <p class="eyebrow">мастеркласс по авторской методике</p>
+    <h1><span class="highlight">разрешение</span><br>быстрых денег</h1>
+    <p class="hero-sub">За 7 дней делаем так, чтобы в твоем будущем всегда были деньги и спокойствие за завтрашний день.</p>
+    <a href="#pricing" class="btn">Записаться</a>
+    <p class="hero-deadline">запись открыта до <b>22 июня, 17:00 МСК</b></p>
+    <p class="hero-proof">через мою методику уже прошли 1000+ человек</p>
+  </div>
+  <a href="#about" class="scroll-hint" aria-label="Дальше">↓</a>
+</section>
+
+<!-- 2. VIDEO — скрыто до появления файла (запись с зума / говорящая голова 2-3 мин)
+<section class="s" id="video">
+  <div class="s-inner centered">
+    <div class="hero-media ph">Видео (2-3 мин) или фото Саши</div>
+  </div>
+</section>
+-->
+
+<!-- 2.5 ABOUT (про меня) -->
+<section class="s s-about" id="about">
+  <div class="s-inner">
+    <div class="about">
+      <img class="about-photo" src="about-photo.png" alt="Саша Toyz">
+
+      <div>
+        <p class="eyebrow">Кто это ведёт</p>
+        <div class="about-name">SASHA TOYZ</div>
+        <div class="about-role">коуч, маркетолог, визионер</div>
+        <div class="about-stats">
+          <span class="about-stat">14 лет работаю на себя</span>
+          <span class="about-stat">5 лет в онлайне</span>
+          <span class="about-stat">1000+ учеников и клиентов</span>
+        </div>
+        <div class="about-bio">
+          <p>я знаю как сложно зарабатывать деньги - особенно в онлайне</p>
+          <p>первый мой воркшоп купили 3 человека</p>
+          <p>я прорабатывал это с психологами и коучами - на деле менялось мало</p>
+          <p>я тратил десятки тысяч долларов на обучения у маркетологов - это не подходило</p>
+          <p class="about-punch">в итоге я понял что нужно «законнектить» обе части - голову и инструменты</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. COMPARISON -->
+<section class="s">
+  <div class="s-inner s-narrow">
+    <h2 class="centered">Почему это работает</h2>
+    <div class="cmp">
+      <div class="cmp-card cmp-old">
+        <div class="cmp-tag">Как обычно</div>
+        <h3>Или голова, или руки</h3>
+        <ul>
+          <li>Коучи и психологи работают с эмоциями<span class="cmp-sub">В итоге ты лучше разбираешься внутри себя, но внешний мир от этого не меняется</span></li>
+          <li>Маркетологи и продюсеры работают с инструментами<span class="cmp-sub">Ты знаешь, что делать, но внутри полный хаос и бунт</span></li>
+          <li>Никто не создаёт между ними мост</li>
+        </ul>
+      </div>
+      <div class="cmp-card cmp-new">
+        <div class="cmp-tag">Здесь</div>
+        <h3>Оба аспекта за 7 дней</h3>
+        <ul>
+          <li>Голова: дружим мозги и сердце, чтобы они были в синхроне, и разрешаем себе деньги</li>
+          <li>Инструменты: внедряем 10 способов получения денег</li>
+          <li>Мост: закрепляем всё на практике и закладываем фундамент для навыка</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3.5 SKILL (навык, не информация) -->
+<section class="s s-skill">
+  <div class="s-inner centered">
+    <p class="eyebrow">Суть мастеркласса</p>
+    <h2 class="skill-claim">Все продают <span class="skill-strike">информацию</span>.<br>Я предлагаю сформировать <span class="skill-hl">навык</span>.</h2>
+    <div class="skill-feats">
+      <span class="skill-feat">никто не заберёт</span>
+      <span class="skill-feat">работает всегда</span>
+      <span class="skill-feat">даёт опору и стабильность</span>
+    </div>
+    <p class="skill-note">Ты не паришься о том, как ходить — у тебя сформирован навык.<br>Получать и зарабатывать деньги — точно такой же навык.</p>
+  </div>
+</section>
+
+<!-- 4. TRANSFORM (До → После) -->
+<section class="s">
+  <div class="s-inner">
+    <h2 class="centered xf-head">Что изменится</h2>
+    <p class="centered" style="color:var(--c-muted); margin:-4px auto 36px; max-width:480px">Листай карточки и жми «После» — увидишь, к чему придёшь за 7 дней</p>
+    <div class="car">
+      <div class="car-track" id="flipTrack">
+
+      <div class="flip" data-state="before">
+        <div class="flip-toggle">
+          <button class="flip-tab active" data-to="before">Сейчас</button>
+          <button class="flip-tab" data-to="after">После</button>
+        </div>
+        <div class="flip-body">
+          <div class="flip-face flip-before">
+            <div class="flip-pain">Деньги = тревога</div>
+          </div>
+          <div class="flip-face flip-after">
+            <div class="flip-gain">Деньги = спокойствие</div>
+            <p class="flip-reveal">Снимаем блоки и поднимаем самоценность. За завтрашний день перестаёт быть страшно — навык работает в любые времена.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flip" data-state="before">
+        <div class="flip-toggle">
+          <button class="flip-tab active" data-to="before">Сейчас</button>
+          <button class="flip-tab" data-to="after">После</button>
+        </div>
+        <div class="flip-body">
+          <div class="flip-face flip-before">
+            <div class="flip-pain">Знаю, но не делаю</div>
+          </div>
+          <div class="flip-face flip-after">
+            <div class="flip-gain">Делаю и получаю</div>
+            <p class="flip-reveal">Разрешение превращаем в действие в тот же день. Подключаем 10 способов получения денег и делаем первые шаги прямо на встрече.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flip" data-state="before">
+        <div class="flip-toggle">
+          <button class="flip-tab active" data-to="before">Сейчас</button>
+          <button class="flip-tab" data-to="after">После</button>
+        </div>
+        <div class="flip-body">
+          <div class="flip-face flip-before">
+            <div class="flip-pain">Упахиваюсь за копейки</div>
+          </div>
+          <div class="flip-face flip-after">
+            <div class="flip-gain">Беру столько, сколько решил</div>
+            <p class="flip-reveal">Твоя энергия и время начинают стоить в разы дороже. Получаешь деньги в любом размере — без режима 24/7.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flip" data-state="before">
+        <div class="flip-toggle">
+          <button class="flip-tab active" data-to="before">Сейчас</button>
+          <button class="flip-tab" data-to="after">После</button>
+        </div>
+        <div class="flip-body">
+          <div class="flip-face flip-before">
+            <div class="flip-pain">Жду, когда повезёт</div>
+          </div>
+          <div class="flip-face flip-after">
+            <div class="flip-gain">Включаю навык в любой момент</div>
+            <p class="flip-reveal">Деньги один раз — удача. Деньги каждый раз — навык. Встраиваем недельный ритуал, который держит тебя в потоке.</p>
+          </div>
+        </div>
+      </div>
+
+      </div>
+      <div class="car-nav">
+        <button class="car-btn car-prev" aria-label="Назад">←</button>
+        <div class="car-dots" id="flipDots"></div>
+        <button class="car-btn car-next" aria-label="Вперёд">→</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. HOW IT WORKS (карусель дней) -->
+<section class="s">
+  <div class="s-inner">
+    <h2 class="centered how-head">Как это работает</h2>
+    <p class="centered" style="color:var(--c-muted); margin:-4px auto 36px; max-width:520px">3 встречи за неделю: софт-скилл → хард-скилл → закрепление</p>
+    <div class="stages">
+
+      <div class="stage open">
+        <button class="stage-head">
+          <span class="stage-left">
+            <span><span class="stage-num">День 1</span></span>
+            <span class="stage-title">Софт-скилл</span>
+          </span>
+          <span class="stage-icon">+</span>
+        </button>
+        <div class="stage-body"><div class="stage-bodyinner"><div class="stage-content">
+          <div class="day-formula">Сначала — внутренняя опора.<br>Самоценность, цель и разрешение получать деньги.</div>
+          <ul class="day-list">
+            <li>внедряем 7 инструментов для софт-скилла</li>
+            <li>убираем всё, что сосёт энергию даром</li>
+            <li>поднимаем самоценность — растёт планка денег</li>
+            <li>снимаем блоки, которые мешают получать</li>
+            <li>находим цель, ради которой реально хочется делать</li>
+            <li>выписываем твои позиции и тезисы — фундамент, с которого продавать не стрёмно</li>
+          </ul>
+          <div class="day-out">
+            <div class="day-out-label">К концу дня</div>
+            <div class="day-out-text">Полное разрешение получать деньги — в любом размере и на любой скорости</div>
+          </div>
+        </div></div></div>
+      </div>
+
+      <div class="stage">
+        <button class="stage-head">
+          <span class="stage-left">
+            <span><span class="stage-num">День 2</span></span>
+            <span class="stage-title">Хард-скилл</span>
+          </span>
+          <span class="stage-icon">+</span>
+        </button>
+        <div class="stage-body"><div class="stage-bodyinner"><div class="stage-content">
+          <div class="day-formula">Разрешение без действия = пустота.<br>Действие без инструмента = упахивание.</div>
+          <ul class="day-list">
+            <li>собираем карту, где находятся твои деньги</li>
+            <li>подключаем 10 способов получения денег</li>
+            <li>превращаем каждый лайк в потенциальные деньги</li>
+            <li>делаем первые шаги прямо в онлайне</li>
+            <li>внедряем Продающий Контент в режиме форсаж</li>
+          </ul>
+          <div class="day-out">
+            <div class="day-out-label">К концу дня</div>
+            <div class="day-out-text">Инструменты, чтобы брать деньги в любых условиях</div>
+          </div>
+        </div></div></div>
+      </div>
+
+      <div class="stage">
+        <button class="stage-head">
+          <span class="stage-left">
+            <span><span class="stage-num">День 3</span></span>
+            <span class="stage-title">Закрепление</span>
+          </span>
+          <span class="stage-icon">+</span>
+        </button>
+        <div class="stage-body"><div class="stage-bodyinner"><div class="stage-content">
+          <div class="day-formula">Деньги один раз = удача.<br>Деньги каждый раз = навык.</div>
+          <ul class="day-list">
+            <li>разбираем, что пошло за 2 дня практики — у каждого</li>
+            <li>доводим до результата тех, у кого не пошло</li>
+            <li>встраиваем недельный ритуал, чтобы не скатиться</li>
+            <li>снимаем страх «а если завтра не сработает»</li>
+            <li>прокладываем твой следующий шаг после МК</li>
+          </ul>
+          <div class="day-out">
+            <div class="day-out-label">К концу дня</div>
+            <div class="day-out-text">Навык, который держит тебя в потоке постоянно</div>
+          </div>
+        </div></div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 6. CASES -->
+<section class="s">
+  <div class="s-inner">
+    <h2 class="centered">Кейсы</h2>
+    <div class="cases">
+      <div>
+        <img class="case-img" src="screenshots/case-david.png" alt="Давид" loading="lazy">
+        <div class="case-name">Давид</div>
+        <p class="case-body">$50 в долг → $1 300 за 5 дней</p>
+      </div>
+      <div>
+        <img class="case-img" src="screenshots/case-max.png" alt="Макс" loading="lazy">
+        <div class="case-name">Макс</div>
+        <p class="case-body">Первый клиент на 10-м видео</p>
+      </div>
+      <div>
+        <img class="case-img" src="screenshots/case-vasya.png" alt="Вася" loading="lazy">
+        <div class="case-name">Вася</div>
+        <p class="case-body">500к+ в месяц стабильно</p>
+      </div>
+      <div>
+        <img class="case-img" src="screenshots/case-zhenya.jpg" alt="Женя" loading="lazy">
+        <div class="case-name">Женя</div>
+        <p class="case-body">$8 000 за месяц</p>
+      </div>
+      <div>
+        <img class="case-img" src="screenshots/case-vlad.jpg" alt="Влад" loading="lazy">
+        <div class="case-name">Влад</div>
+        <p class="case-body">460к за август</p>
+      </div>
+      <div>
+        <img class="case-img" src="screenshots/case-masha.jpg" alt="Маша" loading="lazy">
+        <div class="case-name">Маша</div>
+        <p class="case-body">2,4М, лимит самозанятости</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. PRICING (тарифы) -->
+<section class="s" id="pricing">
+  <div class="s-inner">
+    <h2 class="centered" style="margin-bottom:40px">Как попасть</h2>
+
+    <!-- приоритет: мастеркласс -->
+    <div class="tier-hero">
+      <div class="tier-badge">Старт здесь</div>
+      <div class="tier-hero-top">
+        <div>
+          <div class="tier-name">Мастеркласс</div>
+          <p class="tier-per">разовый вход на 3 встречи</p>
+        </div>
+        <div class="tier-price">4 884 ₽</div>
+      </div>
+      <ul class="tier-list tier-list--cols">
+        <li>3 встречи в Zoom по 2 часа</li>
+        <li>7 инструментов для софт-скилла</li>
+        <li>10 инструментов для хард-скилла</li>
+        <li>Практика на сессиях + задания между ними</li>
+        <li>Записи всех встреч</li>
+        <li>TG-чат группы на время МК</li>
+      </ul>
+      <a href="https://t.me/testtoyzbot?start=mk_dengi" class="btn" target="_blank" rel="noopener">Записаться на мастеркласс</a>
+      <p class="tier-deadline">запись до <b>22 июня, 17:00 МСК</b></p>
+    </div>
+
+    <!-- опции -->
+    <p class="tiers-divider">Хочешь глубже — зайди в сообщество, после МК или сразу</p>
+    <div class="tiers-opts">
+
+      <div class="tier">
+        <div class="tier-name">Сообщество SYNC</div>
+        <div class="tier-price">10 000 ₽<span class="tier-period">/мес</span></div>
+        <p class="tier-per">оплата раз в <b>месяц</b></p>
+        <div class="tier-diff">
+          <div class="tier-diff-label">Групповые созвоны</div>
+          <div class="tier-diff-val">раз в месяц</div>
+        </div>
+        <p class="tier-incl-label">Входит в тариф</p>
+        <ul class="tier-list">
+          <li class="incl">Этот мастеркласс целиком</li>
+          <li>Все остальные мои мастерклассы</li>
+          <li>Доступ в закрытую группу</li>
+          <li>Общий чат сообщества</li>
+        </ul>
+        <div class="tier-seats">Всего 20 мест</div>
+        <a href="https://t.me/testtoyzbot?start=mk_sync" class="btn" target="_blank" rel="noopener" style="margin-top:16px">Вступить</a>
+      </div>
+
+      <div class="tier tier-feat">
+        <div class="tier-badge">Интенсивнее</div>
+        <div class="tier-name">Групповой формат</div>
+        <div class="tier-price">10 000 ₽<span class="tier-period">/нед</span></div>
+        <p class="tier-per">оплата раз в <b>неделю</b></p>
+        <div class="tier-diff">
+          <div class="tier-diff-label">Групповые созвоны</div>
+          <div class="tier-diff-val">каждую неделю</div>
+          <div class="tier-diff-bonus">+ первый созвон лично со мной</div>
+        </div>
+        <p class="tier-incl-label">Входит в тариф</p>
+        <ul class="tier-list">
+          <li class="incl">Этот мастеркласс целиком</li>
+          <li>Все остальные мои мастерклассы</li>
+          <li>Доступ в закрытую группу</li>
+          <li>Общий чат сообщества</li>
+        </ul>
+        <div class="tier-seats">Всего 5 мест</div>
+        <a href="https://t.me/testtoyzbot?start=mk_group" class="btn" target="_blank" rel="noopener" style="margin-top:16px">Выбрать</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 8. FAQ -->
+<section class="s">
+  <div class="s-inner s-narrow">
+    <h2 class="centered">Вопросы</h2>
+    <div class="faq">
+      <details>
+        <summary>Это подходит новичкам без аудитории?</summary>
+        <p>Да. Инструменты работают даже если у тебя ноль подписчиков. Давид пришёл с $50 в долг.</p>
+      </details>
+      <details>
+        <summary>Сколько времени займёт?</summary>
+        <p>3 встречи по 2 часа + практика между ними. Вся программа укладывается в 7 дней.</p>
+      </details>
+      <details>
+        <summary>А если не получится?</summary>
+        <p>В пятницу разбираем каждого. Кто не дошёл до результата, доводим.</p>
+      </details>
+      <details>
+        <summary>Почему это работает от курса по маркетингу?</summary>
+        <p>Курсы дают инструменты. Здесь сначала голова (разрешение получать), потом инструменты, потом действие. Навык, а не информация.</p>
+      </details>
+      <details>
+        <summary>Будет запись?</summary>
+        <p>Да, записи всех встреч доступны после.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- 10. FOOTER -->
+<div class="foot">Саша Toyz. 14 лет на себя, 4 сферы, 5 лет в онлайне.</div>
+
+<!-- STICKY CTA (mobile) -->
+<div class="sticky"><a href="#pricing">Записаться на мастеркласс</a></div>
+
+<script>
+// аккордеон этапов (один открыт за раз)
+document.querySelectorAll('.stage-head').forEach(function (head) {
+  head.addEventListener('click', function () {
+    var stage = head.parentElement;
+    var wasOpen = stage.classList.contains('open');
+    stage.parentElement.querySelectorAll('.stage').forEach(function (s) { s.classList.remove('open'); });
+    if (!wasOpen) stage.classList.add('open');
+  });
+});
+
+// флип До/После внутри карточек
+document.querySelectorAll('.flip').forEach(function (card) {
+  card.querySelectorAll('.flip-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      card.dataset.state = tab.dataset.to;
+      card.querySelectorAll('.flip-tab').forEach(function (t) {
+        t.classList.toggle('active', t === tab);
+      });
+    });
+  });
+});
+
+// карусели (универсально для всех .car)
+document.querySelectorAll('.car').forEach(function (car) {
+  var track = car.querySelector('.car-track');
+  var dotsBox = car.querySelector('.car-dots');
+  var prev = car.querySelector('.car-prev');
+  var next = car.querySelector('.car-next');
+  if (!track || !prev || !next) return;
+  var slides = Array.prototype.slice.call(track.children);
+  var cur = 0;
+
+  slides.forEach(function (_, i) {
+    var d = document.createElement('button');
+    d.className = 'car-dot' + (i === 0 ? ' active' : '');
+    d.setAttribute('aria-label', 'Карточка ' + (i + 1));
+    d.addEventListener('click', function () { go(i); });
+    dotsBox.appendChild(d);
+  });
+  var dots = dotsBox.querySelectorAll('.car-dot');
+
+  function go(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    track.scrollTo({ left: slides[i].offsetLeft - track.offsetLeft, behavior: 'smooth' });
+  }
+  function sync() {
+    var center = track.scrollLeft + track.clientWidth / 2, best = 0, bestD = Infinity;
+    slides.forEach(function (s, i) {
+      var c = s.offsetLeft - track.offsetLeft + s.clientWidth / 2, d = Math.abs(c - center);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    if (best !== cur) {
+      cur = best;
+      dots.forEach(function (d, i) { d.classList.toggle('active', i === cur); });
+      // флип-карточки: новая всегда открывается в режиме «Сейчас»
+      var card = slides[cur];
+      if (card.classList.contains('flip')) {
+        card.dataset.state = 'before';
+        card.querySelectorAll('.flip-tab').forEach(function (t) {
+          t.classList.toggle('active', t.dataset.to === 'before');
+        });
+      }
+    }
+    prev.disabled = cur === 0;
+    next.disabled = cur === slides.length - 1;
+  }
+  prev.addEventListener('click', function () { go(cur - 1); });
+  next.addEventListener('click', function () { go(cur + 1); });
+  var t;
+  track.addEventListener('scroll', function () { clearTimeout(t); t = setTimeout(sync, 60); });
+  sync();
+});
+</script>
+
+<!-- Telegram Mini App: оплата МК прямо из мини-аппа с привязкой к TG-юзеру.
+     order_id формата mkdengi_<tgId> ловит /api/prodamus-webhook → выдаёт доступ. -->
+<script>
+(function () {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
+
+  var uid = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user)
+    ? tg.initDataUnsafe.user.id : null;
+
+  // Без Telegram-контекста (открыто в обычном браузере) — оставляем кнопку как есть.
+  if (!uid) return;
+
+  var FORM = 'https://thesashatoyz.payform.ru';
+  var origin = window.location.origin;
+
+  function mkDengiUrl() {
+    var orderId = 'mkdengi_' + uid;
+    var parts = [
+      'do=pay',
+      'products[0][name]=' + encodeURIComponent('МК «Разрешение быстрых денег»'),
+      'products[0][price]=4884',
+      'products[0][quantity]=1',
+      'order_id=' + encodeURIComponent(orderId),
+      'urlNotification=' + encodeURIComponent(origin + '/api/prodamus-webhook'),
+      'urlSuccess=' + encodeURIComponent(origin + '/cabinet?payment=success')
+    ];
+    return FORM + '?' + parts.join('&');
+  }
+
+  document.querySelectorAll('a[href*="start=mk_dengi"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var url = mkDengiUrl();
+      if (tg && tg.openLink) { tg.openLink(url); } else { window.open(url, '_blank'); }
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
