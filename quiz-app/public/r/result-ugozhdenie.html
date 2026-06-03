@@ -132,7 +132,9 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
 .verdict .vn{font-family:var(--disp);font-weight:900;font-size:clamp(1.7rem,7.6cqw,2.4rem);line-height:1;letter-spacing:-.03em;overflow-wrap:break-word}
 .slide.active .verdict{animation:pop .65s cubic-bezier(.2,.75,.25,1) .45s forwards}
 /* ── замкнутый круг (слайд 3) ── */
-.vc-svg{display:block;width:100%;max-width:252px;height:auto;overflow:visible;margin:12px auto 16px}
+.vc-tag{font-family:var(--body);font-weight:700;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--orange);opacity:.9;margin-top:7px;display:flex;align-items:center;gap:7px}
+.vc-tag span{font-size:.95rem;line-height:1}
+.vc-svg{display:block;width:100%;max-width:300px;height:auto;overflow:visible;margin:8px auto 10px}
 .vc-track{fill:none;stroke:rgba(244,236,224,.12);stroke-width:3}
 .vc-draw{fill:none;stroke:var(--orange);stroke-width:3;stroke-linecap:round;stroke-dasharray:653;stroke-dashoffset:653;transform:rotate(-90deg);transform-origin:230px 180px}
 .slide.active .vc-draw{animation:vcdraw 5.2s linear .35s forwards}
@@ -183,13 +185,12 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
 .g-lbl{font-size:.64rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-l);margin-top:4px}
 .g-src{text-align:center;font-size:.7rem;font-weight:600;letter-spacing:.04em;color:var(--muted-l);margin-top:2px}
 
-.flow{display:flex;align-items:flex-start;justify-content:center;gap:16px;margin:18px 0 8px}
-.flow .col{display:flex;flex-direction:column;align-items:center}
-.flow .fnum{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;line-height:1}
+.flow{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;justify-items:center;column-gap:18px;row-gap:12px;margin:20px auto 10px;max-width:300px}
+.flow .fnum{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;line-height:.82}
 .flow .give{font-size:clamp(2.8rem,15cqw,4rem);opacity:.4}
 .flow .get{font-size:clamp(3.4rem,19cqw,5rem);color:var(--orange)}
 .flow .arr{font-family:var(--disp);font-weight:900;font-size:2rem;opacity:.4;align-self:center}
-.flow .cap{font-family:var(--body);font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.55;margin-top:10px;text-align:center;max-width:9ch}
+.flow .cap{font-family:var(--body);font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.55;text-align:center;max-width:12ch;align-self:start}
 
 .btn{display:block;text-align:center;text-decoration:none;font-family:var(--disp);font-weight:800;font-size:1.08rem;color:var(--cream);background:var(--orange);padding:21px 24px;border-radius:18px;margin-top:24px;box-shadow:0 14px 34px rgba(255,92,58,.4);position:relative;z-index:30;transition:transform .15s ease;}
 .btn:active{transform:scale(.97)}
@@ -252,6 +253,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="glow" style="width:300px;height:300px;background:var(--orange);top:46%;left:50%;transform:translate(-50%,-50%);opacity:.17"></div>
       <div class="kicker r" style="animation-delay:.05s">блок · основной</div>
       <h1 class="blockname r" style="animation-delay:.16s">УГОЖДЕНИЕ</h1>
+      <div class="vc-tag r" style="animation-delay:.24s"><span>↻</span> замкнутый круг</div>
       <svg class="vc-svg" viewBox="0 0 460 360" aria-label="замкнутый круг">
         <circle class="vc-track" cx="230" cy="180" r="104"/>
         <circle class="vc-draw"  cx="230" cy="180" r="104"/>
@@ -280,11 +282,14 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="kicker ac r" style="animation-delay:.05s">даже когда деньги приходят</div>
       <h1 class="lg r" style="animation-delay:.15s">энергии ты слил<br>несоизмеримо больше</h1>
       <div class="flow">
-        <div class="col"><div class="fnum give">10</div><span class="cap">отдал энергии</span></div>
+        <div class="fnum give">10</div>
         <div class="arr">→</div>
-        <div class="col"><div class="fnum get pop" style="animation-delay:.4s">2</div><span class="cap">вернулось деньгами</span></div>
+        <div class="fnum get pop" style="animation-delay:.4s">2</div>
+        <span class="cap">отдал энергии</span>
+        <span></span>
+        <span class="cap">вернулось деньгами</span>
       </div>
-      <p class="lead muted r" style="animation-delay:.6s">деньги приходят — но цена в энергии в разы выше. поэтому пашешь, а ощущение, будто впустую.</p>
+      <p class="lead muted r" style="animation-delay:.6s">деньги приходят — но цена в энергии в разы выше.<br>поэтому пашешь, а ощущение, будто впустую.</p>
     </section>
 
     <!-- 4 ПРИКРЫТИЕ -->
@@ -302,7 +307,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="glow" style="width:240px;height:240px;background:var(--orange);bottom:-70px;right:-50px;opacity:.3"></div>
       <div class="kicker r" style="animation-delay:.05s">а под этим</div>
       <h1 class="lg r" style="animation-delay:.15s">в глубине ты не веришь,<br>что заплатят за твою <span class="ac">ценность</span></h1>
-      <p class="lead muted r mt" style="animation-delay:.4s">поэтому пытаешься заслужить деньги тем, что ты хороший / удобный / полезный. поэтому стараешься отдавать больше.</p>
+      <p class="lead muted r mt" style="animation-delay:.4s">поэтому пытаешься заслужить деньги тем, что ты хороший / удобный / полезный.<br>поэтому стараешься отдавать больше.</p>
     </section>
 
     <!-- 6 СИМПТОМЫ -->
@@ -362,7 +367,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="kicker r" style="animation-delay:.05s">а вот в чём разворот</div>
       <p class="lead r" style="animation-delay:.14s">ты думаешь: надо быть ещё полезнее, ещё лучше — и тогда заплатят.</p>
       <h1 class="lg r mt-s" style="animation-delay:.28s">но чем сильнее ты стараешься быть хорошим — тем <span class="hi">дешевле</span> тебя берут.</h1>
-      <p class="lead muted r mt" style="animation-delay:.5s">деньги приходят не когда ты лучше. а когда ты сам видишь свою ценность.</p>
+      <p class="lead muted r mt" style="animation-delay:.5s">деньги приходят не когда ты лучше.<br>а когда ты сам видишь свою ценность.</p>
     </section>
 
     <!-- 11 КЕЙС ЖЕНЯ -->
@@ -375,7 +380,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
         <div class="bar was"><div class="val r" style="animation-delay:.5s;opacity:.6">$3 200</div><div class="colb"></div><div class="cap r" style="animation-delay:.5s">было / мес</div></div>
         <div class="bar now"><div class="val pop" style="animation-delay:.7s" data-count="8000" data-prefix="$">$0</div><div class="colb"></div><div class="cap r" style="animation-delay:.7s">стало / мес</div></div>
       </div>
-      <p class="lead muted r" style="animation-delay:.85s">делал «полезный» контент, старался нравиться всем и быть хорошим. к нему редко обращались. <span class="ac">перестал добирать добротой</span>, начал брать за результат. теперь $8 000.</p>
+      <p class="lead muted r" style="animation-delay:.85s">делал «полезный» контент, старался нравиться всем и быть хорошим.<br>к нему редко обращались.<br><span class="ac">перестал добирать добротой</span>, начал брать за результат.<br>теперь $8 000.</p>
       <img class="shot sm r" src="../screenshots/case-zhenya.jpg" alt="отзыв Жени" style="animation-delay:1s">
     </section>
 
@@ -384,9 +389,9 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">дальше</span></div>
       <div class="kicker ac r" style="animation-delay:.05s">это лечится</div>
       <h1 class="lg r" style="animation-delay:.15s">увидеть свою цену<br>в одиночку <span class="hi">трудно</span></h1>
-      <p class="lead muted r mt" style="animation-delay:.36s">глаз замылен, ты слишком близко к себе. на МК «Разрешение быстрых денег» мы достаём твою реальную ценность, чтобы ты перестал угождать и держал позицию. и тогда к тебе идут.</p>
-      <a class="btn r" style="animation-delay:.54s" href="#" id="cta">Хочу на МК →</a>
-      <div class="price r" style="animation-delay:.66s">8 / 10 / 12 июня · 4 884 ₽ · запись + чат когорты</div>
+      <p class="lead muted r mt" style="animation-delay:.36s">глаз замылен, ты слишком близко к себе.<br>на МК «Разрешение быстрых денег» мы достаём твою реальную ценность, чтобы ты перестал угождать и держал позицию.<br>и тогда к тебе идут.</p>
+      <a class="btn r" style="animation-delay:.54s" href="https://t.me/testtoyzbot?start=razreshenie_deneg" target="_blank" rel="noopener" id="cta">Хочу на МК →</a>
+      <div class="price r" style="animation-delay:.66s">4 884 ₽ · запись + чат участников</div>
     </section>
 
     <div class="tap l" id="tapL"></div>
@@ -457,7 +462,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
   let sx=0;
   story.addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
   story.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx;if(dx<-40)show(i+1);else if(dx>40)show(i-1);},{passive:true});
-  document.getElementById('cta').addEventListener('click',e=>e.preventDefault());
+  /* CTA ведёт на лист ожидания через href */
   show(0);
 })();
 </script>

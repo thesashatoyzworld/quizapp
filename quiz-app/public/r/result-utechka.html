@@ -104,7 +104,50 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
 .verdict .vn{font-family:var(--disp);font-weight:900;font-size:clamp(1.7rem,7.6cqw,2.4rem);line-height:1;letter-spacing:-.03em;overflow-wrap:break-word}
 .slide.active .verdict{animation:pop .65s cubic-bezier(.2,.75,.25,1) .45s forwards}
 
-.gauge{position:relative;width:188px;height:188px;margin:8px auto 6px;display:flex;align-items:center;justify-content:center}
+/* ── замкнутый круг (слайд 3) — тот же движок, что у Угождения/Надрыва ── */
+.vc-tag{font-family:var(--body);font-weight:700;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--orange);opacity:.9;margin-top:7px;display:flex;align-items:center;gap:7px}
+.vc-tag span{font-size:.95rem;line-height:1}
+.vc-svg{display:block;width:100%;max-width:300px;height:auto;overflow:visible;margin:6px auto 8px}
+.vc-track{fill:none;stroke:rgba(244,236,224,.12);stroke-width:3}
+.vc-draw{fill:none;stroke:var(--orange);stroke-width:3;stroke-linecap:round;stroke-dasharray:653;stroke-dashoffset:653;transform:rotate(-90deg);transform-origin:230px 180px}
+.slide.active .vc-draw{animation:vcdraw 5.2s linear .35s forwards}
+@keyframes vcdraw{0%,8%{stroke-dashoffset:653}23%,31%{stroke-dashoffset:490}46%,54%{stroke-dashoffset:327}69%,77%{stroke-dashoffset:163}92%,100%{stroke-dashoffset:0}}
+.vc-comet{transform-origin:230px 180px}
+.vc-comet circle{fill:var(--orange);filter:drop-shadow(0 0 8px var(--orange))}
+.slide.active .vc-comet{animation:vcstep 5.2s linear .35s infinite}
+@keyframes vcstep{0%,8%{transform:rotate(0deg)}23%,31%{transform:rotate(90deg)}46%,54%{transform:rotate(180deg)}69%,77%{transform:rotate(270deg)}92%,100%{transform:rotate(360deg)}}
+.vc-node{opacity:0;transform-box:fill-box;transform-origin:center}
+.slide.active .vc-node{animation:vcpop .45s cubic-bezier(.2,.75,.25,1) forwards}
+@keyframes vcpop{0%{opacity:0;transform:scale(.4)}70%{transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+.vc-node circle{fill:var(--orange)}
+.vc-node text{fill:var(--char);font-family:var(--disp);font-weight:800;font-size:15px;text-anchor:middle;dominant-baseline:central}
+.vc-n1{animation-delay:.4s}.vc-n2{animation-delay:1.6s}.vc-n3{animation-delay:2.8s}.vc-n4{animation-delay:4s}
+.vc-lbl{fill:var(--cream);font-family:var(--body);font-weight:600;font-size:13px;opacity:0}
+.slide.active .vc-lbl{animation:vcfade .45s ease forwards}
+.vc-l1{animation-delay:.55s}.vc-l2{animation-delay:1.75s}.vc-l3{animation-delay:2.95s}.vc-l4{animation-delay:4.15s}
+@keyframes vcfade{to{opacity:1}}
+.vc-ctr{fill:var(--orange);font-family:var(--disp);font-weight:800;font-size:15px;text-anchor:middle;opacity:0}
+.slide.active .vc-ctr{animation:vcfade .6s ease .9s forwards}
+.vc-cap{font-family:var(--body);font-size:1.02rem;line-height:1.4;text-align:center;margin-top:18px;opacity:0}
+.slide.active .vc-cap{animation:vcfade .6s ease 1.1s forwards}
+.vc-cap b{color:var(--orange)}
+/* две шкалы-расхождение под кругом (момент блока) */
+.dbars{display:flex;align-items:flex-end;justify-content:center;gap:34px;margin:6px auto 0;opacity:0}
+.slide.active .dbars{animation:vcfade .5s ease 1.1s forwards}
+.dbar-col{display:flex;flex-direction:column;align-items:center;gap:9px}
+.dbar{width:40px;height:92px;background:rgba(244,236,224,.07);border-radius:9px;position:relative;overflow:hidden}
+.dbar-fill{position:absolute;left:0;right:0;bottom:0;border-radius:0 0 9px 9px;height:10%}
+.dbar-fill.hi{background:var(--orange)}
+.slide.active .dbar-fill.hi{animation:dRiseHi 2s cubic-bezier(.4,.05,.4,1) 1.35s forwards}
+@keyframes dRiseHi{from{height:10%}to{height:86%}}
+.dbar-fill.lo{background:rgba(244,236,224,.4)}
+.dbar-fill.mid{background:var(--orange);opacity:.55}
+.slide.active .dbar-fill.mid{animation:dRiseMid 2.1s cubic-bezier(.4,.05,.4,1) 1.35s forwards}
+@keyframes dRiseMid{0%{height:10%}55%{height:74%}100%{height:40%}}
+.dbar-l{font-family:var(--body);font-weight:700;font-size:.64rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(244,236,224,.6);text-align:center}
+.dbar-l.alt{color:#e8563a}
+
+.gauge{position:relative;width:188px;height:188px;height:188px;margin:8px auto 6px;display:flex;align-items:center;justify-content:center}
 .gauge svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
 .gauge .g-bg{fill:none;stroke:rgba(255,252,250,.12);stroke-width:10}
 .gauge .g-fg{fill:none;stroke:var(--orange);stroke-width:10;stroke-linecap:round;stroke-dasharray:326.7;stroke-dashoffset:326.7;transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1) .35s}
@@ -115,13 +158,12 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
 .g-lbl{font-size:.64rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-l);margin-top:4px}
 .g-src{text-align:center;font-size:.7rem;font-weight:600;letter-spacing:.04em;color:var(--muted-l);margin-top:2px}
 
-.flow{display:flex;align-items:flex-start;justify-content:center;gap:16px;margin:18px 0 8px}
-.flow .col{display:flex;flex-direction:column;align-items:center}
-.flow .fnum{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;line-height:1}
+.flow{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;justify-items:center;column-gap:18px;row-gap:12px;margin:20px auto 10px;max-width:300px}
+.flow .fnum{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;line-height:.82}
 .flow .give{font-size:clamp(2.8rem,15cqw,4rem);opacity:.4}
 .flow .get{font-size:clamp(3.4rem,19cqw,5rem);color:var(--orange)}
 .flow .arr{font-family:var(--disp);font-weight:900;font-size:2rem;opacity:.4;align-self:center}
-.flow .cap{font-family:var(--body);font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.55;margin-top:10px;text-align:center;max-width:9ch}
+.flow .cap{font-family:var(--body);font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.55;text-align:center;max-width:12ch;align-self:start}
 
 .btn{display:block;text-align:center;text-decoration:none;font-family:var(--disp);font-weight:800;font-size:1.08rem;color:var(--cream);background:var(--orange);padding:21px 24px;border-radius:18px;margin-top:24px;box-shadow:0 14px 34px rgba(255,92,58,.4);position:relative;z-index:30;transition:transform .15s ease;}
 .btn:active{transform:scale(.97)}
@@ -182,21 +224,37 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="glow" style="width:300px;height:300px;background:var(--orange);top:50%;left:50%;transform:translate(-50%,-50%);opacity:.26"></div>
       <div class="kicker r" style="animation-delay:.05s">блок · основной</div>
       <h1 class="blockname r" style="animation-delay:.16s">УТЕЧКА</h1>
-      <div class="gauge r" style="animation-delay:.3s">
-        <svg viewBox="0 0 120 120"><circle class="g-bg" cx="60" cy="60" r="52"/><circle class="g-fg" cx="60" cy="60" r="52"/></svg>
-        <div class="g-center"><div class="g-num"><span data-count="72">0</span><span class="g-pct">%</span></div><div class="g-lbl">перекрыто</div></div>
+      <div class="vc-tag r" style="animation-delay:.24s"><span>↻</span> замкнутый круг</div>
+            <svg class="vc-svg" viewBox="0 0 460 360" aria-label="замкнутый круг">
+        <circle class="vc-track" cx="230" cy="180" r="104"/>
+        <circle class="vc-draw"  cx="230" cy="180" r="104"/>
+        <g class="vc-comet"><circle cx="230" cy="76" r="6.5"/></g>
+        <g class="vc-node vc-n1"><circle cx="230" cy="76"  r="16"/><text x="230" y="76">1</text></g>
+        <g class="vc-node vc-n2"><circle cx="334" cy="180" r="16"/><text x="334" y="180">2</text></g>
+        <g class="vc-node vc-n3"><circle cx="230" cy="284" r="16"/><text x="230" y="284">3</text></g>
+        <g class="vc-node vc-n4"><circle cx="126" cy="180" r="16"/><text x="126" y="180">4</text></g>
+        <text class="vc-lbl vc-l1" x="230" y="42" text-anchor="middle">деньги пришли</text>
+        <text class="vc-lbl vc-l2" x="356" y="172" text-anchor="start">а их уже<tspan x="356" dy="17">ждут — долги,</tspan><tspan x="356" dy="17">счета</tspan></text>
+        <text class="vc-lbl vc-l3" x="230" y="318" text-anchor="middle">ушло, не успел увидеть</text>
+        <text class="vc-lbl vc-l4" x="104" y="172" text-anchor="end">снова<tspan x="104" dy="17">в нехватке</tspan></text>
+        <text class="vc-ctr" x="230" y="175">не</text>
+        <text class="vc-ctr" x="230" y="194">остаётся</text>
+      </svg>
+      <div class="dbars">
+        <div class="dbar-col"><div class="dbar"><div class="dbar-fill hi"></div></div><div class="dbar-l">приходит</div></div>
+        <div class="dbar-col"><div class="dbar"><div class="dbar-fill lo"></div></div><div class="dbar-l">остаётся</div></div>
       </div>
-      <p class="g-src r" style="animation-delay:.5s">по твоим ответам</p>
-      <p class="lead b r mt-s" style="animation-delay:.6s;text-align:center">деньги к тебе приходят.<br>и тут же утекают — на то, чтобы казаться.</p>
+      <!-- тексты узлов/шкал/капшн — болванка, Саша правит голосом -->
+      <p class="vc-cap">приходит — <b>и тут же утекает в дыры.</b></p>
     </section>
 
     <!-- 4 ПРИКРЫТИЕ -->
     <section class="slide t-orange" data-theme="dark">
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">узнаёшь себя?</span></div>
       <div class="kicker r" style="animation-delay:.05s">что ты себе говоришь</div>
-      <h1 class="lg r" style="animation-delay:.15s">я должен <span class="hi">соответствовать</span></h1>
-      <p class="lead b r mt" style="animation-delay:.42s">я же успешный. надо вкладывать в имидж. просто пока не раскрутился.</p>
-      <p class="lead r mt-s" style="animation-delay:.56s">логично же?</p>
+      <h1 class="lg r" style="animation-delay:.15s">это всё <span class="hi">обязательные</span> траты</h1>
+      <p class="lead b r mt" style="animation-delay:.42s">долги надо закрывать.<br>обязательства не бросишь.<br>на здоровье и уровень — не жалко.</p>
+      <p class="lead r mt-s" style="animation-delay:.56s">вроде не поспоришь?</p>
     </section>
 
     <!-- 5 СКРЫТОЕ УБЕЖДЕНИЕ -->
@@ -204,8 +262,8 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">глубже</span></div>
       <div class="glow" style="width:240px;height:240px;background:var(--orange);bottom:-70px;right:-50px;opacity:.3"></div>
       <div class="kicker r" style="animation-delay:.05s">а под этим</div>
-      <h1 class="lg r" style="animation-delay:.15s">ты надуваешь образ,<br>чтобы не чувствовать себя <span class="ac">маленьким</span></h1>
-      <p class="lead muted r mt" style="animation-delay:.4s">живёшь на уровень, которого нет. образ всегда требует больше, чем ты приносишь.</p>
+      <h1 class="lg r" style="animation-delay:.15s">ты живёшь на уровень,<br>которого <span class="ac">ещё нет</span></h1>
+      <p class="lead muted r mt" style="animation-delay:.4s">разрыв между реальным доходом и этим уровнем ты затыкаешь — долгами, обязательствами, здоровьем.<br>а дыра требует больше, чем ты приносишь.</p>
     </section>
 
     <!-- 6 СИМПТОМЫ -->
@@ -213,11 +271,11 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">это ты, если</span></div>
       <div class="kicker ac r" style="animation-delay:.05s">это ты, если</div>
       <ul class="symlist">
-        <li class="r" style="animation-delay:.16s">зарабатываешь 100 — живёшь будто на 500</li>
-        <li class="r" style="animation-delay:.27s">деньги испаряются, непонятно куда</li>
-        <li class="r" style="animation-delay:.38s">покупаешь статус, чтоб выглядеть на уровне</li>
-        <li class="r" style="animation-delay:.49s">вечный режим нехватки при нормальном доходе</li>
-        <li class="r" style="animation-delay:.6s">сколько ни заработай — всё равно мало</li>
+        <li class="r" style="animation-delay:.16s">деньги приходят — и испаряются, непонятно куда</li>
+        <li class="r" style="animation-delay:.27s">вечно гасишь долги, кредиты, рассрочки</li>
+        <li class="r" style="animation-delay:.38s">набрал обязательств, которые тянут каждый месяц</li>
+        <li class="r" style="animation-delay:.49s">здоровье и нервы просажены — теперь платишь за восстановление</li>
+        <li class="r" style="animation-delay:.6s">доход нормальный — а ощущение вечной нехватки</li>
       </ul>
     </section>
 
@@ -227,19 +285,23 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="kicker r" style="animation-delay:.05s">а на самом деле</div>
       <h1 class="lg r" style="animation-delay:.14s">дело не в том,<br>что ты мало<br>зарабатываешь.</h1>
       <p class="lead b r mt-s" style="animation-delay:.3s">дело в пробоине.</p>
-      <p class="lead muted r mt" style="animation-delay:.46s">натекает — и тут же утекает на поддержание картинки. чистыми не остаётся <span class="hi">ничего</span>.</p>
+      <p class="lead muted r mt" style="animation-delay:.46s">натекает — и тут же утекает в дыры: долги, обязательства, восстановление.<br>чистыми не остаётся <span class="hi">ничего</span>.</p>
     </section>
 
     <!-- 8 ЧТО ВОРУЕТ (100 → 0) -->
     <section class="slide t-cream" data-theme="light">
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">в цифрах</span></div>
       <div class="kicker ac r" style="animation-delay:.05s">в цифрах</div>
+      <h1 class="lg r" style="animation-delay:.15s">пришло 100 —<br>осталось <span class="hi">ноль</span></h1>
       <div class="flow">
-        <div class="col"><div class="fnum give">100</div><span class="cap">заработал</span></div>
+        <div class="fnum give">100</div>
         <div class="arr">→</div>
-        <div class="col"><div class="fnum get pop" data-count="0" style="animation-delay:.4s">0</div><span class="cap">осталось</span></div>
+        <div class="fnum get pop" data-count="0" style="animation-delay:.4s">0</div>
+        <span class="cap">заработал</span>
+        <span></span>
+        <span class="cap">осталось</span>
       </div>
-      <p class="lead muted r" style="animation-delay:.6s">всё ушло на то, чтобы выглядеть на уровень, до которого <span class="ac">не дорос</span>.</p>
+      <p class="lead muted r" style="animation-delay:.6s">всё ушло в дыры — долги, обязательства, латание здоровья.<br><span class="ac">не на тебя</span>.</p>
     </section>
 
     <!-- 9 ПЕРЕЖИВАНИЕ (интерактив — утечка на образ) -->
@@ -253,16 +315,16 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
           <div class="pleft">
             <div class="plabel2">осталось реально твоего:</div>
             <div class="pval"><span id="pres">100 000</span> <span class="pcur2">₽</span></div>
-            <input id="pslider" class="pslider" type="range" min="1" max="5" step="1" value="1" aria-label="сколько на образ">
-            <div class="plabels"><span>ничего на образ</span><span>всё на образ</span></div>
+            <input id="pslider" class="pslider" type="range" min="1" max="5" step="1" value="1" aria-label="сколько уже занято">
+            <div class="plabels"><span>всё твоё</span><span>всё уже занято</span></div>
           </div>
           <div class="thermo" aria-hidden="true">
-            <div class="thermo-lbl">иллюзия</div>
+            <div class="thermo-lbl">дыры</div>
             <div class="thermo-tube"><div class="thermo-fill" id="tfill"></div></div>
             <div class="thermo-bulb"></div>
           </div>
         </div>
-        <p class="pcap" id="pcap">тащи ползунок. сколько уходит на то, чтобы казаться?</p>
+        <p class="pcap" id="pcap">тащи ползунок.<br>сколько из этого уже занято — долгами, обязательствами, тратами?</p>
       </div>
     </section>
 
@@ -271,9 +333,9 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r"></span></div>
       <div class="glow" style="width:300px;height:300px;background:var(--orange);top:-30px;left:-70px;opacity:.34"></div>
       <div class="kicker r" style="animation-delay:.05s">а вот в чём разворот</div>
-      <p class="lead r" style="animation-delay:.14s">ты платишь за то, чтобы выглядеть богатым —</p>
-      <h1 class="lg r mt-s" style="animation-delay:.28s">и поэтому им<br><span class="hi">не становишься</span></h1>
-      <p class="lead muted r mt" style="animation-delay:.5s">сведи жизнь к реальному уровню — и деньги впервые начнут оставаться. не казаться, а быть.</p>
+      <p class="lead r" style="animation-delay:.14s">пока есть пробоина — больше дохода её не закроет.</p>
+      <h1 class="lg r mt-s" style="animation-delay:.28s">дыра растёт<br><span class="hi">вместе с доходом</span></h1>
+      <p class="lead muted r mt" style="animation-delay:.5s">сначала заткни пробоину — и деньги впервые начнут оставаться.<br>не латать, а копить.</p>
     </section>
 
     <!-- 11 КЕЙС ВЛАД -->
@@ -284,7 +346,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <h1 class="lg r" style="animation-delay:.15s">Влад</h1>
       <!-- PLACEHOLDER: кейс утечки не найден, Влад как заглушка, проверить с Сашей -->
       <img class="shot r" src="../screenshots/case-vlad.jpg" alt="отзыв Влада" style="animation-delay:.4s">
-      <p class="lead muted r" style="animation-delay:.75s">перестал сливать на картинку — начал считать и оставлять. <span class="ac">за месяц 460к</span>, и они остались, а не испарились.</p>
+      <p class="lead muted r" style="animation-delay:.75s">нашёл, куда утекает, заткнул дыры — начал считать и оставлять.<br><span class="ac">за месяц 460к</span> остались, а не испарились.</p>
     </section>
 
     <!-- 12 CTA -->
@@ -292,9 +354,9 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">дальше</span></div>
       <div class="kicker ac r" style="animation-delay:.05s">это лечится</div>
       <h1 class="lg r" style="animation-delay:.15s">увидеть свою пробоину<br>самому <span class="hi">трудно</span></h1>
-      <p class="lead muted r mt" style="animation-delay:.36s">образ кажется необходимостью. на МК «Разрешение быстрых денег» разводим "кто ты" и "как выглядишь" — и деньги перестают утекать.</p>
-      <a class="btn r" style="animation-delay:.54s" href="#" id="cta">Хочу на МК →</a>
-      <div class="price r" style="animation-delay:.66s">8 / 10 / 12 июня · 4 884 ₽ · запись + чат когорты</div>
+      <p class="lead muted r mt" style="animation-delay:.36s">каждая дыра кажется обязательной тратой.<br>на МК «Разрешение быстрых денег» находим, куда реально утекает, и затыкаем пробоину — деньги начинают оставаться.</p>
+      <a class="btn r" style="animation-delay:.54s" href="https://t.me/testtoyzbot?start=razreshenie_deneg" target="_blank" rel="noopener" id="cta">Хочу на МК →</a>
+      <div class="price r" style="animation-delay:.66s">4 884 ₽ · запись + чат участников</div>
     </section>
 
     <div class="tap l" id="tapL"></div>
@@ -319,11 +381,11 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
     const res=document.getElementById('pres'), cap=document.getElementById('pcap');
     const fill=document.getElementById('tfill'), pval=document.querySelector('.pval');
     const caps={
-      1:'вроде чуть-чуть на статус, нормально же.',
-      2:'ещё тачку, шмот, ресторан — соответствовать же.',
+      1:'вроде немного занято — долги, подписки, мелочь.',
+      2:'плюс обязательства, рассрочки, кому-то обещал.',
       3:'смотри, как тает то, что реально твоё.',
       4:'почти ничего не осталось. а доход — нормальный.',
-      5:'вот пробоина. дело не в доходе. всё утекает на картинку.'
+      5:'вот пробоина. дело не в доходе. всё уже занято дырами.'
     };
     function fmt(n){return Math.round(n).toLocaleString('ru-RU');}
     function upd(){
@@ -362,7 +424,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
   let sx=0;
   story.addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
   story.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx;if(dx<-40)show(i+1);else if(dx>40)show(i-1);},{passive:true});
-  document.getElementById('cta').addEventListener('click',e=>e.preventDefault());
+  /* CTA ведёт на лист ожидания через href */
   show(0);
 })();
 </script>

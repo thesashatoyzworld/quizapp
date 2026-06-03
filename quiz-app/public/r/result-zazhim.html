@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Разрешение быстрых денег — Зажим</title>
+<title>Разрешение быстрых денег — Саботаж</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -104,7 +104,62 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
 .verdict .vn{font-family:var(--disp);font-weight:900;font-size:clamp(1.7rem,7.6cqw,2.4rem);line-height:1;letter-spacing:-.03em;overflow-wrap:break-word}
 .slide.active .verdict{animation:pop .65s cubic-bezier(.2,.75,.25,1) .45s forwards}
 
-.gauge{position:relative;width:188px;height:188px;margin:8px auto 6px;display:flex;align-items:center;justify-content:center}
+/* ── замкнутый круг (слайд 3) — тот же движок, что у Угождения/Надрыва ── */
+.vc-tag{font-family:var(--body);font-weight:700;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--orange);opacity:.9;margin-top:7px;display:flex;align-items:center;gap:7px}
+.vc-tag span{font-size:.95rem;line-height:1}
+.vc-svg{display:block;width:100%;max-width:300px;height:auto;overflow:visible;margin:6px auto 8px}
+.vc-track{fill:none;stroke:rgba(244,236,224,.12);stroke-width:3}
+.vc-draw{fill:none;stroke:var(--orange);stroke-width:3;stroke-linecap:round;stroke-dasharray:653;stroke-dashoffset:653;transform:rotate(-90deg);transform-origin:230px 180px}
+.slide.active .vc-draw{animation:vcdraw 5.2s linear .35s forwards}
+@keyframes vcdraw{0%,8%{stroke-dashoffset:653}23%,31%{stroke-dashoffset:490}46%,54%{stroke-dashoffset:327}69%,77%{stroke-dashoffset:163}92%,100%{stroke-dashoffset:0}}
+.vc-comet{transform-origin:230px 180px}
+.vc-comet circle{fill:var(--orange);filter:drop-shadow(0 0 8px var(--orange))}
+.slide.active .vc-comet{animation:vcstep 5.2s linear .35s infinite}
+@keyframes vcstep{0%,8%{transform:rotate(0deg)}23%,31%{transform:rotate(90deg)}46%,54%{transform:rotate(180deg)}69%,77%{transform:rotate(270deg)}92%,100%{transform:rotate(360deg)}}
+.vc-node{opacity:0;transform-box:fill-box;transform-origin:center}
+.slide.active .vc-node{animation:vcpop .45s cubic-bezier(.2,.75,.25,1) forwards}
+@keyframes vcpop{0%{opacity:0;transform:scale(.4)}70%{transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+.vc-node circle{fill:var(--orange)}
+.vc-node text{fill:var(--char);font-family:var(--disp);font-weight:800;font-size:15px;text-anchor:middle;dominant-baseline:central}
+.vc-n1{animation-delay:.4s}.vc-n2{animation-delay:1.6s}.vc-n3{animation-delay:2.8s}.vc-n4{animation-delay:4s}
+.vc-lbl{fill:var(--cream);font-family:var(--body);font-weight:600;font-size:13px;opacity:0}
+.slide.active .vc-lbl{animation:vcfade .45s ease forwards}
+.vc-l1{animation-delay:.55s}.vc-l2{animation-delay:1.75s}.vc-l3{animation-delay:2.95s}.vc-l4{animation-delay:4.15s}
+@keyframes vcfade{to{opacity:1}}
+.vc-ctr{fill:var(--orange);font-family:var(--disp);font-weight:800;font-size:15px;text-anchor:middle;opacity:0}
+.slide.active .vc-ctr{animation:vcfade .6s ease .9s forwards}
+.vc-cap{font-family:var(--body);font-size:1.02rem;line-height:1.4;text-align:center;margin-top:18px;opacity:0}
+.slide.active .vc-cap{animation:vcfade .6s ease 1.1s forwards}
+.vc-cap b{color:var(--orange)}
+/* две шкалы-расхождение под кругом (момент блока) */
+.dbars{display:flex;align-items:flex-end;justify-content:center;gap:34px;margin:6px auto 0;opacity:0}
+.slide.active .dbars{animation:vcfade .5s ease 1.1s forwards}
+.dbar-col{display:flex;flex-direction:column;align-items:center;gap:9px}
+.dbar{width:40px;height:92px;background:rgba(244,236,224,.07);border-radius:9px;position:relative;overflow:hidden}
+.dbar-fill{position:absolute;left:0;right:0;bottom:0;border-radius:0 0 9px 9px;height:10%}
+.dbar-fill.hi{background:var(--orange)}
+.slide.active .dbar-fill.hi{animation:dRiseHi 2s cubic-bezier(.4,.05,.4,1) 1.35s forwards}
+@keyframes dRiseHi{from{height:10%}to{height:86%}}
+.dbar-fill.lo{background:rgba(244,236,224,.4)}
+.dbar-fill.mid{background:var(--orange);opacity:.55}
+.slide.active .dbar-fill.mid{animation:dRiseMid 2.1s cubic-bezier(.4,.05,.4,1) 1.35s forwards}
+@keyframes dRiseMid{0%{height:10%}55%{height:74%}100%{height:40%}}
+.dbar-l{font-family:var(--body);font-weight:700;font-size:.64rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(244,236,224,.6);text-align:center}
+.dbar-l.alt{color:#e8563a}
+/* потолок дохода (слайд 3 Саботажа): линия-пила бьётся о потолок и срывается */
+.saw{display:block;width:100%;max-width:300px;height:auto;margin:14px auto 2px;opacity:0}
+.slide.active .saw{animation:vcfade .5s ease 1.1s forwards}
+.saw-ceil{stroke:rgba(244,236,224,.5);stroke-width:2;stroke-dasharray:5 6;fill:none}
+.saw-line{fill:none;stroke:var(--orange);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:900;stroke-dashoffset:900}
+.slide.active .saw-line{animation:sawDraw 3s ease 1.3s forwards}
+@keyframes sawDraw{to{stroke-dashoffset:0}}
+.saw-dot{fill:var(--orange);filter:drop-shadow(0 0 6px var(--orange));opacity:0}
+.slide.active .saw-dot{animation:vcfade .35s ease forwards}
+.saw-d1{animation-delay:2s}.saw-d2{animation-delay:2.7s}.saw-d3{animation-delay:3.4s}
+.saw-lbl{fill:var(--cream);font-family:var(--body);font-weight:700;font-size:12px;opacity:.6}
+.saw-axis{fill:rgba(244,236,224,.45);font-family:var(--body);font-weight:600;font-size:11px}
+
+.gauge{position:relative;width:188px;height:188px;height:188px;margin:8px auto 6px;display:flex;align-items:center;justify-content:center}
 .gauge svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
 .gauge .g-bg{fill:none;stroke:rgba(255,252,250,.12);stroke-width:10}
 .gauge .g-fg{fill:none;stroke:var(--orange);stroke-width:10;stroke-linecap:round;stroke-dasharray:326.7;stroke-dashoffset:326.7;transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1) .35s}
@@ -115,13 +170,12 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
 .g-lbl{font-size:.64rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted-l);margin-top:4px}
 .g-src{text-align:center;font-size:.7rem;font-weight:600;letter-spacing:.04em;color:var(--muted-l);margin-top:2px}
 
-.flow{display:flex;align-items:flex-start;justify-content:center;gap:16px;margin:18px 0 8px}
-.flow .col{display:flex;flex-direction:column;align-items:center}
-.flow .fnum{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;line-height:1}
+.flow{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;justify-items:center;column-gap:18px;row-gap:12px;margin:20px auto 10px;max-width:300px}
+.flow .fnum{font-family:var(--disp);font-weight:900;letter-spacing:-.03em;line-height:.82}
 .flow .give{font-size:clamp(2.8rem,15cqw,4rem);opacity:.4}
 .flow .get{font-size:clamp(3.4rem,19cqw,5rem);color:var(--orange)}
 .flow .arr{font-family:var(--disp);font-weight:900;font-size:2rem;opacity:.4;align-self:center}
-.flow .cap{font-family:var(--body);font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.55;margin-top:10px;text-align:center;max-width:9ch}
+.flow .cap{font-family:var(--body);font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.55;text-align:center;max-width:12ch;align-self:start}
 
 .btn{display:block;text-align:center;text-decoration:none;font-family:var(--disp);font-weight:800;font-size:1.08rem;color:var(--cream);background:var(--orange);padding:21px 24px;border-radius:18px;margin-top:24px;box-shadow:0 14px 34px rgba(255,92,58,.4);position:relative;z-index:30;transition:transform .15s ease;}
 .btn:active{transform:scale(.97)}
@@ -171,7 +225,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <h1 class="lg r" style="animation-delay:.15s">вот что<br>перекрывает<br>тебе деньги</h1>
       <div class="verdict">
         <span class="vt">основной блок</span>
-        <div class="vn">Зажим</div>
+        <div class="vn">Саботаж</div>
       </div>
       <p class="lead b r mt" style="animation-delay:.95s;text-align:center">начнём с главного.</p>
     </section>
@@ -181,13 +235,34 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">блок 01 / 02</span></div>
       <div class="glow" style="width:300px;height:300px;background:var(--orange);top:50%;left:50%;transform:translate(-50%,-50%);opacity:.26"></div>
       <div class="kicker r" style="animation-delay:.05s">блок · основной</div>
-      <h1 class="blockname r" style="animation-delay:.16s">ЗАЖИМ</h1>
-      <div class="gauge r" style="animation-delay:.3s">
-        <svg viewBox="0 0 120 120"><circle class="g-bg" cx="60" cy="60" r="52"/><circle class="g-fg" cx="60" cy="60" r="52"/></svg>
-        <div class="g-center"><div class="g-num"><span data-count="70">0</span><span class="g-pct">%</span></div><div class="g-lbl">перекрыто</div></div>
-      </div>
-      <p class="g-src r" style="animation-delay:.5s">по твоим ответам</p>
-      <p class="lead b r mt-s" style="animation-delay:.6s;text-align:center">ты сам держишь поток узким.<br>боишься, что большие деньги оторвут тебя от своих.</p>
+      <h1 class="blockname r" style="animation-delay:.16s">САБОТАЖ</h1>
+      <div class="vc-tag r" style="animation-delay:.24s"><span>↻</span> замкнутый круг</div>
+            <svg class="vc-svg" viewBox="0 0 460 360" aria-label="замкнутый круг">
+        <circle class="vc-track" cx="230" cy="180" r="104"/>
+        <circle class="vc-draw"  cx="230" cy="180" r="104"/>
+        <g class="vc-comet"><circle cx="230" cy="76" r="6.5"/></g>
+        <g class="vc-node vc-n1"><circle cx="230" cy="76"  r="16"/><text x="230" y="76">1</text></g>
+        <g class="vc-node vc-n2"><circle cx="334" cy="180" r="16"/><text x="334" y="180">2</text></g>
+        <g class="vc-node vc-n3"><circle cx="230" cy="284" r="16"/><text x="230" y="284">3</text></g>
+        <g class="vc-node vc-n4"><circle cx="126" cy="180" r="16"/><text x="126" y="180">4</text></g>
+        <text class="vc-lbl vc-l1" x="230" y="42" text-anchor="middle">пошёл рост</text>
+        <text class="vc-lbl vc-l2" x="356" y="172" text-anchor="start">это уже<tspan x="356" dy="17">чересчур</tspan></text>
+        <text class="vc-lbl vc-l3" x="230" y="318" text-anchor="middle">сам ломаю на пике</text>
+        <text class="vc-lbl vc-l4" x="104" y="172" text-anchor="end">откат в<tspan x="104" dy="17">свою зону</tspan></text>
+        <text class="vc-ctr" x="230" y="175">свой</text>
+        <text class="vc-ctr" x="230" y="194">потолок</text>
+      </svg>
+      <svg class="saw" viewBox="0 0 320 152" aria-label="потолок дохода">
+        <line class="saw-ceil" x1="6" y1="34" x2="298" y2="34"/>
+        <text class="saw-lbl" x="298" y="26" text-anchor="end">потолок</text>
+        <polyline class="saw-line" points="6,126 60,42 102,110 170,42 212,110 280,42 316,108"/>
+        <circle class="saw-dot saw-d1" cx="60" cy="42" r="6"/>
+        <circle class="saw-dot saw-d2" cx="170" cy="42" r="6"/>
+        <circle class="saw-dot saw-d3" cx="280" cy="42" r="6"/>
+        <text class="saw-axis" x="6" y="148">доход во времени →</text>
+      </svg>
+      <!-- тексты узлов/капшн — болванка, Саша правит голосом -->
+      <p class="vc-cap">каждый раз у потолка — <b>сам срываешь себя вниз.</b></p>
     </section>
 
     <!-- 4 ПРИКРЫТИЕ -->
@@ -195,8 +270,8 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">узнаёшь себя?</span></div>
       <div class="kicker r" style="animation-delay:.05s">что ты себе говоришь</div>
       <h1 class="lg r" style="animation-delay:.15s">не <span class="hi">зазнаться</span> бы</h1>
-      <p class="lead b r mt" style="animation-delay:.42s">мне столько не надо. не хочу всей этой ответственности. стабильность важнее роста.</p>
-      <p class="lead r mt-s" style="animation-delay:.56s">вроде здраво. так?</p>
+      <p class="lead b r mt" style="animation-delay:.42s">мне столько не надо.<br>не хочу всей этой ответственности.<br>стабильность важнее роста.</p>
+      <p class="lead r mt-s" style="animation-delay:.56s">вроде здраво.<br>так?</p>
     </section>
 
     <!-- 5 СКРЫТОЕ УБЕЖДЕНИЕ -->
@@ -205,7 +280,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="glow" style="width:240px;height:240px;background:var(--orange);bottom:-70px;right:-50px;opacity:.3"></div>
       <div class="kicker r" style="animation-delay:.05s">а под этим</div>
       <h1 class="lg r" style="animation-delay:.15s">ты боишься<br>не провала.<br>ты боишься <span class="ac">вырасти</span></h1>
-      <p class="lead muted r mt" style="animation-delay:.4s">вырасту — оторвусь от своих, стану чужим, останусь один наверху. поэтому сам жму на тормоз.</p>
+      <p class="lead muted r mt" style="animation-delay:.4s">вырасту — оторвусь от своих, стану чужим, останусь один наверху.<br>поэтому сам жму на тормоз.</p>
     </section>
 
     <!-- 6 СИМПТОМЫ -->
@@ -235,12 +310,16 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
     <section class="slide t-cream" data-theme="light">
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">в цифрах</span></div>
       <div class="kicker ac r" style="animation-delay:.05s">в цифрах</div>
+      <h1 class="lg r" style="animation-delay:.15s">дорос до пика —<br>и сам <span class="hi">срезал</span></h1>
       <div class="flow">
-        <div class="col"><div class="fnum give" data-count="100">0</div><span class="cap">поднялся до</span></div>
+        <div class="fnum give" data-count="100">0</div>
         <div class="arr">→</div>
-        <div class="col"><div class="fnum get pop" data-count="30" style="animation-delay:.4s">0</div><span class="cap">сам откатил</span></div>
+        <div class="fnum get pop" data-count="30" style="animation-delay:.4s">0</div>
+        <span class="cap">поднялся до</span>
+        <span></span>
+        <span class="cap">сам откатил</span>
       </div>
-      <p class="lead muted r" style="animation-delay:.6s">каждый раз у потолка ты находишь способ сломать. это <span class="ac">термостат</span>, а не невезение.</p>
+      <p class="lead muted r" style="animation-delay:.6s">каждый раз у потолка ты находишь способ сломать.<br>это <span class="ac">термостат</span>, а не невезение.</p>
     </section>
 
     <!-- 9 ПЕРЕЖИВАНИЕ (интерактив — подними доход) -->
@@ -253,7 +332,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
         <div class="pmain">
           <div class="pleft">
             <div class="plabel2">твой доход в месяц:</div>
-            <div class="pval"><span id="pres">100 000</span> <span class="pcur2">₽</span></div>
+            <div class="pval"><span id="pres">100к</span> <span class="pcur2">₽</span></div>
             <input id="pslider" class="pslider" type="range" min="1" max="5" step="1" value="1" aria-label="множитель дохода">
             <div class="plabels"><span>как у всех</span><span>в 10 раз больше</span></div>
           </div>
@@ -263,7 +342,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
             <div class="thermo-bulb"></div>
           </div>
         </div>
-        <p class="pcap" id="pcap">тащи ползунок вверх. до скольки тебе ещё спокойно?</p>
+        <p class="pcap" id="pcap">тащи ползунок вверх.<br>до скольки тебе ещё спокойно?</p>
       </div>
     </section>
 
@@ -274,17 +353,16 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="kicker r" style="animation-delay:.05s">а вот в чём разворот</div>
       <p class="lead r" style="animation-delay:.14s">вырасти — не значит предать своих.</p>
       <h1 class="lg r mt-s" style="animation-delay:.28s">можно стать больше<br>и остаться <span class="hi">собой</span></h1>
-      <p class="lead muted r mt" style="animation-delay:.5s">потолок держишь только ты — и только ты его поднимаешь. твои либо порадуются, либо это были не твои.</p>
+      <p class="lead muted r mt" style="animation-delay:.5s">потолок держишь только ты — и только ты его поднимаешь.<br>твои либо порадуются, либо это были не твои.</p>
     </section>
 
-    <!-- 11 КЕЙС МАША -->
+    <!-- 11 КЕЙС — ЗАГЛУШКА: нужен реальный кейс саботажа масштаба (дорос→сам срезал→пробил потолок). Маша уехала в Паралич. Текст ниже = пример нужного смысла, чей — Саша уточнит, скрин нужен -->
     <section class="slide t-char" data-theme="dark">
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">кейс</span></div>
       <div class="glow" style="width:280px;height:280px;background:var(--orange);top:-30px;right:-90px;opacity:.4"></div>
       <div class="kicker r" style="animation-delay:.05s">как это работает · кейс</div>
-      <h1 class="lg r" style="animation-delay:.15s">Маша</h1>
-      <img class="shot r" src="../screenshots/case-masha.jpg" alt="отзыв Маши" style="animation-delay:.4s">
-      <p class="lead muted r" style="animation-delay:.75s">доход вырос так, что <span class="ac">упёрся в лимит самозанятости</span> — продамус перестал принимать платежи в разгар продаж. «проблема», о которой мечтают. потолок пробит.</p>
+      <h1 class="lg r" style="animation-delay:.15s">кейс</h1>
+      <p class="lead muted r mt" style="animation-delay:.4s"><span style="opacity:.5">[нужен реальный кейс — дорос до потолка и пробил его]</span><br><br>пример смысла: доход вырос так, что <span class="ac">упёрся в лимит самозанятости</span> — платежи встали в разгар продаж.<br>«проблема», о которой мечтают — потолок пробит.</p>
     </section>
 
     <!-- 12 CTA -->
@@ -292,9 +370,9 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="topbar"><span>Саша&nbsp;Toyz</span><span class="tb-r">дальше</span></div>
       <div class="kicker ac r" style="animation-delay:.05s">это лечится</div>
       <h1 class="lg r" style="animation-delay:.15s">свой термостат<br>в одиночку <span class="hi">не перенастроить</span></h1>
-      <p class="lead muted r mt" style="animation-delay:.36s">саботаж выглядит как случайность — его не поймать самому. на МК «Разрешение быстрых денег» показываем твою карту откатов и поднимаем потолок.</p>
-      <a class="btn r" style="animation-delay:.54s" href="#" id="cta">Хочу на МК →</a>
-      <div class="price r" style="animation-delay:.66s">8 / 10 / 12 июня · 4 884 ₽ · запись + чат когорты</div>
+      <p class="lead muted r mt" style="animation-delay:.36s">саботаж выглядит как случайность — его не поймать самому.<br>на МК «Разрешение быстрых денег» показываем твою карту откатов и поднимаем потолок.</p>
+      <a class="btn r" style="animation-delay:.54s" href="https://t.me/testtoyzbot?start=razreshenie_deneg" target="_blank" rel="noopener" id="cta">Хочу на МК →</a>
+      <div class="price r" style="animation-delay:.66s">4 884 ₽ · запись + чат участников</div>
     </section>
 
     <div class="tap l" id="tapL"></div>
@@ -326,7 +404,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       4:'на этом уровне ты уже не такой, как они. кого боишься потерять?',
       5:'вот он — тормоз. не «мне не надо», а «стану большим и останусь один».'
     };
-    function fmt(n){return Math.round(n).toLocaleString('ru-RU');}
+    function fmt(n){return n>=1e6 ? (Math.round(n/1e5)/10).toLocaleString('ru-RU')+' млн' : Math.round(n/1000)+'к';}
     function upd(){
       const v=+sl.value, t=(v-1)/4;
       res.textContent=fmt(100000*mult[v]);
@@ -363,7 +441,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
   let sx=0;
   story.addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
   story.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx;if(dx<-40)show(i+1);else if(dx>40)show(i-1);},{passive:true});
-  document.getElementById('cta').addEventListener('click',e=>e.preventDefault());
+  /* CTA ведёт на лист ожидания через href */
   show(0);
 })();
 </script>

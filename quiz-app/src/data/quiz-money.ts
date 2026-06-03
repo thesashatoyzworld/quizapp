@@ -90,7 +90,7 @@ export const blockMeta: Record<MoneyBlock, MoneyBlockMeta> = {
   zazhim: {
     id: 'zazhim',
     emoji: '🌀',
-    title: 'Зажим',
+    title: 'Саботаж', // slug/id остаётся zazhim (ключ файла result-zazhim.html), отображаемое имя = Саботаж
     short: 'Боишься вырасти — «стану слишком большим, оторвусь от своих».',
     resultSlug: 'zazhim',
   },
