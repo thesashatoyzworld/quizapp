@@ -14,8 +14,6 @@ import {
   resultSlug,
   blockMeta,
   VSE_HOROSHO,
-  OTHER_UNIQUE_THRESHOLD,
-  UNIQUE_SLUG,
   type MoneyResult,
 } from '@/data/quiz-money';
 
@@ -35,7 +33,6 @@ export default function QuizMoney() {
   const [otherText, setOtherText] = useState('');
   const customRef = useRef<Record<number, string>>({}); // qIndex → свой вариант ответа («Другое»)
   const resultRef = useRef<MoneyResult | null>(null);
-  const uniqueRef = useRef(false); // «Другое» >= порога → ведём на страницу «уникальная ситуация»
 
   const { user } = useTelegram();
 
@@ -76,15 +73,10 @@ export default function QuizMoney() {
   };
 
   const goToResult = useCallback(() => {
-    const name = user?.first_name ? encodeURIComponent(user.first_name) : '';
-    // «Другое» >= порога — ситуация не лезет в шаблон, ведём на отдельную страницу.
-    if (uniqueRef.current) {
-      window.location.href = `/r/result-${UNIQUE_SLUG}.html?name=${name}`;
-      return;
-    }
     const r = resultRef.current;
     if (!r) return;
     const slug = resultSlug(r);
+    const name = user?.first_name ? encodeURIComponent(user.first_name) : '';
     const sec = r.secondary || '';
     window.location.href = `/r/result-${slug}.html?primary=${r.primary}&secondary=${sec}&pct=${r.overlapPercent}&name=${name}`;
   }, [user]);
@@ -105,21 +97,15 @@ export default function QuizMoney() {
     const result = determineResult(next, scores);
     resultRef.current = result;
 
-    const otherCount = Object.keys(customRef.current).length;
-    uniqueRef.current = otherCount >= OTHER_UNIQUE_THRESHOLD;
-
-    const label = uniqueRef.current
-      ? 'unikalnaya'
-      : result.primary === 'vse-horosho'
-        ? VSE_HOROSHO.title
-        : blockMeta[result.primary].title;
+    const label =
+      result.primary === 'vse-horosho' ? VSE_HOROSHO.title : blockMeta[result.primary].title;
     track('quiz_complete', {
-      primary: uniqueRef.current ? 'unikalnaya' : result.primary,
+      primary: result.primary,
       secondary: result.secondary,
       pct: result.overlapPercent,
       title: label,
-      other_count: otherCount,
-      custom: customRef.current, // свои варианты ответов (если выбирали «Другое»)
+      other_count: Object.keys(customRef.current).length, // сколько раз выбрали «Другое»
+      custom: customRef.current, // тексты своих вариантов — на почитать / доработку ответов
     });
 
     setScreen('analyzing');
