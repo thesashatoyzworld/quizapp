@@ -228,6 +228,56 @@ async function notifyAdminConnectors(tgUserId: number, tierLabel: string, amount
   }
 }
 
+// МК «Разрешение быстрых денег»: подтверждение оплаты + кнопка кабинета (доступ-роль).
+async function sendMkDengiConfirmation(tgUserId: number) {
+  if (!BOT_TOKEN) return;
+
+  const webappUrl = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
+  const message = `оплата получена ⚡
+
+доступ к мастер-классу <b>«Разрешение быстрых денег»</b> открыт.
+
+материалы — в кабинете, жми кнопку ниже 👇`;
+
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: tgUserId,
+        text: message,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: `${webappUrl}/cabinet` } }]],
+        },
+      }),
+    });
+  } catch (error) {
+    console.error('Failed to send MK Dengi confirmation:', error);
+  }
+}
+
+async function notifyAdminMkDengi(tgUserId: number, amount: number, orderId: string) {
+  if (!BOT_TOKEN) return;
+
+  const adminChatId = await getAdminChatId();
+  if (!adminChatId) return;
+
+  const text = `💰 Оплата МК «Разрешение быстрых денег»\n\n${amount.toLocaleString('ru-RU')} ₽ от user ${tgUserId}\nOrder: ${orderId}`;
+
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: adminChatId, text }),
+    });
+  } catch (error) {
+    console.error('Failed to notify admin about MK Dengi payment:', error);
+  }
+}
+
 async function notifyAdminError(errorMessage: string) {
   if (!BOT_TOKEN) return;
 
@@ -292,8 +342,42 @@ export async function POST(request: NextRequest) {
     const orderId = body.order_num || body.order_id || '';
     const isSyncMk = typeof orderId === 'string' && orderId.startsWith('sync_mk');
     const isConnectors = typeof orderId === 'string' && orderId.startsWith('conn_');
+    const isMkDengi = typeof orderId === 'string' && orderId.startsWith('mkdengi');
 
-    if (isSyncMk) {
+    if (isMkDengi) {
+      // МК «Разрешение быстрых денег»: order_id формата "mkdengi_<tgUserId>"
+      const parts = (orderId as string).split('_');
+      const tgUserId = parts.length >= 2 ? parseInt(parts[1], 10) : null;
+
+      if (!tgUserId || tgUserId <= 0) {
+        console.error('No tg_user_id in mkdengi order_id:', orderId);
+        return NextResponse.json({ success: true });
+      }
+
+      const amount = 4884;
+
+      // Гарантируем человекочитаемое имя продукта (createPurchase делает upsert
+      // с name=slug — здесь задаём нормальное имя, чтобы кабинет показывал его).
+      await prisma.product.upsert({
+        where: { slug: 'mk-dengi' },
+        create: { slug: 'mk-dengi', name: 'МК «Разрешение быстрых денег»', price: amount, type: 'one_time' },
+        update: { name: 'МК «Разрешение быстрых денег»' },
+      });
+
+      await Promise.all([
+        sendMkDengiConfirmation(tgUserId),
+        notifyAdminMkDengi(tgUserId, amount, orderId as string),
+        trackEvent({
+          event_type: 'payment_success',
+          user_id: tgUserId,
+          result_title: 'mk_dengi',
+          amount,
+        }),
+        createPurchase(tgUserId, 'mk-dengi', amount, 'mk_dengi', orderId as string),
+      ]);
+
+      console.log(`[Prodamus Webhook] MK Dengi payment success for user ${tgUserId}`);
+    } else if (isSyncMk) {
       // МК Синхронизация payment
       // order_id formats: sync_mk_[ts] (no TG) or sync_mk_[userId]_[ts] (from TG Mini App)
       // early bird: sync_mk_eb_[ts] or sync_mk_eb_[userId]_[ts]
