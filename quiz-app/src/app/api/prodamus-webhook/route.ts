@@ -278,6 +278,28 @@ async function notifyAdminMkDengi(tgUserId: number, amount: number, orderId: str
   }
 }
 
+// Оплата МК с веб-лендинга — без Telegram-привязки. Уведомляем Сашу с контактом.
+async function notifyAdminMkDengiWeb(amount: number, email: string, phone: string, orderId: string) {
+  if (!BOT_TOKEN) return;
+
+  const adminChatId = await getAdminChatId();
+  if (!adminChatId) return;
+
+  const contact = [email, phone].filter(Boolean).join(' / ') || 'контакт не передан';
+  const text = `💰 Оплата МК «Разрешение быстрых денег» (с лендинга)\n\n${amount.toLocaleString('ru-RU')} ₽\nКонтакт: ${contact}\nOrder: ${orderId}\n\n⚠️ Без Telegram-привязки — доступ выдай вручную.`;
+
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: adminChatId, text }),
+    });
+  } catch (error) {
+    console.error('Failed to notify admin about MK Dengi web payment:', error);
+  }
+}
+
 async function notifyAdminError(errorMessage: string) {
   if (!BOT_TOKEN) return;
 
@@ -345,38 +367,41 @@ export async function POST(request: NextRequest) {
     const isMkDengi = typeof orderId === 'string' && orderId.startsWith('mkdengi');
 
     if (isMkDengi) {
-      // МК «Разрешение быстрых денег»: order_id формата "mkdengi_<tgUserId>"
+      // order_id: "mkdengi_<tgUserId>" — оплата из мини-аппа (привязка к Telegram)
+      //           "mkdengi_web_<ts>"   — оплата с веб-лендинга (без Telegram)
       const parts = (orderId as string).split('_');
-      const tgUserId = parts.length >= 2 ? parseInt(parts[1], 10) : null;
-
-      if (!tgUserId || tgUserId <= 0) {
-        console.error('No tg_user_id in mkdengi order_id:', orderId);
-        return NextResponse.json({ success: true });
-      }
-
+      const second = parts[1] || '';
+      const tgUserId = /^\d+$/.test(second) ? parseInt(second, 10) : null;
       const amount = 4884;
 
-      // Гарантируем человекочитаемое имя продукта (createPurchase делает upsert
-      // с name=slug — здесь задаём нормальное имя, чтобы кабинет показывал его).
+      // Человекочитаемое имя продукта (createPurchase upsert'ит с name=slug).
       await prisma.product.upsert({
         where: { slug: 'mk-dengi' },
         create: { slug: 'mk-dengi', name: 'МК «Разрешение быстрых денег»', price: amount, type: 'one_time' },
         update: { name: 'МК «Разрешение быстрых денег»' },
       });
 
-      await Promise.all([
-        sendMkDengiConfirmation(tgUserId),
-        notifyAdminMkDengi(tgUserId, amount, orderId as string),
-        trackEvent({
-          event_type: 'payment_success',
-          user_id: tgUserId,
-          result_title: 'mk_dengi',
-          amount,
-        }),
-        createPurchase(tgUserId, 'mk-dengi', amount, 'mk_dengi', orderId as string),
-      ]);
-
-      console.log(`[Prodamus Webhook] MK Dengi payment success for user ${tgUserId}`);
+      if (tgUserId && tgUserId > 1000) {
+        // Telegram-привязанная оплата → доступ + кабинет.
+        await Promise.all([
+          sendMkDengiConfirmation(tgUserId),
+          notifyAdminMkDengi(tgUserId, amount, orderId as string),
+          trackEvent({
+            event_type: 'payment_success',
+            user_id: tgUserId,
+            result_title: 'mk_dengi',
+            amount,
+          }),
+          createPurchase(tgUserId, 'mk-dengi', amount, 'mk_dengi', orderId as string),
+        ]);
+        console.log(`[Prodamus Webhook] MK Dengi (telegram) payment for user ${tgUserId}`);
+      } else {
+        // Веб-лендинг без Telegram → уведомляем Сашу с контактом из Продамуса.
+        const email = (body.customer_email || body.email || '') as string;
+        const phone = (body.customer_phone || body.phone || '') as string;
+        await notifyAdminMkDengiWeb(amount, email, phone, orderId as string);
+        console.log(`[Prodamus Webhook] MK Dengi (web) payment, order ${orderId}`);
+      }
     } else if (isSyncMk) {
       // МК Синхронизация payment
       // order_id formats: sync_mk_[ts] (no TG) or sync_mk_[userId]_[ts] (from TG Mini App)
