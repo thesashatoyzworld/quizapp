@@ -396,9 +396,20 @@ export async function POST(request: NextRequest) {
         ]);
         console.log(`[Prodamus Webhook] MK Dengi (telegram) payment for user ${tgUserId}`);
       } else {
-        // Веб-лендинг без Telegram → уведомляем Сашу с контактом из Продамуса.
+        // Веб-лендинг без Telegram (оплата картой на сайте) → трекаем по контакту.
         const email = (body.customer_email || body.email || '') as string;
         const phone = (body.customer_phone || body.phone || '') as string;
+
+        // Запись в Event для аналитики (userId/telegramId nullable — привязки нет).
+        await prisma.event.create({
+          data: {
+            type: 'mk_dengi_payment_web',
+            source: 'thesasha',
+            productSlug: 'mk-dengi',
+            metadata: { email, phone, amount, orderId: String(orderId) },
+          },
+        }).catch((e) => console.error('[Supabase] web sale event insert failed:', e));
+
         await notifyAdminMkDengiWeb(amount, email, phone, orderId as string);
         console.log(`[Prodamus Webhook] MK Dengi (web) payment, order ${orderId}`);
       }
