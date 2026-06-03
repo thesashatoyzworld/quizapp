@@ -416,6 +416,18 @@ details p { padding: 0 0 18px; font-size: .92em; }
   }
 }
 @media(max-width:480px){ .cases { grid-template-columns: 1fr; } }
+
+/* ═══ Telegram Mini App fit: узкий вебвью (десктоп TG ~340px) переполнялся
+   по горизонтали из-за крупного hero-шрифта. Override только для мини-аппа. ═══ */
+html, body { overflow-x: hidden; max-width: 100%; }
+h1, h2, h3, .xf-head, .how-head, .stage-title { overflow-wrap: break-word; word-break: break-word; }
+@media (max-width: 440px) {
+  .s { padding: 40px 16px; }
+  h1 { font-size: clamp(30px, 9.5vw, 56px); }
+  .s-hero h1 { font-size: clamp(34px, 11vw, 64px); }
+  h2 { font-size: clamp(24px, 7vw, 38px); }
+  .xf-head, .how-head { font-size: clamp(28px, 8.5vw, 50px); }
+}
 </style>
 </head>
 <body>
