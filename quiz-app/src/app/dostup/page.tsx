@@ -34,7 +34,6 @@ function DostupInner() {
         if (!stop) setUnlocked([]);
       }
     }
-    // даже без qs грузим — гость увидит бесплатное + витрину под замком
     load();
     return () => { stop = true; };
   }, [params]);
@@ -42,68 +41,68 @@ function DostupInner() {
   const has = (role: string | null) => role === null || (unlocked?.includes(role) ?? false);
 
   return (
-    <main className="wrap">
+    <main className="kb-wrap">
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Manrope:wght@400;500;600;700&subset=cyrillic,latin&display=swap" rel="stylesheet" />
 
-      <header className="top">
-        <div className="brand">Кабинет</div>
-        <div className="sub">TOYZ · пространство участника</div>
+      <header className="kb-top">
+        <div className="kb-brand">Кабинет</div>
+        <div className="kb-sub">TOYZ · пространство участника</div>
       </header>
 
       {pending && (
-        <div className="banner">
-          <div className="spinner" />
+        <div className="kb-banner">
+          <div className="kb-spinner" />
           Оплата обрабатывается — раздел откроется через пару секунд.
         </div>
       )}
 
       {!unlocked && !pending && (
-        <div className="state"><div className="spinner" /><p>Загрузка…</p></div>
+        <div className="kb-state"><div className="kb-spinner" /><p>Загрузка…</p></div>
       )}
 
       {unlocked && SECTIONS.map((s) => {
         const open = has(s.role);
         return (
-          <section className={`card ${open ? 'card-open' : 'card-locked'}`} key={s.key}>
-            <div className="card-head">
-              <div className="card-titles">
-                <h2>{!open && <span className="lock">{'\u{1F512}'}</span>}{s.title}</h2>
-                <p className="card-sub">{s.subtitle}</p>
+          <section className={`kb-card ${open ? 'kb-open' : 'kb-locked'}`} key={s.key}>
+            <div className="kb-head">
+              <div className="kb-titles">
+                <h2 className="kb-h2">{!open && <span className="kb-lock">{'\u{1F512}'}</span>}{s.title}</h2>
+                <p className="kb-csub">{s.subtitle}</p>
               </div>
-              <span className={`badge ${open ? 'badge-open' : 'badge-price'}`}>
+              <span className={`kb-badge ${open ? 'kb-badge-open' : 'kb-badge-price'}`}>
                 {open ? 'Открыто' : s.badge}
               </span>
             </div>
 
             {open ? (
-              <div className="materials">
+              <div className="kb-materials">
                 {s.materials.map((m, i) => {
                   const ready = !!m.url;
                   const Tag = ready ? 'a' : 'div';
                   return (
-                    <Tag key={i} className={`mat ${ready ? 'mat-ready' : 'mat-soon'}`}
+                    <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
                       {...(ready ? { href: m.url, target: '_blank', rel: 'noopener' } : {})}>
-                      <span className="mat-icon">{ICONS[m.kind] || ICONS.link}</span>
-                      <span className="mat-body">
-                        <span className="mat-title">{m.title}</span>
-                        {m.note && <span className="mat-note">{m.note}</span>}
+                      <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
+                      <span className="kb-mat-body">
+                        <span className="kb-mat-title">{m.title}</span>
+                        {m.note && <span className="kb-mat-note">{m.note}</span>}
                       </span>
-                      <span className="mat-arr">{ready ? '→' : 'скоро'}</span>
+                      <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
                     </Tag>
                   );
                 })}
               </div>
             ) : (
-              <div className="locked-body">
+              <div className="kb-locked-body">
                 {s.lockedPreview && (
-                  <ul className="preview">
+                  <ul className="kb-preview">
                     {s.lockedPreview.map((p, i) => <li key={i}>{p}</li>)}
                   </ul>
                 )}
                 {s.lockedCta && (
-                  <a className="buy" href={s.lockedCta.href} target="_blank" rel="noopener">
+                  <a className="kb-buy" href={s.lockedCta.href} target="_blank" rel="noopener">
                     {s.lockedCta.text}
                   </a>
                 )}
@@ -114,83 +113,77 @@ function DostupInner() {
       })}
 
       <style>{`
-        :root {
-          --bg: oklch(0.97 0.006 75); --text: oklch(0.16 0.015 55);
-          --muted: oklch(0.46 0.012 55); --accent: oklch(0.60 0.19 52);
-          --accent-soft: oklch(0.93 0.04 52); --ok: oklch(0.55 0.13 155);
-          --ok-soft: oklch(0.94 0.05 155); --surface: oklch(1 0 0); --line: oklch(0.90 0.008 75);
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg); }
-        .wrap {
+        .kb-wrap {
+          --kb-bg: oklch(0.97 0.006 75); --kb-text: oklch(0.16 0.015 55);
+          --kb-muted: oklch(0.46 0.012 55); --kb-accent: oklch(0.60 0.19 52);
+          --kb-accent-soft: oklch(0.93 0.04 52); --kb-ok: oklch(0.50 0.13 155);
+          --kb-ok-soft: oklch(0.94 0.05 155); --kb-surface: oklch(1 0 0); --kb-line: oklch(0.90 0.008 75);
           max-width: 540px; margin: 0 auto; padding: 26px 16px 60px;
-          font-family: 'Manrope', system-ui, sans-serif; color: var(--text); min-height: 100svh;
+          font-family: 'Manrope', system-ui, sans-serif; color: var(--kb-text);
+          background: var(--kb-bg); min-height: 100svh;
         }
-        .top { margin-bottom: 22px; }
-        .brand { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; }
-        .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
-        .banner {
-          display: flex; align-items: center; gap: 10px; background: var(--accent-soft);
-          color: var(--text); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 16px;
+        .kb-wrap * { box-sizing: border-box; }
+        .kb-top { margin-bottom: 22px; }
+        .kb-brand { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; margin: 0; }
+        .kb-sub { color: var(--kb-muted); font-size: 13px; margin-top: 2px; }
+        .kb-banner {
+          display: flex; align-items: center; gap: 10px; background: var(--kb-accent-soft);
+          color: var(--kb-text); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 16px;
         }
-        .card {
-          background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
-          padding: 18px 18px; margin-bottom: 14px;
+        .kb-card {
+          background: var(--kb-surface); border: 1px solid var(--kb-line); border-radius: 18px;
+          padding: 18px; margin-bottom: 14px;
         }
-        .card-locked { background: oklch(0.985 0.004 75); }
-        .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-        .card-titles { flex: 1; min-width: 0; }
-        .card h2 {
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 19px;
-          letter-spacing: -0.02em; line-height: 1.15; display: flex; align-items: center; gap: 7px;
+        .kb-locked { background: oklch(0.985 0.004 75); }
+        .kb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .kb-titles { flex: 1; min-width: 0; }
+        .kb-h2 {
+          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 19px; margin: 0;
+          letter-spacing: -0.02em; line-height: 1.15; display: flex; align-items: center; gap: 7px; color: var(--kb-text);
         }
-        .lock { font-size: 14px; }
-        .card-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
-        .badge {
-          flex: 0 0 auto; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; white-space: nowrap;
-        }
-        .badge-open { background: var(--ok-soft); color: var(--ok); }
-        .badge-price { background: var(--accent-soft); color: var(--accent); }
-        .materials { display: grid; gap: 9px; margin-top: 14px; }
-        .mat {
+        .kb-lock { font-size: 14px; }
+        .kb-csub { color: var(--kb-muted); font-size: 13px; margin-top: 3px; }
+        .kb-badge { flex: 0 0 auto; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+        .kb-badge-open { background: var(--kb-ok-soft); color: var(--kb-ok); }
+        .kb-badge-price { background: var(--kb-accent-soft); color: var(--kb-accent); }
+        .kb-materials { display: grid; gap: 9px; margin-top: 14px; }
+        .kb-mat {
           display: flex; align-items: center; gap: 13px; text-decoration: none; color: inherit;
-          background: var(--bg); border: 1px solid var(--line); border-radius: 13px; padding: 13px 14px;
+          background: var(--kb-bg); border: 1px solid var(--kb-line); border-radius: 13px; padding: 13px 14px;
           transition: transform .12s, border-color .12s;
         }
-        .mat-ready:hover { border-color: var(--accent); }
-        .mat-ready:active { transform: translateY(1px); }
-        .mat-soon { opacity: .58; }
-        .mat-icon { font-size: 20px; flex: 0 0 auto; }
-        .mat-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-        .mat-title { font-weight: 700; font-size: 14.5px; }
-        .mat-note { color: var(--muted); font-size: 12px; line-height: 1.4; }
-        .mat-arr { flex: 0 0 auto; font-size: 13px; color: var(--accent); font-weight: 700; }
-        .mat-soon .mat-arr { color: var(--muted); font-weight: 500; }
-        .locked-body { margin-top: 14px; }
-        .preview { list-style: none; display: grid; gap: 8px; margin-bottom: 16px; }
-        .preview li {
-          position: relative; padding-left: 24px; font-size: 13.5px; color: var(--text);
-        }
-        .preview li::before {
+        .kb-mat-ready:hover { border-color: var(--kb-accent); }
+        .kb-mat-ready:active { transform: translateY(1px); }
+        .kb-mat-soon { opacity: .58; }
+        .kb-mat-icon { font-size: 20px; flex: 0 0 auto; }
+        .kb-mat-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+        .kb-mat-title { font-weight: 700; font-size: 14.5px; }
+        .kb-mat-note { color: var(--kb-muted); font-size: 12px; line-height: 1.4; }
+        .kb-mat-arr { flex: 0 0 auto; font-size: 13px; color: var(--kb-accent); font-weight: 700; }
+        .kb-mat-soon .kb-mat-arr { color: var(--kb-muted); font-weight: 500; }
+        .kb-locked-body { margin-top: 14px; }
+        .kb-preview { list-style: none; display: grid; gap: 8px; margin: 0 0 16px; padding: 0; }
+        .kb-preview li { position: relative; padding-left: 24px; font-size: 13.5px; color: var(--kb-text); }
+        .kb-preview li::before {
           content: ""; position: absolute; left: 0; top: 4px; width: 16px; height: 16px; border-radius: 50%;
-          background: var(--accent-soft);
+          background: var(--kb-accent-soft);
           -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>") center/11px no-repeat;
                   mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>") center/11px no-repeat;
         }
-        .buy {
-          display: block; text-align: center; text-decoration: none; background: var(--accent);
+        .kb-buy {
+          display: block; text-align: center; text-decoration: none; background: var(--kb-accent);
           color: oklch(1 0 0); font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 15px;
           padding: 14px 18px; border-radius: 11px; transition: opacity .15s;
         }
-        .buy:hover { opacity: .9; } .buy:active { transform: translateY(1px); }
-        .state { text-align: center; padding: 48px 16px; }
-        .state p { color: var(--muted); }
-        .spinner {
-          width: 24px; height: 24px; border: 3px solid var(--line); border-top-color: var(--accent);
-          border-radius: 50%; margin: 0 auto 12px; animation: spin .8s linear infinite; display: inline-block;
+        .kb-buy:hover { opacity: .9; } .kb-buy:active { transform: translateY(1px); }
+        .kb-state { text-align: center; padding: 48px 16px; }
+        .kb-state p { color: var(--kb-muted); margin: 0; }
+        .kb-spinner {
+          width: 24px; height: 24px; border: 3px solid var(--kb-line); border-top-color: var(--kb-accent);
+          border-radius: 50%; margin: 0 auto 12px; animation: kb-spin .8s linear infinite; display: inline-block;
         }
-        .banner .spinner { margin: 0; width: 18px; height: 18px; border-width: 2px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .kb-banner .kb-spinner { margin: 0; width: 18px; height: 18px; border-width: 2px; }
+        @keyframes kb-spin { to { transform: rotate(360deg); } }
       `}</style>
     </main>
   );
