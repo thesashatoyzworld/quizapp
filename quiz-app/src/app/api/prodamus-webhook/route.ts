@@ -234,7 +234,6 @@ async function notifyAdminConnectors(tgUserId: number, tierLabel: string, amount
 async function sendMkDengiConfirmation(tgUserId: number) {
   if (!BOT_TOKEN) return;
 
-  const webappUrl = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
   const message = `оплата получена ⚡
 
 доступ к мастер-классу <b>«Разрешение быстрых денег»</b> открыт.
@@ -251,7 +250,7 @@ async function sendMkDengiConfirmation(tgUserId: number) {
         text: message,
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: `${webappUrl}/cabinet` } }]],
+          inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]],
         },
       }),
     });

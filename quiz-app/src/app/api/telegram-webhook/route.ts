@@ -396,7 +396,7 @@ export async function POST(request: NextRequest) {
           await sendMessage(
             chatId,
             `готово ⚡\n\nоплата подтверждена, доступ к мастер-классу <b>«Разрешение быстрых денег»</b> открыт. материалы — в кабинете, жми кнопку ниже.`,
-            { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: `${WEBAPP_URL}/cabinet` } }]] }
+            { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] }
           );
 
           await notifyAdmin(
