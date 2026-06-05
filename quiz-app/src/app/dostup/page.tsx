@@ -13,6 +13,8 @@ function DostupInner() {
   const params = useSearchParams();
   const [unlocked, setUnlocked] = useState<string[] | null>(null);
   const [pending, setPending] = useState(false);
+  const [expanded, setExpanded] = useState<string[]>([]);
+  const toggle = (k: string) => setExpanded((e) => (e.includes(k) ? e.filter((x) => x !== k) : [...e, k]));
 
   useEffect(() => {
     const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
@@ -96,21 +98,43 @@ function DostupInner() {
           );
         }
 
-        // Закрытый раздел: просто «это есть, но закрыто». Весь блок ведёт на
-        // лендинг продукта (если задан) — продаём ТАМ, не в кабинете.
-        const Wrap = s.landingUrl ? 'a' : 'div';
+        // Закрытый раздел: замок, но можно развернуть и посмотреть, что внутри —
+        // список материалов под замками. Продажа — на лендинге (ссылка снизу).
+        const isExp = expanded.includes(s.key);
         return (
-          <Wrap key={s.key} className={`kb-card kb-locked ${s.landingUrl ? 'kb-locked-link' : ''}`}
-            {...(s.landingUrl ? { href: s.landingUrl, target: '_blank', rel: 'noopener' } : {})}>
-            <div className="kb-head">
+          <section className="kb-card kb-locked" key={s.key}>
+            <div className="kb-head kb-head-toggle" role="button" tabIndex={0}
+              onClick={() => toggle(s.key)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(s.key); } }}>
               <div className="kb-titles">
                 <h2 className="kb-h2"><span className="kb-lock">{'\u{1F512}'}</span>{s.title}</h2>
                 <p className="kb-csub">{s.subtitle}</p>
               </div>
-              <span className="kb-badge kb-badge-closed">Закрыто</span>
+              <span className={`kb-chev ${isExp ? 'kb-chev-open' : ''}`}>{'›'}</span>
             </div>
-            {s.landingUrl && <div className="kb-more">Узнать подробнее →</div>}
-          </Wrap>
+
+            {isExp && (
+              <div className="kb-locked-inner">
+                <div className="kb-materials">
+                  {s.materials.map((m, i) => (
+                    <div key={i} className="kb-mat kb-mat-locked">
+                      <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
+                      <span className="kb-mat-body">
+                        <span className="kb-mat-title">{m.title}</span>
+                        {m.note && <span className="kb-mat-note">{m.note}</span>}
+                      </span>
+                      <span className="kb-mat-arr kb-mat-lock">{'\u{1F512}'}</span>
+                    </div>
+                  ))}
+                </div>
+                {s.landingUrl && (
+                  <a className="kb-getaccess" href={s.landingUrl} target="_blank" rel="noopener">
+                    Получить доступ →
+                  </a>
+                )}
+              </div>
+            )}
+          </section>
         );
       })}
 
@@ -143,9 +167,13 @@ function DostupInner() {
           color: inherit; text-decoration: none;
         }
         .kb-locked { background: oklch(0.985 0.004 75); }
-        .kb-locked-link { cursor: pointer; transition: border-color .12s, transform .12s; }
-        .kb-locked-link:hover { border-color: var(--kb-accent); }
-        .kb-locked-link:active { transform: translateY(1px); }
+        .kb-head-toggle { cursor: pointer; user-select: none; }
+        .kb-chev {
+          flex: 0 0 auto; font-size: 22px; color: var(--kb-muted); line-height: 1;
+          transition: transform .18s; transform: rotate(0deg);
+        }
+        .kb-chev-open { transform: rotate(90deg); color: var(--kb-accent); }
+        .kb-locked-inner { margin-top: 14px; }
         .kb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .kb-titles { flex: 1; min-width: 0; }
         .kb-h2 {
@@ -172,9 +200,15 @@ function DostupInner() {
         .kb-mat-note { color: var(--kb-muted); font-size: 12px; line-height: 1.4; }
         .kb-mat-arr { flex: 0 0 auto; font-size: 13px; color: var(--kb-accent); font-weight: 700; }
         .kb-mat-soon .kb-mat-arr { color: var(--kb-muted); font-weight: 500; }
-        .kb-more {
-          margin-top: 12px; font-size: 13px; font-weight: 700; color: var(--kb-accent);
+        .kb-mat-locked { opacity: .85; }
+        .kb-mat-locked .kb-mat-icon { filter: grayscale(0.4); }
+        .kb-mat-lock { font-size: 14px; }
+        .kb-getaccess {
+          display: block; text-align: center; text-decoration: none; margin-top: 12px;
+          background: var(--kb-accent); color: oklch(1 0 0); font-family: 'Archivo', sans-serif;
+          font-weight: 800; font-size: 15px; padding: 13px 18px; border-radius: 11px; transition: opacity .15s;
         }
+        .kb-getaccess:hover { opacity: .9; } .kb-getaccess:active { transform: translateY(1px); }
         .kb-state { text-align: center; padding: 48px 16px; }
         .kb-state p { color: var(--kb-muted); margin: 0; }
         .kb-spinner {
