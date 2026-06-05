@@ -395,7 +395,8 @@ export async function POST(request: NextRequest) {
             amount,
           }),
           createPurchase(tgUserId, 'mk-dengi', amount, 'mk_dengi', orderId as string),
-          grantAccess({ product: CATALOG.mk_dengi, telegramId: tgUserId, source: orderId as string }),
+          grantAccess({ product: CATALOG.mk_dengi, telegramId: tgUserId, source: orderId as string })
+            .catch((e) => console.error('[Access] telegram grant failed:', e)),
         ]);
         console.log(`[Prodamus Webhook] MK Dengi (telegram) payment for user ${tgUserId}`);
       } else {
