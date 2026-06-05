@@ -44,6 +44,10 @@ function parseFormNested(text: string): Record<string, unknown> {
   return result;
 }
 
+function hmacHex(json: string): string {
+  return crypto.createHmac('sha256', PRODAMUS_SECRET_KEY).update(json).digest('hex');
+}
+
 function verifySignature(body: Record<string, unknown>, signature: string): boolean {
   if (!PRODAMUS_SECRET_KEY) {
     console.error('PRODAMUS_SECRET_KEY is not set');
@@ -51,9 +55,21 @@ function verifySignature(body: Record<string, unknown>, signature: string): bool
   }
 
   const sorted = sortDeep(body);
-  const json = JSON.stringify(sorted);
-  const hmac = crypto.createHmac('sha256', PRODAMUS_SECRET_KEY).update(json).digest('hex');
-  return hmac === signature;
+  const plain = JSON.stringify(sorted);
+  // Продамус (PHP) кодирует json_encode($data, JSON_UNESCAPED_UNICODE):
+  // юникод не экранирован (как у JS), а слэши экранированы (`/` → `\/`), чего
+  // JS не делает. Принимаем оба варианта, чтобы подпись сошлась независимо от
+  // наличия слэшей в payload.
+  const phpStyle = plain.replace(/\//g, '\\/');
+  if (hmacHex(plain) === signature || hmacHex(phpStyle) === signature) return true;
+
+  console.error('[Prodamus] signature mismatch', JSON.stringify({
+    received: signature,
+    tryPlain: hmacHex(plain),
+    tryPhp: hmacHex(phpStyle),
+    sample: plain.slice(0, 400),
+  }));
+  return false;
 }
 
 async function createPurchase(tgUserId: number, productSlug: string, amount: number, source: string, orderId: string) {
