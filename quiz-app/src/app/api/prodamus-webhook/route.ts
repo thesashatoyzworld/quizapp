@@ -358,6 +358,26 @@ export async function POST(request: NextRequest) {
     // Strip "Sign: " prefix if present in header value
     if (signature.startsWith('Sign: ')) signature = signature.slice(6);
 
+    // ── ВРЕМЕННАЯ ДИАГНОСТИКА (убрать после теста) ──
+    // Пишем каждый заход вебхука в БД ДО проверки подписи, чтобы из базы понять:
+    // дошёл ли вебхук (демо-режим?), какая подпись пришла, сходится ли наша.
+    try {
+      const dbgPlain = JSON.stringify(sortDeep(body));
+      await prisma.event.create({
+        data: {
+          type: 'wh_debug', source: 'thesasha',
+          metadata: {
+            hasSign: !!signature, sign: signature.slice(0, 80),
+            paymentStatus: (body.payment_status ?? null) as string | null,
+            order: (body.order_num || body.order_id || null) as string | null,
+            tryPlain: hmacHex(dbgPlain),
+            tryPhp: hmacHex(dbgPlain.replace(/\//g, '\\/')),
+            sample: dbgPlain.slice(0, 700),
+          },
+        },
+      });
+    } catch (e) { console.error('wh_debug failed', e); }
+
     if (!signature) {
       console.error('No signature in Sign header');
       return NextResponse.json({ success: false }, { status: 400 });
