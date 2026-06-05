@@ -3,6 +3,8 @@ import { trackEvent } from '@/lib/notion';
 import { notifyAdmin } from '@/lib/telegram';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
+import { CATALOG } from '@/lib/catalog';
+import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
@@ -380,6 +382,11 @@ export async function POST(request: NextRequest) {
               });
             }
           }
+
+          // Привязываем выданный картой доступ к этому Telegram (source = mkdengi_web_<token>).
+          // Если по какой-то причине его нет (старый платёж) — выдаём заново, идемпотентно.
+          await bindAccessToTelegram(`mkdengi_web_${token}`, chatId, user.id);
+          await grantAccess({ product: CATALOG.mk_dengi, telegramId: chatId, userId: user.id, source: `mkdengi_web_${token}` });
 
           await prisma.event.update({
             where: { id: ev.id },

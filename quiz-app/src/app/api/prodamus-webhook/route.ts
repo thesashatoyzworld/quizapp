@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { trackEvent, markFollowUpPaid, getAdminChatId, getUserInfo } from '@/lib/notion';
 import { prisma } from '@/lib/prisma';
+import { CATALOG } from '@/lib/catalog';
+import { grantAccess } from '@/lib/access';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -393,6 +395,7 @@ export async function POST(request: NextRequest) {
             amount,
           }),
           createPurchase(tgUserId, 'mk-dengi', amount, 'mk_dengi', orderId as string),
+          grantAccess({ product: CATALOG.mk_dengi, telegramId: tgUserId, source: orderId as string }),
         ]);
         console.log(`[Prodamus Webhook] MK Dengi (telegram) payment for user ${tgUserId}`);
       } else {
@@ -413,6 +416,11 @@ export async function POST(request: NextRequest) {
             metadata: { token, email, phone, amount, orderId: String(orderId), consumed: false },
           },
         }).catch((e) => console.error('[Supabase] web sale event insert failed:', e));
+
+        // Доступ выдаём сразу (telegramId null) — кабинет на сайте найдёт его по токену
+        // в source. Если человек зайдёт в бота по /start paid_<token>, доступ привяжется к TG.
+        await grantAccess({ product: CATALOG.mk_dengi, telegramId: null, source: orderId as string })
+          .catch((e) => console.error('[Access] web grant failed:', e));
 
         await notifyAdminMkDengiWeb(amount, email, phone, orderId as string);
         console.log(`[Prodamus Webhook] MK Dengi (web) payment, order ${orderId}`);
