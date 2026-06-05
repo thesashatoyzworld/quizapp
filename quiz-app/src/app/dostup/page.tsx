@@ -14,31 +14,63 @@ function DostupInner() {
   const [unlocked, setUnlocked] = useState<string[] | null>(null);
   const [pending, setPending] = useState(false);
   const [expanded, setExpanded] = useState<string[]>([]);
+  const [askEmail, setAskEmail] = useState(false);
+  const [email, setEmail] = useState('');
+  const [loginErr, setLoginErr] = useState('');
+  const [busy, setBusy] = useState(false);
   const toggle = (k: string) => setExpanded((e) => (e.includes(k) ? e.filter((x) => x !== k) : [...e, k]));
 
   useEffect(() => {
     const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
     if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
     const tgId = tg?.initDataUnsafe?.user?.id;
-    const token = params.get('t');
+    // Опознаём: ссылка после оплаты → код в URL; иначе код, сохранённый в браузере; иначе Telegram.
+    const urlToken = params.get('t');
+    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('kb_token') : null;
+    const token = urlToken || savedToken;
     const qs = tgId ? `telegramId=${tgId}` : token ? `token=${encodeURIComponent(token)}` : '';
 
     let stop = false;
     async function load() {
+      // Нет опознания совсем → показываем витрину + предлагаем вход по почте.
+      if (!qs) { setAskEmail(true); setUnlocked([]); return; }
       try {
         const res = await fetch(`/api/cabinet/rooms?${qs}`);
         const data = await res.json();
         if (stop) return;
         if (data.pending) { setPending(true); setTimeout(load, 5000); return; }
         setPending(false);
+        if (data.token && typeof window !== 'undefined') localStorage.setItem('kb_token', data.token);
+        // Опознали по сохранённому коду, но доступ не нашёлся (истёк/сбросили) — дать вход по почте.
+        if ((data.unlockedRoles || []).length === 0 && !tgId) setAskEmail(true);
         setUnlocked(data.unlockedRoles || []);
       } catch {
-        if (!stop) setUnlocked([]);
+        if (!stop) { setAskEmail(true); setUnlocked([]); }
       }
     }
     load();
     return () => { stop = true; };
   }, [params]);
+
+  async function loginByEmail(e: { preventDefault: () => void }) {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setBusy(true); setLoginErr('');
+    try {
+      const res = await fetch(`/api/cabinet/rooms?email=${encodeURIComponent(email.trim())}`);
+      const data = await res.json();
+      if ((data.unlockedRoles || []).length > 0) {
+        if (data.token && typeof window !== 'undefined') localStorage.setItem('kb_token', data.token);
+        setUnlocked(data.unlockedRoles);
+        setAskEmail(false);
+      } else {
+        setLoginErr('По этой почте оплату не нашли. Введи почту, которой платил.');
+      }
+    } catch {
+      setLoginErr('Не получилось проверить. Попробуй ещё раз.');
+    }
+    setBusy(false);
+  }
 
   const has = (role: string | null) => role === null || (unlocked?.includes(role) ?? false);
 
@@ -58,6 +90,22 @@ function DostupInner() {
           <div className="kb-spinner" />
           Оплата обрабатывается — раздел откроется через пару секунд.
         </div>
+      )}
+
+      {askEmail && unlocked && (
+        <form className="kb-login" onSubmit={loginByEmail}>
+          <div className="kb-login-title">Уже оплачивал? Войди</div>
+          <div className="kb-login-sub">Введи почту, которой платил — и доступ откроется. Браузер запомнит.</div>
+          <div className="kb-login-row">
+            <input className="kb-login-input" type="email" inputMode="email" autoComplete="email"
+              placeholder="твоя почта" value={email}
+              onChange={(e) => setEmail(e.target.value)} />
+            <button className="kb-login-btn" type="submit" disabled={busy}>
+              {busy ? '…' : 'Войти'}
+            </button>
+          </div>
+          {loginErr && <div className="kb-login-err">{loginErr}</div>}
+        </form>
       )}
 
       {!unlocked && !pending && (
@@ -161,6 +209,24 @@ function DostupInner() {
           display: flex; align-items: center; gap: 10px; background: var(--kb-accent-soft);
           color: var(--kb-text); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 16px;
         }
+        .kb-login {
+          background: var(--kb-surface); border: 1px solid var(--kb-line); border-radius: 16px;
+          padding: 16px; margin-bottom: 16px;
+        }
+        .kb-login-title { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 16px; }
+        .kb-login-sub { color: var(--kb-muted); font-size: 12.5px; margin: 4px 0 12px; line-height: 1.4; }
+        .kb-login-row { display: flex; gap: 8px; }
+        .kb-login-input {
+          flex: 1; min-width: 0; font-family: inherit; font-size: 15px; color: var(--kb-text);
+          background: var(--kb-bg); border: 1px solid var(--kb-line); border-radius: 10px; padding: 11px 13px;
+        }
+        .kb-login-input:focus { outline: none; border-color: var(--kb-accent); }
+        .kb-login-btn {
+          flex: 0 0 auto; border: none; cursor: pointer; background: var(--kb-accent); color: oklch(1 0 0);
+          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 15px; padding: 11px 20px; border-radius: 10px;
+        }
+        .kb-login-btn:disabled { opacity: .6; cursor: default; }
+        .kb-login-err { color: oklch(0.55 0.18 25); font-size: 12.5px; margin-top: 10px; }
         .kb-card {
           display: block; background: var(--kb-surface); border: 1px solid var(--kb-line);
           border-radius: 18px; padding: 18px; margin-bottom: 14px;
