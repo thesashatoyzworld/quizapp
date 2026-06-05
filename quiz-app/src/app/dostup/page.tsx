@@ -64,19 +64,17 @@ function DostupInner() {
 
       {unlocked && SECTIONS.map((s) => {
         const open = has(s.role);
-        return (
-          <section className={`kb-card ${open ? 'kb-open' : 'kb-locked'}`} key={s.key}>
-            <div className="kb-head">
-              <div className="kb-titles">
-                <h2 className="kb-h2">{!open && <span className="kb-lock">{'\u{1F512}'}</span>}{s.title}</h2>
-                <p className="kb-csub">{s.subtitle}</p>
-              </div>
-              <span className={`kb-badge ${open ? 'kb-badge-open' : 'kb-badge-price'}`}>
-                {open ? 'Открыто' : s.badge}
-              </span>
-            </div>
 
-            {open ? (
+        if (open) {
+          return (
+            <section className="kb-card kb-open" key={s.key}>
+              <div className="kb-head">
+                <div className="kb-titles">
+                  <h2 className="kb-h2">{s.title}</h2>
+                  <p className="kb-csub">{s.subtitle}</p>
+                </div>
+                <span className="kb-badge kb-badge-open">Открыто</span>
+              </div>
               <div className="kb-materials">
                 {s.materials.map((m, i) => {
                   const ready = !!m.url;
@@ -94,21 +92,25 @@ function DostupInner() {
                   );
                 })}
               </div>
-            ) : (
-              <div className="kb-locked-body">
-                {s.lockedPreview && (
-                  <ul className="kb-preview">
-                    {s.lockedPreview.map((p, i) => <li key={i}>{p}</li>)}
-                  </ul>
-                )}
-                {s.lockedCta && (
-                  <a className="kb-buy" href={s.lockedCta.href} target="_blank" rel="noopener">
-                    {s.lockedCta.text}
-                  </a>
-                )}
+            </section>
+          );
+        }
+
+        // Закрытый раздел: просто «это есть, но закрыто». Весь блок ведёт на
+        // лендинг продукта (если задан) — продаём ТАМ, не в кабинете.
+        const Wrap = s.landingUrl ? 'a' : 'div';
+        return (
+          <Wrap key={s.key} className={`kb-card kb-locked ${s.landingUrl ? 'kb-locked-link' : ''}`}
+            {...(s.landingUrl ? { href: s.landingUrl, target: '_blank', rel: 'noopener' } : {})}>
+            <div className="kb-head">
+              <div className="kb-titles">
+                <h2 className="kb-h2"><span className="kb-lock">{'\u{1F512}'}</span>{s.title}</h2>
+                <p className="kb-csub">{s.subtitle}</p>
               </div>
-            )}
-          </section>
+              <span className="kb-badge kb-badge-closed">Закрыто</span>
+            </div>
+            {s.landingUrl && <div className="kb-more">Узнать подробнее →</div>}
+          </Wrap>
         );
       })}
 
@@ -136,10 +138,14 @@ function DostupInner() {
           color: var(--kb-text); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 16px;
         }
         .kb-card {
-          background: var(--kb-surface); border: 1px solid var(--kb-line); border-radius: 18px;
-          padding: 18px; margin-bottom: 14px;
+          display: block; background: var(--kb-surface); border: 1px solid var(--kb-line);
+          border-radius: 18px; padding: 18px; margin-bottom: 14px;
+          color: inherit; text-decoration: none;
         }
         .kb-locked { background: oklch(0.985 0.004 75); }
+        .kb-locked-link { cursor: pointer; transition: border-color .12s, transform .12s; }
+        .kb-locked-link:hover { border-color: var(--kb-accent); }
+        .kb-locked-link:active { transform: translateY(1px); }
         .kb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .kb-titles { flex: 1; min-width: 0; }
         .kb-h2 {
@@ -150,7 +156,7 @@ function DostupInner() {
         .kb-csub { color: var(--kb-muted); font-size: 13px; margin-top: 3px; }
         .kb-badge { flex: 0 0 auto; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
         .kb-badge-open { background: var(--kb-ok-soft); color: var(--kb-ok); }
-        .kb-badge-price { background: var(--kb-accent-soft); color: var(--kb-accent); }
+        .kb-badge-closed { background: oklch(0.93 0.004 75); color: var(--kb-muted); }
         .kb-materials { display: grid; gap: 9px; margin-top: 14px; }
         .kb-mat {
           display: flex; align-items: center; gap: 13px; text-decoration: none; color: inherit;
@@ -166,21 +172,9 @@ function DostupInner() {
         .kb-mat-note { color: var(--kb-muted); font-size: 12px; line-height: 1.4; }
         .kb-mat-arr { flex: 0 0 auto; font-size: 13px; color: var(--kb-accent); font-weight: 700; }
         .kb-mat-soon .kb-mat-arr { color: var(--kb-muted); font-weight: 500; }
-        .kb-locked-body { margin-top: 14px; }
-        .kb-preview { list-style: none; display: grid; gap: 8px; margin: 0 0 16px; padding: 0; }
-        .kb-preview li { position: relative; padding-left: 24px; font-size: 13.5px; color: var(--kb-text); }
-        .kb-preview li::before {
-          content: ""; position: absolute; left: 0; top: 4px; width: 16px; height: 16px; border-radius: 50%;
-          background: var(--kb-accent-soft);
-          -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>") center/11px no-repeat;
-                  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>") center/11px no-repeat;
+        .kb-more {
+          margin-top: 12px; font-size: 13px; font-weight: 700; color: var(--kb-accent);
         }
-        .kb-buy {
-          display: block; text-align: center; text-decoration: none; background: var(--kb-accent);
-          color: oklch(1 0 0); font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 15px;
-          padding: 14px 18px; border-radius: 11px; transition: opacity .15s;
-        }
-        .kb-buy:hover { opacity: .9; } .kb-buy:active { transform: translateY(1px); }
         .kb-state { text-align: center; padding: 48px 16px; }
         .kb-state p { color: var(--kb-muted); margin: 0; }
         .kb-spinner {
