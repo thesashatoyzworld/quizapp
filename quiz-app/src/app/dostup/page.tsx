@@ -113,6 +113,7 @@ function DostupInner() {
       })}
 
       <style>{`
+        html, body { background: oklch(0.97 0.006 75); }
         .kb-wrap {
           --kb-bg: oklch(0.97 0.006 75); --kb-text: oklch(0.16 0.015 55);
           --kb-muted: oklch(0.46 0.012 55); --kb-accent: oklch(0.60 0.19 52);
