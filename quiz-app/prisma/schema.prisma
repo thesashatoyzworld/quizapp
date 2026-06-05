@@ -21,6 +21,7 @@ model User {
 
   purchases    Purchase[]
   events       Event[]
+  accesses     ProductAccess[]
 
   @@map("users")
 }
@@ -73,6 +74,38 @@ model Material {
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("materials")
+}
+
+// ═══════════════════════════════════════
+// ДОСТУПЫ (единая модель: разовые + подписки)
+// ═══════════════════════════════════════
+//
+// Один доступ = право человека на один продукт.
+//   expiresAt = null  → бессрочно (разовый, напр. МК)
+//   expiresAt = дата  → подписка: открыто до даты; продление сдвигает дату,
+//                       просрочку закрывает крон (status → expired).
+// Доступ может существовать без User (оплата картой с сайта без Telegram):
+// тогда userId = null, привязка по telegramId позже или по контакту.
+
+model ProductAccess {
+  id          String    @id @default(uuid())
+  userId      String?   @map("user_id")
+  user        User?     @relation(fields: [userId], references: [id])
+  telegramId  BigInt?   @map("telegram_id")
+  productSlug String    @map("product_slug")
+  role        String
+  grantedAt   DateTime  @default(now()) @map("granted_at")
+  expiresAt   DateTime? @map("expires_at")
+  status      String    @default("active") // active | expired | revoked
+  source      String?   // prodamus order_id / subscription id
+  period      String?   // week | month | null (разовый)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([telegramId])
+  @@index([productSlug])
+  @@index([status])
+  @@map("product_access")
 }
 
 // ═══════════════════════════════════════
