@@ -198,6 +198,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
 .slide.active .bar.now .colb{animation-delay:.25s}
 @keyframes grow{to{transform:scaleY(1)}}
 </style>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
 <div class="phone">
@@ -368,7 +369,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="kicker ac r" style="animation-delay:.05s">это лечится</div>
       <h1 class="lg r" style="animation-delay:.15s">"мне не надо"<br>в одиночку <span class="hi">не пробить</span></h1>
       <p class="lead muted r mt" style="animation-delay:.36s">оно маскируется под здравый смысл и не даёт себя поймать.<br>на МК «Разрешение быстрых денег» достаём твою настоящую цель — ту, ради которой захочется по-честному.</p>
-      <a class="btn r" style="animation-delay:.54s" href="https://t.me/testtoyzbot?start=razreshenie_deneg" target="_blank" rel="noopener" id="cta">Хочу на МК →</a>
+      <a class="btn r" style="animation-delay:.54s" href="https://thesashatoyz.com/mk-dengi" target="_blank" rel="noopener" id="cta">Хочу на МК →</a>
       <div class="price r" style="animation-delay:.66s">4 884 ₽ · запись + чат участников</div>
     </section>
 
@@ -437,6 +438,19 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
   story.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx;if(dx<-40)show(i+1);else if(dx>40)show(i-1);},{passive:true});
   /* CTA ведёт на лист ожидания через href */
   show(0);
+})();
+</script>
+<script>
+(function(){
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var cta = document.getElementById('cta');
+  if (tg && cta) {
+    try { tg.ready(); } catch(e){}
+    cta.addEventListener('click', function(e){
+      e.preventDefault();
+      tg.openLink(cta.href);   // открыть страницу МК поверх Mini App
+    });
+  }
 })();
 </script>
 </body>
