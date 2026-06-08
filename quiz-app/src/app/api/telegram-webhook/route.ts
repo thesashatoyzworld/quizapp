@@ -508,6 +508,38 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Квиз «блоки на деньги» как Mini App — вход с Инсты на ТЕСТ
+      // quiz_dengi_ig и т.п. → метка источника прокидывается в utm_source квиза и трекинг
+      if (startParam === 'quiz_dengi' || startParam.startsWith('quiz_dengi_')) {
+        // текст-болванка, Саша может переписать голосом
+        const quizText = `${firstName}, погнали ⚡
+
+короткий тест — покажу, какой именно блок мешает тебе получать деньги. жми 👇`;
+
+        const quizMarkup = {
+          inline_keyboard: [
+            [
+              {
+                text: '🧭 Пройти тест',
+                web_app: { url: `https://quiz.thesashatoyz.com/quiz-money?utm_source=${startParam}` },
+              },
+            ],
+          ],
+        };
+
+        await sendMessage(chatId, quizText, quizMarkup);
+
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: startParam,
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
       // МК «Разрешение быстрых денег» waitlist deep link
       // принимаем и метки источника: razreshenie_deneg_ig (Instagram) и т.п. — попадают в utm_source трекинга
       if (startParam === 'razreshenie_deneg' || startParam.startsWith('razreshenie_deneg_')) {
