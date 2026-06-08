@@ -509,7 +509,8 @@ export async function POST(request: NextRequest) {
       }
 
       // МК «Разрешение быстрых денег» waitlist deep link
-      if (startParam === 'razreshenie_deneg') {
+      // принимаем и метки источника: razreshenie_deneg_ig (Instagram) и т.п. — попадают в utm_source трекинга
+      if (startParam === 'razreshenie_deneg' || startParam.startsWith('razreshenie_deneg_')) {
         const rdmkText = `${firstName}, ты почти в списке ⚡
 
 <b>«Разрешение быстрых денег»</b> — 7 дней, на которых я прокачу тебя на своей энергии на новый уровень.
@@ -538,7 +539,7 @@ export async function POST(request: NextRequest) {
           user_id: chatId,
           username: username || undefined,
           first_name: fullName || undefined,
-          utm_source: 'razreshenie_deneg',
+          utm_source: startParam,
         });
 
         return NextResponse.json({ ok: true });
