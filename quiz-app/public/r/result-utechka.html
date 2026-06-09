@@ -433,7 +433,8 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
 (function(){
   var tg = window.Telegram && window.Telegram.WebApp;
   var cta = document.getElementById('cta');
-  if (tg && cta) {
+  var inTG = tg && tg.platform && tg.platform !== 'unknown';
+  if (inTG && cta) {
     try { tg.ready(); } catch(e){}
     cta.addEventListener('click', function(e){
       e.preventDefault();
