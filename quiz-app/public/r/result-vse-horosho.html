@@ -207,7 +207,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="kicker ac r" style="animation-delay:.05s">и всё же</div>
       <h1 class="lg r" style="animation-delay:.15s">захочешь больше —<br>приходи <span class="hi">из желания</span></h1>
       <p class="lead muted r mt" style="animation-delay:.36s">а не из тревоги, что «отстаёшь».<br>если однажды по-настоящему захочешь расти — МК «Разрешение быстрых денег» будет ждать.<br>а пока выдохни.<br>у тебя всё хорошо.</p>
-      <a class="btn r" style="animation-delay:.54s" href="https://thesashatoyz.com/mk-dengi" target="_blank" rel="noopener" id="cta">посмотреть МК →</a>
+      <a class="btn r" style="animation-delay:.54s" href="https://thesashatoyz.com/mk-dengi" id="cta">посмотреть МК →</a>
       <div class="price r" style="animation-delay:.66s">4 884 ₽ · без давления</div>
     </section>
 
@@ -278,7 +278,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
     try { tg.ready(); } catch(e){}
     cta.addEventListener('click', function(e){
       e.preventDefault();
-      tg.openLink(cta.href);   // открыть страницу МК поверх Mini App
+      window.location.href = cta.href;   // открыть страницу МК в том же окне Mini App
     });
   }
 })();

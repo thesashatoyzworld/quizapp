@@ -355,7 +355,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
       <div class="kicker ac r" style="animation-delay:.05s">это лечится</div>
       <h1 class="lg r" style="animation-delay:.15s">выйти из паралича<br>в одиночку <span class="hi">трудно</span></h1>
       <p class="lead muted r mt" style="animation-delay:.36s">голова всегда найдёт, к чему ещё подготовиться.<br>на МК «Разрешение быстрых денег» даём сделать первый шаг несовершенным — и снимаем самозванца.</p>
-      <a class="btn r" style="animation-delay:.54s" href="https://thesashatoyz.com/mk-dengi" target="_blank" rel="noopener" id="cta">Хочу на МК →</a>
+      <a class="btn r" style="animation-delay:.54s" href="https://thesashatoyz.com/mk-dengi" id="cta">Хочу на МК →</a>
       <div class="price r" style="animation-delay:.66s">4 884 ₽ · запись + чат участников</div>
     </section>
 
@@ -434,7 +434,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
     try { tg.ready(); } catch(e){}
     cta.addEventListener('click', function(e){
       e.preventDefault();
-      tg.openLink(cta.href);   // открыть страницу МК поверх Mini App
+      window.location.href = cta.href;   // открыть страницу МК в том же окне Mini App
     });
   }
 })();
