@@ -95,7 +95,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
 .btn:active{transform:scale(.97)}
 .price{text-align:center;font-size:.85rem;color:inherit;opacity:.55;margin-top:14px;font-weight:500}
 
-.tap{position:absolute;top:0;bottom:0;width:38%;z-index:20;cursor:pointer}
+.tap{display:none}
 .tap.l{left:0}.tap.r{right:0;width:62%}
 .mt{margin-top:18px}.mt-s{margin-top:10px}
 .slide>*{position:relative;z-index:2}
@@ -260,8 +260,7 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
     story.classList.toggle('on-light',cur.dataset.theme==='light');
     i=n;
   }
-  document.getElementById('tapR').addEventListener('click',()=>show(i+1));
-  document.getElementById('tapL').addEventListener('click',()=>show(i-1));
+  story.addEventListener('click',function(e){if(e.target.closest('a,button'))return;var b=story.getBoundingClientRect();if((e.clientX-b.left)>b.width*0.38)show(i+1);else show(i-1);});
   document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' ')show(i+1);if(e.key==='ArrowLeft')show(i-1);});
   let sx=0;
   story.addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
