@@ -80,8 +80,9 @@ export default function QuizMoney() {
     const slug = resultSlug(r);
     const name = user?.first_name ? encodeURIComponent(user.first_name) : '';
     const sec = r.secondary || '';
-    window.location.href = `/r/result-${slug}.html?primary=${r.primary}&secondary=${sec}&pct=${r.overlapPercent}&name=${name}`;
-  }, [user]);
+    const src = encodeURIComponent(utmSource || 'razreshenie_deneg');
+    window.location.href = `/r/result-${slug}.html?primary=${r.primary}&secondary=${sec}&pct=${r.overlapPercent}&name=${name}&utm_source=${src}`;
+  }, [user, utmSource]);
 
   const answer = (idx: number) => {
     const next = [...answers, idx];

@@ -471,11 +471,23 @@ h1{font-family:var(--disp);font-weight:900;line-height:.95;letter-spacing:-.02em
   var tg = window.Telegram && window.Telegram.WebApp;
   var cta = document.getElementById('cta');
   var inTG = tg && tg.platform && tg.platform !== 'unknown';
-  if (inTG && cta) {
-    try { tg.ready(); } catch(e){}
+  if (cta) {
+    if (inTG) { try { tg.ready(); } catch(e){} }
+    var p = new URLSearchParams(location.search);
+    var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
     cta.addEventListener('click', function(e){
-      e.preventDefault();
-      window.location.href = cta.href;   // открыть страницу МК в том же окне Mini App
+      try {
+        navigator.sendBeacon('/api/track-event', new Blob([JSON.stringify({
+          event_type:'subscribe_click',
+          user_id: u ? u.id : null,
+          username: u ? u.username : undefined,
+          first_name: u ? u.first_name : undefined,
+          utm_source: p.get('utm_source') || 'razreshenie_deneg',
+          result_id: p.get('primary') || undefined,
+          metadata:{ cta:'mk', quiz:'money' }
+        })], { type:'application/json' }));
+      } catch(err){}
+      if (inTG) { e.preventDefault(); window.location.href = cta.href; }  // лендинг в том же окне Mini App
     });
   }
 })();
