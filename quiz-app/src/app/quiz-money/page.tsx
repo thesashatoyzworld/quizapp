@@ -37,7 +37,7 @@ export default function QuizMoney() {
   const { user } = useTelegram();
 
   const track = useCallback(
-    async (event_type: string, extra: Record<string, unknown> = {}) => {
+    async (event_type: string, extra: Record<string, unknown> = {}, srcOverride?: string) => {
       try {
         const tgUser = typeof window !== 'undefined' ? window.Telegram?.WebApp?.initDataUnsafe?.user : null;
         await fetch('/api/track-event', {
@@ -48,7 +48,9 @@ export default function QuizMoney() {
             user_id: tgUser?.id || null,
             username: tgUser?.username,
             first_name: tgUser?.first_name,
-            utm_source: utmSource || 'razreshenie_deneg',
+            // srcOverride нужен для самого первого события (webapp_open): setUtmSource
+            // асинхронный, поэтому состояние ещё пустое в момент монтирования.
+            utm_source: srcOverride || utmSource || 'razreshenie_deneg',
             metadata: { quiz: 'money', ...extra },
           }),
         });
@@ -63,7 +65,7 @@ export default function QuizMoney() {
     const params = new URLSearchParams(window.location.search);
     const src = params.get('utm_source');
     if (src) setUtmSource(src);
-    track('webapp_open', { route: 'quiz-money' });
+    track('webapp_open', { route: 'quiz-money' }, src || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
