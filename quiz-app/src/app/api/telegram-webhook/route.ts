@@ -698,24 +698,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // Default quiz flow
-      const webappUrl = startParam
-        ? `${WEBAPP_URL}?utm_source=${encodeURIComponent(startParam)}`
-        : WEBAPP_URL;
+      // Default flow — квиз «блоки на деньги» (старый квиз «Диагностика контента» убран)
+      const defaultUtm = startParam || 'bot_start';
+      const webappUrl = `https://quiz.thesashatoyz.com/quiz-money?utm_source=${encodeURIComponent(defaultUtm)}`;
 
-      const welcomeText = `Привет, ${firstName}! 👋
+      // текст-болванка, Саша может переписать голосом
+      const welcomeText = `${firstName}, погнали ⚡
 
-🎯 <b>Диагностика контента</b>
-
-Узнай, на каком этапе развития ты находишься и сколько денег теряешь из-за неправильного контента.
-
-8 вопросов → персональный разбор`;
+короткий тест — покажу, какой именно блок мешает тебе получать деньги. жми 👇`;
 
       const replyMarkup = {
         inline_keyboard: [
           [
             {
-              text: '🚀 Пройти диагностику',
+              text: '🧭 Пройти тест',
               web_app: { url: webappUrl },
             },
           ],
