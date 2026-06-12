@@ -577,6 +577,37 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Страница МК «Разрешение быстрых денег» (лендинг) сразу из бота.
+      // Для постов в TG с прямым CTA: t.me/testtoyzbot?start=mk_page (или mk_page_<источник>).
+      // Человек остаётся в базе бота (bot_start), метка уходит в utm_source лендинга.
+      if (startParam === 'mk_page' || startParam.startsWith('mk_page_')) {
+        // текст-болванка, Саша может переписать голосом
+        const pageText = `${firstName}, всё про мастер-класс «Разрешение быстрых денег» — тут 👇`;
+
+        const pageMarkup = {
+          inline_keyboard: [
+            [
+              {
+                text: '⚡ Открыть страницу МК',
+                web_app: { url: `https://thesashatoyz.com/mk-dengi?utm_source=${startParam}` },
+              },
+            ],
+          ],
+        };
+
+        await sendMessage(chatId, pageText, pageMarkup);
+
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: startParam,
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
       // МК «Разрешение быстрых денег» — открываем лендинг в мини-аппе,
       // оплата идёт прямо из него (см. public/mk/index.html), вебхук ловит оплату.
       if (startParam === 'mk_dengi') {
