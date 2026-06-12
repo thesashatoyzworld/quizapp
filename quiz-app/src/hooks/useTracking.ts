@@ -27,6 +27,13 @@ export function useTracking(user?: TelegramUser | null, utmSource?: string | nul
     options?: TrackEventOptions
   ) => {
     try {
+      // metadata.quiz='content' отличает старый контентный квиз от денежного
+      // (тот шлёт quiz='money' из quiz-money/page.tsx). Поля result_* дублируем
+      // в metadata сами: серверный fallback в notion.ts срабатывает только когда
+      // metadata не передана вовсе.
+      const resultMeta = options?.result_id || options?.result_title
+        ? { result_id: options.result_id, result_title: options.result_title, result_stage: options.result_stage, amount: options.amount }
+        : {};
       await fetch('/api/track-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,6 +44,7 @@ export function useTracking(user?: TelegramUser | null, utmSource?: string | nul
           first_name: user?.first_name ?? options?.first_name,
           utm_source: utmSource || options?.utm_source || undefined,
           ...options,
+          metadata: { quiz: 'content', ...resultMeta, ...(options?.metadata || {}) },
         }),
       });
     } catch (error) {
