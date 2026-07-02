@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { trackEvent, markFollowUpPaid, getAdminChatId, getUserInfo } from '@/lib/notion';
 import { prisma } from '@/lib/prisma';
-import { CATALOG } from '@/lib/catalog';
+import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { grantAccess } from '@/lib/access';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
@@ -317,6 +317,23 @@ async function notifyAdminMkDengiWeb(amount: number, email: string, phone: strin
   }
 }
 
+async function notifyAdminUroven(productName: string, amount: number, contact: string, orderId: string) {
+  if (!BOT_TOKEN) return;
+  const adminChatId = await getAdminChatId();
+  if (!adminChatId) return;
+
+  const text = `💳 Оплата «Новый уровень контента»\n\n${productName}\n${amount.toLocaleString('ru-RU')} ₽\nКонтакт: ${contact}\nOrder: ${orderId}`;
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: adminChatId, text }),
+    });
+  } catch (error) {
+    console.error('Failed to notify admin about Uroven payment:', error);
+  }
+}
+
 async function notifyAdminError(errorMessage: string) {
   if (!BOT_TOKEN) return;
 
@@ -402,6 +419,7 @@ export async function POST(request: NextRequest) {
     const isSyncMk = typeof orderId === 'string' && orderId.startsWith('sync_mk');
     const isConnectors = typeof orderId === 'string' && orderId.startsWith('conn_');
     const isMkDengi = typeof orderId === 'string' && orderId.startsWith('mkdengi');
+    const isUroven = typeof orderId === 'string' && orderId.startsWith('uroven_');
 
     if (isMkDengi) {
       // order_id: "mkdengi_<tgUserId>" — оплата из мини-аппа (привязка к Telegram)
@@ -460,6 +478,72 @@ export async function POST(request: NextRequest) {
 
         await notifyAdminMkDengiWeb(amount, email, phone, orderId as string);
         console.log(`[Prodamus Webhook] MK Dengi (web) payment, order ${orderId}`);
+      }
+    } else if (isUroven) {
+      // «Новый уровень контента» — order_id:
+      //   uroven_<tier>_<tgUserId>   — оплата из бота (привязка к Telegram)
+      //   uroven_<tier>_web_<token>  — оплата картой с сайта (привязка позже по токену/почте)
+      const product = resolveProductByOrderId(orderId as string);
+      if (!product) {
+        console.error('[Prodamus Webhook] uroven: product not resolved for order', orderId);
+        return NextResponse.json({ success: true });
+      }
+      const products = body.products as Record<string, Record<string, string>> | undefined;
+      const amount = parseInt(String(products?.['0']?.price ?? product.price), 10) || product.price;
+      const parts = (orderId as string).split('_'); // ['uroven', tier, tgId|'web', ...]
+      const third = parts[2] || '';
+      const isWeb = third === 'web';
+      const tgUserId = !isWeb && /^\d+$/.test(third) ? parseInt(third, 10) : null;
+
+      await prisma.product.upsert({
+        where: { slug: product.slug },
+        create: { slug: product.slug, name: product.name, price: product.price, type: product.type },
+        update: { name: product.name },
+      });
+
+      if (tgUserId && tgUserId > 1000) {
+        // Оплата привязана к Telegram → выдаём доступ и пишем в чат.
+        await Promise.all([
+          createPurchase(tgUserId, product.slug, amount, 'uroven', orderId as string),
+          grantAccess({ product, telegramId: tgUserId, source: orderId as string })
+            .catch((e) => console.error('[Access] uroven telegram grant failed:', e)),
+        ]);
+        if (BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: tgUserId,
+              text: `готово ⚡\n\nоплата принята: <b>${product.name}</b>.\nдоступ откроется 1 августа — все материалы будут в кабинете.`,
+              parse_mode: 'HTML',
+              reply_markup: { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
+            }),
+          }).catch(() => {});
+        }
+        await notifyAdminUroven(product.name, amount, `TG user ${tgUserId}`, orderId as string);
+        console.log(`[Prodamus Webhook] Uroven (telegram) payment user ${tgUserId}, ${product.slug}`);
+      } else {
+        // Оплата картой с сайта. Токен = хвост order_id после _web_.
+        // Доступ выдаём сразу (telegramId null); человек откроет кабинет по токену/почте,
+        // либо привяжет Telegram, зайдя в бота по /start paid_<token>.
+        const token = (orderId as string).split('_web_')[1] || '';
+        const email = (body.customer_email || body.email || '') as string;
+        const phone = (body.customer_phone || body.phone || '') as string;
+
+        await prisma.event.create({
+          data: {
+            type: 'web_paid',
+            source: 'thesasha',
+            productSlug: product.slug,
+            metadata: { token, email, phone, amount, orderId: String(orderId), consumed: false },
+          },
+        }).catch((e) => console.error('[Supabase] uroven web event insert failed:', e));
+
+        await grantAccess({ product, telegramId: null, source: orderId as string })
+          .catch((e) => console.error('[Access] uroven web grant failed:', e));
+
+        await notifyAdminUroven(product.name, amount, email || phone || 'нет контакта', orderId as string);
+        console.log(`[Prodamus Webhook] Uroven (web) payment, order ${orderId}`);
       }
     } else if (isSyncMk) {
       // МК Синхронизация payment

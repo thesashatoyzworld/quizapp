@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Новый уровень контента — оформление</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Manrope:wght@400;500;600;700&subset=cyrillic,latin&display=swap" rel="stylesheet">
+<style>
+:root {
+  --c-bg:           oklch(0.97 0.006 75);
+  --c-text:         oklch(0.16 0.015 55);
+  --c-muted:        oklch(0.42 0.012 55);
+  --c-accent:       oklch(0.60 0.19 52);
+  --c-accent-light: oklch(0.92 0.04 52);
+  --c-line:         oklch(0.89 0.008 75);
+  --c-surface:      oklch(0.95 0.004 75);
+  --font-display: 'Archivo', sans-serif;
+  --font-body:    'Manrope', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { overflow-x: hidden; }
+body {
+  background: var(--c-bg); color: var(--c-text);
+  font-family: var(--font-body); line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh; min-height: 100svh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 28px 20px;
+}
+.card { width: 100%; max-width: 460px; margin: 0 auto; text-align: center; }
+.eyebrow {
+  font-size: 12px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--c-muted); margin-bottom: 16px;
+}
+h1 {
+  font-family: var(--font-display); font-weight: 900; letter-spacing: -0.03em;
+  line-height: 1.05; font-size: clamp(30px, 8.5vw, 44px); margin-bottom: 12px;
+  overflow-wrap: break-word;
+}
+.hl { background: var(--c-accent-light); padding: .02em .18em; margin: 0 -.1em; border-radius: 3px; }
+.tierName { font-weight: 700; font-size: 15px; color: var(--c-accent); margin-bottom: 22px; }
+.incl { list-style: none; text-align: left; max-width: 360px; margin: 0 auto 26px; display: grid; gap: 10px; }
+.incl li { position: relative; padding-left: 30px; font-size: 15px; color: var(--c-text); font-weight: 500; }
+.incl li::before {
+  content: ""; position: absolute; left: 0; top: 2px; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--c-accent);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='white' d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>") center/14px no-repeat;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='white' d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>") center/14px no-repeat;
+}
+.price-wrap { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 14px; padding: 22px 20px; margin-bottom: 18px; }
+.price { font-family: var(--font-display); font-weight: 900; font-size: 40px; letter-spacing: -.02em; color: var(--c-text); }
+.per { font-size: 13px; color: var(--c-muted); margin-top: 4px; }
+.deadline { font-size: 13px; color: var(--c-muted); margin-top: 8px; }
+.deadline b { color: var(--c-accent); }
+.btn {
+  display: block; width: 100%; border: none; cursor: pointer;
+  background: var(--c-accent); color: oklch(1 0 0);
+  font-family: var(--font-display); font-weight: 800; font-size: 18px;
+  padding: 18px 24px; border-radius: 10px; transition: opacity .15s;
+}
+.btn:hover { opacity: .9; }
+.btn:active { transform: translateY(1px); }
+.tiers { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
+.tiers button {
+  flex: 1; max-width: 120px; cursor: pointer; font-family: var(--font-body); font-weight: 600;
+  font-size: 13px; padding: 10px 6px; border-radius: 9px; border: 1px solid var(--c-line);
+  background: #fff; color: var(--c-muted); transition: all .12s;
+}
+.tiers button.on { border-color: var(--c-accent); color: var(--c-accent); background: var(--c-accent-light); }
+.more { display: inline-block; margin-top: 18px; color: var(--c-muted); font-size: 14px; text-decoration: none; }
+.more:hover { color: var(--c-accent); }
+.note { margin-top: 14px; font-size: 12.5px; color: var(--c-muted); }
+</style>
+</head>
+<body>
+  <main class="card">
+    <p class="eyebrow">Предпродажа · доступ с 1 августа</p>
+    <h1>Новый уровень <span class="hl">контента</span></h1>
+
+    <div class="tiers">
+      <button data-tier="t1">Тариф 1</button>
+      <button data-tier="t2">Тариф 2</button>
+      <button data-tier="t3">Тариф 3</button>
+    </div>
+
+    <p class="tierName" id="tierName"></p>
+
+    <ul class="incl" id="incl"></ul>
+
+    <div class="price-wrap">
+      <div class="price" id="price"></div>
+      <p class="per" id="per"></p>
+      <p class="deadline">доступ ко всем материалам — <b>1 августа</b></p>
+    </div>
+
+    <button class="btn" id="pay">Оформить доступ</button>
+    <a class="more" href="https://thesashatoyz.com/uroven" target="_blank" rel="noopener">о продукте подробнее →</a>
+    <p class="note" id="hint"></p>
+  </main>
+
+<script>
+(function () {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
+  var uid = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : null;
+
+  var FORM = 'https://thesashatoyz.payform.ru';
+  var origin = window.location.origin;
+
+  var TIERS = {
+    t1: { name: 'Тариф 1 — делаешь сам', price: 3450, per: 'разово, доступ навсегда',
+      incl: ['6 уровней прохождения контента', 'видеоуроки + методички', 'доступ навсегда', 'бонус: воркшоп «Продающий контент»'] },
+    t2: { name: 'Тариф 2 — сам + монетизация', price: 7500, per: 'в месяц',
+      incl: ['всё из тарифа 1', 'чат с обратной связью', 'воркшопы по монетизации и воронкам', 'созвон раз в месяц группой'] },
+    t3: { name: 'Тариф 3 — делаем вместе', price: 35000, per: 'в месяц',
+      incl: ['всё из тарифа 2', 'созвон раз в неделю группой'] }
+  };
+
+  function qsTier() {
+    var m = /[?&]tier=(t[123])/.exec(window.location.search);
+    return m ? m[1] : 't1';
+  }
+  var tier = qsTier();
+
+  function render() {
+    var t = TIERS[tier];
+    document.getElementById('tierName').textContent = t.name;
+    document.getElementById('price').innerHTML = t.price.toLocaleString('ru-RU') + '&nbsp;₽';
+    document.getElementById('per').textContent = t.per;
+    document.getElementById('incl').innerHTML = t.incl.map(function (x) { return '<li>' + x + '</li>'; }).join('');
+    var btns = document.querySelectorAll('.tiers button');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-tier') === tier);
+  }
+
+  var btns = document.querySelectorAll('.tiers button');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function () { tier = this.getAttribute('data-tier'); render(); });
+  }
+
+  function payUrl() {
+    var t = TIERS[tier];
+    var orderId = 'uroven_' + tier + '_' + uid;
+    var cabinet = origin + '/dostup';
+    var paidContent = 'Доступ к «Новый уровень контента» (' + t.name + '). '
+      + 'Открой кабинет: ' + cabinet + ' — или напиши боту @testtoyzbot. '
+      + 'Все материалы откроются 1 августа.';
+    var parts = [
+      'do=pay',
+      'products[0][name]=' + encodeURIComponent('Новый уровень контента — ' + t.name),
+      'products[0][price]=' + t.price,
+      'products[0][quantity]=1',
+      'order_id=' + encodeURIComponent(orderId),
+      'paid_content=' + encodeURIComponent(paidContent),
+      'urlNotification=' + encodeURIComponent(origin + '/api/prodamus-webhook'),
+      'urlSuccess=' + encodeURIComponent(cabinet + '?payment=success')
+    ];
+    return FORM + '?' + parts.join('&');
+  }
+
+  document.getElementById('pay').addEventListener('click', function () {
+    if (!uid) {
+      window.location.href = 'https://t.me/testtoyzbot?start=uroven_' + tier;
+      return;
+    }
+    var url = payUrl();
+    if (tg && tg.openLink) { tg.openLink(url); } else { window.open(url, '_blank'); }
+  });
+
+  if (!uid) {
+    document.getElementById('hint').textContent = 'Открой этот экран через бота — так доступ привяжется к твоему Telegram.';
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
