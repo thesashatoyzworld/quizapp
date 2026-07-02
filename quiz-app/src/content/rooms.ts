@@ -59,6 +59,19 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
+    key: 'uroven',
+    role: 'uroven',
+    title: 'Новый уровень контента',
+    subtitle: '6 уровней навыка · доступ с 1 августа',
+    landingUrl: 'https://thesashatoyz.com/uroven',
+    materials: [
+      { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '', note: 'Откроются 1 августа.' },
+      { kind: 'slides', title: 'Методички и задания', url: '', note: 'Материалы к каждому уровню.' },
+      { kind: 'chat', title: 'Чат с обратной связью', url: '', note: 'Тарифы 2 и 3. Откроется перед стартом.' },
+      { kind: 'live', title: 'Групповые созвоны', url: '', note: 'Тарифы 2 и 3. Расписание перед стартом.' },
+    ],
+  },
+  {
     key: 'sync',
     role: 'sync',
     title: 'Синхронизация',

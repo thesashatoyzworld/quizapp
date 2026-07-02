@@ -61,6 +61,40 @@ export const CATALOG: Record<string, CatalogProduct> = {
     subscriptionId: '2002781',
     orderPrefix: 'conn_', // TODO: уточнить реальный order_id Group у Саши
   },
+
+  // ── «Новый уровень контента» (предпродажа, доступ с 1 августа) ──
+  // Три тарифа. Все дают одну роль `uroven` (на предпродаже комната одна;
+  // тарифная разница — чат/созвоны — отдельными комнатами позже, к 1 августа).
+  // T1 — разовый, доступ навсегда. T2/T3 — помесячно: оплата разовым do=pay,
+  // доступ на месяц (grantAccess продлевает при повторной оплате). Настоящий
+  // Продамус-рекуррент (subscriptionId) не подключаем на старте (вариант B).
+  uroven_t1: {
+    slug: 'uroven-t1',
+    name: 'Новый уровень контента — Тариф 1 (сам)',
+    price: 3450,
+    type: 'one_time',
+    role: 'uroven',
+    period: null,
+    orderPrefix: 'uroven_t1',
+  },
+  uroven_t2: {
+    slug: 'uroven-t2',
+    name: 'Новый уровень контента — Тариф 2 (сам + монетизация)',
+    price: 7500,
+    type: 'subscription',
+    role: 'uroven',
+    period: 'month',
+    orderPrefix: 'uroven_t2',
+  },
+  uroven_t3: {
+    slug: 'uroven-t3',
+    name: 'Новый уровень контента — Тариф 3 (делаем вместе)',
+    price: 35000,
+    type: 'subscription',
+    role: 'uroven',
+    period: 'month',
+    orderPrefix: 'uroven_t3',
+  },
 };
 
 /** Опознать продукт по order_id Продамуса (по самому длинному совпавшему префиксу). */
