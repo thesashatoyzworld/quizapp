@@ -3,7 +3,7 @@ import { trackEvent } from '@/lib/notion';
 import { notifyAdmin } from '@/lib/telegram';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
-import { CATALOG } from '@/lib/catalog';
+import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -341,12 +341,13 @@ export async function POST(request: NextRequest) {
 
       // Авто-выдача доступа после оплаты картой на сайте: /start paid_<token>.
       // Продамус редиректит сюда после успешной оплаты; код подтверждён вебхуком
-      // (Event type=mk_web_paid). Сверяем код и сами открываем доступ + кабинет.
+      // (Event type web_paid/mk_web_paid). Продукт берём из события — работает для
+      // любого продукта (МК, «Новый уровень контента» и т.д.).
       if (startParam.startsWith('paid_')) {
         const token = startParam.slice('paid_'.length);
         try {
           const ev = await prisma.event.findFirst({
-            where: { type: 'mk_web_paid', metadata: { path: ['token'], equals: token } },
+            where: { type: { in: ['web_paid', 'mk_web_paid'] }, metadata: { path: ['token'], equals: token } },
             orderBy: { createdAt: 'desc' },
           });
 
@@ -359,8 +360,11 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: true });
           }
 
-          const meta = (ev.metadata || {}) as { consumed?: boolean; boundTelegramId?: number; amount?: number };
-          const amount = meta.amount || 4884;
+          const meta = (ev.metadata || {}) as { consumed?: boolean; boundTelegramId?: number; amount?: number; orderId?: string };
+          // Продукт и источник доступа — из события. Легаси mk_web_paid без productSlug → mk-dengi.
+          const product = getProductBySlug(ev.productSlug || 'mk-dengi') || CATALOG.mk_dengi;
+          const source = meta.orderId || `mkdengi_web_${token}`;
+          const amount = meta.amount || product.price;
 
           if (meta.consumed && meta.boundTelegramId && meta.boundTelegramId !== chatId) {
             await sendMessage(chatId, `этот код уже активирован на другом аккаунте. если это ошибка — напиши сюда.`);
@@ -375,18 +379,18 @@ export async function POST(request: NextRequest) {
           });
 
           if (!meta.consumed) {
-            const product = await prisma.product.findUnique({ where: { slug: 'mk-dengi' } });
-            if (product) {
+            const dbProduct = await prisma.product.findUnique({ where: { slug: product.slug } });
+            if (dbProduct) {
               await prisma.purchase.create({
-                data: { userId: user.id, productId: product.id, amount, source: 'web_redeem', prodamusOrderId: `paid_${token}` },
+                data: { userId: user.id, productId: dbProduct.id, amount, source: 'web_redeem', prodamusOrderId: `paid_${token}` },
               });
             }
           }
 
-          // Привязываем выданный картой доступ к этому Telegram (source = mkdengi_web_<token>).
+          // Привязываем выданный картой доступ к этому Telegram (source = <prefix>_web_<token>).
           // Если по какой-то причине его нет (старый платёж) — выдаём заново, идемпотентно.
-          await bindAccessToTelegram(`mkdengi_web_${token}`, chatId, user.id);
-          await grantAccess({ product: CATALOG.mk_dengi, telegramId: chatId, userId: user.id, source: `mkdengi_web_${token}` });
+          await bindAccessToTelegram(source, chatId, user.id);
+          await grantAccess({ product, telegramId: chatId, userId: user.id, source });
 
           await prisma.event.update({
             where: { id: ev.id },
@@ -395,12 +399,12 @@ export async function POST(request: NextRequest) {
 
           await sendMessage(
             chatId,
-            `готово ⚡\n\nоплата подтверждена, доступ к мастер-классу <b>«Разрешение быстрых денег»</b> открыт. материалы — в кабинете, жми кнопку ниже.`,
+            `готово ⚡\n\nоплата подтверждена, доступ к <b>${product.name}</b> открыт. материалы — в кабинете, жми кнопку ниже.`,
             { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] }
           );
 
           await notifyAdmin(
-            `✅ <b>Доступ выдан по коду</b> (оплата картой)\n\n👤 ${fullName || '—'}\n💬 ${username ? '@' + username : 'без username'}\n🆔 <code>${chatId}</code>\nToken: <code>${token}</code>`
+            `✅ <b>Доступ выдан по коду</b> (оплата картой)\n\n${product.name}\n👤 ${fullName || '—'}\n💬 ${username ? '@' + username : 'без username'}\n🆔 <code>${chatId}</code>\nToken: <code>${token}</code>`
           );
         } catch (err) {
           console.error('paid redeem error:', err);
@@ -596,6 +600,29 @@ export async function POST(request: NextRequest) {
         };
 
         await sendMessage(chatId, pageText, pageMarkup);
+
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: startParam,
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // «Новый уровень контента» — deep-link uroven / uroven_t1 / t2 / t3.
+      // Открываем компактный checkout в мини-аппе; оплата привязывается к Telegram.
+      if (startParam === 'uroven' || startParam.startsWith('uroven_t')) {
+        const tier = startParam.startsWith('uroven_') ? startParam.slice('uroven_'.length) : 't1';
+        const safeTier = ['t1', 't2', 't3'].includes(tier) ? tier : 't1';
+
+        await sendMessage(chatId, `${firstName}, открываю «Новый уровень контента» ⚡`, {
+          inline_keyboard: [
+            [{ text: '⚡ Оформить доступ', web_app: { url: `${WEBAPP_URL}/uroven/checkout.html?tier=${safeTier}` } }],
+          ],
+        });
 
         await trackEvent({
           event_type: 'bot_start',

@@ -4,8 +4,12 @@ import { getActiveAccessByTelegram } from '@/lib/access';
 
 // Какие платные разделы открыты человеку. Три способа опознать:
 //   ?telegramId=<id>  — заход из Telegram
-//   ?token=<token>    — ссылка после оплаты картой (mkdengi_web_<token>)
+//   ?token=<token>    — ссылка после оплаты картой (<prefix>_web_<token>)
 //   ?email=<email>    — «закрыл ссылку» → вход по почте, которой платил
+//
+// Токен/почта работают для любого продукта: источник доступа всегда
+// оканчивается на `_web_<token>`, а событие оплаты картой — тип web_paid
+// (mk_web_paid — легаси, тоже учитываем).
 //
 // Возвращает unlockedRoles + token (если опознали — фронт сохранит в браузере,
 // чтобы дальше открывалось само). pending:true — оплата по токену ещё в пути.
@@ -24,31 +28,29 @@ export async function GET(request: NextRequest) {
       const rows = await getActiveAccessByTelegram(Number(telegramId));
       unlockedRoles = rows.map((r) => r.role);
     } else if (token) {
-      const row = await prisma.productAccess.findFirst({
-        where: { source: `mkdengi_web_${token}`, status: 'active' },
+      const rows = await prisma.productAccess.findMany({
+        where: { source: { endsWith: `_web_${token}` }, status: 'active' },
         orderBy: { createdAt: 'desc' },
       });
-      if (!row) pending = true;
-      else if (!row.expiresAt || row.expiresAt > now) {
-        unlockedRoles = [row.role];
-        foundToken = token;
+      if (!rows.length) pending = true;
+      else {
+        unlockedRoles = rows.filter((r) => !r.expiresAt || r.expiresAt > now).map((r) => r.role);
+        if (unlockedRoles.length) foundToken = token;
       }
     } else if (email) {
       // Вход по почте: ищем оплату картой с этой почтой → её токен → доступ.
       const ev = await prisma.event.findFirst({
-        where: { type: 'mk_web_paid', metadata: { path: ['email'], equals: email } },
+        where: { type: { in: ['web_paid', 'mk_web_paid'] }, metadata: { path: ['email'], equals: email } },
         orderBy: { createdAt: 'desc' },
       });
       const evToken = ev ? (ev.metadata as { token?: string } | null)?.token : undefined;
       if (evToken) {
-        const row = await prisma.productAccess.findFirst({
-          where: { source: `mkdengi_web_${evToken}`, status: 'active' },
+        const rows = await prisma.productAccess.findMany({
+          where: { source: { endsWith: `_web_${evToken}` }, status: 'active' },
           orderBy: { createdAt: 'desc' },
         });
-        if (row && (!row.expiresAt || row.expiresAt > now)) {
-          unlockedRoles = [row.role];
-          foundToken = evToken;
-        }
+        unlockedRoles = rows.filter((r) => !r.expiresAt || r.expiresAt > now).map((r) => r.role);
+        if (unlockedRoles.length) foundToken = evToken;
       }
     }
 
