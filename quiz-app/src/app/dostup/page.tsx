@@ -17,6 +17,8 @@ function DostupInner() {
   const [email, setEmail] = useState('');
   const [loginErr, setLoginErr] = useState('');
   const [busy, setBusy] = useState(false);
+  // Просмотр материала внутри аппа: не уводим в новое окно, открываем во встроенном iframe.
+  const [viewer, setViewer] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
     const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
@@ -127,7 +129,10 @@ function DostupInner() {
               const Tag = ready ? 'a' : 'div';
               return (
                 <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
-                  {...(ready ? { href: m.url, target: '_blank', rel: 'noopener' } : {})}>
+                  {...(ready ? {
+                    href: m.url,
+                    onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: m.url, title: m.title }); },
+                  } : {})}>
                   <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
                   <span className="kb-mat-body">
                     <span className="kb-mat-title">{m.title}</span>
@@ -140,6 +145,20 @@ function DostupInner() {
           </div>
         </section>
       ))}
+
+      {viewer && (
+        <div className="kb-viewer" role="dialog" aria-modal="true" aria-label={viewer.title}>
+          <div className="kb-viewer-bar">
+            <button className="kb-viewer-back" onClick={() => setViewer(null)} aria-label="Назад">
+              <span className="kb-viewer-chev">{'‹'}</span> Назад
+            </button>
+            <span className="kb-viewer-title">{viewer.title}</span>
+            <a className="kb-viewer-ext" href={viewer.url} target="_blank" rel="noopener" aria-label="Открыть в браузере">{'↗'}</a>
+          </div>
+          <iframe className="kb-viewer-frame" src={viewer.url} title={viewer.title}
+            allow="autoplay; encrypted-media; fullscreen" />
+        </div>
+      )}
 
       <style>{`
         html, body {
@@ -238,6 +257,32 @@ function DostupInner() {
         }
         .kb-banner .kb-spinner { margin: 0; width: 18px; height: 18px; border-width: 2px; }
         @keyframes kb-spin { to { transform: rotate(360deg); } }
+        .kb-viewer {
+          position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column;
+          background: var(--kb-bg); animation: kb-fade .18s ease;
+        }
+        @keyframes kb-fade { from { opacity: 0; } to { opacity: 1; } }
+        .kb-viewer-bar {
+          flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+          padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top));
+          background: var(--kb-surface); border-bottom: 1px solid var(--kb-line);
+        }
+        .kb-viewer-back {
+          flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; cursor: pointer;
+          border: none; background: none; color: var(--kb-accent);
+          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 15px; padding: 4px 2px;
+        }
+        .kb-viewer-chev { font-size: 22px; line-height: 1; margin-top: -1px; }
+        .kb-viewer-title {
+          flex: 1; min-width: 0; text-align: center; color: var(--kb-text);
+          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 14.5px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .kb-viewer-ext {
+          flex: 0 0 auto; text-decoration: none; color: var(--kb-muted); font-size: 20px;
+          width: 34px; text-align: center; line-height: 1;
+        }
+        .kb-viewer-frame { flex: 1 1 auto; width: 100%; border: none; background: var(--kb-bg); }
       `}</style>
     </main>
   );
