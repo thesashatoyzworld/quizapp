@@ -13,12 +13,10 @@ function DostupInner() {
   const params = useSearchParams();
   const [unlocked, setUnlocked] = useState<string[] | null>(null);
   const [pending, setPending] = useState(false);
-  const [expanded, setExpanded] = useState<string[]>([]);
   const [askEmail, setAskEmail] = useState(false);
   const [email, setEmail] = useState('');
   const [loginErr, setLoginErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const toggle = (k: string) => setExpanded((e) => (e.includes(k) ? e.filter((x) => x !== k) : [...e, k]));
 
   useEffect(() => {
     const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
@@ -112,79 +110,36 @@ function DostupInner() {
         <div className="kb-state"><div className="kb-spinner" /><p>Загрузка…</p></div>
       )}
 
-      {unlocked && SECTIONS.map((s) => {
-        const open = has(s.role);
-
-        if (open) {
-          return (
-            <section className="kb-card kb-open" key={s.key}>
-              <div className="kb-head">
-                <div className="kb-titles">
-                  <h2 className="kb-h2">{s.title}</h2>
-                  <p className="kb-csub">{s.subtitle}</p>
-                </div>
-                <span className="kb-badge kb-badge-open">Открыто</span>
-              </div>
-              <div className="kb-materials">
-                {s.materials.map((m, i) => {
-                  const ready = !!m.url;
-                  const Tag = ready ? 'a' : 'div';
-                  return (
-                    <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
-                      {...(ready ? { href: m.url, target: '_blank', rel: 'noopener' } : {})}>
-                      <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
-                      <span className="kb-mat-body">
-                        <span className="kb-mat-title">{m.title}</span>
-                        {m.note && <span className="kb-mat-note">{m.note}</span>}
-                      </span>
-                      <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
-                    </Tag>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        }
-
-        // Закрытый раздел: замок, но можно развернуть и посмотреть, что внутри —
-        // список материалов под замками. Продажа — на лендинге (ссылка снизу).
-        const isExp = expanded.includes(s.key);
-        return (
-          <section className="kb-card kb-locked" key={s.key}>
-            <div className="kb-head kb-head-toggle" role="button" tabIndex={0}
-              onClick={() => toggle(s.key)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(s.key); } }}>
-              <div className="kb-titles">
-                <h2 className="kb-h2"><span className="kb-lock">{'\u{1F512}'}</span>{s.title}</h2>
-                <p className="kb-csub">{s.subtitle}</p>
-              </div>
-              <span className={`kb-chev ${isExp ? 'kb-chev-open' : ''}`}>{'›'}</span>
+      {/* Каждый видит только своё: бесплатные разделы (role:null) + те, на которые
+          есть активный доступ. Чужие платные разделы не показываем вовсе. */}
+      {unlocked && SECTIONS.filter((s) => has(s.role)).map((s) => (
+        <section className="kb-card kb-open" key={s.key}>
+          <div className="kb-head">
+            <div className="kb-titles">
+              <h2 className="kb-h2">{s.title}</h2>
+              <p className="kb-csub">{s.subtitle}</p>
             </div>
-
-            {isExp && (
-              <div className="kb-locked-inner">
-                <div className="kb-materials">
-                  {s.materials.map((m, i) => (
-                    <div key={i} className="kb-mat kb-mat-locked">
-                      <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
-                      <span className="kb-mat-body">
-                        <span className="kb-mat-title">{m.title}</span>
-                        {m.note && <span className="kb-mat-note">{m.note}</span>}
-                      </span>
-                      <span className="kb-mat-arr kb-mat-lock">{'\u{1F512}'}</span>
-                    </div>
-                  ))}
-                </div>
-                {s.landingUrl && (
-                  <a className="kb-getaccess" href={s.landingUrl} target="_blank" rel="noopener">
-                    Получить доступ →
-                  </a>
-                )}
-              </div>
-            )}
-          </section>
-        );
-      })}
+            <span className="kb-badge kb-badge-open">Открыто</span>
+          </div>
+          <div className="kb-materials">
+            {s.materials.map((m, i) => {
+              const ready = !!m.url;
+              const Tag = ready ? 'a' : 'div';
+              return (
+                <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
+                  {...(ready ? { href: m.url, target: '_blank', rel: 'noopener' } : {})}>
+                  <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
+                  <span className="kb-mat-body">
+                    <span className="kb-mat-title">{m.title}</span>
+                    {m.note && <span className="kb-mat-note">{m.note}</span>}
+                  </span>
+                  <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
+                </Tag>
+              );
+            })}
+          </div>
+        </section>
+      ))}
 
       <style>{`
         html, body {
