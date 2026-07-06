@@ -11,8 +11,28 @@ import { getActiveAccessByTelegram } from '@/lib/access';
 // оканчивается на `_web_<token>`, а событие оплаты картой — тип web_paid
 // (mk_web_paid — легаси, тоже учитываем).
 //
-// Возвращает unlockedRoles + token (если опознали — фронт сохранит в браузере,
-// чтобы дальше открывалось само). pending:true — оплата по токену ещё в пути.
+// Возвращает unlockedRoles + tiers (макс. тариф на роль, чтобы кабинет мог
+// показать материалы старших тарифов под замком) + token (если опознали —
+// фронт сохранит в браузере, чтобы дальше открывалось само).
+// pending:true — оплата по токену ещё в пути.
+type AccessRow = { role: string; productSlug: string };
+
+// Тариф зашит в productSlug как суффикс -t<N> (uroven-t1 / uroven-t2 / uroven-t3).
+function tierFromSlug(slug: string): number | null {
+  const m = /-t(\d+)$/.exec(slug);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+// Макс. тариф, купленный человеком, по каждой роли.
+function computeTiers(rows: AccessRow[]): Record<string, number> {
+  const tiers: Record<string, number> = {};
+  for (const r of rows) {
+    const n = tierFromSlug(r.productSlug);
+    if (n != null) tiers[r.role] = Math.max(tiers[r.role] ?? 0, n);
+  }
+  return tiers;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const telegramId = request.nextUrl.searchParams.get('telegramId');
@@ -20,13 +40,13 @@ export async function GET(request: NextRequest) {
     const email = request.nextUrl.searchParams.get('email')?.trim().toLowerCase();
     const now = new Date();
 
-    let unlockedRoles: string[] = [];
+    let activeRows: AccessRow[] = [];
     let pending = false;
     let foundToken: string | null = null;
 
     if (telegramId) {
       const rows = await getActiveAccessByTelegram(Number(telegramId));
-      unlockedRoles = rows.map((r) => r.role);
+      activeRows = rows.map((r) => ({ role: r.role, productSlug: r.productSlug }));
     } else if (token) {
       const rows = await prisma.productAccess.findMany({
         where: { source: { endsWith: `_web_${token}` }, status: 'active' },
@@ -34,8 +54,10 @@ export async function GET(request: NextRequest) {
       });
       if (!rows.length) pending = true;
       else {
-        unlockedRoles = rows.filter((r) => !r.expiresAt || r.expiresAt > now).map((r) => r.role);
-        if (unlockedRoles.length) foundToken = token;
+        activeRows = rows
+          .filter((r) => !r.expiresAt || r.expiresAt > now)
+          .map((r) => ({ role: r.role, productSlug: r.productSlug }));
+        if (activeRows.length) foundToken = token;
       }
     } else if (email) {
       // Вход по почте: ищем оплату картой с этой почтой → её токен → доступ.
@@ -49,12 +71,17 @@ export async function GET(request: NextRequest) {
           where: { source: { endsWith: `_web_${evToken}` }, status: 'active' },
           orderBy: { createdAt: 'desc' },
         });
-        unlockedRoles = rows.filter((r) => !r.expiresAt || r.expiresAt > now).map((r) => r.role);
-        if (unlockedRoles.length) foundToken = evToken;
+        activeRows = rows
+          .filter((r) => !r.expiresAt || r.expiresAt > now)
+          .map((r) => ({ role: r.role, productSlug: r.productSlug }));
+        if (activeRows.length) foundToken = evToken;
       }
     }
 
-    return NextResponse.json({ success: true, unlockedRoles, pending, token: foundToken });
+    const unlockedRoles = Array.from(new Set(activeRows.map((r) => r.role)));
+    const tiers = computeTiers(activeRows);
+
+    return NextResponse.json({ success: true, unlockedRoles, tiers, pending, token: foundToken });
   } catch (error) {
     console.error('[Cabinet] rooms error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

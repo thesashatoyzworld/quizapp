@@ -12,6 +12,7 @@ const ICONS: Record<string, string> = {
 function DostupInner() {
   const params = useSearchParams();
   const [unlocked, setUnlocked] = useState<string[] | null>(null);
+  const [tiers, setTiers] = useState<Record<string, number>>({});
   const [pending, setPending] = useState(false);
   const [askEmail, setAskEmail] = useState(false);
   const [email, setEmail] = useState('');
@@ -43,6 +44,7 @@ function DostupInner() {
         if (data.token && typeof window !== 'undefined') localStorage.setItem('kb_token', data.token);
         // Опознали по сохранённому коду, но доступ не нашёлся (истёк/сбросили) — дать вход по почте.
         if ((data.unlockedRoles || []).length === 0 && !tgId) setAskEmail(true);
+        setTiers(data.tiers || {});
         setUnlocked(data.unlockedRoles || []);
       } catch {
         if (!stop) { setAskEmail(true); setUnlocked([]); }
@@ -61,6 +63,7 @@ function DostupInner() {
       const data = await res.json();
       if ((data.unlockedRoles || []).length > 0) {
         if (data.token && typeof window !== 'undefined') localStorage.setItem('kb_token', data.token);
+        setTiers(data.tiers || {});
         setUnlocked(data.unlockedRoles);
         setAskEmail(false);
       } else {
@@ -124,24 +127,40 @@ function DostupInner() {
             <span className="kb-badge kb-badge-open">Открыто</span>
           </div>
           <div className="kb-materials">
-            {s.materials.map((m, i) => {
-              const ready = !!m.url;
-              const Tag = ready ? 'a' : 'div';
-              return (
-                <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
-                  {...(ready ? {
-                    href: m.url,
-                    onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: m.url, title: m.title }); },
-                  } : {})}>
-                  <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
-                  <span className="kb-mat-body">
-                    <span className="kb-mat-title">{m.title}</span>
-                    {m.note && <span className="kb-mat-note">{m.note}</span>}
-                  </span>
-                  <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
-                </Tag>
-              );
-            })}
+            {(() => {
+              const myTier = tiers[s.role ?? ''] ?? 0;
+              return s.materials.map((m, i) => {
+                // Материал старшего тарифа: виден, но под замком, если тариф ниже.
+                if (m.minTier != null && myTier < m.minTier) {
+                  return (
+                    <div key={i} className="kb-mat kb-mat-locked">
+                      <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
+                      <span className="kb-mat-body">
+                        <span className="kb-mat-title">{m.title}</span>
+                        <span className="kb-mat-note">{m.lockedNote || m.note}</span>
+                      </span>
+                      <span className="kb-mat-arr kb-mat-lock">{'\u{1F512}'}</span>
+                    </div>
+                  );
+                }
+                const ready = !!m.url;
+                const Tag = ready ? 'a' : 'div';
+                return (
+                  <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
+                    {...(ready ? {
+                      href: m.url,
+                      onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: m.url, title: m.title }); },
+                    } : {})}>
+                    <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
+                    <span className="kb-mat-body">
+                      <span className="kb-mat-title">{m.title}</span>
+                      {m.note && <span className="kb-mat-note">{m.note}</span>}
+                    </span>
+                    <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
+                  </Tag>
+                );
+              });
+            })()}
           </div>
         </section>
       ))}

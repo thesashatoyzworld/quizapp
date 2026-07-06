@@ -21,6 +21,10 @@ export interface RoomMaterial {
   title: string;
   url: string; // пусто = «скоро»
   note?: string;
+  /** материал доступен только с этого тарифа продукта и выше; ниже — показан под замком */
+  minTier?: number;
+  /** подпись под замком, если тариф ниже minTier (что и на каком тарифе доступно) */
+  lockedNote?: string;
 }
 
 export interface Section {
@@ -68,8 +72,8 @@ export const SECTIONS: Section[] = [
       { kind: 'recording', title: 'Предобучение: библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Прошлые воркшопы и мини-курс — доступны сразу.' },
       { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '', note: 'Откроются 1 августа.' },
       { kind: 'slides', title: 'Методички и задания', url: '', note: 'Материалы к каждому уровню.' },
-      { kind: 'chat', title: 'Чат с обратной связью', url: '', note: 'Тарифы 2 и 3. Откроется перед стартом.' },
-      { kind: 'live', title: 'Групповые созвоны', url: '', note: 'Тарифы 2 и 3. Расписание перед стартом.' },
+      { kind: 'chat', title: 'Чат с обратной связью', url: '', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
+      { kind: 'live', title: 'Групповые созвоны', url: '', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
     ],
   },
   {
