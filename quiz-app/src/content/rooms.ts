@@ -41,8 +41,8 @@ export const SECTIONS: Section[] = [
     title: 'Бесплатные материалы',
     subtitle: 'Статьи, подкасты, разборы — открыто всем',
     materials: [
-      { kind: 'article', title: 'Статьи', url: '', note: 'Лонгриды и разборы. Скоро добавим.' },
-      { kind: 'podcast', title: 'Подкаст «По чесноку»', url: '', note: 'Выпуски подкаста. Скоро добавим.' },
+      { kind: 'article', title: 'Статьи', url: 'https://thesashatoyz.com/blog', note: 'Лонгриды и разборы.' },
+      { kind: 'podcast', title: 'Подкаст «По чесноку»', url: 'https://thesashatoyz.com/podcast', note: 'Все выпуски.' },
     ],
   },
   {
@@ -65,6 +65,7 @@ export const SECTIONS: Section[] = [
     subtitle: '6 уровней навыка · доступ с 1 августа',
     landingUrl: 'https://thesashatoyz.com/uroven',
     materials: [
+      { kind: 'recording', title: 'Предобучение: библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Прошлые воркшопы и мини-курс — доступны сразу.' },
       { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '', note: 'Откроются 1 августа.' },
       { kind: 'slides', title: 'Методички и задания', url: '', note: 'Материалы к каждому уровню.' },
       { kind: 'chat', title: 'Чат с обратной связью', url: '', note: 'Тарифы 2 и 3. Откроется перед стартом.' },
