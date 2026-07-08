@@ -144,12 +144,17 @@ function DostupInner() {
                   );
                 }
                 const ready = !!m.url;
+                // Внутренние роуты (напр. /formula) открываем полноценной навигацией,
+                // чтобы работало опознание Telegram/токена. Внешние — во встроенном iframe.
+                const internal = m.url.startsWith('/');
                 const Tag = ready ? 'a' : 'div';
                 return (
                   <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
                     {...(ready ? {
                       href: m.url,
-                      onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: m.url, title: m.title }); },
+                      ...(internal ? {} : {
+                        onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: m.url, title: m.title }); },
+                      }),
                     } : {})}>
                     <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
                     <span className="kb-mat-body">
