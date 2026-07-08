@@ -12,13 +12,14 @@ const ICONS: Record<string, string> = {
 function DostupInner() {
   const params = useSearchParams();
   const [unlocked, setUnlocked] = useState<string[] | null>(null);
+  const [tiers, setTiers] = useState<Record<string, number>>({});
   const [pending, setPending] = useState(false);
-  const [expanded, setExpanded] = useState<string[]>([]);
   const [askEmail, setAskEmail] = useState(false);
   const [email, setEmail] = useState('');
   const [loginErr, setLoginErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const toggle = (k: string) => setExpanded((e) => (e.includes(k) ? e.filter((x) => x !== k) : [...e, k]));
+  // Просмотр материала внутри аппа: не уводим в новое окно, открываем во встроенном iframe.
+  const [viewer, setViewer] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
     const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
@@ -43,6 +44,7 @@ function DostupInner() {
         if (data.token && typeof window !== 'undefined') localStorage.setItem('kb_token', data.token);
         // Опознали по сохранённому коду, но доступ не нашёлся (истёк/сбросили) — дать вход по почте.
         if ((data.unlockedRoles || []).length === 0 && !tgId) setAskEmail(true);
+        setTiers(data.tiers || {});
         setUnlocked(data.unlockedRoles || []);
       } catch {
         if (!stop) { setAskEmail(true); setUnlocked([]); }
@@ -61,6 +63,7 @@ function DostupInner() {
       const data = await res.json();
       if ((data.unlockedRoles || []).length > 0) {
         if (data.token && typeof window !== 'undefined') localStorage.setItem('kb_token', data.token);
+        setTiers(data.tiers || {});
         setUnlocked(data.unlockedRoles);
         setAskEmail(false);
       } else {
@@ -112,79 +115,69 @@ function DostupInner() {
         <div className="kb-state"><div className="kb-spinner" /><p>Загрузка…</p></div>
       )}
 
-      {unlocked && SECTIONS.map((s) => {
-        const open = has(s.role);
-
-        if (open) {
-          return (
-            <section className="kb-card kb-open" key={s.key}>
-              <div className="kb-head">
-                <div className="kb-titles">
-                  <h2 className="kb-h2">{s.title}</h2>
-                  <p className="kb-csub">{s.subtitle}</p>
-                </div>
-                <span className="kb-badge kb-badge-open">Открыто</span>
-              </div>
-              <div className="kb-materials">
-                {s.materials.map((m, i) => {
-                  const ready = !!m.url;
-                  const Tag = ready ? 'a' : 'div';
-                  return (
-                    <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
-                      {...(ready ? { href: m.url, target: '_blank', rel: 'noopener' } : {})}>
-                      <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
-                      <span className="kb-mat-body">
-                        <span className="kb-mat-title">{m.title}</span>
-                        {m.note && <span className="kb-mat-note">{m.note}</span>}
-                      </span>
-                      <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
-                    </Tag>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        }
-
-        // Закрытый раздел: замок, но можно развернуть и посмотреть, что внутри —
-        // список материалов под замками. Продажа — на лендинге (ссылка снизу).
-        const isExp = expanded.includes(s.key);
-        return (
-          <section className="kb-card kb-locked" key={s.key}>
-            <div className="kb-head kb-head-toggle" role="button" tabIndex={0}
-              onClick={() => toggle(s.key)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(s.key); } }}>
-              <div className="kb-titles">
-                <h2 className="kb-h2"><span className="kb-lock">{'\u{1F512}'}</span>{s.title}</h2>
-                <p className="kb-csub">{s.subtitle}</p>
-              </div>
-              <span className={`kb-chev ${isExp ? 'kb-chev-open' : ''}`}>{'›'}</span>
+      {/* Каждый видит только своё: бесплатные разделы (role:null) + те, на которые
+          есть активный доступ. Чужие платные разделы не показываем вовсе. */}
+      {unlocked && SECTIONS.filter((s) => has(s.role)).map((s) => (
+        <section className="kb-card kb-open" key={s.key}>
+          <div className="kb-head">
+            <div className="kb-titles">
+              <h2 className="kb-h2">{s.title}</h2>
+              <p className="kb-csub">{s.subtitle}</p>
             </div>
-
-            {isExp && (
-              <div className="kb-locked-inner">
-                <div className="kb-materials">
-                  {s.materials.map((m, i) => (
+            <span className="kb-badge kb-badge-open">Открыто</span>
+          </div>
+          <div className="kb-materials">
+            {(() => {
+              const myTier = tiers[s.role ?? ''] ?? 0;
+              return s.materials.map((m, i) => {
+                // Материал старшего тарифа: виден, но под замком, если тариф ниже.
+                if (m.minTier != null && myTier < m.minTier) {
+                  return (
                     <div key={i} className="kb-mat kb-mat-locked">
                       <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
                       <span className="kb-mat-body">
                         <span className="kb-mat-title">{m.title}</span>
-                        {m.note && <span className="kb-mat-note">{m.note}</span>}
+                        <span className="kb-mat-note">{m.lockedNote || m.note}</span>
                       </span>
                       <span className="kb-mat-arr kb-mat-lock">{'\u{1F512}'}</span>
                     </div>
-                  ))}
-                </div>
-                {s.landingUrl && (
-                  <a className="kb-getaccess" href={s.landingUrl} target="_blank" rel="noopener">
-                    Получить доступ →
-                  </a>
-                )}
-              </div>
-            )}
-          </section>
-        );
-      })}
+                  );
+                }
+                const ready = !!m.url;
+                const Tag = ready ? 'a' : 'div';
+                return (
+                  <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
+                    {...(ready ? {
+                      href: m.url,
+                      onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: m.url, title: m.title }); },
+                    } : {})}>
+                    <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
+                    <span className="kb-mat-body">
+                      <span className="kb-mat-title">{m.title}</span>
+                      {m.note && <span className="kb-mat-note">{m.note}</span>}
+                    </span>
+                    <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
+                  </Tag>
+                );
+              });
+            })()}
+          </div>
+        </section>
+      ))}
+
+      {viewer && (
+        <div className="kb-viewer" role="dialog" aria-modal="true" aria-label={viewer.title}>
+          <div className="kb-viewer-bar">
+            <button className="kb-viewer-back" onClick={() => setViewer(null)} aria-label="Назад">
+              <span className="kb-viewer-chev">{'‹'}</span> Назад
+            </button>
+            <span className="kb-viewer-title">{viewer.title}</span>
+            <a className="kb-viewer-ext" href={viewer.url} target="_blank" rel="noopener" aria-label="Открыть в браузере">{'↗'}</a>
+          </div>
+          <iframe className="kb-viewer-frame" src={viewer.url} title={viewer.title}
+            allow="autoplay; encrypted-media; fullscreen" />
+        </div>
+      )}
 
       <style>{`
         html, body {
@@ -283,6 +276,32 @@ function DostupInner() {
         }
         .kb-banner .kb-spinner { margin: 0; width: 18px; height: 18px; border-width: 2px; }
         @keyframes kb-spin { to { transform: rotate(360deg); } }
+        .kb-viewer {
+          position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column;
+          background: var(--kb-bg); animation: kb-fade .18s ease;
+        }
+        @keyframes kb-fade { from { opacity: 0; } to { opacity: 1; } }
+        .kb-viewer-bar {
+          flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+          padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top));
+          background: var(--kb-surface); border-bottom: 1px solid var(--kb-line);
+        }
+        .kb-viewer-back {
+          flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; cursor: pointer;
+          border: none; background: none; color: var(--kb-accent);
+          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 15px; padding: 4px 2px;
+        }
+        .kb-viewer-chev { font-size: 22px; line-height: 1; margin-top: -1px; }
+        .kb-viewer-title {
+          flex: 1; min-width: 0; text-align: center; color: var(--kb-text);
+          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 14.5px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .kb-viewer-ext {
+          flex: 0 0 auto; text-decoration: none; color: var(--kb-muted); font-size: 20px;
+          width: 34px; text-align: center; line-height: 1;
+        }
+        .kb-viewer-frame { flex: 1 1 auto; width: 100%; border: none; background: var(--kb-bg); }
       `}</style>
     </main>
   );
