@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getActiveAccessByTelegram } from '@/lib/access';
 
 // Какие платные разделы открыты человеку. Три способа опознать:
@@ -35,53 +34,22 @@ function computeTiers(rows: AccessRow[]): Record<string, number> {
 
 export async function GET(request: NextRequest) {
   try {
+    // Доступ к кабинету — ТОЛЬКО по привязанному Telegram. Вход по токену из URL
+    // и по почте убран: токен-ссылка расшаривалась (кто угодно с ссылкой открывал
+    // кабинет). Оплата картой теперь ведёт в бота (/start paid_<token>), который
+    // привязывает доступ к Telegram, дальше кабинет опознаёт по telegramId.
     const telegramId = request.nextUrl.searchParams.get('telegramId');
-    const token = request.nextUrl.searchParams.get('token');
-    const email = request.nextUrl.searchParams.get('email')?.trim().toLowerCase();
-    const now = new Date();
 
     let activeRows: AccessRow[] = [];
-    let pending = false;
-    let foundToken: string | null = null;
-
     if (telegramId) {
       const rows = await getActiveAccessByTelegram(Number(telegramId));
       activeRows = rows.map((r) => ({ role: r.role, productSlug: r.productSlug }));
-    } else if (token) {
-      const rows = await prisma.productAccess.findMany({
-        where: { source: { endsWith: `_web_${token}` }, status: 'active' },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (!rows.length) pending = true;
-      else {
-        activeRows = rows
-          .filter((r) => !r.expiresAt || r.expiresAt > now)
-          .map((r) => ({ role: r.role, productSlug: r.productSlug }));
-        if (activeRows.length) foundToken = token;
-      }
-    } else if (email) {
-      // Вход по почте: ищем оплату картой с этой почтой → её токен → доступ.
-      const ev = await prisma.event.findFirst({
-        where: { type: { in: ['web_paid', 'mk_web_paid'] }, metadata: { path: ['email'], equals: email } },
-        orderBy: { createdAt: 'desc' },
-      });
-      const evToken = ev ? (ev.metadata as { token?: string } | null)?.token : undefined;
-      if (evToken) {
-        const rows = await prisma.productAccess.findMany({
-          where: { source: { endsWith: `_web_${evToken}` }, status: 'active' },
-          orderBy: { createdAt: 'desc' },
-        });
-        activeRows = rows
-          .filter((r) => !r.expiresAt || r.expiresAt > now)
-          .map((r) => ({ role: r.role, productSlug: r.productSlug }));
-        if (activeRows.length) foundToken = evToken;
-      }
     }
 
     const unlockedRoles = Array.from(new Set(activeRows.map((r) => r.role)));
     const tiers = computeTiers(activeRows);
 
-    return NextResponse.json({ success: true, unlockedRoles, tiers, pending, token: foundToken });
+    return NextResponse.json({ success: true, unlockedRoles, tiers, pending: false, token: null });
   } catch (error) {
     console.error('[Cabinet] rooms error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
