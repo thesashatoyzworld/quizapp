@@ -142,25 +142,25 @@ h1 {
     btns[i].addEventListener('click', function () { tier = this.getAttribute('data-tier'); render(); });
   }
 
-  function payUrl() {
+  function payFields() {
     var t = TIERS[tier];
     var price = isTest ? 50 : t.price;
     var orderId = 'uroven_' + tier + '_' + uid;
-    var cabinet = origin + '/dostup';
+    // Брендовый домен кабинета (не технический origin превью-деплоя).
+    var cabinet = 'https://world.thesashatoyz.com/dostup';
     var paidContent = 'Доступ к «Новый уровень контента» (' + t.name + '). '
       + 'Открой кабинет: ' + cabinet + ' — или напиши боту @testtoyzbot. '
       + 'Все материалы откроются 1 августа.';
-    var parts = [
-      'do=pay',
-      'products[0][name]=' + encodeURIComponent('Новый уровень контента — ' + t.name + (isTest ? ' (ТЕСТ 50₽)' : '')),
-      'products[0][price]=' + price,
-      'products[0][quantity]=1',
-      'order_id=' + encodeURIComponent(orderId),
-      'paid_content=' + encodeURIComponent(paidContent),
-      'urlNotification=' + encodeURIComponent(origin + '/api/prodamus-webhook'),
-      'urlSuccess=' + encodeURIComponent(cabinet + '?payment=success')
-    ];
-    return FORM + '?' + parts.join('&');
+    return {
+      'do': 'pay',
+      'products[0][name]': 'Новый уровень контента — ' + t.name + (isTest ? ' (ТЕСТ 50₽)' : ''),
+      'products[0][price]': price,
+      'products[0][quantity]': 1,
+      'order_id': orderId,
+      'paid_content': paidContent,
+      'urlNotification': origin + '/api/prodamus-webhook',
+      'urlSuccess': cabinet + '?payment=success'
+    };
   }
 
   document.getElementById('pay').addEventListener('click', function () {
@@ -168,8 +168,22 @@ h1 {
       window.location.href = 'https://t.me/testtoyzbot?start=uroven_' + tier;
       return;
     }
-    var url = payUrl();
-    if (tg && tg.openLink) { tg.openLink(url); } else { window.open(url, '_blank'); }
+    // POST-форма (form-urlencoded): Продамус корректно декодирует поля, поэтому
+    // paid_content с кириллицей приходит в письмо читаемым, а не как %D0%94...
+    var fields = payFields();
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = FORM;
+    form.acceptCharset = 'UTF-8';
+    for (var k in fields) {
+      var inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = k;
+      inp.value = fields[k];
+      form.appendChild(inp);
+    }
+    document.body.appendChild(form);
+    form.submit();
   });
 
   if (!uid) {
