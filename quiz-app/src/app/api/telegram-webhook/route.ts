@@ -614,9 +614,9 @@ export async function POST(request: NextRequest) {
 
       // ТЕСТ e2e-оплаты: /start uroven_test → checkout с ценой 1₽ (тариф 1). Убрать после теста.
       if (startParam === 'uroven_test') {
-        await sendMessage(chatId, `${firstName}, ТЕСТ-прогон оплаты (1₽) ⚡`, {
+        await sendMessage(chatId, `${firstName}, ТЕСТ-прогон оплаты (50₽) ⚡`, {
           inline_keyboard: [
-            [{ text: '⚡ Оформить (ТЕСТ 1₽)', web_app: { url: `${WEBAPP_URL}/uroven/checkout.html?tier=t1&test=1` } }],
+            [{ text: '⚡ Оформить (ТЕСТ 50₽)', web_app: { url: `${WEBAPP_URL}/uroven/checkout.html?tier=t1&test=1` } }],
           ],
         });
         await trackEvent({
