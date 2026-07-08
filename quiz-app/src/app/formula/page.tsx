@@ -65,10 +65,12 @@ export default function FormulaPage() {
     setBusy(false);
   }
 
-  // Превью только для локальной разработки (?preview=1). В проде инертно.
+  // Превью для ревью. ?preview=1 — только локально. ?preview=<секрет> — работает
+  // и на деплое (временно, чтобы Саша прокликал перед запуском; убрать перед продом).
   const [devPreview, setDevPreview] = useState(false);
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'production' && new URLSearchParams(window.location.search).get('preview') === '1') {
+    const q = new URLSearchParams(window.location.search).get('preview');
+    if ((q === '1' && process.env.NODE_ENV !== 'production') || q === 'fvk-2026-sasha') {
       setDevPreview(true);
     }
   }, []);
