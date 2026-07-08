@@ -612,6 +612,23 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // ТЕСТ e2e-оплаты: /start uroven_test → checkout с ценой 1₽ (тариф 1). Убрать после теста.
+      if (startParam === 'uroven_test') {
+        await sendMessage(chatId, `${firstName}, ТЕСТ-прогон оплаты (1₽) ⚡`, {
+          inline_keyboard: [
+            [{ text: '⚡ Оформить (ТЕСТ 1₽)', web_app: { url: `${WEBAPP_URL}/uroven/checkout.html?tier=t1&test=1` } }],
+          ],
+        });
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'uroven_test',
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       // «Новый уровень контента» — deep-link uroven / uroven_t1 / t2 / t3.
       // Открываем компактный checkout в мини-аппе; оплата привязывается к Telegram.
       if (startParam === 'uroven' || startParam.startsWith('uroven_t')) {
