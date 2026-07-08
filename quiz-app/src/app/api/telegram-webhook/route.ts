@@ -635,6 +635,35 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Статья «Инстаграм это казино» (лонгрид про алгоритм) как Mini App.
+      // Вход из Instagram через trampoline: thesashatoyz.com/tg/testtoyzbot?start=kazino
+      // Метки источника: kazino_stories / kazino_bio / kazino_reels → в utm_source (bot_start).
+      // Человек попадает в базу бота, статья открывается внутри мини-аппа (пруфы через tg.openLink).
+      if (startParam === 'kazino' || startParam.startsWith('kazino_')) {
+        // текст-болванка, Саша может переписать голосом
+        const kazinoText = `${firstName}, держи 👇
+
+разбор на реальных аккаунтах: почему «секрет алгоритма» — это миф, и как обыграть это казино`;
+
+        const kazinoMarkup = {
+          inline_keyboard: [
+            [{ text: '📖 Читать разбор', web_app: { url: 'https://thesashatoyz.com/algoritm-sistema.html' } }],
+          ],
+        };
+
+        await sendMessage(chatId, kazinoText, kazinoMarkup);
+
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: startParam,
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
       // МК «Разрешение быстрых денег» — открываем лендинг в мини-аппе,
       // оплата идёт прямо из него (см. public/mk/index.html), вебхук ловит оплату.
       if (startParam === 'mk_dengi') {
