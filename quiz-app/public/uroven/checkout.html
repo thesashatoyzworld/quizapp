@@ -124,13 +124,11 @@ h1 {
     return m ? m[1] : 't1';
   }
   var tier = qsTier();
-  // Скрытый тест-режим: ?test=1 → цена 1₽ (для e2e-прогона оплаты). Убрать после теста.
-  var isTest = /[?&]test=1/.test(window.location.search);
 
   function render() {
     var t = TIERS[tier];
-    document.getElementById('tierName').textContent = t.name + (isTest ? ' · ТЕСТ 50₽' : '');
-    document.getElementById('price').innerHTML = (isTest ? 50 : t.price).toLocaleString('ru-RU') + '&nbsp;₽';
+    document.getElementById('tierName').textContent = t.name;
+    document.getElementById('price').innerHTML = t.price.toLocaleString('ru-RU') + '&nbsp;₽';
     document.getElementById('per').textContent = t.per;
     document.getElementById('incl').innerHTML = t.incl.map(function (x) { return '<li>' + x + '</li>'; }).join('');
     var btns = document.querySelectorAll('.tiers button');
@@ -144,22 +142,20 @@ h1 {
 
   function payFields() {
     var t = TIERS[tier];
-    var price = isTest ? 50 : t.price;
     var orderId = 'uroven_' + tier + '_' + uid;
-    // Брендовый домен кабинета (не технический origin превью-деплоя).
-    var cabinet = 'https://world.thesashatoyz.com/dostup';
-    var paidContent = 'Доступ к «Новый уровень контента» (' + t.name + '). '
-      + 'Открой кабинет: ' + cabinet + ' — или напиши боту @testtoyzbot. '
+    // Доступ привязан к Telegram (оплата из бота). Кабинет — только через Telegram.
+    var paidContent = 'Оплата принята: «Новый уровень контента» (' + t.name + '). '
+      + 'Доступ привязан к твоему Telegram — открой кабинет через бота @testtoyzbot. '
       + 'Все материалы откроются 1 августа.';
     return {
       'do': 'pay',
-      'products[0][name]': 'Новый уровень контента — ' + t.name + (isTest ? ' (ТЕСТ 50₽)' : ''),
-      'products[0][price]': price,
+      'products[0][name]': 'Новый уровень контента — ' + t.name,
+      'products[0][price]': t.price,
       'products[0][quantity]': 1,
       'order_id': orderId,
       'paid_content': paidContent,
       'urlNotification': origin + '/api/prodamus-webhook',
-      'urlSuccess': cabinet + '?payment=success'
+      'urlSuccess': 'https://t.me/testtoyzbot'
     };
   }
 
