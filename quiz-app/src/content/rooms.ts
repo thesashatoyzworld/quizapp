@@ -69,6 +69,7 @@ export const SECTIONS: Section[] = [
     subtitle: '6 уровней навыка · доступ с 1 августа',
     landingUrl: 'https://thesashatoyz.com/uroven',
     materials: [
+      { kind: 'recording', title: 'Бонус: Формула вирусного контента', url: '/formula', note: 'Полный видеокурс по контенту — 25 уроков. Доступно сразу.' },
       { kind: 'recording', title: 'Предобучение: библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Прошлые воркшопы и мини-курс — доступны сразу.' },
       { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '', note: 'Откроются 1 августа.' },
       { kind: 'slides', title: 'Методички и задания', url: '', note: 'Материалы к каждому уровню.' },
