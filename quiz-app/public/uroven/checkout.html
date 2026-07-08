@@ -124,11 +124,13 @@ h1 {
     return m ? m[1] : 't1';
   }
   var tier = qsTier();
+  // Скрытый тест-режим: ?test=1 → цена 1₽ (для e2e-прогона оплаты). Убрать после теста.
+  var isTest = /[?&]test=1/.test(window.location.search);
 
   function render() {
     var t = TIERS[tier];
-    document.getElementById('tierName').textContent = t.name;
-    document.getElementById('price').innerHTML = t.price.toLocaleString('ru-RU') + '&nbsp;₽';
+    document.getElementById('tierName').textContent = t.name + (isTest ? ' · ТЕСТ 1₽' : '');
+    document.getElementById('price').innerHTML = (isTest ? 1 : t.price).toLocaleString('ru-RU') + '&nbsp;₽';
     document.getElementById('per').textContent = t.per;
     document.getElementById('incl').innerHTML = t.incl.map(function (x) { return '<li>' + x + '</li>'; }).join('');
     var btns = document.querySelectorAll('.tiers button');
@@ -142,6 +144,7 @@ h1 {
 
   function payUrl() {
     var t = TIERS[tier];
+    var price = isTest ? 1 : t.price;
     var orderId = 'uroven_' + tier + '_' + uid;
     var cabinet = origin + '/dostup';
     var paidContent = 'Доступ к «Новый уровень контента» (' + t.name + '). '
@@ -149,8 +152,8 @@ h1 {
       + 'Все материалы откроются 1 августа.';
     var parts = [
       'do=pay',
-      'products[0][name]=' + encodeURIComponent('Новый уровень контента — ' + t.name),
-      'products[0][price]=' + t.price,
+      'products[0][name]=' + encodeURIComponent('Новый уровень контента — ' + t.name + (isTest ? ' (ТЕСТ 1₽)' : '')),
+      'products[0][price]=' + price,
       'products[0][quantity]=1',
       'order_id=' + encodeURIComponent(orderId),
       'paid_content=' + encodeURIComponent(paidContent),
