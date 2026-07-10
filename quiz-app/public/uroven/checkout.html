@@ -159,13 +159,29 @@ h1 {
     };
   }
 
+  // GET-URL для Продамуса: ключи с литеральными [] (Продамус требует их дословно),
+  // значения — encodeURIComponent. Так paid_content с кириллицей приходит читаемым.
+  function buildPayUrl() {
+    var fields = payFields();
+    var parts = [];
+    for (var k in fields) parts.push(k + '=' + encodeURIComponent(fields[k]));
+    return FORM + '?' + parts.join('&');
+  }
+
   document.getElementById('pay').addEventListener('click', function () {
     if (!uid) {
-      window.location.href = 'https://t.me/testtoyzbot?start=uroven_' + tier;
+      // Вне бота — уводим в бота, чтобы доступ привязался к Telegram
+      if (tg && tg.openTelegramLink) tg.openTelegramLink('https://t.me/testtoyzbot?start=uroven_' + tier);
+      else window.location.href = 'https://t.me/testtoyzbot?start=uroven_' + tier;
       return;
     }
-    // POST-форма (form-urlencoded): Продамус корректно декодирует поля, поэтому
-    // paid_content с кириллицей приходит в письмо читаемым, а не как %D0%94...
+    if (tg && tg.openLink) {
+      // Внутри Telegram-мини-аппа top-level form.submit на внешний домен блокируется
+      // Telegram WebView — оплата не открывается. Открываем Продамус официальным API.
+      tg.openLink(buildPayUrl());
+      return;
+    }
+    // Обычный браузер — POST-форма (paid_content с кириллицей приходит читаемым)
     var fields = payFields();
     var form = document.createElement('form');
     form.method = 'POST';
