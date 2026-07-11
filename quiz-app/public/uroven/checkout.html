@@ -77,7 +77,7 @@ h1 {
 </head>
 <body>
   <main class="card">
-    <p class="eyebrow">Предпродажа · доступ с 1 августа</p>
+    <p class="eyebrow">Предпродажа · 2 воркшопа сразу, курс 7 августа</p>
     <h1>Новый уровень <span class="hl">контента</span></h1>
 
     <div class="tiers">
@@ -93,7 +93,7 @@ h1 {
     <div class="price-wrap">
       <div class="price" id="price"></div>
       <p class="per" id="per"></p>
-      <p class="deadline">доступ ко всем материалам — <b>1 августа</b></p>
+      <p class="deadline">2 воркшопа сразу · курс — <b>7 августа</b></p>
     </div>
 
     <button class="btn" id="pay">Оформить доступ</button>
@@ -146,7 +146,7 @@ h1 {
     // Доступ привязан к Telegram (оплата из бота). Кабинет — только через Telegram.
     var paidContent = 'Оплата принята: «Новый уровень контента» (' + t.name + '). '
       + 'Доступ привязан к твоему Telegram — открой кабинет через бота @testtoyzbot. '
-      + 'Все материалы откроются 1 августа.';
+      + 'Сразу внутри два воркшопа: «Продающий контент» и «Формула вирусного контента». Курс — 7 августа.';
     return {
       'do': 'pay',
       'products[0][name]': 'Новый уровень контента — ' + t.name,

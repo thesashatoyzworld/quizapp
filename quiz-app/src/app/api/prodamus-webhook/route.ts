@@ -514,7 +514,7 @@ export async function POST(request: NextRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: tgUserId,
-              text: `готово ⚡\n\nоплата принята: <b>${product.name}</b>.\nдоступ откроется 1 августа — все материалы будут в кабинете.`,
+              text: `готово ⚡\n\nоплата принята: <b>${product.name}</b>.\n\nдва воркшопа уже в кабинете: «Продающий контент» и «Формула вирусного контента». с них и начинай.\nсам курс (6 уровней) откроется 7 августа.`,
               parse_mode: 'HTML',
               reply_markup: { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
             }),
