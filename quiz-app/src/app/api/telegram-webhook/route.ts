@@ -6,6 +6,10 @@ import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 
+// Держим функцию открытой дольше дефолтных 10с: kazino-флоу ждёт ~7с между
+// сообщением про канал и статьёй.
+export const maxDuration = 20;
+
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
 
@@ -651,9 +655,7 @@ export async function POST(request: NextRequest) {
           ],
         };
 
-        await sendMessage(chatId, kazinoText, kazinoMarkup);
-
-        // Мягкий пул в канал следом за статьёй (текст Саши, дословно).
+        // Сначала мягкий пул в канал (текст Саши, дословно)…
         const channelText = `подписку проверять не буду, но если реально хочешь:
 
 • обыгрывать это казино
@@ -669,6 +671,10 @@ export async function POST(request: NextRequest) {
             [{ text: '📣 мой канал в telegram', url: 'https://t.me/sashatoyz' }],
           ],
         });
+
+        // …потом, с паузой ~7с, сама статья.
+        await new Promise((r) => setTimeout(r, 7000));
+        await sendMessage(chatId, kazinoText, kazinoMarkup);
 
         await trackEvent({
           event_type: 'bot_start',
