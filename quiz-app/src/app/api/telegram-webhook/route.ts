@@ -653,6 +653,23 @@ export async function POST(request: NextRequest) {
 
         await sendMessage(chatId, kazinoText, kazinoMarkup);
 
+        // Мягкий пул в канал следом за статьёй (текст Саши, дословно).
+        const channelText = `подписку проверять не буду, но если реально хочешь:
+
+• обыгрывать это казино
+• зарабатывать капусту из блога
+• шуметь своим проектом на всю катушку
+
+каждый день я делюсь инсайтами и тем, о чем вам не расскажет ни один маркетолог
+
+буду ждать тебя тут 👇`;
+
+        await sendMessage(chatId, channelText, {
+          inline_keyboard: [
+            [{ text: '📣 мой канал в telegram', url: 'https://t.me/sashatoyz' }],
+          ],
+        });
+
         await trackEvent({
           event_type: 'bot_start',
           user_id: chatId,
