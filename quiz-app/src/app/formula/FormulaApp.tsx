@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Content, NavNode, Page } from '@/content/formula/types';
-import { RenderBlocks } from './blocks';
+import { RenderBlocks, WatermarkContext } from './blocks';
 
 // Плоский порядок слугов (для клавиш и валидности) берём из prev/next в данных.
 
@@ -50,7 +50,7 @@ function flattenNav(nodes: NavNode[], out: NavNode[] = []): NavNode[] {
   return out;
 }
 
-export default function FormulaApp({ content }: { content: Content }) {
+export default function FormulaApp({ content, watermark = '' }: { content: Content; watermark?: string }) {
   const { nav, pages } = content;
   const firstSlug = nav[0]?.slug || 'vvedenie';
   const [active, setActive] = useState<string>(firstSlug);
@@ -106,6 +106,7 @@ export default function FormulaApp({ content }: { content: Content }) {
   const groupNode = !page ? flattenNav(nav).find((n) => n.slug === active) : undefined;
 
   return (
+    <WatermarkContext.Provider value={watermark}>
     <div className="fx-shell">
       <button className="fx-burger" onClick={() => setMenuOpen((v) => !v)} aria-label="Меню">
         {menuOpen ? '✕' : '☰'} Разделы
@@ -159,6 +160,7 @@ export default function FormulaApp({ content }: { content: Content }) {
         </article>
       </main>
     </div>
+    </WatermarkContext.Provider>
   );
 }
 

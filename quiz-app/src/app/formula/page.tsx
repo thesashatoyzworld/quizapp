@@ -15,11 +15,18 @@ export default function FormulaPage() {
   const [email, setEmail] = useState('');
   const [loginErr, setLoginErr] = useState('');
   const [busy, setBusy] = useState(false);
+  // Метка зрителя для вотермарка видео (Telegram @username · id).
+  const [tgLabel, setTgLabel] = useState('');
 
   useEffect(() => {
-    const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
+    const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number; username?: string; first_name?: string } } } } }).Telegram?.WebApp;
     if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
-    const tgId = tg?.initDataUnsafe?.user?.id;
+    const tgUser = tg?.initDataUnsafe?.user;
+    const tgId = tgUser?.id;
+    if (tgUser) {
+      const who = tgUser.username ? '@' + tgUser.username : tgUser.first_name || '';
+      setTgLabel(who ? `${who} · ${tgUser.id}` : String(tgUser.id));
+    }
     const urlToken = new URLSearchParams(window.location.search).get('t');
     const savedToken = typeof window !== 'undefined' ? localStorage.getItem('kb_token') : null;
     const token = urlToken || savedToken;
@@ -76,6 +83,9 @@ export default function FormulaPage() {
   }, []);
 
   const hasAccess = devPreview || (unlocked?.includes(ROLE) ?? false);
+  // Вотермарк: реальная Telegram-метка; на превью-ссылке без Telegram — заглушка,
+  // чтобы знак было видно при ревью.
+  const watermark = tgLabel || (devPreview ? 'preview' : '');
 
   // Гейт от hydration-mismatch: до монтирования (и на сервере) отдаём один и тот
   // же лоадер, дальше уже решаем по опознанию — серверный и клиентский HTML совпадают.
@@ -100,7 +110,7 @@ export default function FormulaPage() {
         <div className="fx-center"><div className="fx-spin" /><p>Оплата обрабатывается — раздел откроется через пару секунд.</p></div>
       )}
 
-      {hasAccess && <FormulaApp content={content} />}
+      {hasAccess && <FormulaApp content={content} watermark={watermark} />}
 
       {!hasAccess && unlocked !== null && !pending && (
         <div className="fx-lock">
