@@ -51,9 +51,9 @@ export function RichText({ rich, onNav }: { rich: Rich[]; onNav: NavFn }) {
 }
 
 function VideoBlock({ loomId }: { loomId: string }) {
-  const yt = VIDEO_MAP[loomId];
-  const src = yt
-    ? `https://www.youtube.com/embed/${yt}`
+  const kin = VIDEO_MAP[loomId];
+  const src = kin
+    ? `https://kinescope.io/embed/${kin}`
     : `https://www.loom.com/embed/${loomId}`;
   return (
     <div className="fx-video">
