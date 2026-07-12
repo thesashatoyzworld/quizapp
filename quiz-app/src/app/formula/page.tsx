@@ -72,20 +72,16 @@ export default function FormulaPage() {
     setBusy(false);
   }
 
-  // Превью для ревью. ?preview=1 — только локально. ?preview=<секрет> — работает
-  // и на деплое (временно, чтобы Саша прокликал перед запуском; убрать перед продом).
+  // Превью для локальной разработки: ?preview=1 работает только вне продакшена.
   const [devPreview, setDevPreview] = useState(false);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('preview');
-    if ((q === '1' && process.env.NODE_ENV !== 'production') || q === 'fvk-2026-sasha') {
-      setDevPreview(true);
-    }
+    if (q === '1' && process.env.NODE_ENV !== 'production') setDevPreview(true);
   }, []);
 
   const hasAccess = devPreview || (unlocked?.includes(ROLE) ?? false);
-  // Вотермарк: реальная Telegram-метка; на превью-ссылке без Telegram — заглушка,
-  // чтобы знак было видно при ревью.
-  const watermark = tgLabel || (devPreview ? 'preview' : '');
+  // Вотермарк видео = Telegram-метка зрителя (@username · id).
+  const watermark = tgLabel;
 
   // Гейт от hydration-mismatch: до монтирования (и на сервере) отдаём один и тот
   // же лоадер, дальше уже решаем по опознанию — серверный и клиентский HTML совпадают.
