@@ -168,8 +168,26 @@ h1 {
     return FORM + '?' + parts.join('&');
   }
 
+  // Ловим ПОПЫТКУ оплаты (даже если она потом сорвётся в WebView) — иначе
+  // такие люди невидимы в аналитике. Fire-and-forget, платёж не блокирует.
+  function trackCheckout(method) {
+    try {
+      var payload = JSON.stringify({
+        event_type: 'checkout_open',
+        user_id: uid || undefined,
+        utm_source: 'uroven_' + tier,
+        metadata: { tier: tier, order_id: 'uroven_' + tier + '_' + uid, method: method, page: 'checkout' }
+      });
+      if (navigator.sendBeacon) {
+        if (navigator.sendBeacon('/api/track-event', new Blob([payload], { type: 'application/json' }))) return;
+      }
+      fetch('/api/track-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(function () {});
+    } catch (e) {}
+  }
+
   document.getElementById('pay').addEventListener('click', function () {
     if (!uid) {
+      trackCheckout('bounce_bot');
       // Вне бота — уводим в бота, чтобы доступ привязался к Telegram
       if (tg && tg.openTelegramLink) tg.openTelegramLink('https://t.me/testtoyzbot?start=uroven_' + tier);
       else window.location.href = 'https://t.me/testtoyzbot?start=uroven_' + tier;
@@ -178,10 +196,12 @@ h1 {
     if (tg && tg.openLink) {
       // Внутри Telegram-мини-аппа top-level form.submit на внешний домен блокируется
       // Telegram WebView — оплата не открывается. Открываем Продамус официальным API.
+      trackCheckout('tg_openlink');
       tg.openLink(buildPayUrl());
       return;
     }
     // Обычный браузер — POST-форма (paid_content с кириллицей приходит читаемым)
+    trackCheckout('browser_form');
     var fields = payFields();
     var form = document.createElement('form');
     form.method = 'POST';
