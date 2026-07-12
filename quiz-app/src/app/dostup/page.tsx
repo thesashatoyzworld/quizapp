@@ -76,9 +76,10 @@ function DostupInner() {
         <div className="kb-state"><div className="kb-spinner" /><p>Загрузка…</p></div>
       )}
 
-      {/* Каждый видит только своё: бесплатные разделы (role:null) + те, на которые
-          есть активный доступ. Чужие платные разделы не показываем вовсе. */}
-      {unlocked && SECTIONS.filter((s) => has(s.role)).map((s) => (
+      {/* Показываем ВСЕ разделы. Открытые (бесплатные + купленные) — с материалами.
+          Закрытые платные — под замком с кнопкой на лендинг: «это есть, но закрыто». */}
+      {unlocked && SECTIONS.map((s) => (
+        has(s.role) ? (
         <section className="kb-card kb-open" key={s.key}>
           <div className="kb-head">
             <div className="kb-titles">
@@ -129,6 +130,22 @@ function DostupInner() {
             })()}
           </div>
         </section>
+        ) : (
+        <section className="kb-card kb-locked" key={s.key}>
+          <div className="kb-head">
+            <div className="kb-titles">
+              <h2 className="kb-h2"><span className="kb-lock">{'\u{1F512}'}</span> {s.title}</h2>
+              <p className="kb-csub">{s.subtitle}</p>
+            </div>
+            <span className="kb-badge kb-badge-closed">Закрыто</span>
+          </div>
+          {s.landingUrl && (
+            <a className="kb-getaccess kb-locked-inner" href={s.landingUrl} target="_blank" rel="noopener noreferrer">
+              Получить доступ →
+            </a>
+          )}
+        </section>
+        )
       ))}
 
       {viewer && (
