@@ -334,6 +334,37 @@ async function notifyAdminUroven(productName: string, amount: number, contact: s
   }
 }
 
+// Оплата дошла до Продамуса, но не завершилась (карта отклонена / рассрочка не
+// одобрена / отмена / таймаут). Шлём админу сразу — это горячий лид на дожим.
+async function notifyAdminPaymentFailed(
+  status: string, statusDesc: string, productName: string,
+  amount: string, email: string, phone: string, orderId: string,
+) {
+  if (!BOT_TOKEN) return;
+  const adminChatId = await getAdminChatId();
+  if (!adminChatId) return;
+
+  let name = productName;
+  try { name = decodeURIComponent(productName); } catch { /* keep as-is */ }
+  const contact = [email, phone].filter(Boolean).join(' · ') || 'нет контакта';
+  const text = `❌ Оплата НЕ прошла (Продамус)\n\n`
+    + `${name || 'товар не указан'}\n`
+    + `${amount ? Number(amount).toLocaleString('ru-RU') + ' ₽\n' : ''}`
+    + `Статус: ${statusDesc || status}\n`
+    + `Контакт: ${contact}\n`
+    + `Order: ${orderId || '—'}\n\n`
+    + `⚡ Дошёл до оплаты, сорвалось — можно дожать по горячим следам.`;
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: adminChatId, text }),
+    });
+  } catch (error) {
+    console.error('Failed to notify admin about failed payment:', error);
+  }
+}
+
 async function notifyAdminError(errorMessage: string) {
   if (!BOT_TOKEN) return;
 
@@ -410,6 +441,17 @@ export async function POST(request: NextRequest) {
     const paymentStatus = body.payment_status;
     if (paymentStatus !== 'success') {
       console.log(`Payment status is "${paymentStatus}", skipping`);
+      // Оплата дошла до Продамуса, но не прошла → уведомляем админа (горячий лид).
+      const failProducts = body.products as Record<string, Record<string, string>> | undefined;
+      await notifyAdminPaymentFailed(
+        String(paymentStatus ?? ''),
+        String(body.payment_status_description ?? ''),
+        failProducts?.['0']?.name ?? '',
+        String(failProducts?.['0']?.sum ?? failProducts?.['0']?.price ?? body.sum ?? ''),
+        String(body.customer_email ?? ''),
+        String(body.customer_phone ?? ''),
+        String(body.order_num || body.order_id || ''),
+      ).catch((e) => console.error('notifyAdminPaymentFailed failed', e));
       return NextResponse.json({ success: true });
     }
 
