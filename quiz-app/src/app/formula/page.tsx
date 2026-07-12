@@ -15,11 +15,18 @@ export default function FormulaPage() {
   const [email, setEmail] = useState('');
   const [loginErr, setLoginErr] = useState('');
   const [busy, setBusy] = useState(false);
+  // Метка зрителя для вотермарка видео (Telegram @username · id).
+  const [tgLabel, setTgLabel] = useState('');
 
   useEffect(() => {
-    const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
+    const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number; username?: string; first_name?: string } } } } }).Telegram?.WebApp;
     if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
-    const tgId = tg?.initDataUnsafe?.user?.id;
+    const tgUser = tg?.initDataUnsafe?.user;
+    const tgId = tgUser?.id;
+    if (tgUser) {
+      const who = tgUser.username ? '@' + tgUser.username : tgUser.first_name || '';
+      setTgLabel(who ? `${who} · ${tgUser.id}` : String(tgUser.id));
+    }
     const urlToken = new URLSearchParams(window.location.search).get('t');
     const savedToken = typeof window !== 'undefined' ? localStorage.getItem('kb_token') : null;
     const token = urlToken || savedToken;
@@ -65,17 +72,16 @@ export default function FormulaPage() {
     setBusy(false);
   }
 
-  // Превью для ревью. ?preview=1 — только локально. ?preview=<секрет> — работает
-  // и на деплое (временно, чтобы Саша прокликал перед запуском; убрать перед продом).
+  // Превью для локальной разработки: ?preview=1 работает только вне продакшена.
   const [devPreview, setDevPreview] = useState(false);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('preview');
-    if ((q === '1' && process.env.NODE_ENV !== 'production') || q === 'fvk-2026-sasha') {
-      setDevPreview(true);
-    }
+    if (q === '1' && process.env.NODE_ENV !== 'production') setDevPreview(true);
   }, []);
 
   const hasAccess = devPreview || (unlocked?.includes(ROLE) ?? false);
+  // Вотермарк видео = Telegram-метка зрителя (@username · id).
+  const watermark = tgLabel;
 
   // Гейт от hydration-mismatch: до монтирования (и на сервере) отдаём один и тот
   // же лоадер, дальше уже решаем по опознанию — серверный и клиентский HTML совпадают.
@@ -100,7 +106,7 @@ export default function FormulaPage() {
         <div className="fx-center"><div className="fx-spin" /><p>Оплата обрабатывается — раздел откроется через пару секунд.</p></div>
       )}
 
-      {hasAccess && <FormulaApp content={content} />}
+      {hasAccess && <FormulaApp content={content} watermark={watermark} />}
 
       {!hasAccess && unlocked !== null && !pending && (
         <div className="fx-lock">

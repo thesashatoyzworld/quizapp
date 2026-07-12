@@ -4,6 +4,12 @@ import React from 'react';
 import type { Block, Rich, ListItem } from '@/content/formula/types';
 import { VIDEO_MAP } from '@/content/formula/videoMap';
 
+// Метка зрителя (Telegram @username · id) для динамического вотермарка Kinescope.
+// Заполняется в page.tsx из initData Telegram, прокидывается через провайдер в
+// FormulaApp. Плеер рисует её плавающей поверх видео — если запись сольют,
+// видно, чей аккаунт. Пусто = без вотермарка (напр. на превью-ссылке).
+export const WatermarkContext = React.createContext<string>('');
+
 // Картинки лежат в /public/formula/img/... ; в контенте путь вида assets/img/...
 function imgSrc(src: string): string {
   return '/formula/' + src.replace(/^assets\//, '');
@@ -51,10 +57,15 @@ export function RichText({ rich, onNav }: { rich: Rich[]; onNav: NavFn }) {
 }
 
 function VideoBlock({ loomId }: { loomId: string }) {
-  const yt = VIDEO_MAP[loomId];
-  const src = yt
-    ? `https://www.youtube.com/embed/${yt}`
-    : `https://www.loom.com/embed/${loomId}`;
+  const watermark = React.useContext(WatermarkContext);
+  const kin = VIDEO_MAP[loomId];
+  let src: string;
+  if (kin) {
+    src = `https://kinescope.io/embed/${kin}`;
+    if (watermark) src += `?watermark=${encodeURIComponent(watermark)}`;
+  } else {
+    src = `https://www.loom.com/embed/${loomId}`;
+  }
   return (
     <div className="fx-video">
       <iframe
