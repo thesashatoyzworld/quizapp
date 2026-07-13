@@ -11,6 +11,10 @@ const ERROR_MESSAGES: Record<string, string> = {
 function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
+  // Куда вести после входа: страница, куда человек шёл (?next=/admin/...),
+  // иначе — сразу кабинет-лидборд, а не тяжёлый дашборд.
+  const nextParam = searchParams.get('next');
+  const dest = nextParam && nextParam.startsWith('/admin/') ? nextParam : '/admin/uroven';
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -29,7 +33,7 @@ function LoginContent() {
       });
 
       if (res.ok) {
-        window.location.href = '/admin/dashboard';
+        window.location.href = dest;
       } else {
         const data = await res.json();
         setErrorMsg(ERROR_MESSAGES[data.error] || 'Ошибка авторизации.');
