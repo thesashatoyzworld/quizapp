@@ -47,6 +47,7 @@ export const SOURCE_RU: Record<string, string> = {
   inline: 'по тексту',
   floatcta: 'плавающая кнопка',
   'urovni-article': 'статья 6 уровней',
+  'chitkody-article': 'статья чит-коды',
   'article-bottom': 'низ статьи',
 };
 
