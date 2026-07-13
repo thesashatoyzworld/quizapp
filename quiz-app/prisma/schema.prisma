@@ -259,3 +259,27 @@ model MoneyMkWaitlist {
 
   @@map("money_mk_waitlist")
 }
+
+// ═══════════════════════════════════════
+// СТАТУСЫ ЛИДОВ (лидборд в админке)
+// ═══════════════════════════════════════
+//
+// Ручной статус лида по конкретному продукту. Сами лиды берутся живьём из
+// events (клики «Забрать» / заходы на лендинг), а здесь ассистент/оператор
+// ведёт, что с человеком делали: написали, ответил, купил, слился.
+// Ключ — (product, telegramId): один человек может быть лидом разных продуктов.
+
+model LeadStatus {
+  id         String   @id @default(uuid())
+  product    String   @default("uroven") // uroven | mk-dengi | ...
+  telegramId BigInt   @map("telegram_id")
+  status     String   @default("new")    // new | written | replied | bought | rejected
+  note       String?
+  updatedBy  String?  @map("updated_by")  // username оператора, кто последним менял
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([product, telegramId])
+  @@index([product])
+  @@map("lead_status")
+}
