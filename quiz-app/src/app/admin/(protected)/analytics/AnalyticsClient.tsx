@@ -22,6 +22,24 @@ const TITLES: Record<string, string> = {
 };
 const titleOf = (k: string) => TITLES[k] || k.replace('/blog/', '');
 
+// Каналы входа: человекочитаемое имя + цвет. organic = поиск (SEO).
+const CHANNEL_META: Record<string, { label: string; color: string }> = {
+  organic: { label: 'Поиск (SEO)', color: '#06d6a0' },
+  telegram: { label: 'Telegram', color: '#00a8e8' },
+  instagram: { label: 'Instagram', color: '#ff00aa' },
+  youtube: { label: 'YouTube', color: '#ff5c5c' },
+  reels: { label: 'Reels', color: '#c77dff' },
+  referral: { label: 'Другие сайты', color: '#ffd166' },
+  direct: { label: 'Прямые / закладки', color: '#8a94a6' },
+  internal: { label: 'Внутренние переходы', color: '#5a6472' },
+  'не размечено': { label: 'Не размечено (до трекинга)', color: '#3f4650' },
+};
+function channelMeta(ch: string): { label: string; color: string } {
+  if (CHANNEL_META[ch]) return CHANNEL_META[ch];
+  if (ch.startsWith('campaign:')) return { label: 'Кампания: ' + ch.slice(9), color: '#ffa94d' };
+  return { label: ch, color: '#8a94a6' };
+}
+
 function Delta({ cur, prev }: { cur: number; prev: number }) {
   if (prev === 0) {
     return <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{cur > 0 ? 'новое' : '—'}</span>;
@@ -129,6 +147,43 @@ export default function AnalyticsClient({ data }: { data: Analytics }) {
         <KpiCard label="В бот" value={k.botStarts} prev={p.botStarts} accent="var(--neon-purple)" />
         <KpiCard label="Заявки DFV" value={k.applications} prev={p.applications} accent="var(--xp-gold)" />
       </div>
+
+      {/* Источники трафика */}
+      <Section title="Источники трафика" hint="откуда пришли — по каналу первого захода сессии">
+        {data.channels.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Нет данных за период.</p>
+        ) : (
+          (() => {
+            const total = data.channels.reduce((s, c) => s + c.sessions, 0) || 1;
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {data.channels.map((c) => {
+                  const meta = channelMeta(c.channel);
+                  const pct = Math.round((c.sessions / total) * 100);
+                  return (
+                    <div key={c.channel} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 190, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ width: 9, height: 9, borderRadius: '50%', background: meta.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.83rem', color: 'var(--text-secondary)' }}>{meta.label}</span>
+                      </div>
+                      <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 6, height: 22, position: 'relative', minWidth: 60 }}>
+                        <div style={{ width: `${pct}%`, background: meta.color, height: '100%', borderRadius: 6, minWidth: 2, opacity: 0.85 }} />
+                      </div>
+                      <div style={{ width: 96, flexShrink: 0, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.9rem' }}>{c.sessions}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginLeft: 6 }}>{pct}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()
+        )}
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 14, lineHeight: 1.5 }}>
+          <b style={{ color: '#06d6a0' }}>Поиск (SEO)</b> — заходы из Google/Yandex. Трекинг источника включён 14.07 — заходы до этой даты попадают в «не размечено», и органика набирается постепенно, по мере переиндексации.
+        </p>
+      </Section>
 
       {/* Daily chart */}
       <Section title="По дням" hint="визиты + выданные лид-магниты">

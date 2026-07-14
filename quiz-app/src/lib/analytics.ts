@@ -62,6 +62,7 @@ export interface DayRow { day: string; views: number; visits: number; leadmagnet
 export interface ArticleRow { path: string; views: number; uniq: number; }
 export interface LeadMagnetRow { slug: string; delivered: number; gated: number; }
 export interface BotQuiz { starts: number; quizStarts: number; quizDone: number; payments: number; }
+export interface ChannelRow { channel: string; sessions: number; }
 
 export interface Analytics {
   period: Period;
@@ -70,6 +71,7 @@ export interface Analytics {
   byDay: DayRow[];
   articles: ArticleRow[];
   leadmagnets: LeadMagnetRow[];
+  channels: ChannelRow[];
   podcastViews: number;
   botQuiz: BotQuiz;
   totalEvents: number;
@@ -78,7 +80,7 @@ export interface Analytics {
 export async function getAnalytics(period: Period): Promise<Analytics> {
   const { cur, prev } = bounds(period);
 
-  const [kpis, kpisPrev, byDayRaw, articlesRaw, lmRaw, podcastRaw, botRaw, totalRaw] =
+  const [kpis, kpisPrev, byDayRaw, articlesRaw, lmRaw, channelsRaw, podcastRaw, botRaw, totalRaw] =
     await Promise.all([
       kpisFor(cur),
       kpisFor(prev),
@@ -105,6 +107,18 @@ export async function getAnalytics(period: Period): Promise<Analytics> {
         FROM events
         WHERE type IN ('leadmagnet_delivered','leadmagnet_gated') AND ${cur}
         GROUP BY 1 ORDER BY 2 DESC
+      `),
+      prisma.$queryRawUnsafe(`
+        WITH firsts AS (
+          SELECT DISTINCT ON (metadata->>'session_id')
+            metadata->>'session_id' AS sid,
+            metadata->>'channel'    AS channel
+          FROM events
+          WHERE type='page_view' AND metadata->>'session_id' IS NOT NULL AND ${cur}
+          ORDER BY metadata->>'session_id', created_at ASC
+        )
+        SELECT coalesce(nullif(channel,''), 'не размечено') AS channel, count(*) AS sessions
+        FROM firsts GROUP BY 1 ORDER BY 2 DESC
       `),
       prisma.$queryRawUnsafe(`
         SELECT count(*) AS n FROM events
@@ -140,6 +154,9 @@ export async function getAnalytics(period: Period): Promise<Analytics> {
     .filter((r) => r.slug && r.slug !== '?')
     .map((r) => ({ slug: String(r.slug), delivered: num(r.delivered), gated: num(r.gated) }));
 
+  const channels: ChannelRow[] = (channelsRaw as Record<string, unknown>[])
+    .map((r) => ({ channel: String(r.channel), sessions: num(r.sessions) }));
+
   const botRow = (botRaw as Record<string, unknown>[])[0] || {};
   const botQuiz: BotQuiz = {
     starts: num(botRow.starts),
@@ -155,6 +172,7 @@ export async function getAnalytics(period: Period): Promise<Analytics> {
     byDay,
     articles,
     leadmagnets,
+    channels,
     podcastViews: num((podcastRaw as Record<string, unknown>[])[0]?.n),
     botQuiz,
     totalEvents: num((totalRaw as Record<string, unknown>[])[0]?.n),
