@@ -42,6 +42,9 @@ function DostupInner() {
   // Telegram id of the viewer — forwarded to gated cross-domain materials
   // (kabinet.thesashatoyz.com workshops) so their soft-gate can identify the user.
   const [tgId, setTgId] = useState<number | null>(null);
+  // Вошёл через браузерный Login Widget (не Mini App) → показываем «Выйти»,
+  // чтобы можно было перелогиниться под другим Telegram-аккаунтом.
+  const [browserSession, setBrowserSession] = useState(false);
   // true → кабинет открыт не в Telegram (в браузере). Доступ через браузер не даём,
   // показываем экран «открой через бота».
   const [needTg, setNeedTg] = useState(false);
@@ -64,6 +67,7 @@ function DostupInner() {
         if (stop) return;
         if (data.identified) {
           setTgId(tgId ?? data.telegramId ?? null);
+          setBrowserSession(!tgId); // нет initData id → вошёл через браузер
           setTiers(data.tiers || {});
           setUnlocked(data.unlockedRoles || []);
         } else {
@@ -90,6 +94,13 @@ function DostupInner() {
         <div className="kb-brand">Кабинет</div>
         <div className="kb-sub">TOYZ · пространство участника</div>
       </header>
+
+      {browserSession && tgId && (
+        <div className="kb-account">
+          <span className="kb-account-id">Вход выполнен · Telegram id {tgId}</span>
+          <a className="kb-account-out" href="/api/cabinet/logout">Выйти</a>
+        </div>
+      )}
 
       {needTg && (
         <div className="kb-login">
@@ -236,6 +247,17 @@ function DostupInner() {
         }
         .kb-wrap * { box-sizing: border-box; }
         .kb-top { margin-bottom: 22px; }
+        .kb-account {
+          display: flex; align-items: center; justify-content: space-between; gap: 10px;
+          background: var(--kb-surface); border: 1px solid var(--kb-line); border-radius: 12px;
+          padding: 9px 14px; margin-bottom: 16px;
+        }
+        .kb-account-id { color: var(--kb-muted); font-size: 12.5px; }
+        .kb-account-out {
+          flex: 0 0 auto; text-decoration: none; color: var(--kb-accent);
+          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 13px;
+        }
+        .kb-account-out:hover { opacity: .8; }
         .kb-brand { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; margin: 0; }
         .kb-sub { color: var(--kb-muted); font-size: 13px; margin-top: 2px; }
         .kb-banner {
