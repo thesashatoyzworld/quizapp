@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Fragment, Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SECTIONS } from '@/content/rooms';
 
@@ -96,17 +96,22 @@ function DostupInner() {
             {(() => {
               const myTier = tiers[s.role ?? ''] ?? 0;
               return s.materials.map((m, i) => {
+                // Разделитель-подзаголовок перед материалом (группировка внутри раздела).
+                const sub = m.subhead ? <div className="kb-subhead">{m.subhead}</div> : null;
                 // Материал старшего тарифа: виден, но под замком, если тариф ниже.
                 if (m.minTier != null && myTier < m.minTier) {
                   return (
-                    <div key={i} className="kb-mat kb-mat-locked">
-                      <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
-                      <span className="kb-mat-body">
-                        <span className="kb-mat-title">{m.title}</span>
-                        <span className="kb-mat-note">{m.lockedNote || m.note}</span>
-                      </span>
-                      <span className="kb-mat-arr kb-mat-lock">{'\u{1F512}'}</span>
-                    </div>
+                    <Fragment key={i}>
+                      {sub}
+                      <div className="kb-mat kb-mat-locked">
+                        <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
+                        <span className="kb-mat-body">
+                          <span className="kb-mat-title">{m.title}</span>
+                          <span className="kb-mat-note">{m.lockedNote || m.note}</span>
+                        </span>
+                        <span className="kb-mat-arr kb-mat-lock">{'\u{1F512}'}</span>
+                      </div>
+                    </Fragment>
                   );
                 }
                 const ready = !!m.url;
@@ -121,20 +126,23 @@ function DostupInner() {
                   : m.url;
                 const Tag = ready ? 'a' : 'div';
                 return (
-                  <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
-                    {...(ready ? {
-                      href: openUrl,
-                      ...(internal ? {} : {
-                        onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: openUrl, title: m.title }); },
-                      }),
-                    } : {})}>
-                    <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
-                    <span className="kb-mat-body">
-                      <span className="kb-mat-title">{m.title}</span>
-                      {m.note && <span className="kb-mat-note">{m.note}</span>}
-                    </span>
-                    <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
-                  </Tag>
+                  <Fragment key={i}>
+                    {sub}
+                    <Tag className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
+                      {...(ready ? {
+                        href: openUrl,
+                        ...(internal ? {} : {
+                          onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: openUrl, title: m.title }); },
+                        }),
+                      } : {})}>
+                      <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
+                      <span className="kb-mat-body">
+                        <span className="kb-mat-title">{m.title}</span>
+                        {m.note && <span className="kb-mat-note">{m.note}</span>}
+                      </span>
+                      <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
+                    </Tag>
+                  </Fragment>
                 );
               });
             })()}
@@ -238,6 +246,12 @@ function DostupInner() {
         .kb-badge-open { background: var(--kb-ok-soft); color: var(--kb-ok); }
         .kb-badge-closed { background: oklch(0.93 0.004 75); color: var(--kb-muted); }
         .kb-materials { display: grid; gap: 9px; margin-top: 14px; }
+        .kb-subhead {
+          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 11px;
+          text-transform: uppercase; letter-spacing: 0.06em; color: var(--kb-muted);
+          margin: 8px 2px 1px;
+        }
+        .kb-subhead:first-child { margin-top: 0; }
         .kb-mat {
           display: flex; align-items: center; gap: 13px; text-decoration: none; color: inherit;
           background: var(--kb-bg); border: 1px solid var(--kb-line); border-radius: 13px; padding: 13px 14px;
