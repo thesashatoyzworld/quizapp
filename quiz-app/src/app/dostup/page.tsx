@@ -17,6 +17,9 @@ function DostupInner() {
   useSearchParams();
   const [unlocked, setUnlocked] = useState<string[] | null>(null);
   const [tiers, setTiers] = useState<Record<string, number>>({});
+  // Telegram id of the viewer — forwarded to gated cross-domain materials
+  // (kabinet.thesashatoyz.com workshops) so their soft-gate can identify the user.
+  const [tgId, setTgId] = useState<number | null>(null);
   // true → кабинет открыт не в Telegram (в браузере). Доступ через браузер не даём,
   // показываем экран «открой через бота».
   const [needTg, setNeedTg] = useState(false);
@@ -27,6 +30,7 @@ function DostupInner() {
     const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
     if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
     const tgId = tg?.initDataUnsafe?.user?.id;
+    setTgId(tgId ?? null);
 
     // Доступ только через Telegram. Нет tgId (браузер) → гейт «открой через бота».
     if (!tgId) { setNeedTg(true); setUnlocked([]); return; }
@@ -109,13 +113,19 @@ function DostupInner() {
                 // Внутренние роуты (напр. /formula) открываем полноценной навигацией,
                 // чтобы работало опознание Telegram/токена. Внешние — во встроенном iframe.
                 const internal = m.url.startsWith('/');
+                // Гейтированные воркшопы на kabinet-домене опознают юзера по ?tg=,
+                // т.к. внутри iframe их own Telegram SDK недоступен.
+                const isKabinet = m.url.includes('kabinet.thesashatoyz.com');
+                const openUrl = isKabinet && tgId
+                  ? `${m.url}${m.url.includes('?') ? '&' : '?'}tg=${tgId}`
+                  : m.url;
                 const Tag = ready ? 'a' : 'div';
                 return (
                   <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
                     {...(ready ? {
-                      href: m.url,
+                      href: openUrl,
                       ...(internal ? {} : {
-                        onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: m.url, title: m.title }); },
+                        onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: openUrl, title: m.title }); },
                       }),
                     } : {})}>
                     <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>

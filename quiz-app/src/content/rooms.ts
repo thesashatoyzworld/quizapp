@@ -70,6 +70,7 @@ export const SECTIONS: Section[] = [
     landingUrl: 'https://thesashatoyz.com/uroven',
     materials: [
       { kind: 'recording', title: 'Бонус: Формула вирусного контента', url: '/formula', note: 'Полный видеокурс по контенту — 25 уроков.' },
+      { kind: 'recording', title: 'Воркшоп: Продающий Контент 3.0', url: 'https://kabinet.thesashatoyz.com/w/prodayushchiy-kontent-3', note: 'Мастеркласс + методичка: карта смыслов и 4 способа упаковки.' },
       { kind: 'recording', title: 'Предобучение: библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Прошлые воркшопы и мини-курс — доступны сразу.' },
       { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '', note: 'Откроются 1 августа.' },
       { kind: 'slides', title: 'Методички и задания', url: '', note: 'Материалы к каждому уровню.' },
@@ -84,6 +85,7 @@ export const SECTIONS: Section[] = [
     subtitle: 'Личное сопровождение',
     landingUrl: '', // TODO Саша: лендинг продукта Синхронизация
     materials: [
+      { kind: 'recording', title: 'Воркшоп: Продающий Контент 3.0', url: 'https://kabinet.thesashatoyz.com/w/prodayushchiy-kontent-3', note: 'Мастеркласс + методичка: карта смыслов и 4 способа упаковки.' },
       { kind: 'live', title: 'Созвоны', url: '', note: 'Регулярные личные встречи.' },
       { kind: 'chat', title: 'Личный чат', url: '', note: 'Связь между встречами.' },
     ],
