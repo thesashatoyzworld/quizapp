@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getActiveAccessByTelegram } from '@/lib/access';
+import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
+
+export const runtime = 'nodejs';
 
 // Какие платные разделы открыты человеку. Три способа опознать:
 //   ?telegramId=<id>  — заход из Telegram
@@ -34,22 +37,31 @@ function computeTiers(rows: AccessRow[]): Record<string, number> {
 
 export async function GET(request: NextRequest) {
   try {
-    // Доступ к кабинету — ТОЛЬКО по привязанному Telegram. Вход по токену из URL
-    // и по почте убран: токен-ссылка расшаривалась (кто угодно с ссылкой открывал
-    // кабинет). Оплата картой теперь ведёт в бота (/start paid_<token>), который
-    // привязывает доступ к Telegram, дальше кабинет опознаёт по telegramId.
-    const telegramId = request.nextUrl.searchParams.get('telegramId');
+    // Опознание: (1) ?telegramId из Mini App initData, либо (2) подписанная
+    // сессия-cookie после входа через Telegram Login Widget в браузере (десктоп).
+    // Вход по token/email из URL убран (ссылки расшаривались).
+    let telegramId: number | null = null;
+    const qId = request.nextUrl.searchParams.get('telegramId');
+    if (qId && /^\d+$/.test(qId)) {
+      telegramId = Number(qId);
+    } else {
+      const secret = process.env.SESSION_SECRET || process.env.BOT_TOKEN || '';
+      telegramId = verifySession(request.cookies.get(SESSION_COOKIE)?.value, secret);
+    }
 
     let activeRows: AccessRow[] = [];
     if (telegramId) {
-      const rows = await getActiveAccessByTelegram(Number(telegramId));
+      const rows = await getActiveAccessByTelegram(telegramId);
       activeRows = rows.map((r) => ({ role: r.role, productSlug: r.productSlug }));
     }
 
     const unlockedRoles = Array.from(new Set(activeRows.map((r) => r.role)));
     const tiers = computeTiers(activeRows);
 
-    return NextResponse.json({ success: true, unlockedRoles, tiers, pending: false, token: null });
+    // identified — знаем ЛИ мы, кто это (по Telegram или сессии). Кабинет так
+    // отличает «вошёл, но без покупок» (показать разделы под замком) от «не вошёл»
+    // (показать кнопку входа).
+    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, pending: false, token: null });
   } catch (error) {
     console.error('[Cabinet] rooms error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

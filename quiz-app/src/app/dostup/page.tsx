@@ -1,8 +1,30 @@
 'use client';
 
-import { Fragment, Suspense, useEffect, useState } from 'react';
+import { Fragment, Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SECTIONS } from '@/content/rooms';
+
+// Официальная кнопка «Войти через Telegram» (Login Widget). Рендерится только
+// в браузере (в Mini App не нужна — там опознаём по initData). Требует, чтобы
+// домен world.thesashatoyz.com был привязан к @testtoyzbot в @BotFather
+// (/setdomain). После входа Telegram редиректит на data-auth-url, где мы
+// проверяем подпись и ставим сессию.
+function TelegramLoginButton() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || el.childElementCount > 0) return;
+    const s = document.createElement('script');
+    s.src = 'https://telegram.org/js/telegram-widget.js?22';
+    s.async = true;
+    s.setAttribute('data-telegram-login', 'testtoyzbot');
+    s.setAttribute('data-size', 'large');
+    s.setAttribute('data-radius', '10');
+    s.setAttribute('data-auth-url', 'https://world.thesashatoyz.com/api/cabinet/auth-telegram');
+    el.appendChild(s);
+  }, []);
+  return <div ref={ref} className="kb-tg-login" />;
+}
 
 const ICONS: Record<string, string> = {
   live: '\u{1F3A5}', recording: '\u{1F4FC}', slides: '\u{1F4D1}', chat: '\u{1F4AC}',
@@ -30,21 +52,27 @@ function DostupInner() {
     const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
     if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
     const tgId = tg?.initDataUnsafe?.user?.id;
-    setTgId(tgId ?? null);
-
-    // Доступ только через Telegram. Нет tgId (браузер) → гейт «открой через бота».
-    if (!tgId) { setNeedTg(true); setUnlocked([]); return; }
 
     let stop = false;
     (async () => {
       try {
-        const res = await fetch(`/api/cabinet/rooms?telegramId=${tgId}`);
+        // В Mini App опознаёмся по initData id. В браузере id нет — эндпоинт
+        // попробует подписанную сессию-cookie (вход через Telegram Login Widget).
+        const qs = tgId ? `?telegramId=${tgId}` : '';
+        const res = await fetch(`/api/cabinet/rooms${qs}`);
         const data = await res.json();
         if (stop) return;
-        setTiers(data.tiers || {});
-        setUnlocked(data.unlockedRoles || []);
+        if (data.identified) {
+          setTgId(tgId ?? data.telegramId ?? null);
+          setTiers(data.tiers || {});
+          setUnlocked(data.unlockedRoles || []);
+        } else {
+          // Не опознан (браузер без сессии) → показываем вход через Telegram.
+          setNeedTg(true);
+          setUnlocked([]);
+        }
       } catch {
-        if (!stop) setUnlocked([]);
+        if (!stop) { setNeedTg(true); setUnlocked([]); }
       }
     })();
     return () => { stop = true; };
@@ -65,13 +93,14 @@ function DostupInner() {
 
       {needTg && (
         <div className="kb-login">
-          <div className="kb-login-title">Кабинет открывается в Telegram</div>
+          <div className="kb-login-title">Вход в кабинет</div>
           <div className="kb-login-sub">
-            Доступ привязан к твоему Telegram. Открой кабинет через бота — там все материалы.
-            {' '}Если оплачивал картой, сначала привяжи доступ по ссылке из чек-письма.
+            Доступ привязан к твоему Telegram. Войди через Telegram — там все материалы.
+            {' '}которые у тебя оплачены. На телефоне удобнее открыть кабинет прямо в боте.
           </div>
-          <a className="kb-getaccess" href={BOT_URL} target="_blank" rel="noopener noreferrer">
-            Открыть в Telegram →
+          <TelegramLoginButton />
+          <a className="kb-login-alt" href={BOT_URL} target="_blank" rel="noopener noreferrer">
+            Или открыть в боте →
           </a>
         </div>
       )}
@@ -116,14 +145,22 @@ function DostupInner() {
                 }
                 const ready = !!m.url;
                 // Внутренние роуты (напр. /formula) открываем полноценной навигацией,
-                // чтобы работало опознание Telegram/токена. Внешние — во встроенном iframe.
+                // чтобы работало опознание Telegram/токена.
                 const internal = m.url.startsWith('/');
-                // Гейтированные воркшопы на kabinet-домене опознают юзера по ?tg=,
-                // т.к. внутри iframe их own Telegram SDK недоступен.
+                // Воркшопы/библиотека на kabinet-домене: опознание по ?tg= (внутри
+                // iframe их own Telegram SDK недоступен). Их открываем в ПОЛНОМ
+                // браузере (openLink), а не в тесном iframe — длинные лонгриды с видео
+                // в мини-аппе на десктопе читать неудобно.
                 const isKabinet = m.url.includes('kabinet.thesashatoyz.com');
                 const openUrl = isKabinet && tgId
                   ? `${m.url}${m.url.includes('?') ? '&' : '?'}tg=${tgId}`
                   : m.url;
+                const openExternal = (e: { preventDefault: () => void }) => {
+                  e.preventDefault();
+                  const tgApp = (window as unknown as { Telegram?: { WebApp?: { openLink?: (u: string) => void } } }).Telegram?.WebApp;
+                  if (tgApp?.openLink) tgApp.openLink(openUrl);
+                  else window.open(openUrl, '_blank', 'noopener');
+                };
                 const Tag = ready ? 'a' : 'div';
                 return (
                   <Fragment key={i}>
@@ -131,7 +168,9 @@ function DostupInner() {
                     <Tag className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
                       {...(ready ? {
                         href: openUrl,
-                        ...(internal ? {} : {
+                        ...(internal ? {} : isKabinet ? {
+                          target: '_blank', rel: 'noopener noreferrer', onClick: openExternal,
+                        } : {
                           onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: openUrl, title: m.title }); },
                         }),
                       } : {})}>
@@ -140,7 +179,7 @@ function DostupInner() {
                         <span className="kb-mat-title">{m.title}</span>
                         {m.note && <span className="kb-mat-note">{m.note}</span>}
                       </span>
-                      <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
+                      <span className="kb-mat-arr">{ready ? '↗' : 'скоро'}</span>
                     </Tag>
                   </Fragment>
                 );
@@ -221,6 +260,12 @@ function DostupInner() {
         }
         .kb-login-btn:disabled { opacity: .6; cursor: default; }
         .kb-login-err { color: oklch(0.55 0.18 25); font-size: 12.5px; margin-top: 10px; }
+        .kb-tg-login { margin-top: 4px; min-height: 46px; }
+        .kb-login-alt {
+          display: inline-block; margin-top: 12px; text-decoration: none;
+          color: var(--kb-muted); font-size: 13px; font-weight: 600;
+        }
+        .kb-login-alt:hover { color: var(--kb-accent); }
         .kb-card {
           display: block; background: var(--kb-surface); border: 1px solid var(--kb-line);
           border-radius: 18px; padding: 18px; margin-bottom: 14px;
