@@ -25,6 +25,8 @@ export interface RoomMaterial {
   minTier?: number;
   /** подпись под замком, если тариф ниже minTier (что и на каком тарифе доступно) */
   lockedNote?: string;
+  /** заголовок-разделитель, рисуется ПЕРЕД этим материалом (группировка внутри раздела) */
+  subhead?: string;
 }
 
 export interface Section {
@@ -50,31 +52,19 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
-    key: 'mk',
-    role: 'mk',
-    title: 'Разрешение быстрых денег',
-    subtitle: 'Мастер-класс · 7 дней',
-    landingUrl: 'https://thesashatoyz.com/mk-dengi',
-    materials: [
-      { kind: 'live', title: 'Прямой эфир', url: '', note: 'Ссылка на встречу. Появится перед стартом.' },
-      { kind: 'recording', title: 'Записи встреч', url: '', note: 'Все записи остаются у тебя.' },
-      { kind: 'slides', title: 'Презентация', url: '', note: 'Материалы и слайды мастер-класса.' },
-      { kind: 'chat', title: 'Чат группы', url: '', note: 'Закрытый чат на время мастер-класса.' },
-    ],
-  },
-  {
     key: 'uroven',
     role: 'uroven',
     title: 'Новый уровень контента',
     subtitle: '6 уровней навыка · доступ с 1 августа',
     landingUrl: 'https://thesashatoyz.com/uroven',
     materials: [
-      { kind: 'recording', title: 'Бонус: Формула вирусного контента', url: '/formula', note: 'Полный видеокурс по контенту — 25 уроков.' },
-      { kind: 'recording', title: 'Предобучение: библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Прошлые воркшопы и мини-курс — доступны сразу.' },
-      { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '', note: 'Откроются 1 августа.' },
+      { kind: 'recording', title: 'Формула вирусного контента', url: '/formula', note: 'Полный видеокурс по контенту — 25 уроков.', subhead: 'Предобучение · доступно сразу' },
+      { kind: 'recording', title: 'Продающий Контент 3.0', url: 'https://kabinet.thesashatoyz.com/w/prodayushchiy-kontent-3', note: 'Мастеркласс + методичка: карта смыслов и 4 способа упаковки.' },
+      { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '', note: 'Откроются 1 августа.', subhead: 'Основной курс · с 1 августа' },
       { kind: 'slides', title: 'Методички и задания', url: '', note: 'Материалы к каждому уровню.' },
       { kind: 'chat', title: 'Чат с обратной связью', url: '', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
       { kind: 'live', title: 'Групповые созвоны', url: '', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
+      { kind: 'recording', title: 'Библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Все прошлые воркшопы и мини-курсы.', minTier: 3, lockedNote: 'Доступно на тарифе «делаем вместе» (3).', subhead: 'Полная библиотека · тариф «делаем вместе»' },
     ],
   },
   {
@@ -84,6 +74,7 @@ export const SECTIONS: Section[] = [
     subtitle: 'Личное сопровождение',
     landingUrl: '', // TODO Саша: лендинг продукта Синхронизация
     materials: [
+      { kind: 'recording', title: 'Библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Все воркшопы и мини-курсы — доступны полностью.' },
       { kind: 'live', title: 'Созвоны', url: '', note: 'Регулярные личные встречи.' },
       { kind: 'chat', title: 'Личный чат', url: '', note: 'Связь между встречами.' },
     ],

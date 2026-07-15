@@ -283,3 +283,27 @@ model LeadStatus {
   @@index([product])
   @@map("lead_status")
 }
+
+// ═══════════════════════════════════════
+// DWY — АНКЕТА НА ГРУППУ «ДЕЛАЕМ ВМЕСТЕ»
+// ═══════════════════════════════════════
+
+model DwyLead {
+  id         Int      @id @default(autoincrement())
+  telegramId String?  @map("telegram_id")
+  username   String?
+  firstName  String?  @map("first_name")
+  who        String
+  hasProduct String   @map("has_product")
+  product    String?
+  level      Int
+  tried      String
+  want       String
+  income     String
+  hours      String
+  contact    String?
+  source     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("dwy_leads")
+}

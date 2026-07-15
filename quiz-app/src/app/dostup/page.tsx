@@ -1,8 +1,30 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Fragment, Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SECTIONS } from '@/content/rooms';
+
+// Официальная кнопка «Войти через Telegram» (Login Widget). Рендерится только
+// в браузере (в Mini App не нужна — там опознаём по initData). Требует, чтобы
+// домен world.thesashatoyz.com был привязан к @testtoyzbot в @BotFather
+// (/setdomain). После входа Telegram редиректит на data-auth-url, где мы
+// проверяем подпись и ставим сессию.
+function TelegramLoginButton() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || el.childElementCount > 0) return;
+    const s = document.createElement('script');
+    s.src = 'https://telegram.org/js/telegram-widget.js?22';
+    s.async = true;
+    s.setAttribute('data-telegram-login', 'testtoyzbot');
+    s.setAttribute('data-size', 'large');
+    s.setAttribute('data-radius', '10');
+    s.setAttribute('data-auth-url', 'https://world.thesashatoyz.com/api/cabinet/auth-telegram');
+    el.appendChild(s);
+  }, []);
+  return <div ref={ref} className="kb-tg-login" />;
+}
 
 const ICONS: Record<string, string> = {
   live: '\u{1F3A5}', recording: '\u{1F4FC}', slides: '\u{1F4D1}', chat: '\u{1F4AC}',
@@ -17,6 +39,12 @@ function DostupInner() {
   useSearchParams();
   const [unlocked, setUnlocked] = useState<string[] | null>(null);
   const [tiers, setTiers] = useState<Record<string, number>>({});
+  // Telegram id of the viewer — forwarded to gated cross-domain materials
+  // (kabinet.thesashatoyz.com workshops) so their soft-gate can identify the user.
+  const [tgId, setTgId] = useState<number | null>(null);
+  // Вошёл через браузерный Login Widget (не Mini App) → показываем «Выйти»,
+  // чтобы можно было перелогиниться под другим Telegram-аккаунтом.
+  const [browserSession, setBrowserSession] = useState(false);
   // true → кабинет открыт не в Telegram (в браузере). Доступ через браузер не даём,
   // показываем экран «открой через бота».
   const [needTg, setNeedTg] = useState(false);
@@ -28,19 +56,27 @@ function DostupInner() {
     if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
     const tgId = tg?.initDataUnsafe?.user?.id;
 
-    // Доступ только через Telegram. Нет tgId (браузер) → гейт «открой через бота».
-    if (!tgId) { setNeedTg(true); setUnlocked([]); return; }
-
     let stop = false;
     (async () => {
       try {
-        const res = await fetch(`/api/cabinet/rooms?telegramId=${tgId}`);
+        // В Mini App опознаёмся по initData id. В браузере id нет — эндпоинт
+        // попробует подписанную сессию-cookie (вход через Telegram Login Widget).
+        const qs = tgId ? `?telegramId=${tgId}` : '';
+        const res = await fetch(`/api/cabinet/rooms${qs}`);
         const data = await res.json();
         if (stop) return;
-        setTiers(data.tiers || {});
-        setUnlocked(data.unlockedRoles || []);
+        if (data.identified) {
+          setTgId(tgId ?? data.telegramId ?? null);
+          setBrowserSession(!tgId); // нет initData id → вошёл через браузер
+          setTiers(data.tiers || {});
+          setUnlocked(data.unlockedRoles || []);
+        } else {
+          // Не опознан (браузер без сессии) → показываем вход через Telegram.
+          setNeedTg(true);
+          setUnlocked([]);
+        }
       } catch {
-        if (!stop) setUnlocked([]);
+        if (!stop) { setNeedTg(true); setUnlocked([]); }
       }
     })();
     return () => { stop = true; };
@@ -59,15 +95,23 @@ function DostupInner() {
         <div className="kb-sub">TOYZ · пространство участника</div>
       </header>
 
+      {browserSession && tgId && (
+        <div className="kb-account">
+          <span className="kb-account-id">Вход выполнен · Telegram id {tgId}</span>
+          <a className="kb-account-out" href="/api/cabinet/logout">Выйти</a>
+        </div>
+      )}
+
       {needTg && (
         <div className="kb-login">
-          <div className="kb-login-title">Кабинет открывается в Telegram</div>
+          <div className="kb-login-title">Вход в кабинет</div>
           <div className="kb-login-sub">
-            Доступ привязан к твоему Telegram. Открой кабинет через бота — там все материалы.
-            {' '}Если оплачивал картой, сначала привяжи доступ по ссылке из чек-письма.
+            Доступ привязан к твоему Telegram. Войди через Telegram — там все материалы.
+            {' '}которые у тебя оплачены. На телефоне удобнее открыть кабинет прямо в боте.
           </div>
-          <a className="kb-getaccess" href={BOT_URL} target="_blank" rel="noopener noreferrer">
-            Открыть в Telegram →
+          <TelegramLoginButton />
+          <a className="kb-login-alt" href={BOT_URL} target="_blank" rel="noopener noreferrer">
+            Или открыть в боте →
           </a>
         </div>
       )}
@@ -92,39 +136,63 @@ function DostupInner() {
             {(() => {
               const myTier = tiers[s.role ?? ''] ?? 0;
               return s.materials.map((m, i) => {
+                // Разделитель-подзаголовок перед материалом (группировка внутри раздела).
+                const sub = m.subhead ? <div className="kb-subhead">{m.subhead}</div> : null;
                 // Материал старшего тарифа: виден, но под замком, если тариф ниже.
                 if (m.minTier != null && myTier < m.minTier) {
                   return (
-                    <div key={i} className="kb-mat kb-mat-locked">
-                      <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
-                      <span className="kb-mat-body">
-                        <span className="kb-mat-title">{m.title}</span>
-                        <span className="kb-mat-note">{m.lockedNote || m.note}</span>
-                      </span>
-                      <span className="kb-mat-arr kb-mat-lock">{'\u{1F512}'}</span>
-                    </div>
+                    <Fragment key={i}>
+                      {sub}
+                      <div className="kb-mat kb-mat-locked">
+                        <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
+                        <span className="kb-mat-body">
+                          <span className="kb-mat-title">{m.title}</span>
+                          <span className="kb-mat-note">{m.lockedNote || m.note}</span>
+                        </span>
+                        <span className="kb-mat-arr kb-mat-lock">{'\u{1F512}'}</span>
+                      </div>
+                    </Fragment>
                   );
                 }
                 const ready = !!m.url;
                 // Внутренние роуты (напр. /formula) открываем полноценной навигацией,
-                // чтобы работало опознание Telegram/токена. Внешние — во встроенном iframe.
+                // чтобы работало опознание Telegram/токена.
                 const internal = m.url.startsWith('/');
+                // Воркшопы/библиотека на kabinet-домене: опознание по ?tg= (внутри
+                // iframe их own Telegram SDK недоступен). Их открываем в ПОЛНОМ
+                // браузере (openLink), а не в тесном iframe — длинные лонгриды с видео
+                // в мини-аппе на десктопе читать неудобно.
+                const isKabinet = m.url.includes('kabinet.thesashatoyz.com');
+                const openUrl = isKabinet && tgId
+                  ? `${m.url}${m.url.includes('?') ? '&' : '?'}tg=${tgId}`
+                  : m.url;
+                const openExternal = (e: { preventDefault: () => void }) => {
+                  e.preventDefault();
+                  const tgApp = (window as unknown as { Telegram?: { WebApp?: { openLink?: (u: string) => void } } }).Telegram?.WebApp;
+                  if (tgApp?.openLink) tgApp.openLink(openUrl);
+                  else window.open(openUrl, '_blank', 'noopener');
+                };
                 const Tag = ready ? 'a' : 'div';
                 return (
-                  <Tag key={i} className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
-                    {...(ready ? {
-                      href: m.url,
-                      ...(internal ? {} : {
-                        onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: m.url, title: m.title }); },
-                      }),
-                    } : {})}>
-                    <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
-                    <span className="kb-mat-body">
-                      <span className="kb-mat-title">{m.title}</span>
-                      {m.note && <span className="kb-mat-note">{m.note}</span>}
-                    </span>
-                    <span className="kb-mat-arr">{ready ? '→' : 'скоро'}</span>
-                  </Tag>
+                  <Fragment key={i}>
+                    {sub}
+                    <Tag className={`kb-mat ${ready ? 'kb-mat-ready' : 'kb-mat-soon'}`}
+                      {...(ready ? {
+                        href: openUrl,
+                        ...(internal ? {} : isKabinet ? {
+                          target: '_blank', rel: 'noopener noreferrer', onClick: openExternal,
+                        } : {
+                          onClick: (e: { preventDefault: () => void }) => { e.preventDefault(); setViewer({ url: openUrl, title: m.title }); },
+                        }),
+                      } : {})}>
+                      <span className="kb-mat-icon">{ICONS[m.kind] || ICONS.link}</span>
+                      <span className="kb-mat-body">
+                        <span className="kb-mat-title">{m.title}</span>
+                        {m.note && <span className="kb-mat-note">{m.note}</span>}
+                      </span>
+                      <span className="kb-mat-arr">{ready ? '↗' : 'скоро'}</span>
+                    </Tag>
+                  </Fragment>
                 );
               });
             })()}
@@ -179,6 +247,17 @@ function DostupInner() {
         }
         .kb-wrap * { box-sizing: border-box; }
         .kb-top { margin-bottom: 22px; }
+        .kb-account {
+          display: flex; align-items: center; justify-content: space-between; gap: 10px;
+          background: var(--kb-surface); border: 1px solid var(--kb-line); border-radius: 12px;
+          padding: 9px 14px; margin-bottom: 16px;
+        }
+        .kb-account-id { color: var(--kb-muted); font-size: 12.5px; }
+        .kb-account-out {
+          flex: 0 0 auto; text-decoration: none; color: var(--kb-accent);
+          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 13px;
+        }
+        .kb-account-out:hover { opacity: .8; }
         .kb-brand { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; margin: 0; }
         .kb-sub { color: var(--kb-muted); font-size: 13px; margin-top: 2px; }
         .kb-banner {
@@ -203,6 +282,12 @@ function DostupInner() {
         }
         .kb-login-btn:disabled { opacity: .6; cursor: default; }
         .kb-login-err { color: oklch(0.55 0.18 25); font-size: 12.5px; margin-top: 10px; }
+        .kb-tg-login { margin-top: 4px; min-height: 46px; }
+        .kb-login-alt {
+          display: inline-block; margin-top: 12px; text-decoration: none;
+          color: var(--kb-muted); font-size: 13px; font-weight: 600;
+        }
+        .kb-login-alt:hover { color: var(--kb-accent); }
         .kb-card {
           display: block; background: var(--kb-surface); border: 1px solid var(--kb-line);
           border-radius: 18px; padding: 18px; margin-bottom: 14px;
@@ -228,6 +313,12 @@ function DostupInner() {
         .kb-badge-open { background: var(--kb-ok-soft); color: var(--kb-ok); }
         .kb-badge-closed { background: oklch(0.93 0.004 75); color: var(--kb-muted); }
         .kb-materials { display: grid; gap: 9px; margin-top: 14px; }
+        .kb-subhead {
+          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 11px;
+          text-transform: uppercase; letter-spacing: 0.06em; color: var(--kb-muted);
+          margin: 8px 2px 1px;
+        }
+        .kb-subhead:first-child { margin-top: 0; }
         .kb-mat {
           display: flex; align-items: center; gap: 13px; text-decoration: none; color: inherit;
           background: var(--kb-bg); border: 1px solid var(--kb-line); border-radius: 13px; padding: 13px 14px;
