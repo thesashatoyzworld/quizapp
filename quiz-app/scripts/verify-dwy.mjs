@@ -1,56 +1,45 @@
-// Сквозная проверка /api/dwy-lead. Подписывает payload ровно так же, как Telegram,
-// и бьёт в живой роут — проверяет всю цепочку: подпись → валидация → база → уведомление.
-//
+// Сквозная проверка /api/dwy-lead: валидация → запись в базу → уведомление.
 // Запуск (dev-сервер должен быть поднят):
 //   node --env-file=.env.local scripts/verify-dwy.mjs
-//   node --env-file=.env.local scripts/verify-dwy.mjs --bad-hash      // ждём 401
-//   node --env-file=.env.local scripts/verify-dwy.mjs --no-username   // ждём 400
-import crypto from 'node:crypto';
-
-const BOT_TOKEN = process.env.BOT_TOKEN;
-if (!BOT_TOKEN) { console.error('BOT_TOKEN не задан'); process.exit(1); }
+//
+// Telegram-логина в анкете нет (виджет в мобильном браузере требовал номер),
+// поэтому подписывать нечего — бьём обычным JSON, как это делает страница.
 
 const BASE = process.env.DWY_BASE || 'http://localhost:3000';
-const badHash = process.argv.includes('--bad-hash');
-const noUsername = process.argv.includes('--no-username');
 
-const auth = {
-  id: 788334680,
-  first_name: 'Проверка',
-  auth_date: Math.floor(Date.now() / 1000),
+const base = {
+  name: 'Проверка Скриптом',
+  contact: '@dwy_probe',
+  who: 'эксперт',
+  hasProduct: 'да',
+  product: 'консультации',
+  level: 3,
+  tried: 'снимал рилсы полгода, охваты встали',
+  want: 'стабильный поток заявок из контента',
+  income: '150–500к',
+  hours: '5–10 часов',
 };
-if (!noUsername) auth.username = 'dwy_probe';
 
-// Как в src/lib/telegram-login.ts: secret = SHA256(token),
-// hash = HMAC-SHA256(data-check-string, secret).
-const checkString = Object.keys(auth).sort().map((k) => `${k}=${auth[k]}`).join('\n');
-const secret = crypto.createHash('sha256').update(BOT_TOKEN).digest();
-auth.hash = badHash
-  ? 'de4db33f'.repeat(8)
-  : crypto.createHmac('sha256', secret).update(checkString).digest('hex');
+const cases = [
+  { name: 'валидная анкета', answers: base, expect: 200 },
+  { name: 'юзернейм ссылкой t.me/name', answers: { ...base, contact: 'https://t.me/dwy_probe' }, expect: 200 },
+  { name: 'почта вместо юзернейма', answers: { ...base, contact: 'probe@example.com' }, expect: 200 },
+  { name: 'без контакта', answers: { ...base, contact: '' }, expect: 400 },
+  { name: 'без имени', answers: { ...base, name: '' }, expect: 400 },
+  { name: 'кривой уровень', answers: { ...base, level: 9 }, expect: 400 },
+];
 
-const res = await fetch(`${BASE}/api/dwy-lead`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    auth,
-    source: 'verify-script',
-    answers: {
-      who: 'эксперт',
-      hasProduct: 'да',
-      product: 'консультации',
-      level: 3,
-      tried: 'снимал рилсы полгода, охваты встали',
-      want: 'стабильный поток заявок из контента',
-      income: '150–500к',
-      hours: '5–10 часов',
-      contact: '',
-    },
-  }),
-});
+let failed = 0;
+for (const c of cases) {
+  const res = await fetch(`${BASE}/api/dwy-lead`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ answers: c.answers, source: 'verify-script' }),
+  });
+  const ok = res.status === c.expect;
+  if (!ok) failed++;
+  console.log(`${ok ? 'OK  ' : 'ПРОВАЛ'} ${c.name}: ${res.status} (ждали ${c.expect})${ok ? '' : ' ' + await res.text()}`);
+}
 
-const expected = badHash ? 401 : noUsername ? 400 : 200;
-const body = await res.text();
-console.log('status:', res.status, body);
-console.log(res.status === expected ? `OK (ждали ${expected})` : `ПРОВАЛ: ждали ${expected}`);
-process.exit(res.status === expected ? 0 : 1);
+console.log(failed ? `\n${failed} проверок провалено` : '\nвсе проверки прошли');
+process.exit(failed ? 1 : 0);

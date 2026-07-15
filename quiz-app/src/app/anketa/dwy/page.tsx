@@ -1,37 +1,16 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   DWY_TITLE, DWY_ARGUMENT, WHO_OPTIONS, HAS_PRODUCT_OPTIONS, LEVELS,
   INCOME_OPTIONS, HOURS_OPTIONS, DWY_THANKS,
 } from '@/content/dwy';
 
-type TgUser = {
-  id: number; first_name?: string; last_name?: string;
-  username?: string; photo_url?: string; auth_date: number; hash: string;
-};
-
-// Виджет в режиме колбэка (data-onauth), не редиректа: человек остаётся на
-// странице с уже заполненной формой. Домен world.thesashatoyz.com привязан к
-// @testtoyzbot в BotFather — на других доменах кнопка не отрисуется.
-function TelegramLoginButton({ onAuth }: { onAuth: (u: TgUser) => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || el.childElementCount > 0) return;
-    (window as unknown as { onDwyAuth: (u: TgUser) => void }).onDwyAuth = onAuth;
-    const s = document.createElement('script');
-    s.src = 'https://telegram.org/js/telegram-widget.js?22';
-    s.async = true;
-    s.setAttribute('data-telegram-login', 'testtoyzbot');
-    s.setAttribute('data-size', 'large');
-    s.setAttribute('data-radius', '8');
-    s.setAttribute('data-onauth', 'onDwyAuth(user)');
-    el.appendChild(s);
-  }, [onAuth]);
-  return <div ref={ref} className="dwy-tg" />;
-}
+// Telegram Login Widget убран намеренно: в мобильном браузере он не видит
+// сессию из приложения и уводит на oauth.telegram.org вводить номер и код.
+// Трафик идёт из шапки профиля в Instagram — на таком трении отваливается
+// большинство. Контакт человек вписывает руками.
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -62,7 +41,8 @@ function DwyInner() {
   const params = useSearchParams();
   const source = params.get('from') || 'direct';
 
-  const [user, setUser] = useState<TgUser | null>(null);
+  const [name, setName] = useState('');
+  const [contact, setContact] = useState('');
   const [who, setWho] = useState('');
   const [hasProduct, setHasProduct] = useState('');
   const [product, setProduct] = useState('');
@@ -71,17 +51,15 @@ function DwyInner() {
   const [want, setWant] = useState('');
   const [income, setIncome] = useState('');
   const [hours, setHours] = useState('');
-  const [contact, setContact] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
 
-  const needContact = !!user && !user.username;
-  const ready = !!who && !!hasProduct && level > 0 && !!tried.trim() && !!want.trim()
-    && !!income && !!hours && (!needContact || !!contact.trim());
+  const ready = !!name.trim() && contact.trim().length >= 3 && !!who && !!hasProduct
+    && level > 0 && !!tried.trim() && !!want.trim() && !!income && !!hours;
 
   async function submit() {
-    if (!user || !ready || sending) return;
+    if (!ready || sending) return;
     setSending(true);
     setError('');
     try {
@@ -89,16 +67,12 @@ function DwyInner() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          auth: user,
           source,
-          answers: { who, hasProduct, product, level, tried, want, income, hours, contact },
+          answers: { name, contact, who, hasProduct, product, level, tried, want, income, hours },
         }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error === 'auth failed'
-          ? 'Вход через Telegram протух. Обновите страницу и войдите заново.'
-          : 'Не отправилось. Попробуйте ещё раз.');
+        setError('Не отправилось. Попробуйте ещё раз.');
         setSending(false);
         return;
       }
@@ -128,78 +102,67 @@ function DwyInner() {
             {DWY_ARGUMENT.map((line, i) => <p key={i} className="dwy-arg">{line}</p>)}
           </section>
 
-          {!user ? (
-            <section className="dwy-login">
-              <p className="dwy-login-t">Войдите через Telegram, чтобы я знал, кому отвечать</p>
-              <TelegramLoginButton onAuth={setUser} />
-            </section>
-          ) : (
-            <>
-              <div className="dwy-who">
-                Вы вошли как {user.first_name || 'без имени'}
-                {user.username ? ` · @${user.username}` : ''}
+          <form className="dwy-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+            <Field label="Как вас зовут">
+              <input className="dwy-input" value={name} onChange={(e) => setName(e.target.value)} />
+            </Field>
+
+            <Field label="Ваш телеграм">
+              <input className="dwy-input" placeholder="@username"
+                autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                value={contact} onChange={(e) => setContact(e.target.value)} />
+              <p className="dwy-hint">Туда я напишу. Нет юзернейма — оставьте почту.</p>
+            </Field>
+
+            <Field label="Кто вы">
+              <Chips options={WHO_OPTIONS} value={who} onChange={setWho} />
+            </Field>
+
+            <Field label="Есть ли у вас услуга или продукт">
+              <Chips options={HAS_PRODUCT_OPTIONS} value={hasProduct} onChange={setHasProduct} />
+              {(hasProduct === 'да' || hasProduct === 'в процессе') && (
+                <input className="dwy-input" placeholder="Какой?"
+                  value={product} onChange={(e) => setProduct(e.target.value)} />
+              )}
+            </Field>
+
+            <Field label="На каком вы уровне">
+              <div className="dwy-levels">
+                {LEVELS.map((l, i) => (
+                  <button key={l} type="button"
+                    className={`dwy-level ${level === i + 1 ? 'dwy-level-on' : ''}`}
+                    onClick={() => setLevel(i + 1)}>
+                    <span className="dwy-level-n">{i + 1}</span>
+                    <span>{l}</span>
+                  </button>
+                ))}
               </div>
+            </Field>
 
-              <form className="dwy-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-                <Field label="Кто вы">
-                  <Chips options={WHO_OPTIONS} value={who} onChange={setWho} />
-                </Field>
+            <Field label="Что уже пробовали с контентом и чем закончилось">
+              <textarea className="dwy-area" rows={4}
+                value={tried} onChange={(e) => setTried(e.target.value)} />
+            </Field>
 
-                <Field label="Есть ли у вас услуга или продукт">
-                  <Chips options={HAS_PRODUCT_OPTIONS} value={hasProduct} onChange={setHasProduct} />
-                  {(hasProduct === 'да' || hasProduct === 'в процессе') && (
-                    <input className="dwy-input" placeholder="Какой?"
-                      value={product} onChange={(e) => setProduct(e.target.value)} />
-                  )}
-                </Field>
+            <Field label="Что хотите получить через 3 месяца">
+              <textarea className="dwy-area" rows={4}
+                value={want} onChange={(e) => setWant(e.target.value)} />
+            </Field>
 
-                <Field label="На каком вы уровне">
-                  <div className="dwy-levels">
-                    {LEVELS.map((l, i) => (
-                      <button key={l} type="button"
-                        className={`dwy-level ${level === i + 1 ? 'dwy-level-on' : ''}`}
-                        onClick={() => setLevel(i + 1)}>
-                        <span className="dwy-level-n">{i + 1}</span>
-                        <span>{l}</span>
-                      </button>
-                    ))}
-                  </div>
-                </Field>
+            <Field label="Сколько зарабатываете сейчас">
+              <Chips options={INCOME_OPTIONS} value={income} onChange={setIncome} />
+            </Field>
 
-                <Field label="Что уже пробовали с контентом и чем закончилось">
-                  <textarea className="dwy-area" rows={4}
-                    value={tried} onChange={(e) => setTried(e.target.value)} />
-                </Field>
+            <Field label="Сколько часов в неделю готовы вкладывать">
+              <Chips options={HOURS_OPTIONS} value={hours} onChange={setHours} />
+            </Field>
 
-                <Field label="Что хотите получить через 3 месяца">
-                  <textarea className="dwy-area" rows={4}
-                    value={want} onChange={(e) => setWant(e.target.value)} />
-                </Field>
+            {error && <p className="dwy-err">{error}</p>}
 
-                <Field label="Сколько зарабатываете сейчас">
-                  <Chips options={INCOME_OPTIONS} value={income} onChange={setIncome} />
-                </Field>
-
-                <Field label="Сколько часов в неделю готовы вкладывать">
-                  <Chips options={HOURS_OPTIONS} value={hours} onChange={setHours} />
-                </Field>
-
-                {needContact && (
-                  <Field label="Куда вам написать">
-                    <input className="dwy-input" placeholder="Telegram или почта"
-                      value={contact} onChange={(e) => setContact(e.target.value)} />
-                    <p className="dwy-hint">У вас не задан юзернейм в Telegram, поэтому написать вам напрямую я не смогу.</p>
-                  </Field>
-                )}
-
-                {error && <p className="dwy-err">{error}</p>}
-
-                <button className="dwy-submit" type="submit" disabled={!ready || sending}>
-                  {sending ? 'Отправляю…' : 'Отправить анкету'}
-                </button>
-              </form>
-            </>
-          )}
+            <button className="dwy-submit" type="submit" disabled={!ready || sending}>
+              {sending ? 'Отправляю…' : 'Отправить анкету'}
+            </button>
+          </form>
         </>
       )}
 
@@ -228,16 +191,6 @@ function DwyInner() {
            но ниже заголовка: сначала «куда я попал», потом «почему заполняю». */
         .dwy-arg { font-size: 18px; line-height: 1.5; margin: 0 0 12px; font-weight: 400; }
         .dwy-arg:first-of-type { font-size: 20px; font-weight: 600; }
-        .dwy-login {
-          background: var(--surf); border: 1px solid var(--line);
-          border-radius: 14px; padding: 20px;
-        }
-        .dwy-login-t { margin: 0 0 14px; color: var(--mut); font-size: 14.5px; }
-        .dwy-tg { min-height: 46px; }
-        .dwy-who {
-          background: var(--surf); border: 1px solid var(--line); border-radius: 10px;
-          padding: 10px 14px; font-size: 13.5px; color: var(--mut); margin-bottom: 22px;
-        }
         .dwy-field { margin-bottom: 26px; }
         .dwy-label { display: block; font-weight: 700; font-size: 15.5px; margin-bottom: 10px; }
         .dwy-chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -263,7 +216,7 @@ function DwyInner() {
         }
         .dwy-level-on .dwy-level-n { background: var(--acc); color: #fff; }
         .dwy-input, .dwy-area {
-          width: 100%; font-family: inherit; font-size: 15.5px; color: var(--fg);
+          width: 100%; font-family: inherit; font-size: 16px; color: var(--fg);
           background: var(--surf); border: 1px solid var(--line);
           border-radius: 10px; padding: 12px 14px; margin-top: 8px; resize: vertical;
         }
