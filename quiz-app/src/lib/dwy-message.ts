@@ -1,9 +1,10 @@
 import { LEVELS } from '@/content/dwy';
 
 export type DwyLeadInput = {
-  telegramId: string | null;
+  name: string;
+  contact: string;
+  /** Нормализованный юзернейм без @, если контакт похож на телеграм. Иначе null. */
   username: string | null;
-  firstName: string | null;
   who: string;
   hasProduct: string;
   product: string | null;
@@ -12,9 +13,21 @@ export type DwyLeadInput = {
   want: string;
   income: string;
   hours: string;
-  contact: string | null;
   source: string | null;
 };
+
+/**
+ * Вытаскивает telegram-юзернейм из того, что человек вписал руками.
+ * Принимает «@name», «name», «t.me/name», «https://t.me/name».
+ * Возвращает null, если это не юзернейм (например, почта) — тогда контакт
+ * показываем как есть, без ссылки.
+ */
+export function normalizeTelegramUsername(raw: string): string | null {
+  let s = raw.trim();
+  s = s.replace(/^https?:\/\//i, '').replace(/^t\.me\//i, '').replace(/^@/, '');
+  s = s.split(/[/?\s]/)[0];
+  return /^[a-zA-Z0-9_]{5,32}$/.test(s) ? s : null;
+}
 
 /** Экранирование под parse_mode: HTML — поля свободные, туда прилетит что угодно. */
 function escape(text: string): string {
@@ -23,25 +36,23 @@ function escape(text: string): string {
 
 /**
  * Одно сообщение Саше со всей анкетой.
- * Ссылка «написать» идёт сразу после шапки — это главное действие по анкете.
+ * Контакт идёт сразу после имени — это главное действие по анкете.
  */
 export function buildDwyMessage(lead: DwyLeadInput): string {
-  const name = lead.firstName ? escape(lead.firstName) : 'без имени';
   const levelLabel = LEVELS[lead.level - 1] || `уровень ${lead.level}`;
 
   const lines: string[] = [
     '<b>Анкета на группу «делаем вместе»</b>',
     '',
+    `<b>Кто:</b> ${escape(lead.name)}`,
   ];
 
   if (lead.username) {
-    lines.push(`<b>Кто:</b> ${name} · <a href="https://t.me/${lead.username}">@${escape(lead.username)}</a>`);
+    lines.push(`<b>Телеграм:</b> <a href="https://t.me/${lead.username}">@${escape(lead.username)}</a>`);
   } else {
-    // Юзернейма нет — написать из Telegram нельзя, ведём по запасному контакту.
-    lines.push(`<b>Кто:</b> ${name} · <i>юзернейма нет</i>`);
+    // Не похоже на юзернейм (почта, телефон, кривой ввод) — ссылку не строим.
+    lines.push(`<b>Контакт:</b> ${escape(lead.contact)}`);
   }
-  if (lead.contact) lines.push(`<b>Запасной контакт:</b> ${escape(lead.contact)}`);
-  if (lead.telegramId) lines.push(`<b>Telegram id:</b> ${escape(lead.telegramId)}`);
 
   const productLine = lead.product
     ? `${escape(lead.hasProduct)} · ${escape(lead.product)}`

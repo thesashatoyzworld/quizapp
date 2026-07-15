@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
-import { verifyTelegramLogin } from '@/lib/telegram-login';
 import { prisma } from '@/lib/prisma';
-import { buildDwyMessage, type DwyLeadInput } from '@/lib/dwy-message';
+import { buildDwyMessage, normalizeTelegramUsername, type DwyLeadInput } from '@/lib/dwy-message';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -10,36 +9,29 @@ export const maxDuration = 30;
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
 
-const REQUIRED = ['who', 'hasProduct', 'level', 'tried', 'want', 'income', 'hours'] as const;
+// Telegram-логина здесь нет намеренно: виджет в мобильном браузере не видит
+// сессию из приложения и гонит человека на oauth.telegram.org вводить номер.
+// С холодного трафика из шапки профиля на этом отваливалось большинство.
+// Личность не верифицируем — Саша всё равно читает каждую анкету глазами.
+const REQUIRED = ['name', 'contact', 'who', 'hasProduct', 'level', 'tried', 'want', 'income', 'hours'] as const;
+
+/** Режем длину: поля свободные, а таблица не должна пухнуть от вставленной простыни. */
+const CAP = 2000;
+function cap(v: unknown): string {
+  return String(v).trim().slice(0, CAP);
+}
 
 export async function POST(req: NextRequest) {
   try {
-    if (!BOT_TOKEN) {
-      console.error('[dwy-lead] BOT_TOKEN не задан');
-      return NextResponse.json({ error: 'server misconfigured' }, { status: 500 });
-    }
-
     const body = await req.json();
-    const { auth, answers, source } = body ?? {};
+    const { answers, source } = body ?? {};
 
-    if (!auth || typeof auth !== 'object' || !answers || typeof answers !== 'object') {
+    if (!answers || typeof answers !== 'object') {
       return NextResponse.json({ error: 'bad payload' }, { status: 400 });
     }
 
-    // Виджет отдаёт числа (id, auth_date) — приводим к строкам, иначе
-    // data-check-string не сойдётся с тем, что подписал Telegram.
-    const authData: Record<string, string> = {};
-    for (const [k, v] of Object.entries(auth as Record<string, unknown>)) {
-      if (v !== null && v !== undefined) authData[k] = String(v);
-    }
-
-    const check = verifyTelegramLogin(authData, BOT_TOKEN);
-    if (!check.ok || !check.telegramId) {
-      return NextResponse.json({ error: 'auth failed' }, { status: 401 });
-    }
-
     for (const field of REQUIRED) {
-      if (answers[field] === undefined || answers[field] === null || answers[field] === '') {
+      if (answers[field] === undefined || answers[field] === null || String(answers[field]).trim() === '') {
         return NextResponse.json({ error: `missing field: ${field}` }, { status: 400 });
       }
     }
@@ -49,36 +41,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'bad level' }, { status: 400 });
     }
 
-    const username = authData.username || null;
-    const contact = typeof answers.contact === 'string' ? answers.contact.trim() : '';
-
-    // Без юзернейма написать человеку невозможно — запасной контакт обязателен.
-    if (!username && !contact) {
-      return NextResponse.json({ error: 'contact required' }, { status: 400 });
+    const contact = cap(answers.contact);
+    if (contact.length < 3) {
+      return NextResponse.json({ error: 'bad contact' }, { status: 400 });
     }
 
     const lead: DwyLeadInput = {
-      telegramId: String(check.telegramId),
-      username,
-      firstName: authData.first_name || null,
-      who: String(answers.who),
-      hasProduct: String(answers.hasProduct),
-      product: answers.product ? String(answers.product) : null,
+      name: cap(answers.name),
+      contact,
+      username: normalizeTelegramUsername(contact),
+      who: cap(answers.who),
+      hasProduct: cap(answers.hasProduct),
+      product: answers.product ? cap(answers.product) : null,
       level,
-      tried: String(answers.tried),
-      want: String(answers.want),
-      income: String(answers.income),
-      hours: String(answers.hours),
-      contact: contact || null,
+      tried: cap(answers.tried),
+      want: cap(answers.want),
+      income: cap(answers.income),
+      hours: cap(answers.hours),
       source: typeof source === 'string' && source ? source.slice(0, 64) : 'direct',
     };
 
     // Лид пишем первым. Он не должен теряться, что бы ни случилось с Telegram.
     await prisma.dwyLead.create({
       data: {
-        telegramId: lead.telegramId,
+        telegramId: null,
         username: lead.username,
-        firstName: lead.firstName,
+        firstName: lead.name,
         who: lead.who,
         hasProduct: lead.hasProduct,
         product: lead.product,
@@ -95,8 +83,8 @@ export async function POST(req: NextRequest) {
     // Уведомление уходит ПОСЛЕ ответа клиенту: на мобилке в Instagram WebView
     // ожидание Telegram роняло форму по таймауту.
     after(async () => {
-      if (!ADMIN_CHAT_ID) {
-        console.error('[dwy-lead] ADMIN_CHAT_ID не задан — уведомление не ушло');
+      if (!BOT_TOKEN || !ADMIN_CHAT_ID) {
+        console.error('[dwy-lead] BOT_TOKEN / ADMIN_CHAT_ID не заданы — уведомление не ушло');
         return;
       }
       try {
