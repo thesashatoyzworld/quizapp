@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  DWY_ARGUMENT, WHO_OPTIONS, HAS_PRODUCT_OPTIONS, LEVELS,
+  DWY_TITLE, DWY_ARGUMENT, WHO_OPTIONS, HAS_PRODUCT_OPTIONS, LEVELS,
   INCOME_OPTIONS, HOURS_OPTIONS, DWY_THANKS,
 } from '@/content/dwy';
 
@@ -124,6 +124,7 @@ function DwyInner() {
       ) : (
         <>
           <section className="dwy-intro">
+            <h1 className="dwy-h1">{DWY_TITLE}</h1>
             {DWY_ARGUMENT.map((line, i) => <p key={i} className="dwy-arg">{line}</p>)}
           </section>
 
@@ -219,8 +220,14 @@ function DwyInner() {
         }
         .dwy * { box-sizing: border-box; }
         .dwy-intro { margin-bottom: 30px; }
-        .dwy-arg { font-size: 20px; line-height: 1.5; margin: 0 0 14px; font-weight: 500; }
-        .dwy-arg:first-child { font-size: 25px; font-weight: 700; letter-spacing: -0.02em; }
+        .dwy-h1 {
+          font-size: 27px; font-weight: 800; letter-spacing: -0.025em;
+          line-height: 1.15; margin: 0 0 18px;
+        }
+        /* Первая строка аргумента — хук, держим её крупнее и плотнее остальных,
+           но ниже заголовка: сначала «куда я попал», потом «почему заполняю». */
+        .dwy-arg { font-size: 18px; line-height: 1.5; margin: 0 0 12px; font-weight: 400; }
+        .dwy-arg:first-of-type { font-size: 20px; font-weight: 600; }
         .dwy-login {
           background: var(--surf); border: 1px solid var(--line);
           border-radius: 14px; padding: 20px;
@@ -275,8 +282,9 @@ function DwyInner() {
         .dwy-done-p { font-size: 18px; color: var(--mut); margin: 0; line-height: 1.5; }
         @media (max-width: 560px) {
           .dwy { padding: 28px 15px 60px; }
-          .dwy-arg:first-child { font-size: 22px; }
-          .dwy-arg { font-size: 18px; }
+          .dwy-h1 { font-size: 24px; }
+          .dwy-arg:first-of-type { font-size: 18.5px; }
+          .dwy-arg { font-size: 17px; }
         }
       `}</style>
     </main>
