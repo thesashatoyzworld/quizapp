@@ -418,6 +418,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Кабинет deep-link: /start kabinet → присылаем кнопку кабинета.
+      // Нужен для ручной выдачи доступа (крипта и т.п.), где вебхука оплаты
+      // не было и кнопка автоматически не приходила. Ничего не выдаёт — сам
+      // кабинет гейтит по telegram_id и покажет только реально купленное.
+      if (startParam === 'kabinet' || startParam === 'dostup') {
+        await prisma.user.upsert({
+          where: { telegramId: BigInt(chatId) },
+          create: { telegramId: BigInt(chatId), username: username || null, firstName: update.message.from?.first_name || null },
+          update: {},
+        });
+        await sendMessage(
+          chatId,
+          `${firstName}, кабинет здесь 👇\n\nвнутри все материалы, к которым у тебя открыт доступ. если чего-то не хватает — напиши сюда.`,
+          { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] }
+        );
+        return NextResponse.json({ ok: true });
+      }
+
       // Lead-magnet deep link (slug from content/leadmagnets.json)
       if (startParam) {
         const lm = getLeadMagnet(startParam);
