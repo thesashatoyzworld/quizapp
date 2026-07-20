@@ -89,7 +89,7 @@ export const CATALOG: Record<string, CatalogProduct> = {
   uroven_t3: {
     slug: 'uroven-t3',
     name: 'Новый уровень контента — Тариф 3 (делаем вместе)',
-    price: 35000,
+    price: 50000,
     type: 'subscription',
     role: 'uroven',
     period: 'month',
