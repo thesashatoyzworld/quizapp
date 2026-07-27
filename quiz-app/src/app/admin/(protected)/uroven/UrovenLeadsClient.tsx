@@ -71,7 +71,7 @@ export default function UrovenLeadsClient({ leads: initial }: { leads: UrovenLea
         ЛИДЫ · НОВЫЙ УРОВЕНЬ КОНТЕНТА
       </h1>
       <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: 20 }}>
-        Кто кликал «Забрать» и заходил на страницу продукта. Тянется живьём из воронки. Жми на строку — раскроется весь путь человека. Ставь статус — ассистент и ты видите одно и то же.
+        Кто кликал «Забрать», заходил на страницу продукта или оплатил. Тянется живьём из воронки. Жми на строку — раскроется весь путь человека. Ставь статус — ассистент и ты видите одно и то же.
       </p>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -121,7 +121,15 @@ export default function UrovenLeadsClient({ leads: initial }: { leads: UrovenLea
                       <a href={link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--neon-cyan)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
                         {contact}
                       </a>
-                      {l.paid && <span title="реальная оплата" style={{ marginLeft: 6 }}>💰</span>}
+                      {l.paid && (
+                        <span
+                          title={`оплата${l.paidAt ? ` ${fmt(l.paidAt)}` : ''}${l.paidTier ? ` · ${l.paidTier}` : ''}`}
+                          style={{ marginLeft: 6, color: '#06d6a0', fontSize: '0.78rem', whiteSpace: 'nowrap' }}
+                        >
+                          💰 {l.paidAmount ? `${l.paidAmount.toLocaleString('ru-RU')} ₽` : ''}
+                          {l.paidTier ? ` · ${l.paidTier.replace('тариф ', 'т')}` : ''}
+                        </span>
+                      )}
                     </td>
                     <td style={{ ...td, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{l.name || '—'}</td>
                     <td style={{ ...td, color: 'var(--text-secondary)', fontSize: '0.8rem', maxWidth: 340, cursor: 'pointer', lineHeight: 1.4 }} onClick={() => setOpen((o) => ({ ...o, [l.tg]: !o[l.tg] }))}>

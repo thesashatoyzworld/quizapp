@@ -15,6 +15,9 @@ export type UrovenLead = {
   visits: number;
   checkouts: number;
   paid: boolean;
+  paidAmount: number | null;
+  paidTier: string | null;
+  paidAt: string | null;
   source: string | null;
   lastAt: string;
   context: string; // человекочитаемая сводка пути
@@ -37,6 +40,14 @@ type AggRow = {
 };
 
 type EvRow = { tg: string; created_at: Date; type: string; path: string | null; src: string | null; pct: number | null };
+
+type PaidRow = { tg: string | null; amount: number | null; slug: string | null; created_at: Date };
+
+// uroven-t2 / t2 / uroven_t3 → «тариф 2»
+function tierName(slug: string | null): string | null {
+  const m = (slug || '').match(/t([0-9])/);
+  return m ? `тариф ${m[1]}` : null;
+}
 
 export const PRODUCT = 'uroven';
 
@@ -166,17 +177,44 @@ export async function getUrovenLeads(): Promise<UrovenLead[]> {
     GROUP BY tg
   `;
 
-  const tgs = agg.map((r) => r.tg);
-
-  // 2) реальные оплаты uroven → множество tg (order_id: uroven_<tier>_<tg>)
-  const paidRows = await prisma.$queryRaw<{ tg: string }[]>`
-    SELECT DISTINCT split_part(pu.prodamus_order_id, '_', 3) AS tg
+  // 2) реальные оплаты uroven.
+  // Телеграм-путь кладёт tg прямо в order_id (uroven_<tier>_<tg>), карточный/токенный —
+  // нет (paid_<token>), там tg берётся через purchases.user_id → users. Раньше был только
+  // парсинг order_id, поэтому карточные покупатели висели как «новые лиды».
+  const paidRows = await prisma.$queryRaw<PaidRow[]>`
+    SELECT
+      COALESCE(
+        u.telegram_id::text,
+        NULLIF(CASE WHEN pu.prodamus_order_id ~ '_[0-9]{4,}$'
+                    THEN split_part(pu.prodamus_order_id, '_', 3) END, '')
+      )                                                                    AS tg,
+      pu.amount                                                            AS amount,
+      COALESCE(p.slug, (regexp_match(pu.prodamus_order_id, '^uroven_(t[0-9])'))[1]) AS slug,
+      pu.created_at                                                        AS created_at
     FROM purchases pu
-    JOIN products p ON p.id = pu.product_id
-    WHERE (pu.source = 'uroven' OR p.slug LIKE 'uroven%')
-      AND pu.prodamus_order_id ~ '_[0-9]{4,}$'
+    LEFT JOIN products p ON p.id = pu.product_id
+    LEFT JOIN users u ON u.id = pu.user_id
+    WHERE pu.source = 'uroven' OR p.slug LIKE 'uroven%'
+    ORDER BY pu.created_at ASC
   `;
-  const paid = new Set(paidRows.map((r) => r.tg));
+  // на человека — последняя покупка (перекрывает предыдущую при апгрейде тарифа)
+  const paid = new Map<string, PaidRow>();
+  for (const r of paidRows) if (r.tg) paid.set(r.tg, r);
+
+  // Покупатель мог оплатить прямо из бота, не задев трекер сайта — событий у него нет,
+  // но в лидборде он нужен. Берём его отдельной строкой.
+  const inAgg = new Set(agg.map((r) => r.tg));
+  const buyersNoEvents = [...paid.keys()].filter((tg) => !inAgg.has(tg));
+  const tgs = [...inAgg, ...buyersNoEvents];
+
+  // имена/юзернеймы для покупателей без событий (в agg они подтягиваются джойном)
+  const extraUsers = buyersNoEvents.length
+    ? await prisma.$queryRaw<{ tg: string; username: string | null; name: string | null }[]>`
+        SELECT u.telegram_id::text AS tg, u.username, u.first_name AS name
+        FROM users u WHERE u.telegram_id::text = ANY(${buyersNoEvents})
+      `
+    : [];
+  const extraByTg = new Map(extraUsers.map((u) => [u.tg, u]));
 
   // 3) ручные статусы из lead_status
   const statuses = await prisma.leadStatus.findMany({ where: { product: PRODUCT } });
@@ -207,31 +245,40 @@ export async function getUrovenLeads(): Promise<UrovenLead[]> {
     for (const [tg, arr] of byPerson) journeys.set(tg, buildJourney(arr));
   }
 
-  const leads: UrovenLead[] = agg.map((r) => {
-    const st = byTg.get(r.tg);
-    const isPaid = paid.has(r.tg);
-    const status: LeadStatusValue = (st?.status as LeadStatusValue) || (isPaid ? 'bought' : 'new');
-    const j = journeys.get(r.tg) || { context: '', timeline: [] };
+  const build = (tg: string, r: Partial<AggRow>, fallbackAt: Date): UrovenLead => {
+    const st = byTg.get(tg);
+    const pay = paid.get(tg) || null;
+    const status: LeadStatusValue = (st?.status as LeadStatusValue) || (pay ? 'bought' : 'new');
+    const j = journeys.get(tg) || { context: '', timeline: [] };
     return {
-      tg: r.tg,
-      username: r.username,
-      name: r.name,
-      clicks: Number(r.clicks),
-      visits: Number(r.visits),
-      checkouts: Number(r.checkouts),
-      paid: isPaid,
-      source: r.source,
-      lastAt: r.last_at.toISOString(),
-      context: j.context,
+      tg,
+      username: r.username ?? null,
+      name: r.name ?? null,
+      clicks: Number(r.clicks || 0),
+      visits: Number(r.visits || 0),
+      checkouts: Number(r.checkouts || 0),
+      paid: !!pay,
+      paidAmount: pay?.amount ?? null,
+      paidTier: pay ? tierName(pay.slug) : null,
+      paidAt: pay ? pay.created_at.toISOString() : null,
+      source: r.source ?? null,
+      lastAt: (r.last_at || fallbackAt).toISOString(),
+      context: j.context || (pay ? 'оплатил (событий на сайте не было)' : ''),
       timeline: j.timeline,
       status,
       note: st?.note ?? null,
       updatedBy: st?.updatedBy ?? null,
       updatedAt: st?.updatedAt ? st.updatedAt.toISOString() : null,
     };
-  });
+  };
 
-  const rank = (l: UrovenLead) => (l.visits > 0 ? 2 : 1);
+  const leads: UrovenLead[] = [
+    ...agg.map((r) => build(r.tg, r, r.last_at)),
+    ...buyersNoEvents.map((tg) => build(tg, extraByTg.get(tg) || {}, paid.get(tg)!.created_at)),
+  ];
+
+  // оплатившие сверху, дальше тёплые (дошли до страницы продукта)
+  const rank = (l: UrovenLead) => (l.paid ? 3 : l.visits > 0 ? 2 : 1);
   leads.sort(
     (a, b) =>
       rank(b) - rank(a) ||
