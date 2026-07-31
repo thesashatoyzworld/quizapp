@@ -635,15 +635,20 @@ export async function POST(request: NextRequest) {
       }
 
       // «Новый уровень контента» — deep-link uroven / uroven_t1 / t2 / t3.
+      // Хвост после тарифа = метка источника: uroven_t2_kanal → тариф 2, источник «kanal».
+      // Так видно, какой канал привёл покупателя (utm_source = uroven_<метка>).
       // Открываем компактный checkout в мини-аппе; оплата привязывается к Telegram.
       if (startParam === 'uroven' || startParam.startsWith('uroven_t')) {
-        const tier = startParam.startsWith('uroven_') ? startParam.slice('uroven_'.length) : 't1';
+        const rest = startParam.startsWith('uroven_') ? startParam.slice('uroven_'.length) : '';
+        const [tier = 't1', ...srcParts] = rest.split('_');
         const safeTier = ['t1', 't2', 't3'].includes(tier) ? tier : 't1';
+        // Метка: только буквы/цифры/дефис, до 32 символов. Пустая → нет метки.
+        const src = srcParts.join('-').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || null;
+
+        const checkoutUrl = `${WEBAPP_URL}/uroven/checkout.html?tier=${safeTier}${src ? `&src=${src}` : ''}`;
 
         await sendMessage(chatId, `${firstName}, открываю «Новый уровень контента» ⚡`, {
-          inline_keyboard: [
-            [{ text: '⚡ Оформить доступ', web_app: { url: `${WEBAPP_URL}/uroven/checkout.html?tier=${safeTier}` } }],
-          ],
+          inline_keyboard: [[{ text: '⚡ Оформить доступ', web_app: { url: checkoutUrl } }]],
         });
 
         await trackEvent({
@@ -651,7 +656,8 @@ export async function POST(request: NextRequest) {
           user_id: chatId,
           username: username || undefined,
           first_name: fullName || undefined,
-          utm_source: startParam,
+          utm_source: src ? `uroven_${src}` : startParam,
+          metadata: { product: 'uroven', tier: safeTier, src, startParam },
         });
 
         return NextResponse.json({ ok: true });
