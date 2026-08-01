@@ -50,6 +50,14 @@ h1 {
   -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='white' d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>") center/14px no-repeat;
           mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='white' d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>") center/14px no-repeat;
 }
+/* состав предыдущих тарифов: перечислен целиком, но приглушён */
+.incl li.from {
+  padding-left: 0; font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: oklch(0.70 0.008 55); margin-top: 2px;
+}
+.incl li.from::before { display: none; }
+.incl li.prev { color: oklch(0.62 0.010 55); font-weight: 400; }
+.incl li.prev::before { background: oklch(0.82 0.02 52); }
 .price-wrap { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 14px; padding: 22px 20px; margin-bottom: 18px; }
 .price { font-family: var(--font-display); font-weight: 900; font-size: 40px; letter-spacing: -.02em; color: var(--c-text); }
 .per { font-size: 13px; color: var(--c-muted); margin-top: 4px; }
@@ -77,7 +85,7 @@ h1 {
 </head>
 <body>
   <main class="card">
-    <p class="eyebrow">Предпродажа · 2 воркшопа сразу, курс 7 августа</p>
+    <p class="eyebrow">Предпродажа · предобучение сразу, курс 7 августа</p>
     <h1>Новый уровень <span class="hl">контента</span></h1>
 
     <div class="tiers">
@@ -93,7 +101,7 @@ h1 {
     <div class="price-wrap">
       <div class="price" id="price"></div>
       <p class="per" id="per"></p>
-      <p class="deadline">2 воркшопа сразу · курс — <b>7 августа</b></p>
+      <p class="deadline">предобучение открывается сразу · курс — <b>7 августа</b></p>
     </div>
 
     <button class="btn" id="pay">Оформить доступ</button>
@@ -110,13 +118,17 @@ h1 {
   var FORM = 'https://thesashatoyz.payform.ru';
   var origin = window.location.origin;
 
+  // incl = только то, что добавляет сам тариф. Состав предыдущих подставляется
+  // при рендере списком (приглушённо), чтобы человек видел объём целиком.
+  var ORDER = ['t1', 't2', 't3'];
   var TIERS = {
     t1: { name: 'Тариф 1 — делаешь сам', price: 3450, per: 'разово, доступ навсегда',
-      incl: ['6 уровней прохождения контента', 'видеоуроки + методички', 'доступ навсегда', 'бонус: воркшоп «Продающий контент»'] },
+      incl: ['6 уровней прохождения контента', 'видеоуроки + методички', 'доступ навсегда',
+             'предобучение сразу: «Продающий Контент»', 'предобучение сразу: «Формула Вирусного Контента»'] },
     t2: { name: 'Тариф 2 — сам + монетизация', price: 7500, per: 'в месяц', sub: '2987944',
-      incl: ['всё из тарифа 1', 'чат с обратной связью', 'воркшопы по монетизации и воронкам', 'созвон раз в месяц группой'] },
+      incl: ['чат с обратной связью', 'воркшопы по монетизации и воронкам', 'созвон раз в месяц группой'] },
     t3: { name: 'Тариф 3 — делаем вместе', price: 50000, per: 'в месяц', sub: '2989937',
-      incl: ['всё из тарифа 2', 'созвон раз в неделю группой'] }
+      incl: ['созвон раз в неделю группой'] }
   };
 
   function qsTier() {
@@ -130,7 +142,16 @@ h1 {
     document.getElementById('tierName').textContent = t.name;
     document.getElementById('price').innerHTML = t.price.toLocaleString('ru-RU') + '&nbsp;₽';
     document.getElementById('per').textContent = t.per;
-    document.getElementById('incl').innerHTML = t.incl.map(function (x) { return '<li>' + x + '</li>'; }).join('');
+    var idx = ORDER.indexOf(tier);
+    var html = '';
+    if (idx > 0) {
+      html += '<li class="from">всё из тарифа ' + idx + '</li>';
+      ORDER.slice(0, idx).forEach(function (prev) {
+        TIERS[prev].incl.forEach(function (x) { html += '<li class="prev">' + x + '</li>'; });
+      });
+    }
+    html += t.incl.map(function (x) { return '<li>' + x + '</li>'; }).join('');
+    document.getElementById('incl').innerHTML = html;
     var btns = document.querySelectorAll('.tiers button');
     for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-tier') === tier);
   }
@@ -146,7 +167,7 @@ h1 {
     // Доступ привязан к Telegram (оплата из бота). Кабинет — только через Telegram.
     var paidContent = 'Оплата принята: «Новый уровень контента» (' + t.name + '). '
       + 'Доступ привязан к твоему Telegram — открой кабинет через бота @testtoyzbot. '
-      + 'Сразу внутри два воркшопа: «Продающий контент» и «Формула вирусного контента». Курс — 7 августа.';
+      + 'Предобучение открывается сразу: «Продающий Контент» и «Формула Вирусного Контента». Курс — 7 августа.';
     var f = {
       'do': 'pay',
       'order_id': orderId,
