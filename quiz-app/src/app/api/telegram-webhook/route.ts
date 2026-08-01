@@ -634,16 +634,23 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // «Новый уровень контента» — deep-link uroven / uroven_t1 / t2 / t3.
+      // «Новый уровень контента» — deep-link uroven[_<тариф>][_<метка источника>].
+      // Тариф необязателен, метка тоже: uroven_t2_kanal → тариф 2 + источник «kanal»,
+      // uroven_kanal → тариф по умолчанию + тот же источник. Так видно, какой канал
+      // привёл покупателя (utm_source = uroven_<метка>).
       // Открываем компактный checkout в мини-аппе; оплата привязывается к Telegram.
-      if (startParam === 'uroven' || startParam.startsWith('uroven_t')) {
-        const tier = startParam.startsWith('uroven_') ? startParam.slice('uroven_'.length) : 't1';
-        const safeTier = ['t1', 't2', 't3'].includes(tier) ? tier : 't1';
+      if (startParam === 'uroven' || startParam.startsWith('uroven_')) {
+        const rest = startParam.startsWith('uroven_') ? startParam.slice('uroven_'.length) : '';
+        const parts = rest ? rest.split('_') : [];
+        const hasTier = ['t1', 't2', 't3'].includes(parts[0]);
+        const safeTier = hasTier ? parts[0] : 't1';
+        // Метка: только буквы/цифры/дефис, до 32 символов. Пустая → нет метки.
+        const src = (hasTier ? parts.slice(1) : parts).join('-').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || null;
+
+        const checkoutUrl = `${WEBAPP_URL}/uroven/checkout.html?tier=${safeTier}${src ? `&src=${src}` : ''}`;
 
         await sendMessage(chatId, `${firstName}, открываю «Новый уровень контента» ⚡`, {
-          inline_keyboard: [
-            [{ text: '⚡ Оформить доступ', web_app: { url: `${WEBAPP_URL}/uroven/checkout.html?tier=${safeTier}` } }],
-          ],
+          inline_keyboard: [[{ text: '⚡ Оформить доступ', web_app: { url: checkoutUrl } }]],
         });
 
         await trackEvent({
@@ -651,7 +658,8 @@ export async function POST(request: NextRequest) {
           user_id: chatId,
           username: username || undefined,
           first_name: fullName || undefined,
-          utm_source: startParam,
+          utm_source: src ? `uroven_${src}` : startParam,
+          metadata: { product: 'uroven', tier: safeTier, src, startParam },
         });
 
         return NextResponse.json({ ok: true });
