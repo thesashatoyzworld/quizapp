@@ -634,16 +634,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // «Новый уровень контента» — deep-link uroven / uroven_t1 / t2 / t3.
-      // Хвост после тарифа = метка источника: uroven_t2_kanal → тариф 2, источник «kanal».
-      // Так видно, какой канал привёл покупателя (utm_source = uroven_<метка>).
+      // «Новый уровень контента» — deep-link uroven[_<тариф>][_<метка источника>].
+      // Тариф необязателен, метка тоже: uroven_t2_kanal → тариф 2 + источник «kanal»,
+      // uroven_kanal → тариф по умолчанию + тот же источник. Так видно, какой канал
+      // привёл покупателя (utm_source = uroven_<метка>).
       // Открываем компактный checkout в мини-аппе; оплата привязывается к Telegram.
-      if (startParam === 'uroven' || startParam.startsWith('uroven_t')) {
+      if (startParam === 'uroven' || startParam.startsWith('uroven_')) {
         const rest = startParam.startsWith('uroven_') ? startParam.slice('uroven_'.length) : '';
-        const [tier = 't1', ...srcParts] = rest.split('_');
-        const safeTier = ['t1', 't2', 't3'].includes(tier) ? tier : 't1';
+        const parts = rest ? rest.split('_') : [];
+        const hasTier = ['t1', 't2', 't3'].includes(parts[0]);
+        const safeTier = hasTier ? parts[0] : 't1';
         // Метка: только буквы/цифры/дефис, до 32 символов. Пустая → нет метки.
-        const src = srcParts.join('-').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || null;
+        const src = (hasTier ? parts.slice(1) : parts).join('-').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || null;
 
         const checkoutUrl = `${WEBAPP_URL}/uroven/checkout.html?tier=${safeTier}${src ? `&src=${src}` : ''}`;
 
