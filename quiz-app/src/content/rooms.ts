@@ -68,6 +68,16 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
+    key: 'razbory',
+    role: 'uroven',
+    title: 'Разборы',
+    subtitle: 'Реальные созвоны учеников по шагам',
+    landingUrl: 'https://thesashatoyz.com/uroven',
+    materials: [
+      { kind: 'recording', title: 'Разборы созвонов', url: '/razbory', note: 'Записи и конспекты по таймкодам: что сработало, где посыпалось.', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
+    ],
+  },
+  {
     key: 'sync',
     role: 'sync',
     title: 'Синхронизация',
