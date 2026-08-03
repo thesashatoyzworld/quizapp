@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
+import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import {
   questions,
   calculateScores,
@@ -39,7 +40,8 @@ export default function QuizMoney() {
   const track = useCallback(
     async (event_type: string, extra: Record<string, unknown> = {}, srcOverride?: string) => {
       try {
-        const tgUser = typeof window !== 'undefined' ? window.Telegram?.WebApp?.initDataUnsafe?.user : null;
+        // SDK грузится с defer — ждём его, чтобы событие не ушло без user_id.
+        const tgUser = (await waitForTelegramWebApp())?.initDataUnsafe?.user ?? null;
         await fetch('/api/track-event', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

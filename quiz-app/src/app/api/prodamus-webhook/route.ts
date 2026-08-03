@@ -4,6 +4,9 @@ import { trackEvent, markFollowUpPaid, getAdminChatId, getUserInfo } from '@/lib
 import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { grantAccess } from '@/lib/access';
+import { ensureIntake, sendPreamble } from '@/lib/intake';
+import { sendBotMessage } from '@/lib/telegram';
+import { INTAKE_INVITE, INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -562,6 +565,18 @@ export async function POST(request: NextRequest) {
             }),
           }).catch(() => {});
         }
+        // Тариф 3 = групповое менторство: сразу зовём собрать досье до созвона 1-1.
+        // Момент максимальной мотивации, человек только что заплатил.
+        if (product.slug === INTAKE_PRODUCT_SLUG) {
+          try {
+            await ensureIntake(tgUserId);
+            await sendBotMessage(tgUserId, INTAKE_INVITE);
+            await sendPreamble(tgUserId);
+          } catch (e) {
+            console.error('[Prodamus Webhook] intake invite failed:', e);
+          }
+        }
+
         await notifyAdminUroven(product.name, amount, `TG user ${tgUserId}`, orderId as string);
         console.log(`[Prodamus Webhook] Uroven (telegram) payment user ${tgUserId}, ${product.slug}`);
       } else {

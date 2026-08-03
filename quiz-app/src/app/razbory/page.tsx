@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
+import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 
 // Раздел «Разборы» — записи и конспекты разборов реальных созвонов учеников.
 // Доступ: активный «Новый уровень контента» тарифа 2 или 3. Проверка живёт на
@@ -55,11 +56,6 @@ function RazboryInner() {
   const [preview, setPreview] = useState(false);
 
   useEffect(() => {
-    const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
-    if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
-    const id = tg?.initDataUnsafe?.user?.id ?? null;
-    setTgId(id);
-
     // ?preview=1 — превью вёрстки при локальной разработке (сервер пускает
     // только вне продакшена).
     const preview = new URLSearchParams(window.location.search).get('preview') === '1';
@@ -67,6 +63,12 @@ function RazboryInner() {
 
     let stop = false;
     (async () => {
+      // SDK подключён с defer — ждём его, иначе потеряли бы опознание по initData.
+      const tg = await waitForTelegramWebApp();
+      if (stop) return;
+      if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
+      const id = tg?.initDataUnsafe?.user?.id ?? null;
+      setTgId(id);
       try {
         const qs = new URLSearchParams();
         if (id) qs.set('telegramId', String(id));
@@ -102,7 +104,14 @@ function RazboryInner() {
     <main className="rz-wrap">
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Manrope:wght@400;500;600;700&subset=cyrillic,latin&display=swap" rel="stylesheet" />
+      {/* Неблокирующая загрузка шрифтов: недоступный fonts.googleapis.com не должен
+          оставлять экран белым (см. кабинет /dostup). */}
+      <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Manrope:wght@400;500;600;700&subset=cyrillic,latin&display=swap"
+        rel="stylesheet" media="print"
+        onLoad={(e) => { (e.currentTarget as HTMLLinkElement).media = 'all'; }} />
+      <noscript>
+        <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Manrope:wght@400;500;600;700&subset=cyrillic,latin&display=swap" rel="stylesheet" />
+      </noscript>
 
       <header className="rz-top">
         <a className="rz-back" href="/dostup">‹ Кабинет</a>
@@ -195,7 +204,7 @@ function RazboryInner() {
           font-size: 13px; font-weight: 600; margin-bottom: 10px;
         }
         .rz-back:hover { color: var(--rz-accent); }
-        .rz-brand { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; }
+        .rz-brand { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; }
         .rz-sub { color: var(--rz-muted); font-size: 13px; margin-top: 3px; line-height: 1.4; }
         .rz-card {
           display: block; width: 100%; text-align: left; background: var(--rz-surface);
@@ -212,7 +221,7 @@ function RazboryInner() {
         }
         .rz-item-date { font-size: 12px; color: var(--rz-muted); }
         .rz-item-title {
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 19px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 19px;
           letter-spacing: -0.02em; line-height: 1.18; margin: 11px 0 0;
         }
         .rz-item-sub { color: var(--rz-muted); font-size: 13.5px; line-height: 1.45; margin: 6px 0 0; }
@@ -223,9 +232,9 @@ function RazboryInner() {
         }
         .rz-item-arr {
           display: inline-block; margin-top: 14px; color: var(--rz-accent);
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 14px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14px;
         }
-        .rz-login-title { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 16px; }
+        .rz-login-title { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px; }
         .rz-login-sub { color: var(--rz-muted); font-size: 12.5px; margin: 4px 0 12px; line-height: 1.4; }
         .rz-tg-login { margin-top: 4px; min-height: 46px; }
         .rz-login-alt {
@@ -238,13 +247,13 @@ function RazboryInner() {
           background: var(--rz-bg); border: 1px solid var(--rz-line); padding: 5px 10px; border-radius: 999px;
         }
         .rz-lock-h1 {
-          font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 24px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 24px;
           letter-spacing: -0.02em; margin: 12px 0 8px;
         }
         .rz-lock-p { font-size: 14.5px; line-height: 1.55; color: var(--rz-text); margin: 0 0 18px; }
         .rz-cta {
           display: block; text-align: center; text-decoration: none; background: var(--rz-accent);
-          color: oklch(1 0 0); font-family: 'Archivo', sans-serif; font-weight: 800;
+          color: oklch(1 0 0); font-family: 'Archivo', system-ui, sans-serif; font-weight: 800;
           font-size: 15px; padding: 13px 18px; border-radius: 11px;
         }
         .rz-cta:active { transform: translateY(1px); }
@@ -269,12 +278,12 @@ function RazboryInner() {
         .rz-viewer-back {
           flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; cursor: pointer;
           border: none; background: none; color: var(--rz-accent);
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 15px; padding: 4px 2px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 15px; padding: 4px 2px;
         }
         .rz-viewer-chev { font-size: 22px; line-height: 1; margin-top: -1px; }
         .rz-viewer-title {
           flex: 1; min-width: 0; text-align: center; color: var(--rz-text);
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 14.5px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14.5px;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .rz-viewer-pad { flex: 0 0 auto; width: 34px; }

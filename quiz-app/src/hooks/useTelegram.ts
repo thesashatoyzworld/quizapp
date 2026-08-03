@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 
 interface TelegramUser {
   id: number;
@@ -68,25 +69,32 @@ export function useTelegram() {
   const [isTelegramContext, setIsTelegramContext] = useState(false);
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
+    let stop = false;
+    // SDK подключён с defer (синхронный тег блокировал парсер и оставлял белый
+    // экран, когда telegram.org не отвечал), поэтому дожидаемся его появления.
+    waitForTelegramWebApp().then((ready) => {
+      if (stop) return;
+      const tg = ready as unknown as TelegramWebApp | null;
 
-    if (tg) {
-      setWebApp(tg);
-      setUser(tg.initDataUnsafe?.user || null);
-      setIsTelegramContext(true);
+      if (tg) {
+        setWebApp(tg);
+        setUser(tg.initDataUnsafe?.user || null);
+        setIsTelegramContext(true);
 
-      // Сообщаем Telegram что приложение готово
-      tg.ready();
+        // Сообщаем Telegram что приложение готово
+        tg.ready();
 
-      // Расширяем на весь экран
-      tg.expand();
+        // Расширяем на весь экран
+        tg.expand();
 
-      setIsReady(true);
-    } else {
-      // Не в Telegram — работаем как обычный веб
-      setIsReady(true);
-      setIsTelegramContext(false);
-    }
+        setIsReady(true);
+      } else {
+        // Не в Telegram — работаем как обычный веб
+        setIsReady(true);
+        setIsTelegramContext(false);
+      }
+    });
+    return () => { stop = true; };
   }, []);
 
   const sendCallback = useCallback(async (data: CallbackData): Promise<boolean> => {

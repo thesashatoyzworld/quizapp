@@ -1,14 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { trackEvent } from '@/lib/notion';
-import { notifyAdmin } from '@/lib/telegram';
+import { notifyAdmin, sendBotMessage } from '@/lib/telegram';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
+import {
+  INTAKE_CB,
+  adminAddQuestion,
+  adminCreateLink,
+  adminList,
+  adminSendInvite,
+  advanceIntake,
+  beginIntake,
+  ensureIntake,
+  getIntake,
+  handleIntakeMessage,
+  hasTarif3Access,
+  pauseIntake,
+  sendCurrentQuestion,
+  sendPreamble,
+  skipStep,
+  syncUsername,
+  transcribePending,
+} from '@/lib/intake';
+import { INTAKE_TEXTS } from '@/content/intake-tarif3';
 
 // Держим функцию открытой дольше дефолтных 10с: kazino-флоу ждёт ~7с между
-// сообщением про канал и статьёй.
-export const maxDuration = 20;
+// сообщением про канал и статьёй. 60с нужны анкете: расшифровка голосового
+// идёт в after() и на пятиминутной записи Whisper не укладывается в 20с.
+export const maxDuration = 60;
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
@@ -20,10 +42,17 @@ interface TelegramUpdate {
     };
     text?: string;
     from?: {
+      id?: number;
       first_name?: string;
       last_name?: string;
       username?: string;
     };
+    // Анкета принимает не только текст: голосовые, скрины, кружки, файлы.
+    voice?: { file_id: string; duration?: number; file_size?: number };
+    photo?: { file_id: string }[];
+    document?: { file_id: string; file_name?: string };
+    video_note?: { file_id: string; duration?: number };
+    caption?: string;
   };
   callback_query?: {
     id: string;
@@ -179,6 +208,27 @@ export async function POST(request: NextRequest) {
       const cb = update.callback_query;
       const data = cb.data || '';
 
+      // Кнопки анкеты тарифа 3
+      if (data.startsWith('intake:') && cb.message) {
+        const chatId = cb.message.chat.id;
+        await answerCallbackQuery(cb.id);
+
+        await syncUsername(cb.from.id, cb.from.username, cb.from.first_name);
+        const intake = await getIntake(cb.from.id);
+
+        if (!intake) {
+          await sendMessage(chatId, INTAKE_TEXTS.noAccess);
+          return NextResponse.json({ ok: true });
+        }
+
+        if (data === INTAKE_CB.start) await beginIntake(intake, chatId);
+        else if (data === INTAKE_CB.next) await advanceIntake(intake, chatId);
+        else if (data === INTAKE_CB.skip) await skipStep(intake, chatId);
+        else if (data === INTAKE_CB.later) await pauseIntake(intake, chatId);
+
+        return NextResponse.json({ ok: true });
+      }
+
       // Masterclass SYNC waitlist join
       if (data === 'mcsync_join' && cb.message) {
         const tgUserId = cb.from.id;
@@ -329,6 +379,98 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Команды Саши по анкетам. Только из его чата, ADMIN_CHAT_ID.
+    if (
+      update.message?.text?.startsWith('/anketa_') &&
+      String(update.message.chat.id) === (process.env.ADMIN_CHAT_ID || '').trim()
+    ) {
+      const chatId = update.message.chat.id;
+      const raw = update.message.text.trim();
+      const [cmd, ...rest] = raw.split(/\s+/);
+      const arg = rest[0] || '';
+      const tail = rest.slice(1).join(' ');
+
+      let reply: string;
+      if (cmd === '/anketa_send') {
+        reply = arg ? await adminSendInvite(arg) : 'кому: /anketa_send @username';
+      } else if (cmd === '/anketa_link') {
+        reply = arg ? await adminCreateLink(arg) : 'кому: /anketa_link @username';
+      } else if (cmd === '/anketa_add') {
+        reply = arg && tail ? await adminAddQuestion(arg, tail) : 'формат: /anketa_add @username текст вопроса';
+      } else if (cmd === '/anketa_list') {
+        reply = await adminList();
+      } else {
+        reply = 'команды: /anketa_send, /anketa_link, /anketa_add, /anketa_list';
+      }
+
+      // Без parse_mode: подчёркивание в юзернейме Markdown принимает за курсив.
+      await sendBotMessage(chatId, reply, undefined, null);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Анкета тарифа 3: человек сам вернулся продолжить или начать.
+    if (update.message?.text?.trim().startsWith('/anketa') && update.message.from?.id) {
+      const chatId = update.message.chat.id;
+      const tgId = update.message.from.id;
+
+      await syncUsername(tgId, update.message.from.username, update.message.from.first_name);
+
+      if (!(await hasTarif3Access(tgId))) {
+        await sendMessage(chatId, INTAKE_TEXTS.noAccess);
+        return NextResponse.json({ ok: true });
+      }
+
+      const intake = await ensureIntake(
+        tgId,
+        update.message.from.username || null,
+        update.message.from.first_name || null,
+      );
+
+      if (intake.status === 'done') {
+        await sendMessage(chatId, INTAKE_TEXTS.alreadyDone);
+      } else if (intake.status === 'in_progress') {
+        await sendMessage(chatId, INTAKE_TEXTS.resume);
+        await sendCurrentQuestion(intake, chatId);
+      } else {
+        await sendPreamble(chatId);
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // Ответ на вопрос анкеты: голос, текст, скрин, ссылка, кружок, файл.
+    // Команды сюда не попадают, они разобраны выше.
+    if (update.message?.from?.id && !update.message.text?.startsWith('/')) {
+      const m = update.message;
+      const tgId = m.from!.id!;
+
+      await syncUsername(tgId, m.from?.username, m.from?.first_name);
+
+      const result = await handleIntakeMessage({
+        chatId: m.chat.id,
+        telegramId: tgId,
+        username: m.from?.username,
+        firstName: m.from?.first_name,
+        text: m.text || m.caption,
+        voice: m.voice,
+        photo: m.photo,
+        document: m.document,
+        videoNote: m.video_note,
+      });
+
+      if (result.handled) {
+        // Whisper дольше, чем можно держать вебхук: отвечаем Telegram сразу,
+        // расшифровка догоняет фоном.
+        if (result.transcribeAnswerId) {
+          const answerId = result.transcribeAnswerId;
+          after(async () => {
+            await transcribePending(answerId, m.chat.id);
+          });
+        }
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     // Handle /start command (with or without parameters)
     if (update.message?.text?.startsWith('/start')) {
       const chatId = update.message.chat.id;
@@ -342,6 +484,46 @@ export async function POST(request: NextRequest) {
 
       // Debug logging
       console.log('Webhook received:', { text: update.message.text, startParam });
+
+      // Персональная ссылка на анкету: /start intake_<token>.
+      // Нужна тем, кто ни разу не заходил в бота: им бот написать первым не может,
+      // ссылку выдаёт Саша руками, поэтому гейт по базе здесь не нужен.
+      if (startParam.startsWith('intake_')) {
+        const token = startParam.slice('intake_'.length);
+        const tgId = update.message.from?.id || chatId;
+
+        const byToken = await prisma.intake.findUnique({ where: { inviteToken: token } });
+        await syncUsername(tgId, username || null, update.message.from?.first_name || null);
+
+        if (byToken) {
+          if (byToken.status === 'done') {
+            await sendMessage(chatId, INTAKE_TEXTS.alreadyDone);
+          } else if (byToken.status === 'in_progress') {
+            await sendMessage(chatId, INTAKE_TEXTS.resume);
+            await sendCurrentQuestion(byToken, chatId);
+          } else {
+            await sendPreamble(chatId);
+          }
+        } else {
+          // Токена нет: пускаем, только если доступ есть в базе.
+          if (await hasTarif3Access(tgId)) {
+            await ensureIntake(tgId, username || null, update.message.from?.first_name || null);
+            await sendPreamble(chatId);
+          } else {
+            await sendMessage(chatId, INTAKE_TEXTS.noAccess);
+          }
+        }
+
+        await trackEvent({
+          event_type: 'intake_open',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'intake_link',
+        });
+
+        return NextResponse.json({ ok: true });
+      }
 
       // Авто-выдача доступа после оплаты картой на сайте: /start paid_<token>.
       // Продамус редиректит сюда после успешной оплаты; код подтверждён вебхуком

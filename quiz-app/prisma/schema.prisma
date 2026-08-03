@@ -307,3 +307,53 @@ model DwyLead {
 
   @@map("dwy_leads")
 }
+
+// ═══════════════════════════════════════
+// INTAKE — АНКЕТА ТАРИФА 3 ДО ПЕРВОГО СОЗВОНА
+// ═══════════════════════════════════════
+// Бот собирает досье в личке (11 вопросов, ответы голосом или текстом),
+// чтобы созвон 1-1 начинался с работы, а не со сбора вводных.
+// Одна анкета на человека: повторный /anketa продолжает её, а не создаёт вторую.
+
+model Intake {
+  id          String    @id @default(uuid())
+  telegramId  BigInt    @unique @map("telegram_id")
+  username    String?
+  firstName   String?   @map("first_name")
+  status      String    @default("invited") // invited | in_progress | done
+  currentStep Int       @default(0) @map("current_step")
+  inviteToken String?   @unique @map("invite_token") // персональная ссылка для тех, кто не в боте
+  invitedAt   DateTime  @default(now()) @map("invited_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  remindedAt  DateTime? @map("reminded_at") // напоминание ровно одно
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  answers IntakeAnswer[]
+
+  @@index([status])
+  @@map("intakes")
+}
+
+model IntakeAnswer {
+  id       String @id @default(uuid())
+  intakeId String @map("intake_id")
+  intake   Intake @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+
+  // индекс вопроса 0..10; -1 = добивающий вопрос Саши после сбора анкеты
+  step          Int
+  extraQuestion String? @map("extra_question")
+
+  kind        String // text | voice | photo | document | video_note
+  rawText     String? @map("raw_text")
+  transcript  String? // расшифровка голосового через whisper
+  fileId      String? @map("file_id") // telegram file_id, чтобы Саша послушал сам
+  durationSec Int?    @map("duration_sec")
+  skipped     Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([intakeId, step])
+  @@map("intake_answers")
+}

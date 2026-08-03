@@ -1,0 +1,131 @@
+/* Раскладка админки. На десктопе всё как было: колонка-сайдбар слева.
+   На телефоне сайдбар становится горизонтальной полосой сверху, иначе
+   он забирает половину экрана и контент режется по правому краю. */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-primary);
+  font-family: var(--font-body);
+}
+
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-right: 1px solid rgba(0, 240, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.brand {
+  padding: 24px 20px;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+}
+
+.brandTitle {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  color: var(--neon-cyan);
+  letter-spacing: 0.15em;
+  margin-bottom: 4px;
+}
+
+.brandSub {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.links {
+  flex: 1;
+  padding: 12px 0;
+}
+
+.link {
+  display: block;
+  padding: 10px 20px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: all 0.15s;
+}
+
+.link:hover {
+  color: var(--neon-cyan);
+}
+
+.logoutWrap {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(0, 240, 255, 0.1);
+}
+
+.logout {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.main {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .shell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+    padding: 0 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .brand {
+    padding: 10px 0;
+    border-bottom: none;
+    flex-shrink: 0;
+  }
+
+  .brandSub {
+    display: none;
+  }
+
+  /* Разделы уезжают в горизонтальный скролл, а не ломают страницу. */
+  .links {
+    display: flex;
+    gap: 4px;
+    padding: 8px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .link {
+    padding: 6px 10px;
+    white-space: nowrap;
+    font-size: 0.8rem;
+  }
+
+  .logoutWrap {
+    padding: 0 0 0 8px;
+    border-top: none;
+    flex-shrink: 0;
+  }
+
+  .main {
+    padding: 18px 14px 40px;
+  }
+}

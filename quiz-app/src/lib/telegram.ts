@@ -82,6 +82,67 @@ export async function sendTelegramVideo(
   return sendTelegramMessage(chatId, caption, paymentUrl);
 }
 
+/**
+ * Обычное сообщение боту без кнопки оплаты.
+ * sendTelegramMessage выше всегда лепит кнопку мастер-класса, для анкеты не годится.
+ */
+export async function sendBotMessage(
+  chatId: number,
+  text: string,
+  replyMarkup?: object,
+  // null = слать как есть. Нужно для сообщений с юзернеймами: подчёркивание
+  // в «dariya_basinaa» Markdown понимает как курсив и роняет разметку.
+  parseMode: 'Markdown' | 'HTML' | null = 'Markdown',
+): Promise<{ ok: boolean; blocked?: boolean; messageId?: number }> {
+  if (!BOT_TOKEN) return { ok: false };
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        ...(parseMode ? { parse_mode: parseMode } : {}),
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+      }),
+    });
+    const data = await res.json();
+
+    // 403 = человек не начинал диалог с ботом или заблокировал его.
+    // Телеграм не даёт написать первым, это не наша ошибка.
+    if (data.ok === false && data.error_code === 403) return { ok: false, blocked: true };
+
+    return { ok: data.ok === true, messageId: data.result?.message_id };
+  } catch (error) {
+    console.error(`sendBotMessage failed for ${chatId}:`, error);
+    return { ok: false };
+  }
+}
+
+/** Путь к файлу в Telegram. Лимит Bot API на скачивание — 20 МБ. */
+export async function getTelegramFilePath(fileId: string): Promise<string> {
+  if (!BOT_TOKEN) throw new Error('BOT_TOKEN is not set');
+
+  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file_id: fileId }),
+  });
+  const data = await res.json();
+  const path: string | undefined = data?.result?.file_path;
+  if (!path) throw new Error(`getFile returned no path: ${JSON.stringify(data)}`);
+  return path;
+}
+
+export async function downloadTelegramFile(filePath: string): Promise<ArrayBuffer> {
+  if (!BOT_TOKEN) throw new Error('BOT_TOKEN is not set');
+
+  const res = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`);
+  if (!res.ok) throw new Error(`download failed: ${res.status}`);
+  return res.arrayBuffer();
+}
+
 export async function notifyAdmin(text: string) {
   if (!BOT_TOKEN) return;
 
