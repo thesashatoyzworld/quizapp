@@ -16,6 +16,7 @@ import {
   INTAKE_INVITE,
   INTAKE_EXTRA_INTRO,
 } from '@/content/intake-tarif3';
+import { scheduleIntakeReminder } from '@/lib/qstash';
 import { randomBytes } from 'crypto';
 
 export const INTAKE_CB = {
@@ -109,7 +110,7 @@ export async function ensureIntake(
   const existing = await prisma.intake.findUnique({ where: { telegramId: tg } });
   if (existing) return existing;
 
-  return prisma.intake.create({
+  const created = await prisma.intake.create({
     data: {
       telegramId: tg,
       username: username || null,
@@ -118,6 +119,11 @@ export async function ensureIntake(
       ...(inviteToken ? { inviteToken } : {}),
     },
   });
+
+  // Одно напоминание через сутки. Успеет закончить — обработчик сам пропустит.
+  await scheduleIntakeReminder(created.id);
+
+  return created;
 }
 
 function questionKeyboard() {
