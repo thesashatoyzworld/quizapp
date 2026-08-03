@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<base href="/deck00/">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Вступление">
+<meta name="robots" content="noindex">
+<title>Вступление · 6 уровней навыка</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  /* финал: карта шести уровней */
+  .kartawrap{display:flex;flex-direction:column;align-items:center;}
+  .kartawrap img{max-width:100%;max-height:700px;object-fit:contain;mix-blend-mode:multiply;}
+  .karta-punch{margin-top:24px;}
+
+  /* откат: чужой путь и масштаб */
+  .olf,.zm{max-width:1100px;margin:0 auto;}
+  .olsvg{width:100%;height:auto;display:block;background:#fff;border:2px solid var(--line);}
+  .ln{fill:none;stroke:var(--ink);stroke-width:3;}
+  .ln.full{stroke:var(--ink);stroke-width:2.4;}
+  .ln.guess{stroke:var(--accent);stroke-width:4;stroke-dasharray:12 10;transition:opacity .3s;}
+  .peepring{fill:none;stroke:var(--ink);stroke-width:3;}
+  .olbar{display:flex;align-items:center;gap:26px;margin-top:20px;}
+  .ollab{font-size:26px;color:var(--muted);text-align:left;}
+  .zmtop{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+  .zmlab{font-size:25px;color:var(--muted);margin-left:12px;}
+  .zmwin{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2;transition:opacity .3s;}
+
+  .lvpick{display:flex;flex-direction:column;gap:12px;max-width:1000px;margin:0 auto;}
+  .lvrow{display:flex;align-items:center;gap:22px;border:2px solid var(--line);background:#fff;
+    padding:18px 24px;cursor:pointer;text-align:left;transition:.15s;}
+  .lvrow:hover{border-color:var(--accent);}
+  .lvrow.on{border-color:var(--accent);background:var(--accent-soft);}
+  .lvrow .n{font-size:34px;font-weight:800;color:var(--accent);min-width:52px;}
+  .lvrow .txt{font-size:30px;font-weight:600;}
+  .lvout{margin-top:28px;min-height:150px;border-top:2px solid var(--ink);padding-top:24px;text-align:left;
+    max-width:1000px;margin-left:auto;margin-right:auto;}
+  .lvout .h{font-size:34px;font-weight:800;margin-bottom:12px;}
+  .lvout .p{font-size:26px;color:var(--muted);line-height:1.4;}
+  .lvout .p b{color:var(--ink);}
+
+  /* во что я целюсь: одно действие, два счётчика */
+  .jp{max-width:1150px;margin:0 auto;}
+  .jptop{display:flex;align-items:center;justify-content:center;gap:28px;margin-bottom:22px;}
+  .jptop button{font:inherit;font-size:26px;font-weight:800;letter-spacing:.04em;padding:16px 34px;
+    border:3px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;text-transform:uppercase;}
+  .jptop button:hover{background:var(--accent);border-color:var(--accent);}
+  .jptop button:disabled{background:#fff;color:var(--muted);border-color:var(--line);cursor:default;}
+  .jptop .roll{font-size:30px;font-weight:800;min-width:300px;text-align:left;color:var(--muted);}
+  .jptop .roll b{color:var(--ink);font-size:38px;}
+  .jpcols{display:flex;gap:26px;}
+  .jpcol{flex:1;border:2px solid var(--line);background:#fff;padding:20px 22px 18px;display:flex;flex-direction:column;}
+  /* один слайд = одна колонка по центру */
+  .jpcol.solo{max-width:780px;margin:0 auto;}
+  .jpviews{font-size:22px;color:var(--muted);margin-bottom:10px;}
+  .jpviews b{color:var(--ink);font-weight:800;font-size:26px;}
+  .jpviews b.hit{color:var(--accent);}
+  .jpcol .ttl{font-size:27px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
+  .jpcol .sub2{font-size:21px;color:var(--muted);margin-bottom:16px;min-height:26px;}
+  .jpfield{height:215px;position:relative;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;}
+  .jpfoot{margin-top:14px;border-top:2px solid var(--line);padding-top:12px;font-size:23px;color:var(--muted);}
+  .jpfoot b{color:var(--ink);font-weight:800;}
+  /* левая: результат вспыхивает и осыпается */
+  .flash{position:absolute;bottom:88px;font-size:64px;font-weight:800;animation:crumble 1.5s ease-in forwards;}
+  .flash.hit{color:var(--accent);font-size:80px;}
+  @keyframes crumble{0%{opacity:0;transform:translateY(-24px) scale(.9)}
+    18%{opacity:1;transform:translateY(0) scale(1)}
+    55%{opacity:1;transform:translateY(0) scale(1)}
+    100%{opacity:0;transform:translateY(120px) scale(.7)}}
+  .jpzero{font-size:26px;color:var(--line);font-weight:800;position:absolute;bottom:8px;letter-spacing:.1em;}
+  /* правая: стена кирпичей, первая строка внизу */
+  .jpwall{display:flex;flex-wrap:wrap-reverse;align-content:flex-start;justify-content:center;
+    gap:7px;width:100%;height:100%;}
+  .jpwall .b{width:88px;height:30px;background:var(--ink);animation:drop .35s ease-out;}
+  .jpwall .b.hit{background:var(--accent);}
+  @keyframes drop{from{opacity:0;transform:translateY(-26px)}to{opacity:1;transform:translateY(0)}}
+  /* мини-график настроения под каждой колонкой, шкала общая */
+  .mood{margin-top:12px;border-top:2px solid var(--line);padding-top:8px;}
+  .mood .ml{font-size:17px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;
+    display:flex;justify-content:space-between;gap:16px;white-space:nowrap;margin-bottom:2px;}
+  .mood svg{display:block;width:100%;height:74px;}
+  .mood .zero{stroke:var(--line);stroke-width:2;stroke-dasharray:6 6;vector-effect:non-scaling-stroke;}
+  .mood .ln{fill:none;stroke:var(--ink);stroke-width:3;stroke-linejoin:round;stroke-linecap:round;
+    vector-effect:non-scaling-stroke;}
+  .mood .dot{fill:var(--accent);}
+  .mood .lab{font-size:16px;fill:#b3aaa4;}
+  .jpmid{margin-top:12px;font-size:24px;color:var(--muted);letter-spacing:.04em;}
+  .jpout{margin-top:12px;min-height:52px;font-size:23px;line-height:1.3;font-weight:600;
+    max-width:900px;margin-left:auto;margin-right:auto;}
+  .jpout b{color:var(--accent);}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div id="pbar"></div>
+  <div id="deck"></div>
+  <div id="ctrl">
+    <div class="ab" data-dir="-1">‹</div>
+    <div class="ab" data-dir="1">›</div>
+    <div class="ab" id="fsbtn" title="весь экран (F)">⛶</div>
+    <span id="cnt">01 / 01</span>
+    <span id="hint">F — весь экран · ← → листать · V — кадр камеры · N — заметки · T — суфлёр · R — полный текст</span>
+  </div>
+</div></div>
+
+<script src="say/00.js"></script>
+<script src="full/00.js"></script>
+<script src="_deck.js"></script>
+<script>
+const LEVELS = [
+  {n:'1', t:'хотите, но ничего не делаете',
+   h:'Уровень 1. Хочу, но не делаю',
+   p:'Задача: <b>просто начать выкладывать</b>. Плевать какой контент, плевать какие цифры.<br>Разбираем шесть замков, из-за которых вы не нажимаете кнопку.'},
+  {n:'2', t:'когда-то делали, но бросили',
+   h:'Уровень 2. Делал, но бросил',
+   p:'По-хорошему это даже не отдельный уровень: вы на первом, просто <b>выключили игру</b>.<br>Задача: понять, что вас выбило, и вернуться с пониженной планкой.'},
+  {n:'3', t:'делаете, но вас раздражает то, что вы делаете',
+   h:'Уровень 3. Делаю, но бесит',
+   p:'Задача: <b>собрать комфортную среду</b> — свою форму, свою правду, свою ставку.<br>Иначе бросите, это вопрос времени.'},
+  {n:'4', t:'не раздражает, но времени не хватает',
+   h:'Уровень 4. Не бесит, но жрёт время',
+   p:'Задача: <b>сжать время</b>, а не найти его. Больше времени не будет.<br>Сначала снимаем оценку, потом ставим рамки, потом коллекционируем.'},
+  {n:'5', t:'времени хватает, а отклика нет',
+   h:'Уровень 5. Времени хватает, а отклика нет',
+   p:'Задача: <b>поймать промежуточные результаты</b> и научиться их докручивать.<br>Самый большой уровень курса.'},
+  {n:'6', t:'всё работает, хочу больше',
+   h:'Уровень 6. Всё работает, хочу больше',
+   p:'Задача: <b>масштабировать то, что уже работает</b>.<br>Масштаб — это не больше усилий, а больше результата с тех же усилий.'}
+];
+
+// Одна последовательность бросков на оба слайда: на втором честно говорим
+// «те же самые шестнадцать попыток». Разброс — с реальных заливок @cherepanov.blog
+// (медиана ~2 500, хиты до 834 715).
+const AIM = (() => {
+  const rnd = (a,b) => a + Math.floor(Math.random()*(b-a));
+  const TOTAL = 16, jackpotAt = rnd(11,14), rolls = [];
+  for (let i=1; i<=TOTAL; i++) {
+    const hit = i===jackpotAt, p = Math.random();
+    rolls.push({hit, views: hit ? rnd(240000,840000)
+      : p<.72 ? rnd(180,3200) : p<.93 ? rnd(4000,26000) : rnd(38000,140000)});
+  }
+  return {TOTAL, jackpotAt, rolls};
+})();
+
+const nfmt = n => n.toLocaleString('ru-RU');
+const plural = k => { const a=k%10, b=k%100;
+  if (a===1 && b!==11) return 'единица';
+  if (a>=2 && a<=4 && (b<10||b>=20)) return 'единицы';
+  return 'единиц'; };
+// общий рисовальщик линии настроения
+const moodDraw = (line, dot, pts) => {
+  line.setAttribute('points', pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' '));
+  const last = pts[pts.length-1];
+  dot.setAttribute('cx', last[0]); dot.setAttribute('cy', last[1]);
+};
+const STEP = 340/AIM.TOTAL;
+
+const SLIDES = [
+  {k:'cover', t:'Новый уровень<br>контента', sub:'контент как навык, а не лотерея'},
+
+  {k:'st', t:'если вы это смотрите,<br>вы затрахались искать ответы', sm:true,
+   sub:'как делать контент с кайфом и чтобы он работал'},
+
+  {k:'st', kicker:'если ещё не читали', t:'у меня есть бесплатная статья<br>про уровни навыка', sm:true,
+   sub:'там разобран сам подход, тут повторяться не буду<br><br><span class="ac" style="font-weight:800;font-size:36px">thesashatoyz.com/blog/urovni-navyka-kontenta</span>'},
+
+  {k:'sec', n:'рамка', t:'контент —<br>это навык'},
+  {k:'st', t:'и это единственный выгодный<br>ракурс на контент', sm:true},
+  {k:'st', t:'потому что тогда любые ваши действия<br>имеют <span class="ac">накопительный эффект</span>', sm:true},
+
+  {k:'ix', kicker:'жмите на кнопку', t:'если вы целитесь в результат',
+   html:`<div class="jp">
+      <div class="jptop">
+        <button id="aGo">выложить единицу</button>
+        <div class="roll" id="aRoll">попытка <b>0</b></div>
+      </div>
+      <div class="jpcols">
+        <div class="jpcol solo">
+          <div class="ttl">счётчик: просмотры этой единицы</div>
+          <div class="sub2">выложил, посмотрел цифру, жду следующую</div>
+          <div class="jpfield" id="aField"><div class="jpzero">в активе пусто</div></div>
+          <div class="mood"><div class="ml"><span>как себя чувствую</span><span>↑ кайф · ↓ провал</span></div>
+            <svg viewBox="0 0 340 80" preserveAspectRatio="none">
+              <line class="zero" x1="0" y1="40" x2="340" y2="40"/>
+              <polyline class="ln" id="aMood" points="0,40"/>
+              <circle class="dot" id="aDot" cx="0" cy="40" r="4"/>
+            </svg></div>
+          <div class="jpfoot">накоплено за все попытки: <b id="aAct">ничего</b></div>
+        </div>
+      </div>
+      <div class="jpout" id="aOut"></div>
+    </div>`,
+   todo:'на записи: кликаю до джекпота, показываю качели настроения. второй слайд повторит ЭТИ ЖЕ попытки',
+   init(root){
+     const btn=root.querySelector('#aGo'), roll=root.querySelector('#aRoll'),
+           F=root.querySelector('#aField'), act=root.querySelector('#aAct'),
+           out=root.querySelector('#aOut'), line=root.querySelector('#aMood'),
+           dot=root.querySelector('#aDot');
+     let n=0, done=false, pts=[[0,40]];
+     const reset=()=>{ n=0; done=false; pts=[[0,40]]; moodDraw(line,dot,pts);
+       roll.innerHTML='попытка <b>0</b>'; act.textContent='ничего'; out.innerHTML='';
+       btn.disabled=false; btn.textContent='выложить единицу'; };
+     btn.addEventListener('click',()=>{
+       if(done){ reset(); return; }
+       const r=AIM.rolls[n]; n++;
+       roll.innerHTML='попытка <b>'+n+'</b>';
+       F.querySelectorAll('.flash').forEach(x=>x.remove());
+       const f=document.createElement('div');
+       f.className='flash'+(r.hit?' hit':''); f.textContent=nfmt(r.views);
+       F.appendChild(f); setTimeout(()=>f.remove(),1500);
+       const prev=pts[pts.length-1][1];
+       const v = r.hit ? 1 : r.views>=38000 ? .55 : r.views>=4000 ? .1 : (prev<34 ? -1 : -.75);
+       pts.push([n*STEP, 40 - v*34]); moodDraw(line,dot,pts);
+       if(r.hit){
+         out.innerHTML='джекпот. <b>и он осыпался ровно так же, как флоп</b><br>'+
+           'следующая единица снова с нуля: вы не знаете, почему зашло, и повторить нечем';
+       } else if(n===1){
+         out.innerHTML='цифра вспыхнула и осыпалась. в активе по-прежнему пусто';
+       } else if(n>=AIM.TOTAL){
+         done=true; btn.textContent='↻ заново';
+         out.innerHTML='шестнадцать попыток, накоплено <b>ничего</b>.<br>'+
+           'и качели: чем выше был взлёт, тем больнее следующее падение';
+       }
+     });
+   }},
+
+  {k:'ix', kicker:'те же самые попытки', t:'а если вы целитесь в навык',
+   html:`<div class="jp">
+      <div class="jptop">
+        <button id="bGo">выложить единицу</button>
+        <div class="roll" id="bRoll">попытка <b>0</b></div>
+      </div>
+      <div class="jpcols">
+        <div class="jpcol solo">
+          <div class="ttl">счётчик: сделанные единицы</div>
+          <div class="sub2">просмотры вижу, но считаю не их</div>
+          <div class="jpviews" id="bViews">счётчик показал: <b>—</b></div>
+          <div class="jpfield" id="bField"><div class="jpwall" id="bWall"></div></div>
+          <div class="mood"><div class="ml"><span>как себя чувствую</span><span>↑ единица = победа</span></div>
+            <svg viewBox="0 0 340 80" preserveAspectRatio="none">
+              <line class="zero" x1="0" y1="40" x2="340" y2="40"/>
+              <polyline class="ln" id="bMood" points="0,40"/>
+              <circle class="dot" id="bDot" cx="0" cy="40" r="4"/>
+            </svg></div>
+          <div class="jpfoot">накоплено за все попытки: <b id="bAct">0 единиц</b></div>
+        </div>
+      </div>
+      <div class="jpout" id="bOut"></div>
+    </div>`,
+   todo:'те же цифры, что на прошлом слайде, включая джекпот. проговариваю: кирпич один и тот же за любую попытку',
+   init(root){
+     const btn=root.querySelector('#bGo'), roll=root.querySelector('#bRoll'),
+           wall=root.querySelector('#bWall'), views=root.querySelector('#bViews'),
+           act=root.querySelector('#bAct'), out=root.querySelector('#bOut'),
+           line=root.querySelector('#bMood'), dot=root.querySelector('#bDot');
+     let n=0, done=false, pts=[[0,40]];
+     const reset=()=>{ n=0; done=false; pts=[[0,40]]; moodDraw(line,dot,pts);
+       wall.innerHTML=''; roll.innerHTML='попытка <b>0</b>'; act.textContent='0 единиц';
+       views.innerHTML='счётчик показал: <b>—</b>'; out.innerHTML='';
+       btn.disabled=false; btn.textContent='выложить единицу'; };
+     btn.addEventListener('click',()=>{
+       if(done){ reset(); return; }
+       const r=AIM.rolls[n]; n++;
+       roll.innerHTML='попытка <b>'+n+'</b>';
+       views.innerHTML='счётчик показал: <b'+(r.hit?' class="hit"':'')+'>'+nfmt(r.views)+'</b>';
+       const b=document.createElement('div');
+       b.className='b'+(r.hit?' hit':''); wall.appendChild(b);
+       act.textContent=n+' '+plural(n);
+       pts.push([n*STEP, 40 - (n/AIM.TOTAL)*34]); moodDraw(line,dot,pts);
+       if(r.hit){
+         out.innerHTML='тот самый джекпот. здесь он <b>такой же кирпич, как остальные</b><br>'+
+           'просто лёг сверху на то, что уже собрано';
+       } else if(n===1){
+         out.innerHTML='та же цифра, что и на прошлом слайде. но кирпич за неё один — как за любую другую';
+       } else if(n>=AIM.TOTAL){
+         done=true; btn.textContent='↻ заново';
+         out.innerHTML='те же шестнадцать попыток, те же цифры. накоплено <b>шестнадцать</b>.<br>'+
+           'усилия были одинаковые, отличается только счётчик';
+       }
+     });
+   }},
+
+  {k:'img', kicker:'и вот в чём главная беда', t:'когда результатом становятся цифры',
+   src:'assets/rab-cifr.png', h:520,
+   cap:'вы проверяете телефон как псих. лайки, просмотры, подписки. и настроение на весь день зависит от того, что там'},
+  {k:'st', t:'я не хочу быть рабом цифр', sub:'и не хочу, чтобы им становились вы'},
+
+  {k:'st', t:'здесь нельзя проиграть', sub:'можно только остановиться'},
+
+  {k:'st', t:'и я могу вам это доказать', sm:true},
+  {k:'car', kicker:'эксперимент «зефирная башня»', items:[
+    {src:'assets/marshmallow-1.png', h:'условия у всех одинаковые',
+     p:'двадцать спагетти, метр скотча, метр верёвки и одна зефирка. восемнадцать минут. башня должна стоять сама, зефирка сверху'},
+    {src:'assets/marshmallow-2.png', h:'две команды',
+     p:'слева дети из детского сада. справа выпускники бизнес-школ: те, кого учили планировать, оценивать риски и распределять роли'},
+    {src:'assets/marshmallow-3.png', h:'первая башня падает у всех',
+     p:'зефирка всегда оказывается тяжелее, чем кажется на бумаге. разница не в том, что она упала. разница в том, что происходит дальше'},
+    {src:'assets/marshmallow-4.png', h:'дети пробуют, взрослые проектируют',
+     p:'дети ставят зефирку сразу и смотрят, что будет. упало, значит уже понятно, где слабое место. взрослые возвращаются к схеме и ищут конструкцию, которая точно устоит'},
+    {src:'assets/marshmallow-5.png', h:'у детей башня выше',
+     p:'не потому что они умнее. потому что их вариант проверен семь раз, а идеально спроектированный только один, и проверять его было уже некогда'},
+  ]},
+  {k:'st', t:'количество попыток и играючий подход', sm:true,
+   sub:'выигрывают у идеального плана и проектирования'},
+
+  {k:'st', t:'и дело не в возрасте', sub:'тот же принцип проверяли на студентах-фотографах'},
+  {k:'car', kicker:'эксперимент «сто снимков против одного»', items:[
+    {src:'assets/fotografy-1.png', h:'набор у всех одинаковый',
+     p:'камера, плёнка, бумага, кювета для проявки. и полгода времени'},
+    {src:'assets/fotografy-2.png', h:'класс делят пополам',
+     p:'одной половине раздают камеры. вторая садится готовиться'},
+    {src:'assets/fotografy-3.png', h:'а вот условия разные',
+     p:'первую группу оценивают по количеству снятых кадров. вторую по качеству одного-единственного снимка, к которому она готовится все шесть месяцев'},
+    {src:'assets/fotografy-4.png', h:'лучшие фотографии оказались у первой группы',
+     p:'у тех, кто просто снимал. полгода они ошибались, смотрели на результат и снимали снова. вторая группа за то же время получила одну аккуратную фотографию и стопку теории'},
+  ]},
+  {k:'st', t:'качество появляется из количества', sub:'а не из подготовки к нему'},
+
+  {k:'st', t:'в начале всегда сложно', sub:'потому что это новое и незнакомое'},
+  {k:'st', t:'попытки выбить джекпот<br>и сократить маршрут', sm:true, sub:'лишь удлиняют его'},
+
+  {k:'st', t:'и теперь про то,<br>как это выглядит изнутри', sm:true},
+  {k:'car', kicker:'туман войны', t:'вы видите только то, что вокруг вас', items:[
+    {src:'assets/tuman-1.png', h:'в начале открыт только пятачок под ногами',
+     p:'вы не знаете ни куда идти, ни что там дальше. и это нормально, так начинают все'},
+    {src:'assets/tuman-2.png', h:'отсюда невозможно проложить маршрут до цели',
+     p:'вы её просто не видите. а если построите план вслепую, упрётесь в то, чего на вашей карте не было'},
+    {src:'assets/tuman-3.png', h:'карта открывается, когда вы делаете шаг',
+     p:'не раньше. не после того, как вы всё продумали, а после того, как сдвинулись'},
+    {src:'assets/tuman-4.png', h:'и вот теперь появился выбор',
+     p:'через обрыв не пройти, через мост можно. со старта этого выбора для вас не существовало'},
+    {src:'assets/tuman-5.png', h:'каждый следующий шаг открывает ещё кусок',
+     p:'вы всё ещё не видите всю карту. но видите достаточно, чтобы сделать следующий шаг'},
+    {src:'assets/tuman-6.png', h:'дошли',
+     p:'и только отсюда видно, что маршрут оказался вообще не таким, каким вы его представляли в начале'},
+  ]},
+  {k:'st', t:'маршрут нельзя построить заранее', sub:'его можно только пройти'},
+  {k:'st', t:'поэтому я не даю одну схему на всех', sm:true,
+   sub:'вашу карту я не знаю, вы её пока тоже. зато я знаю, как она открывается'},
+
+  {k:'st', t:'и вторая вещь из игр,<br>которая работает так же', sm:true},
+  {k:'car', kicker:'опыт и артефакты', t:'почему уровень нельзя перепрыгнуть', items:[
+    {src:'assets/igra-uroven-1.png', h:'новый мир, пути вперёд закрыты',
+     p:'вам доступен первый уровень. на второй нужен опыт, на третий артефакт. опыта ноль'},
+    {src:'assets/igra-uroven-2.png', h:'проходите первый уровень, получаете опыт',
+     p:'не за победу над драконом. за то, что вышли и сделали'},
+    {src:'assets/igra-uroven-3.png', h:'ещё опыт',
+     p:'каждое действие капает в шкалу. даже то, которое вам показалось неудачным'},
+    {src:'assets/igra-uroven-4.png', h:'но часть путей всё ещё закрыта',
+     p:'и это не наказание. просто вы туда пока не дотягиваетесь, и попытка залезть раньше времени закончится тем, что вас оттуда стащит'},
+    {src:'assets/igra-uroven-5.png', h:'на первом уровне лежит артефакт',
+     p:'его нельзя купить и нельзя получить на бегу. только пройдя этот уровень'},
+    {src:'assets/igra-uroven-6.png', h:'шкала заполнилась, новые уровни открылись сами',
+     p:'вы их не выбивали. вы просто закрыли то, что было под ногами'},
+  ]},
+  {k:'st', t:'уровень нельзя перепрыгнуть', sub:'его можно только закрыть'},
+
+  {k:'sec', n:'шаг 1', t:'найдите себя'},
+  {k:'ix', kicker:'диагностика', t:'на каком вы уровне прямо сейчас',
+   html:`<div class="lvpick" id="lvpick">${LEVELS.map((l,i)=>
+      `<div class="lvrow" data-i="${i}"><div class="n">${l.n}</div><div class="txt">${l.t}</div></div>`).join('')}</div>
+      <div class="lvout" id="lvout"><div class="p" style="opacity:.6">нажмите на строку, которая про вас</div></div>`,
+   hint:'на записи: кликаю по строкам и коротко проговариваю каждый уровень',
+   init(root){
+     const out = root.querySelector('#lvout');
+     root.querySelectorAll('.lvrow').forEach(r=>{
+       r.addEventListener('click',()=>{
+         root.querySelectorAll('.lvrow').forEach(x=>x.classList.remove('on'));
+         r.classList.add('on');
+         const l = LEVELS[Number(r.dataset.i)];
+         out.innerHTML = `<div class="h">${l.h}</div><div class="p">${l.p}</div>`;
+       });
+     });
+   }},
+
+  {k:'st', t:'если кажется, что вы между двумя —<br><span class="ac">берите тот, что ниже</span>', sm:true},
+  {k:'st', t:'это не про то, чтобы себя занизить', sm:true,
+   sub:'это про то, чтобы не тащить наверх нерешённую задачу, которая потом вас оттуда стащит'},
+  {k:'st', t:'двигайтесь с того уровня, где вы сейчас', sm:true,
+   sub:'а не с того, на котором хотели бы быть', dark:true},
+
+  {k:'sec', n:'шаг 2', t:'как этим<br>пользоваться'},
+  {k:'list', kicker:'каждый уровень устроен одинаково', t:'',
+   items:['разбор: что с вами происходит и почему',
+          'инструменты, которыми это чинится',
+          'ЗАДАЧА — то, что вы делаете руками',
+          'МАРКЕР — по нему поймёте, что уровень закрыт']},
+  {k:'st', t:'задача важнее, чем прочитать<br>следующий уровень', sm:true,
+   sub:'читать приятно, делать — нет. мозг будет предлагать вам читать дальше. не ведитесь'},
+
+  {k:'ix', kicker:'ритуал', t:'сверка раз в месяц',
+   html:`<div class="cards" style="max-width:1100px;margin:0 auto">
+      <div class="card"><h4>1. Где я сейчас</h4><p>честно, по маркерам, а не по тому, где хотелось бы быть</p></div>
+      <div class="card"><h4>2. Что изменилось</h4><p>что стало легче, что перестало бесить, что появилось нового</p></div>
+      <div class="card"><h4>3. Не откатило ли</h4><p>и если откатило — то на чём именно</p></div>
+    </div>
+    <div class="sub" style="margin-top:34px">пятнадцать минут раз в месяц</div>`,
+   hint:'без этого через два месяца вы не отличите движение от топтания'},
+
+  {k:'sec', n:'и сразу', t:'если вас<br>откатило'},
+  {k:'st', t:'это нормально и это будет', sub:'заболели, ушли в проект, уехали, выгорели'},
+
+  {k:'st', t:'и вот тут включается сравнение', sm:true, sub:'с теми, у кого «всё ровно»'},
+  {k:'ix', kicker:'жмите на кнопку', t:'чужой путь, который кажется прямым',
+   hint:'три шага: что видно · что достроили · как было на самом деле',
+   html:`<div class="olf">
+     <svg viewBox="0 0 1100 400" class="olsvg">
+       <defs><clipPath id="peep"><circle id="ol-clip" cx="540" cy="215" r="115"/></clipPath></defs>
+       <g clip-path="url(#peep)"><path id="ol-in" class="ln real" d=""/></g>
+       <circle id="ol-ring" class="peepring" cx="540" cy="215" r="115"/>
+       <path id="ol-guess" class="ln guess" d="" style="opacity:0"/>
+       <path id="ol-real" class="ln real full" d="" style="opacity:0"/>
+     </svg>
+     <div class="olbar"><button class="btn" id="ol-next">дальше →</button>
+       <div class="ollab" id="ol-lab">что вы видите: кусок чужого пути</div></div>
+   </div>`,
+   init:root=>{
+     const N=1100, X0=540;
+     let Y=[], DIPS=0;
+     const build=()=>{                                   // значение: больше = лучше
+       const V=[]; let v=0; DIPS=0;
+       for(let i=0;i<N;i++){
+         v += (Math.random()-0.5)*7;
+         if(Math.random()<0.014){ v -= 45+Math.random()*55; DIPS++; }   // провал
+         V.push(i*1.05+v);
+       }
+       const mn=Math.min(...V), mx=Math.max(...V), k=(mx-mn)||1;
+       Y = V.map(x=>360-(x-mn)/k*320);                        // в координаты svg
+     };
+     // в окошко должен попасть растущий кусок (именно его показывают другие),
+     // ям на пути должно быть видно, но в итоге путь всё равно пришёл вверх
+     for(let t=0;t<200;t++){
+       build();
+       if(Y[X0-105]-Y[X0+105] > 45 && Y[0]-Y[N-1] > 190 && DIPS >= 10) break;
+     }
+     const d = a => a.map((y,i)=>(i?'L':'M')+i+' '+y.toFixed(1)).join(' ');
+     root.querySelector('#ol-in').setAttribute('d', d(Y));
+     root.querySelector('#ol-real').setAttribute('d', d(Y));
+     // окно ставим на линию
+     const y0=Y[X0];
+     ['#ol-clip','#ol-ring'].forEach(s=>root.querySelector(s).setAttribute('cy', y0.toFixed(1)));
+     // «достроенное»: ровная линия вверх из окна
+     const g=[]; for(let i=X0;i<N;i++) g.push('L'+i+' '+(y0-(i-X0)*0.30).toFixed(1));
+     root.querySelector('#ol-guess').setAttribute('d','M'+X0+' '+y0.toFixed(1)+' '+g.join(' '));
+     const LAB=['что вы видите: кусок чужого пути',
+                'что вы достраиваете сами: ровную линию вверх',
+                'как было на самом деле: те же ямы, просто вам их не показали'];
+     let step=0;
+     const btn=root.querySelector('#ol-next'), lab=root.querySelector('#ol-lab');
+     btn.addEventListener('click',()=>{
+       step=(step+1)%3;
+       root.querySelector('#ol-guess').style.opacity = step===1?1:(step===2?.3:0);
+       root.querySelector('#ol-real').style.opacity  = step===2?1:0;
+       lab.textContent=LAB[step];
+       btn.textContent = step===2?'↻ сначала':'дальше →';
+     });
+   }},
+  {k:'st', t:'у них не ровно', sm:true, sub:'вы видите их через маленькое окно, а остальное дорисовываете сами'},
+
+  {k:'ix', kicker:'переключите масштаб', t:'один и тот же путь, разное увеличение',
+   hint:'данные одни и те же, меняется только окно',
+   html:`<div class="zm">
+     <div class="zmtop">
+       <button class="btn on" data-z="d">дни</button>
+       <button class="btn" data-z="y">годы</button>
+       <span class="zmlab" id="zm-lab">вблизи видно только качели</span>
+     </div>
+     <svg viewBox="0 0 1100 380" class="olsvg">
+       <rect id="zm-win" class="zmwin" x="0" y="0" width="0" height="380" style="opacity:0"/>
+       <path id="zm-path" class="ln real" d=""/>
+     </svg>
+   </div>`,
+   init:root=>{
+     const N=1400, S=[]; let v=0;
+     for(let i=0;i<N;i++){
+       v += (Math.random()-0.5)*7;
+       if(Math.random()<0.012) v -= 22+Math.random()*30;        // откат
+       S.push(i*0.55 + v);
+     }
+     const A=280, B=345;                                        // окно «дни»
+     const draw=(from,to)=>{
+       const part=S.slice(from,to);
+       const mn=Math.min(...part), mx=Math.max(...part), k=(mx-mn)||1;
+       return part.map((y,i)=>(i?'L':'M')+(i/(part.length-1)*1100).toFixed(1)+' '+
+         (350-(y-mn)/k*310).toFixed(1)).join(' ');
+     };
+     const p=root.querySelector('#zm-path'), win=root.querySelector('#zm-win'), lab=root.querySelector('#zm-lab');
+     const set=z=>{
+       root.querySelectorAll('.zmtop .btn').forEach(b=>b.classList.toggle('on',b.dataset.z===z));
+       if(z==='d'){ p.setAttribute('d',draw(A,B)); win.style.opacity=0;
+         lab.textContent='вблизи видно только качели'; }
+       else { p.setAttribute('d',draw(0,N));
+         win.setAttribute('x',(A/N*1100).toFixed(1)); win.setAttribute('width',((B-A)/N*1100).toFixed(1));
+         win.style.opacity=1; lab.textContent='это тот же кусок. на дистанции он почти не виден'; }
+     };
+     root.querySelectorAll('.zmtop .btn').forEach(b=>b.addEventListener('click',()=>set(b.dataset.z)));
+     set('d');
+   }},
+  {k:'st', t:'откат видно вблизи', sub:'на дистанции вы всё равно идёте вверх'},
+
+  {k:'st', t:'возвращаетесь на тот уровень,<br>где сломалось', sm:true,
+   sub:'не начинаете сначала и не продолжаете с места, где остановились'},
+  {k:'st', t:'прошлый прогресс никуда не делся', sm:true, sub:'вы просто чините то, что сломалось'},
+
+  {k:'sec', n:'важно', t:'про техническую<br>часть'},
+  {k:'st', t:'здесь мы разбираем смысловую сторону', sm:true,
+   sub:'что делать, почему не идёт и как выстроить процесс под себя'},
+  {k:'list', kicker:'а это — в Формуле Вирусного Контента', t:'доступ у вас есть',
+   items:['хуки, заголовки, призывы к действию',
+          'как читать аналитику',
+          'что люди сохраняют и почему пересылают']},
+
+  {k:'ix', html:`<div class="kartawrap">
+     <img src="assets/karta-urovney-crop.png" alt="шесть уровней навыка — лестница">
+     <div class="st sm karta-punch">погнали по уровням</div>
+   </div>`},
+];
+Deck.build(SLIDES);
+</script>
+
+<script src="_doodle.js"></script>
+</body>
+</html>
