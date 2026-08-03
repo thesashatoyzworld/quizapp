@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { trackEvent } from '@/lib/notion';
-import { notifyAdmin } from '@/lib/telegram';
+import { notifyAdmin, sendBotMessage } from '@/lib/telegram';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import {
   INTAKE_CB,
+  adminAddQuestion,
+  adminCreateLink,
+  adminList,
+  adminSendInvite,
   advanceIntake,
   beginIntake,
   ensureIntake,
@@ -372,6 +376,35 @@ export async function POST(request: NextRequest) {
 
       // Unknown callback — just ack
       await answerCallbackQuery(cb.id);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Команды Саши по анкетам. Только из его чата, ADMIN_CHAT_ID.
+    if (
+      update.message?.text?.startsWith('/anketa_') &&
+      String(update.message.chat.id) === (process.env.ADMIN_CHAT_ID || '').trim()
+    ) {
+      const chatId = update.message.chat.id;
+      const raw = update.message.text.trim();
+      const [cmd, ...rest] = raw.split(/\s+/);
+      const arg = rest[0] || '';
+      const tail = rest.slice(1).join(' ');
+
+      let reply: string;
+      if (cmd === '/anketa_send') {
+        reply = arg ? await adminSendInvite(arg) : 'кому: /anketa_send @username';
+      } else if (cmd === '/anketa_link') {
+        reply = arg ? await adminCreateLink(arg) : 'кому: /anketa_link @username';
+      } else if (cmd === '/anketa_add') {
+        reply = arg && tail ? await adminAddQuestion(arg, tail) : 'формат: /anketa_add @username текст вопроса';
+      } else if (cmd === '/anketa_list') {
+        reply = await adminList();
+      } else {
+        reply = 'команды: /anketa_send, /anketa_link, /anketa_add, /anketa_list';
+      }
+
+      // Без parse_mode: подчёркивание в юзернейме Markdown принимает за курсив.
+      await sendBotMessage(chatId, reply, undefined, null);
       return NextResponse.json({ ok: true });
     }
 

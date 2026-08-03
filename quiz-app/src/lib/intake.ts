@@ -13,7 +13,10 @@ import {
   INTAKE_TOTAL,
   INTAKE_PRODUCT_SLUG,
   INTAKE_ROLE,
+  INTAKE_INVITE,
+  INTAKE_EXTRA_INTRO,
 } from '@/content/intake-tarif3';
+import { randomBytes } from 'crypto';
 
 export const INTAKE_CB = {
   start: 'intake:start',
@@ -371,6 +374,111 @@ export async function transcribePending(answerId: string, chatId: number): Promi
     console.error('intake: whisper failed', answerId, error);
     await sendBotMessage(chatId, INTAKE_TEXTS.voiceFailed);
   }
+}
+
+// ─────────────────────────────────────────────
+// Команды Саши
+// ─────────────────────────────────────────────
+
+/** Принимает @username, username или telegram_id. */
+async function resolveTarget(arg: string) {
+  const raw = arg.trim().replace(/^@/, '');
+  if (!raw) return null;
+
+  if (/^\d+$/.test(raw)) {
+    const byId = await prisma.user.findUnique({ where: { telegramId: BigInt(raw) } });
+    return byId ?? { telegramId: BigInt(raw), username: null, firstName: null };
+  }
+
+  return prisma.user.findFirst({
+    where: { username: { equals: raw, mode: 'insensitive' } },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+/**
+ * `/anketa_send @username` — бот пишет человеку сам.
+ * Работает только если человек когда-либо начинал диалог с ботом:
+ * первым Telegram написать не даёт. Не вышло — отдаём ссылку.
+ */
+export async function adminSendInvite(arg: string): Promise<string> {
+  const target = await resolveTarget(arg);
+  if (!target) return `не нашёл ${arg} в базе. дай telegram_id числом или используй /anketa_link`;
+
+  const tg = Number(target.telegramId);
+  const hasAccess = await hasTarif3Access(tg);
+
+  const intake = await ensureIntake(tg, target.username, target.firstName);
+  if (intake.status === 'done') return `у ${arg} анкета уже собрана`;
+  if (intake.status === 'in_progress') return `${arg} уже проходит, сейчас на вопросе ${intake.currentStep + 1}`;
+
+  const sent = await sendBotMessage(tg, INTAKE_INVITE);
+  if (!sent.ok) {
+    const link = await adminCreateLink(arg);
+    return `бот не смог написать ${arg} (не начинал диалог или заблокировал).\n\n${link}`;
+  }
+
+  await sendPreamble(tg);
+
+  const warn = hasAccess ? '' : '\n\n⚠ активного тарифа 3 в базе у него нет, приглашение всё равно ушло';
+  return `приглашение отправлено ${arg}${warn}`;
+}
+
+/** `/anketa_link @username` — персональная ссылка для тех, кто не в боте. */
+export async function adminCreateLink(arg: string): Promise<string> {
+  const target = await resolveTarget(arg);
+  const bot = process.env.BOT_USERNAME || 'testtoyzbot';
+
+  const tg = target ? Number(target.telegramId) : null;
+  if (!tg) {
+    return `не нашёл ${arg} в базе. ссылку можно выдать только тому, кого мы знаем по telegram_id`;
+  }
+
+  const existing = await prisma.intake.findUnique({ where: { telegramId: BigInt(tg) } });
+  if (existing?.inviteToken) {
+    return `https://t.me/${bot}?start=intake_${existing.inviteToken}`;
+  }
+
+  const token = randomBytes(9).toString('base64url');
+  if (existing) {
+    await prisma.intake.update({ where: { id: existing.id }, data: { inviteToken: token } });
+  } else {
+    await ensureIntake(tg, target?.username, target?.firstName, token);
+  }
+
+  return `https://t.me/${bot}?start=intake_${token}`;
+}
+
+/** `/anketa_add @username <вопрос>` — добить персонально после сбора анкеты. */
+export async function adminAddQuestion(arg: string, question: string): Promise<string> {
+  const target = await resolveTarget(arg);
+  if (!target) return `не нашёл ${arg} в базе`;
+
+  const tg = Number(target.telegramId);
+  const intake = await prisma.intake.findUnique({ where: { telegramId: BigInt(tg) } });
+  if (!intake) return `у ${arg} анкеты нет, сначала /anketa_send`;
+
+  await prisma.intakeAnswer.create({
+    data: { intakeId: intake.id, step: EXTRA_STEP, kind: 'question', extraQuestion: question },
+  });
+
+  const sent = await sendBotMessage(tg, `${INTAKE_EXTRA_INTRO}\n\n${question}`);
+  return sent.ok ? `вопрос ушёл ${arg}` : `не смог написать ${arg}`;
+}
+
+/** `/anketa_list` — кто на каком месте. */
+export async function adminList(): Promise<string> {
+  const all = await prisma.intake.findMany({ orderBy: { invitedAt: 'desc' }, take: 20 });
+  if (!all.length) return 'анкет пока нет';
+
+  const lines = all.map((i) => {
+    const who = i.username ? '@' + i.username : i.firstName || String(i.telegramId);
+    if (i.status === 'done') return `✅ ${who} — собрана`;
+    if (i.status === 'in_progress') return `⏳ ${who} — вопрос ${i.currentStep + 1} из ${INTAKE_TOTAL}`;
+    return `📨 ${who} — приглашён, не начал`;
+  });
+
+  return lines.join('\n');
 }
 
 // ─────────────────────────────────────────────
