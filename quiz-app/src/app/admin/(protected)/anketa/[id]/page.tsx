@@ -43,7 +43,8 @@ export default async function IntakeDossierPage({ params }: { params: Promise<{ 
   });
   if (!intake) notFound();
 
-  const who = intake.username ? '@' + intake.username : intake.firstName || String(intake.telegramId);
+  const who = intake.username ? '@' + intake.username
+    : intake.firstName || intake.label || (intake.telegramId !== null ? String(intake.telegramId) : 'ссылка не открыта');
   const voices = intake.answers.filter((a) => a.kind === 'voice');
   const totalMin = Math.round(voices.reduce((s, a) => s + (a.durationSec || 0), 0) / 60);
   const extras = intake.answers.filter((a) => a.step === EXTRA_STEP);
@@ -58,7 +59,7 @@ export default async function IntakeDossierPage({ params }: { params: Promise<{ 
         {who}
       </h1>
       <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: 22 }}>
-        id {String(intake.telegramId)}
+        {intake.telegramId !== null ? `id ${intake.telegramId}` : 'ссылку ещё не открывали'}
         {intake.startedAt ? ` · начал ${fmt(intake.startedAt)}` : ''}
         {intake.completedAt ? ` · закончил ${fmt(intake.completedAt)}` : ` · статус: ${intake.status}`}
         {voices.length ? ` · голосовых ${voices.length}${totalMin ? ` (~${totalMin} мин)` : ''}` : ''}

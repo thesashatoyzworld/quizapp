@@ -32,10 +32,12 @@ export default async function IntakeListPage() {
 
       <div style={{ display: 'grid', gap: 10 }}>
         {intakes.map((i) => {
-          const who = i.username ? '@' + i.username : i.firstName || String(i.telegramId);
+          const who = i.username ? '@' + i.username
+            : i.firstName || i.label || (i.telegramId !== null ? String(i.telegramId) : 'без имени');
           const label =
             i.status === 'done' ? 'собрана'
             : i.status === 'in_progress' ? `вопрос ${Math.min(i.currentStep + 1, INTAKE_TOTAL)} из ${INTAKE_TOTAL}`
+            : i.telegramId === null ? 'ссылка выдана, не открывал'
             : 'приглашён, не начал';
           const color =
             i.status === 'done' ? 'var(--neon-cyan)'

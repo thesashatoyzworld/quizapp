@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
   if (!intake) return NextResponse.json({ ok: true, skipped: 'not found' });
   if (intake.status === 'done') return NextResponse.json({ ok: true, skipped: 'done' });
   if (intake.remindedAt) return NextResponse.json({ ok: true, skipped: 'already reminded' });
+  // Ссылка выдана вслепую и по ней ещё не переходили: писать некому.
+  if (intake.telegramId === null) return NextResponse.json({ ok: true, skipped: 'not claimed yet' });
 
   const left = INTAKE_TOTAL - intake.currentStep;
   const text =

@@ -9,6 +9,7 @@ import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import {
   INTAKE_CB,
   adminAddQuestion,
+  claimBlindIntake,
   adminCreateLink,
   adminList,
   adminSendInvite,
@@ -492,8 +493,14 @@ export async function POST(request: NextRequest) {
         const token = startParam.slice('intake_'.length);
         const tgId = update.message.from?.id || chatId;
 
-        const byToken = await prisma.intake.findUnique({ where: { inviteToken: token } });
+        const found = await prisma.intake.findUnique({ where: { inviteToken: token } });
         await syncUsername(tgId, username || null, update.message.from?.first_name || null);
+
+        // Ссылку могли выдать вслепую: тогда анкета без telegram_id и
+        // привязывается к тому, кто первым по ней пришёл.
+        const byToken = found
+          ? await claimBlindIntake(found, tgId, username || null, update.message.from?.first_name || null)
+          : null;
 
         if (byToken) {
           if (byToken.status === 'done') {
