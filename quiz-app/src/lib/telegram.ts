@@ -90,6 +90,9 @@ export async function sendBotMessage(
   chatId: number,
   text: string,
   replyMarkup?: object,
+  // null = слать как есть. Нужно для сообщений с юзернеймами: подчёркивание
+  // в «dariya_basinaa» Markdown понимает как курсив и роняет разметку.
+  parseMode: 'Markdown' | 'HTML' | null = 'Markdown',
 ): Promise<{ ok: boolean; blocked?: boolean; messageId?: number }> {
   if (!BOT_TOKEN) return { ok: false };
 
@@ -100,7 +103,7 @@ export async function sendBotMessage(
       body: JSON.stringify({
         chat_id: chatId,
         text,
-        parse_mode: 'Markdown',
+        ...(parseMode ? { parse_mode: parseMode } : {}),
         ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
       }),
     });
