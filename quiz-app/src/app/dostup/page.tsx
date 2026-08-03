@@ -1,7 +1,6 @@
 'use client';
 
-import { Fragment, Suspense, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { SECTIONS } from '@/content/rooms';
 
 // Официальная кнопка «Войти через Telegram» (Login Widget). Рендерится только
@@ -35,8 +34,10 @@ const ICONS: Record<string, string> = {
 // доступ персональный, только через привязанный Telegram-аккаунт).
 const BOT_URL = 'https://t.me/testtoyzbot';
 
+// Никаких useSearchParams: их единственный вызов уводил всю страницу в
+// BAILOUT_TO_CLIENT_SIDE_RENDERING — сервер отдавал пустой HTML, и до загрузки
+// JS-чанков в Telegram-вебвью был чистый белый экран.
 function DostupInner() {
-  useSearchParams();
   const [unlocked, setUnlocked] = useState<string[] | null>(null);
   const [tiers, setTiers] = useState<Record<string, number>>({});
   // Telegram id of the viewer — forwarded to gated cross-domain materials
@@ -88,7 +89,14 @@ function DostupInner() {
     <main className="kb-wrap">
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Manrope:wght@400;500;600;700&subset=cyrillic,latin&display=swap" rel="stylesheet" />
+      {/* Неблокирующая загрузка: media="print" не подходит экрану, поэтому таблица
+          не задерживает рендер. Когда шрифты приедут — переключаем на "all". */}
+      <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Manrope:wght@400;500;600;700&subset=cyrillic,latin&display=swap"
+        rel="stylesheet" media="print"
+        onLoad={(e) => { (e.currentTarget as HTMLLinkElement).media = 'all'; }} />
+      <noscript>
+        <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Manrope:wght@400;500;600;700&subset=cyrillic,latin&display=swap" rel="stylesheet" />
+      </noscript>
 
       <header className="kb-top">
         <div className="kb-brand">Кабинет</div>
@@ -255,10 +263,10 @@ function DostupInner() {
         .kb-account-id { color: var(--kb-muted); font-size: 12.5px; }
         .kb-account-out {
           flex: 0 0 auto; text-decoration: none; color: var(--kb-accent);
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 13px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 13px;
         }
         .kb-account-out:hover { opacity: .8; }
-        .kb-brand { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; margin: 0; }
+        .kb-brand { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; margin: 0; }
         .kb-sub { color: var(--kb-muted); font-size: 13px; margin-top: 2px; }
         .kb-banner {
           display: flex; align-items: center; gap: 10px; background: var(--kb-accent-soft);
@@ -268,7 +276,7 @@ function DostupInner() {
           background: var(--kb-surface); border: 1px solid var(--kb-line); border-radius: 16px;
           padding: 16px; margin-bottom: 16px;
         }
-        .kb-login-title { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 16px; }
+        .kb-login-title { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px; }
         .kb-login-sub { color: var(--kb-muted); font-size: 12.5px; margin: 4px 0 12px; line-height: 1.4; }
         .kb-login-row { display: flex; gap: 8px; }
         .kb-login-input {
@@ -278,7 +286,7 @@ function DostupInner() {
         .kb-login-input:focus { outline: none; border-color: var(--kb-accent); }
         .kb-login-btn {
           flex: 0 0 auto; border: none; cursor: pointer; background: var(--kb-accent); color: oklch(1 0 0);
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 15px; padding: 11px 20px; border-radius: 10px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 15px; padding: 11px 20px; border-radius: 10px;
         }
         .kb-login-btn:disabled { opacity: .6; cursor: default; }
         .kb-login-err { color: oklch(0.55 0.18 25); font-size: 12.5px; margin-top: 10px; }
@@ -304,7 +312,7 @@ function DostupInner() {
         .kb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .kb-titles { flex: 1; min-width: 0; }
         .kb-h2 {
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 19px; margin: 0;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 19px; margin: 0;
           letter-spacing: -0.02em; line-height: 1.15; display: flex; align-items: center; gap: 7px; color: var(--kb-text);
         }
         .kb-lock { font-size: 14px; }
@@ -314,7 +322,7 @@ function DostupInner() {
         .kb-badge-closed { background: oklch(0.93 0.004 75); color: var(--kb-muted); }
         .kb-materials { display: grid; gap: 9px; margin-top: 14px; }
         .kb-subhead {
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 11px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 11px;
           text-transform: uppercase; letter-spacing: 0.06em; color: var(--kb-muted);
           margin: 8px 2px 1px;
         }
@@ -338,7 +346,7 @@ function DostupInner() {
         .kb-mat-lock { font-size: 14px; }
         .kb-getaccess {
           display: block; text-align: center; text-decoration: none; margin-top: 12px;
-          background: var(--kb-accent); color: oklch(1 0 0); font-family: 'Archivo', sans-serif;
+          background: var(--kb-accent); color: oklch(1 0 0); font-family: 'Archivo', system-ui, sans-serif;
           font-weight: 800; font-size: 15px; padding: 13px 18px; border-radius: 11px; transition: opacity .15s;
         }
         .kb-getaccess:hover { opacity: .9; } .kb-getaccess:active { transform: translateY(1px); }
@@ -363,12 +371,12 @@ function DostupInner() {
         .kb-viewer-back {
           flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; cursor: pointer;
           border: none; background: none; color: var(--kb-accent);
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 15px; padding: 4px 2px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 15px; padding: 4px 2px;
         }
         .kb-viewer-chev { font-size: 22px; line-height: 1; margin-top: -1px; }
         .kb-viewer-title {
           flex: 1; min-width: 0; text-align: center; color: var(--kb-text);
-          font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 14.5px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14.5px;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .kb-viewer-ext {
@@ -382,5 +390,5 @@ function DostupInner() {
 }
 
 export default function DostupPage() {
-  return <Suspense fallback={null}><DostupInner /></Suspense>;
+  return <DostupInner />;
 }

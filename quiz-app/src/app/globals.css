@@ -25,9 +25,10 @@
   --text-secondary: rgba(255, 255, 255, 0.7);
   --text-muted: rgba(255, 255, 255, 0.4);
 
-  /* Шрифты */
-  --font-display: 'Orbitron', sans-serif;
-  --font-body: 'Exo 2', sans-serif;
+  /* Шрифты. Системные фолбэки обязательны: шрифты Google подключены неблокирующе,
+     и если их хост недоступен — текст читается сразу, а не пропадает. */
+  --font-display: 'Orbitron', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* 8pt Grid spacing */
   --space-xs: 8px;
