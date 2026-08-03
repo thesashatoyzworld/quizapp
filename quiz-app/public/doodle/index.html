@@ -28,7 +28,6 @@
     color:var(--ink);
     font-family:"Trebuchet MS","Lucida Grande",Tahoma,sans-serif;
     -webkit-font-smoothing:antialiased;
-    text-rendering:optimizeLegibility;
   }
   html,body,#deck,#deck *{
     -webkit-user-select:none;
@@ -45,9 +44,6 @@
     inset:0;
     z-index:1;
     padding:calc(env(safe-area-inset-top) + 6vh) 8vw calc(env(safe-area-inset-bottom) + 6vh);
-    display:flex;
-    align-items:center;
-    justify-content:center;
   }
   .slide{
     position:absolute;
@@ -85,46 +81,37 @@
     color:#A8A8B4;
     max-width:34ch;
   }
-  .grid{
-    display:flex;
-    flex-wrap:wrap;
-    gap:2.4vw;
-    margin-top:1vh;
-  }
-  .box{
-    border:1px solid #23232E;
-    border-radius:14px;
-    padding:2.2vh 2.4vw;
-    min-width:20vw;
-  }
+  .grid{display:flex;flex-wrap:wrap;gap:2.4vw;margin-top:1vh}
+  .box{border:1px solid #23232E;border-radius:14px;padding:2.2vh 2.4vw;min-width:20vw}
   .box span{display:block;font-size:clamp(24px,4vw,54px);color:var(--green);font-weight:bold}
   .box small{font-size:clamp(11px,1.4vw,16px);color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
-  .ruled{
-    width:min(70vw,760px);
-    height:1px;
-    background:linear-gradient(90deg,var(--pink),transparent);
+  .ruled{width:min(70vw,760px);height:1px;background:linear-gradient(90deg,var(--pink),transparent)}
+  .light{
+    position:absolute;left:0;right:0;top:0;bottom:0;
+    background:#F4F1EC;
+    z-index:-1;
   }
+  .slide.paper h1{color:#12121A}
+  .slide.paper p{color:#4A4A56}
+  .slide.paper .kicker{color:#8A8A96}
+
   #dots{
-    position:fixed;
-    left:50%;
-    transform:translateX(-50%);
+    position:fixed;left:50%;transform:translateX(-50%);
     bottom:calc(env(safe-area-inset-bottom) + 14px);
-    z-index:2;
-    display:flex;
-    gap:8px;
-    pointer-events:none;
+    z-index:2;display:flex;gap:8px;pointer-events:none;
   }
   #dots i{width:6px;height:6px;border-radius:50%;background:#2A2A36;transition:background .2s}
   #dots i.on{background:var(--pink)}
 
-  /* ---------- СЛОЙ РИСОВАНИЯ ---------- */
-  #layer{
+  /* ---------- СЛОИ РИСОВАНИЯ ---------- */
+  #ink,#live{
     position:fixed;
     inset:0;
-    z-index:9000;
     pointer-events:none;
     display:block;
   }
+  #ink{z-index:9000}
+  #live{z-index:9001}
 
   /* ---------- ПАНЕЛЬ ---------- */
   .doodle-panel{
@@ -132,11 +119,8 @@
     right:calc(env(safe-area-inset-right) + 12px);
     bottom:calc(env(safe-area-inset-bottom) + 12px);
     z-index:9500;
-    display:flex;
-    align-items:center;
-    gap:4px;
-    padding:5px 7px;
-    border-radius:999px;
+    display:flex;align-items:center;gap:4px;
+    padding:5px 7px;border-radius:999px;
     background:rgba(18,18,24,.82);
     border:1px solid rgba(255,255,255,.09);
     box-shadow:0 6px 22px rgba(0,0,0,.5);
@@ -149,57 +133,44 @@
   .doodle-panel.live,.doodle-panel:hover{opacity:1}
   .doodle-panel.hidden{display:none}
   .doodle-panel button{
-    -webkit-appearance:none;
-    appearance:none;
-    border:0;
-    background:transparent;
-    color:#9A9AA8;
-    width:34px;
-    height:34px;
-    border-radius:999px;
-    font-family:inherit;
-    font-size:15px;
-    line-height:1;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    touch-action:manipulation;
+    -webkit-appearance:none;appearance:none;border:0;background:transparent;
+    color:#9A9AA8;width:34px;height:34px;border-radius:999px;
+    font-family:inherit;font-size:15px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;touch-action:manipulation;
   }
   .doodle-panel button:active{background:rgba(255,255,255,.1)}
-  .doodle-panel button.act{background:rgba(255,255,255,.14);color:#fff}
+  .doodle-panel button.act{background:rgba(255,255,255,.16);color:#fff}
   .doodle-panel .sep{width:1px;height:20px;background:rgba(255,255,255,.12);margin:0 3px}
-  .doodle-panel .sw{
-    width:26px;height:26px;border-radius:50%;
-    border:2px solid transparent;
-    box-shadow:inset 0 0 0 2px rgba(0,0,0,.4);
-  }
-  .doodle-panel .sw.act{border-color:#fff;background-clip:padding-box}
+  .doodle-panel .sw{width:26px;height:26px;border-radius:50%;border:2px solid transparent}
+  .doodle-panel .sw.act{border-color:#fff}
   #peek{
     position:fixed;
     right:calc(env(safe-area-inset-right) + 16px);
     bottom:calc(env(safe-area-inset-bottom) + 16px);
-    z-index:9500;
-    width:26px;height:26px;
-    border-radius:50%;
-    border:0;
-    background:rgba(255,255,255,.10);
-    display:none;
-    cursor:pointer;
-    touch-action:manipulation;
+    z-index:9500;width:26px;height:26px;border-radius:50%;border:0;
+    background:rgba(255,255,255,.10);display:none;cursor:pointer;touch-action:manipulation;
   }
   #peek.on{display:block}
   #hint{
-    position:fixed;
-    left:calc(env(safe-area-inset-left) + 14px);
+    position:fixed;left:calc(env(safe-area-inset-left) + 14px);
     bottom:calc(env(safe-area-inset-bottom) + 12px);
-    z-index:9400;
-    font-size:11px;
-    letter-spacing:.06em;
-    color:#4A4A56;
-    pointer-events:none;
-    transition:opacity .5s ease;
+    z-index:9400;font-size:11px;letter-spacing:.06em;color:#4A4A56;
+    pointer-events:none;transition:opacity .5s ease;
   }
+  #hud{
+    position:fixed;left:calc(env(safe-area-inset-left) + 12px);
+    top:calc(env(safe-area-inset-top) + 12px);
+    z-index:9600;
+    display:none;
+    padding:8px 11px;border-radius:10px;
+    background:rgba(10,10,16,.86);
+    border:1px solid rgba(255,255,255,.10);
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:11px;line-height:1.55;color:#9BE8C8;
+    white-space:pre;pointer-events:none;
+  }
+  #hud.on{display:block}
 </style>
 </head>
 <body>
@@ -215,7 +186,7 @@
   <section class="slide">
     <div class="kicker">Проверка нажима · <b>слайд 2</b></div>
     <h1>Линия живёт<br>от <em>давления</em></h1>
-    <p>Дави сильнее, штрих толще. Веди по касательной, тоньше. Под цветом идёт тёмная обводка, поэтому линия читается и на светлом, и на чёрном.</p>
+    <p>Дави сильнее, штрих толще. Веди по касательной, тоньше. Штрих строится как заливка контура, поэтому на поворотах нет углов и комков.</p>
     <div class="grid">
       <div class="box"><span>120</span><small>герц опроса</small></div>
       <div class="box"><span>3,2 с</span><small>держится штрих</small></div>
@@ -223,11 +194,11 @@
     </div>
   </section>
 
-  <section class="slide">
-    <div class="kicker">Для записи экрана · <b>слайд 3</b></div>
-    <h1>Дудл сам<br><em>убирает</em> за собой</h1>
-    <p>Обвёл цифру, через три секунды она растаяла. Не надо жать «очистить» в кадре. Выключается клавишей A, если пометки нужно оставить насовсем.</p>
-    <div class="ruled"></div>
+  <section class="slide paper">
+    <div class="light"></div>
+    <div class="kicker">Светлый слайд · <b>слайд 3</b></div>
+    <h1>Проверь белый<br>цвет на <em>бумаге</em></h1>
+    <p>Тут фон светлый. Возьми белый цвет (клавиша 4) и убедись, что тёмная обводка держит линию читаемой.</p>
   </section>
 
   <section class="slide">
@@ -235,8 +206,9 @@
     <h1>Всё с внешней<br><em>клавиатуры</em></h1>
     <p>
       D рисование · C очистить · Z отменить<br>
-      M маркер · H спрятать панель<br>
-      F фуллскрин · A автозатухание · 1–4 цвет<br>
+      M маркер · H спрятать панель · F фуллскрин<br>
+      A автозатухание · 1–4 цвет<br>
+      P источник ввода · I отладка<br>
       ← → пробел листать
     </p>
   </section>
@@ -244,7 +216,8 @@
 
 <div id="dots"></div>
 
-<canvas id="layer"></canvas>
+<canvas id="ink"></canvas>
+<canvas id="live"></canvas>
 
 <div class="doodle-panel" id="panel">
   <button class="sw" data-color="#FF2E9F" style="background:#FF2E9F" title="Розовый (1)"></button>
@@ -263,11 +236,23 @@
 </div>
 <button id="peek" title="Показать панель (H)"></button>
 
+<div id="hud"></div>
 <div id="hint">пенсил рисует · палец листает</div>
 
 <script>
+/* ============================================================
+   perfect-freehand v1.2.2 · MIT · https://github.com/steveruizok/perfect-freehand
+   Вклеен целиком, чтобы страница осталась одним файлом без сборки.
+   ============================================================ */
+var PF = (function(){
+function $(e,t,s,x=h=>h){return e*x(.5-t*(.5-s))}function ce(e){return[-e[0],-e[1]]}function l(e,t){return[e[0]+t[0],e[1]+t[1]]}function a(e,t){return[e[0]-t[0],e[1]-t[1]]}function b(e,t){return[e[0]*t,e[1]*t]}function xe(e,t){return[e[0]/t,e[1]/t]}function R(e){return[e[1],-e[0]]}function B(e,t){return e[0]*t[0]+e[1]*t[1]}function me(e,t){return e[0]===t[0]&&e[1]===t[1]}function Se(e){return Math.hypot(e[0],e[1])}function Pe(e){return e[0]*e[0]+e[1]*e[1]}function A(e,t){return Pe(a(e,t))}function G(e){return xe(e,Se(e))}function ae(e,t){return Math.hypot(e[1]-t[1],e[0]-t[0])}function L(e,t,s){let x=Math.sin(s),h=Math.cos(s),y=e[0]-t[0],n=e[1]-t[1],f=y*h-n*x,d=y*x+n*h;return[f+t[0],d+t[1]]}function K(e,t,s){return l(e,b(a(t,e),s))}function ee(e,t,s){return l(e,b(t,s))}var{min:C,PI:ke}=Math,le=.275,V=ke+1e-4;function te(e,t={}){let{size:s=16,smoothing:x=.5,thinning:h=.5,simulatePressure:y=!0,easing:n=r=>r,start:f={},end:d={},last:D=!1}=t,{cap:S=!0,easing:j=r=>r*(2-r)}=f,{cap:q=!0,easing:c=r=>--r*r*r+1}=d;if(e.length===0||s<=0)return[];let p=e[e.length-1].runningLength,g=f.taper===!1?0:f.taper===!0?Math.max(s,p):f.taper,T=d.taper===!1?0:d.taper===!0?Math.max(s,p):d.taper,oe=Math.pow(s*x,2),_=[],M=[],H=e.slice(0,10).reduce((r,i)=>{let o=i.pressure;if(y){let u=C(1,i.distance/s),W=C(1,1-u);o=C(1,r+(W-r)*(u*le))}return(r+o)/2},e[0].pressure),m=$(s,h,e[e.length-1].pressure,n),U,X=e[0].vector,z=e[0].point,F=z,O=z,E=F,J=!1;for(let r=0;r<e.length;r++){let{pressure:i}=e[r],{point:o,vector:u,distance:W,runningLength:I}=e[r];if(r<e.length-1&&p-I<3)continue;if(h){if(y){let v=C(1,W/s),Z=C(1,1-v);i=C(1,H+(Z-H)*(v*le))}m=$(s,h,i,n)}else m=s/2;U===void 0&&(U=m);let fe=I<g?j(I/g):1,be=p-I<T?c((p-I)/T):1;m=Math.max(.01,m*Math.min(fe,be));let se=(r<e.length-1?e[r+1]:e[r]).vector,Y=r<e.length-1?B(u,se):1,he=B(u,X)<0&&!J,ue=Y!==null&&Y<0;if(he||ue){let v=b(R(X),m);for(let Z=1/13,w=0;w<=1;w+=Z)O=L(a(o,v),o,V*w),_.push(O),E=L(l(o,v),o,V*-w),M.push(E);z=O,F=E,ue&&(J=!0);continue}if(J=!1,r===e.length-1){let v=b(R(u),m);_.push(a(o,v)),M.push(l(o,v));continue}let ie=b(R(K(se,u,Y)),m);O=a(o,ie),(r<=1||A(z,O)>oe)&&(_.push(O),z=O),E=l(o,ie),(r<=1||A(F,E)>oe)&&(M.push(E),F=E),H=i,X=u}let P=e[0].point.slice(0,2),k=e.length>1?e[e.length-1].point.slice(0,2):l(e[0].point,[1,1]),Q=[],N=[];if(e.length===1){if(!(g||T)||D){let r=ee(P,G(R(a(P,k))),-(U||m)),i=[];for(let o=1/13,u=o;u<=1;u+=o)i.push(L(r,P,V*2*u));return i}}else{if(!(g||T&&e.length===1))if(S)for(let i=1/13,o=i;o<=1;o+=i){let u=L(M[0],P,V*o);Q.push(u)}else{let i=a(_[0],M[0]),o=b(i,.5),u=b(i,.51);Q.push(a(P,o),a(P,u),l(P,u),l(P,o))}let r=R(ce(e[e.length-1].vector));if(T||g&&e.length===1)N.push(k);else if(q){let i=ee(k,r,m);for(let o=1/29,u=o;u<1;u+=o)N.push(L(i,k,V*3*u))}else N.push(l(k,b(r,m)),l(k,b(r,m*.99)),a(k,b(r,m*.99)),a(k,b(r,m)))}return _.concat(N,M.reverse(),Q)}function re(e,t={}){var q;let{streamline:s=.5,size:x=16,last:h=!1}=t;if(e.length===0)return[];let y=.15+(1-s)*.85,n=Array.isArray(e[0])?e:e.map(({x:c,y:p,pressure:g=.5})=>[c,p,g]);if(n.length===2){let c=n[1];n=n.slice(0,-1);for(let p=1;p<5;p++)n.push(K(n[0],c,p/4))}n.length===1&&(n=[...n,[...l(n[0],[1,1]),...n[0].slice(2)]]);let f=[{point:[n[0][0],n[0][1]],pressure:n[0][2]>=0?n[0][2]:.25,vector:[1,1],distance:0,runningLength:0}],d=!1,D=0,S=f[0],j=n.length-1;for(let c=1;c<n.length;c++){let p=h&&c===j?n[c].slice(0,2):K(S.point,n[c],y);if(me(S.point,p))continue;let g=ae(p,S.point);if(D+=g,c<j&&!d){if(D<x)continue;d=!0}S={point:p,pressure:n[c][2]>=0?n[c][2]:.5,vector:G(a(S.point,p)),distance:g,runningLength:D},f.push(S)}return f[0].vector=((q=f[1])==null?void 0:q.vector)||[0,0],f}function ne(e,t={}){return te(re(e,t),t)}var ve=ne;
+return { getStroke: ne };
+})();
+
 (function(){
 'use strict';
+
+var getStroke = PF.getStroke;
 
 /* ========== ПРЕЗЕНТАЦИЯ ========== */
 var deck   = document.getElementById('deck');
@@ -275,7 +260,7 @@ var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
 var dotsEl = document.getElementById('dots');
 var idx = 0;
 
-slides.forEach(function(){ var i=document.createElement('i'); dotsEl.appendChild(i); });
+slides.forEach(function(){ dotsEl.appendChild(document.createElement('i')); });
 var dots = Array.prototype.slice.call(dotsEl.children);
 
 function show(n){
@@ -286,62 +271,100 @@ function show(n){
 function go(step){ show(idx + step); }
 show(0);
 
-/* навигация пальцем: свайп или тап */
-var navX=0, navY=0, navLive=false;
-deck.addEventListener('pointerdown', function(e){
-  navLive = true; navX = e.clientX; navY = e.clientY;
-}, false);
-deck.addEventListener('pointerup', function(e){
-  if(!navLive) return;
-  navLive = false;
-  var dx = e.clientX - navX, dy = e.clientY - navY;
-  if(dx < -45)      go(1);
-  else if(dx > 45)  go(-1);
-  else if(Math.abs(dx) < 16 && Math.abs(dy) < 16){
-    go(e.clientX < window.innerWidth * 0.25 ? -1 : 1);
-  }
-}, false);
-deck.addEventListener('pointercancel', function(){ navLive=false; }, false);
+/* ========== ХОЛСТЫ ========== */
+var cInk  = document.getElementById('ink');
+var cLive = document.getElementById('live');
+var xInk  = cInk.getContext('2d');
+var xLive = cLive.getContext('2d');
 
-/* ========== СЛОЙ РИСОВАНИЯ ========== */
-var cv  = document.getElementById('layer');
-var ctx = cv.getContext('2d');
+var HOLD = 3200, FADE = 700;
+var OUTLINE   = '#07070B';
+var OUTLINE_W = 3;
+var PEN_SIZE  = 13;
+var MARK_SIZE = 30;
+var MARK_A    = 0.40;
 
-var HOLD = 3200;      // держим штрих, мс
-var FADE = 700;       // растворяем, мс
-var OUTLINE = '#07070B';
-var MARKER_W = 26;
-var MARKER_A = 0.40;
-
-var strokes = [];
+var strokes = [];       // все штрихи, живые и закреплённые
 var cur = null;
-var activeId = null;
+var dpr = 1;
 
-var color   = '#FF2E9F';
-var marker  = false;
-var drawOn  = true;
-var fadeOn  = true;
-var rafId   = 0;
-var dpr     = 1;
+var color  = '#FF2E9F';
+var marker = false;
+var drawOn = true;
+var fadeOn = true;
+var rafId  = 0;
 
-/* ---- размер холста ---- */
+/* перо на айпаде идёт через touch-события: у pointermove в Safari ниже частота опроса */
+var IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+             (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
+var penViaTouch = IS_IOS;
+
+/* ---- размеры ---- */
+function fit(c, x){
+  var w = window.innerWidth, h = window.innerHeight;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  c.width  = Math.round(w * dpr);
+  c.height = Math.round(h * dpr);
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.lineJoin = 'round'; x.lineCap = 'round';
+}
 function resize(){
   dpr = Math.min(window.devicePixelRatio || 1, 3);
-  var w = window.innerWidth, h = window.innerHeight;
-  cv.style.width  = w + 'px';
-  cv.style.height = h + 'px';
-  cv.width  = Math.round(w * dpr);
-  cv.height = Math.round(h * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  renderAll(performance.now());
+  fit(cInk, xInk); fit(cLive, xLive);
+  strokes.forEach(function(s){ s.path = null; });
+  repaintInk();
+  paintLive(performance.now());
 }
 window.addEventListener('resize', resize, false);
-window.addEventListener('orientationchange', function(){ setTimeout(resize, 120); }, false);
+window.addEventListener('orientationchange', function(){ setTimeout(resize, 150); }, false);
 
-/* ---- отрисовка ---- */
-function mid(a,b){ return { x:(a.x+b.x)/2, y:(a.y+b.y)/2 }; }
+/* ---- геометрия штриха ---- */
+function optsFor(s, done){
+  if(s.marker){
+    return { size:MARK_SIZE, thinning:0, smoothing:.62, streamline:.52,
+             simulatePressure:false, last:done,
+             start:{cap:true}, end:{cap:true} };
+  }
+  return { size:PEN_SIZE, thinning:s.simulated ? .32 : .55, smoothing:.55, streamline:.38,
+           simulatePressure:s.simulated, last:done,
+           easing:function(t){ return t; },
+           start:{cap:true, taper:0}, end:{cap:true, taper:0} };
+}
+function outlineToPath(pts){
+  var p = new Path2D();
+  if(!pts.length) return p;
+  p.moveTo(pts[0][0], pts[0][1]);
+  for(var i = 0; i < pts.length; i++){
+    var a = pts[i], b = pts[(i + 1) % pts.length];
+    p.quadraticCurveTo(a[0], a[1], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+  }
+  p.closePath();
+  return p;
+}
+function pathOf(s){
+  var done = s.end !== null;
+  if(s.path && done) return s.path;                 // готовый штрих кэшируем
+  var path = outlineToPath(getStroke(s.pts, optsFor(s, done)));
+  if(done) s.path = path;
+  return path;
+}
+function paint(x, s, alpha){
+  if(alpha <= 0 || !s.pts.length) return;
+  var path = pathOf(s);
+  if(s.marker){
+    x.globalAlpha = MARK_A * alpha;
+    x.fillStyle = s.color;
+    x.fill(path);
+  } else {
+    x.globalAlpha = alpha;
+    x.lineWidth = OUTLINE_W;
+    x.strokeStyle = OUTLINE;
+    x.stroke(path);                                  // тёмная обводка на 3px шире
+    x.fillStyle = s.color;
+    x.fill(path);                                    // цвет поверх, стыков нет
+  }
+  x.globalAlpha = 1;
+}
 
 function alphaOf(s, now){
   if(!fadeOn || s.end === null) return 1;
@@ -350,104 +373,30 @@ function alphaOf(s, now){
   return Math.max(0, 1 - (dt - HOLD) / FADE);
 }
 
-/* один проход пера: pass 0 — тёмная обводка, pass 1 — цвет */
-function penPass(s, pass, alpha, i0, i1){
-  var p = s.pts, n = p.length;
-  if(n === 0 || alpha <= 0) return;
-  var extra = pass === 0 ? 3 : 0;
-  ctx.globalAlpha  = alpha;
-  ctx.strokeStyle  = pass === 0 ? OUTLINE : s.color;
-
-  if(n === 1){
-    if(i0 <= 0){
-      ctx.fillStyle = pass === 0 ? OUTLINE : s.color;
-      ctx.beginPath();
-      ctx.arc(p[0].x, p[0].y, (p[0].w + extra)/2, 0, Math.PI*2);
-      ctx.fill();
-    }
-    return;
-  }
-
-  /* стартовый отрезок */
-  if(i0 <= 1){
-    var ms = mid(p[0], p[1]);
-    ctx.lineWidth = p[0].w + extra;
-    ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y); ctx.lineTo(ms.x, ms.y); ctx.stroke();
-  }
-
-  /* квадратичные кривые по серединам отрезков */
-  var from = Math.max(1, i0), to = Math.min(n - 2, i1);
-  for(var i = from; i <= to; i++){
-    var m1 = mid(p[i-1], p[i]), m2 = mid(p[i], p[i+1]);
-    ctx.lineWidth = p[i].w + extra;
-    ctx.beginPath();
-    ctx.moveTo(m1.x, m1.y);
-    ctx.quadraticCurveTo(p[i].x, p[i].y, m2.x, m2.y);
-    ctx.stroke();
-  }
-
-  /* хвост */
-  if(i1 >= n - 2){
-    var me = mid(p[n-2], p[n-1]);
-    ctx.lineWidth = p[n-1].w + extra;
-    ctx.beginPath(); ctx.moveTo(me.x, me.y); ctx.lineTo(p[n-1].x, p[n-1].y); ctx.stroke();
-  }
-}
-
-/* маркер — одна непрерывная полупрозрачная линия, только целиком */
-function drawMarker(s, alpha){
-  var p = s.pts, n = p.length;
-  if(!n || alpha <= 0) return;
-  ctx.globalAlpha = MARKER_A * alpha;
-  ctx.strokeStyle = s.color;
-  ctx.lineWidth   = MARKER_W;
-  if(n === 1){
-    ctx.fillStyle = s.color;
-    ctx.beginPath(); ctx.arc(p[0].x, p[0].y, MARKER_W/2, 0, Math.PI*2); ctx.fill();
-    return;
-  }
-  ctx.beginPath();
-  ctx.moveTo(p[0].x, p[0].y);
-  for(var i = 1; i < n - 1; i++){
-    var m = mid(p[i], p[i+1]);
-    ctx.quadraticCurveTo(p[i].x, p[i].y, m.x, m.y);
-  }
-  ctx.lineTo(p[n-1].x, p[n-1].y);
-  ctx.stroke();
-}
-
-function drawStroke(s, alpha){
-  if(s.marker){ drawMarker(s, alpha); }
-  else { penPass(s, 0, alpha, 0, s.pts.length-1); penPass(s, 1, alpha, 0, s.pts.length-1); }
-  s.drawn = s.pts.length - 1;
-}
-
-function renderAll(now){
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+/* ---- слой закреплённых штрихов (только когда затухание выключено) ---- */
+function repaintInk(){
+  xInk.setTransform(dpr,0,0,dpr,0,0);
+  xInk.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  if(fadeOn) return;
   for(var i = 0; i < strokes.length; i++){
-    drawStroke(strokes[i], alphaOf(strokes[i], now));
+    if(strokes[i] !== cur) paint(xInk, strokes[i], 1);
   }
-  ctx.globalAlpha = 1;
 }
-
-/* дорисовка без полного перерисова: обводка нового куска, цвет — на отрезок назад */
-function renderIncrement(s){
-  var last = s.pts.length - 1;
-  if(last <= s.drawn) return;
-  var i0 = s.drawn;
-  penPass(s, 0, 1, i0, last);
-  penPass(s, 1, 1, Math.max(0, i0 - 1), last);
-  ctx.globalAlpha = 1;
-  s.drawn = last;
+function clearLive(){
+  xLive.setTransform(dpr,0,0,dpr,0,0);
+  xLive.clearRect(0, 0, window.innerWidth, window.innerHeight);
+}
+function paintLive(now){
+  clearLive();
+  if(fadeOn){
+    for(var i = 0; i < strokes.length; i++) paint(xLive, strokes[i], alphaOf(strokes[i], now));
+  } else if(cur){
+    paint(xLive, cur, 1);
+  }
 }
 
 /* ---- цикл ---- */
-function needLoop(){
-  if(cur && cur.marker) return true;                  // маркер рисуется только целиком
-  if(fadeOn && (strokes.length > 0)) return true;      // есть что гасить
-  return false;
-}
+function needLoop(){ return !!cur || (fadeOn && strokes.length > 0); }
 function tick(){
   rafId = 0;
   var now = performance.now();
@@ -456,79 +405,158 @@ function tick(){
       if(alphaOf(strokes[i], now) <= 0) strokes.splice(i, 1);
     }
   }
-  renderAll(now);
+  paintLive(now);
   if(needLoop()) rafId = requestAnimationFrame(tick);
 }
 function kick(){ if(!rafId && needLoop()) rafId = requestAnimationFrame(tick); }
 function stopLoop(){ if(rafId){ cancelAnimationFrame(rafId); rafId = 0; } }
 
-/* ---- ввод ---- */
-function inPanel(e){
-  var t = e.target;
-  return !!(t && t.closest && t.closest('.doodle-panel'));
-}
-function widthOf(e){
-  if(marker) return MARKER_W;
-  var pr = (typeof e.pressure === 'number' && e.pressure > 0) ? e.pressure : 0.5;
-  return 2.0 + 7.0 * pr;
-}
-function addPoint(e){
-  cur.pts.push({ x:e.clientX, y:e.clientY, w:widthOf(e) });
-}
+/* ========== ВВОД ========== */
+function inPanel(t){ return !!(t && t.closest && t.closest('.doodle-panel')); }
 
-function onDown(e){
-  if(inPanel(e)) return;
-  if(!drawOn) return;
-  if(e.pointerType === 'touch') return;   // палец — не рисуем, событие уходит в презентацию
+/* счётчики для отладочного HUD */
+var stat = { src:'—', pts:0, t0:0, hz:0, coal:0, pmin:1, pmax:0 };
 
-  e.preventDefault();
-  e.stopPropagation();
-
-  activeId = e.pointerId;
-  cur = { color:color, marker:marker, pts:[], end:null, drawn:-1 };
+function begin(x, y, p, simulated, src){
+  cur = { pts:[[x, y, p]], color:color, marker:marker, end:null, path:null, simulated:simulated };
   strokes.push(cur);
-  addPoint(e);
-
-  if(rafId) return;
-  if(needLoop()) kick();
-  else renderIncrement(cur);
+  stat.src = src; stat.pts = 1; stat.t0 = performance.now(); stat.pmin = p; stat.pmax = p;
+  kick();
+}
+function extend(x, y, p){
+  if(!cur) return;
+  cur.pts.push([x, y, p]);
+  stat.pts++;
+  if(p < stat.pmin) stat.pmin = p;
+  if(p > stat.pmax) stat.pmax = p;
+  var dt = performance.now() - stat.t0;
+  if(dt > 250) stat.hz = Math.round(stat.pts / dt * 1000);
+}
+function finish(){
+  if(!cur) return;
+  var s = cur;
+  s.end = performance.now();
+  s.path = null;
+  cur = null;
+  if(fadeOn){ kick(); }
+  else {
+    paint(xInk, s, 1);      // закрепляем на нижнем слое
+    clearLive();
+    stopLoop();
+  }
 }
 
+/* ---- 1. Pointer Events: мышь всегда, перо на не-iOS ---- */
+function penOK(e){
+  if(e.pointerType === 'mouse') return true;
+  if(e.pointerType === 'pen')   return !penViaTouch;
+  return false;
+}
+function onDown(e){
+  if(inPanel(e.target) || !drawOn || !penOK(e)) return;
+  e.preventDefault(); e.stopPropagation();
+  activeId = e.pointerId;
+  var pr = (e.pointerType === 'mouse') ? 0.5 : (e.pressure > 0 ? e.pressure : 0.5);
+  begin(e.clientX, e.clientY, pr, e.pointerType === 'mouse', e.pointerType);
+}
+var activeId = null;
 function onMove(e){
   if(!cur || e.pointerId !== activeId) return;
-  e.preventDefault();
-  e.stopPropagation();
-
+  e.preventDefault(); e.stopPropagation();
   var list = null;
   if(typeof e.getCoalescedEvents === 'function'){
     try { list = e.getCoalescedEvents(); } catch(err){ list = null; }
   }
   if(!list || !list.length) list = [e];
-  for(var i = 0; i < list.length; i++) addPoint(list[i]);
-
-  if(!rafId) renderIncrement(cur);
+  stat.coal = list.length;
+  for(var i = 0; i < list.length; i++){
+    var q = list[i];
+    var pr = (e.pointerType === 'mouse') ? 0.5 : (q.pressure > 0 ? q.pressure : lastP());
+    extend(q.clientX, q.clientY, pr);
+  }
 }
-
+function lastP(){ return cur && cur.pts.length ? cur.pts[cur.pts.length-1][2] : 0.5; }
 function onUp(e){
   if(!cur || e.pointerId !== activeId) return;
-  e.preventDefault();
-  e.stopPropagation();
-
-  if(!rafId) renderIncrement(cur);
-  cur.end = performance.now();
-  cur = null;
+  e.preventDefault(); e.stopPropagation();
   activeId = null;
-  if(needLoop()) kick(); else stopLoop();
+  finish();
 }
-
 window.addEventListener('pointerdown',   onDown, { capture:true, passive:false });
 window.addEventListener('pointermove',   onMove, { capture:true, passive:false });
 window.addEventListener('pointerup',     onUp,   { capture:true, passive:false });
 window.addEventListener('pointercancel', onUp,   { capture:true, passive:false });
 
-/* на всякий случай глушим системные жесты поверх холста */
-window.addEventListener('gesturestart',  function(e){ e.preventDefault(); }, { passive:false });
-window.addEventListener('contextmenu',   function(e){ if(!inPanel(e)) e.preventDefault(); }, false);
+/* ---- 2. Touch Events: перо на iPad, частота опроса выше ---- */
+var touchId = null;
+function stylusIn(list){
+  for(var i = 0; i < list.length; i++){
+    if(list[i].touchType === 'stylus') return list[i];
+  }
+  return null;
+}
+function forceOf(t){
+  var f = (typeof t.force === 'number') ? t.force : 0;
+  return f > 0 ? Math.min(1, f) : 0.5;
+}
+function tStart(e){
+  if(!penViaTouch || !drawOn || inPanel(e.target)) return;
+  var t = stylusIn(e.changedTouches);
+  if(!t) return;                      // палец: пусть листает
+  e.preventDefault(); e.stopPropagation();
+  touchId = t.identifier;
+  begin(t.clientX, t.clientY, forceOf(t), false, 'touch-stylus');
+}
+function tMove(e){
+  if(touchId === null) return;
+  var moved = false;
+  for(var i = 0; i < e.changedTouches.length; i++){
+    var t = e.changedTouches[i];
+    if(t.identifier !== touchId) continue;
+    moved = true;
+    stat.coal = 1;
+    extend(t.clientX, t.clientY, forceOf(t));
+  }
+  if(moved){ e.preventDefault(); e.stopPropagation(); }
+}
+function tEnd(e){
+  if(touchId === null) return;
+  for(var i = 0; i < e.changedTouches.length; i++){
+    if(e.changedTouches[i].identifier === touchId){
+      e.preventDefault(); e.stopPropagation();
+      touchId = null;
+      finish();
+      return;
+    }
+  }
+}
+window.addEventListener('touchstart',  tStart, { capture:true, passive:false });
+window.addEventListener('touchmove',   tMove,  { capture:true, passive:false });
+window.addEventListener('touchend',    tEnd,   { capture:true, passive:false });
+window.addEventListener('touchcancel', tEnd,   { capture:true, passive:false });
+
+/* ---- 3. Навигация: только палец, а перо и мышь когда рисование выключено ---- */
+var navX = 0, navY = 0, navLive = false;
+function navOK(e){
+  if(e.pointerType === 'touch') return true;
+  return !drawOn;
+}
+deck.addEventListener('pointerdown', function(e){
+  if(!navOK(e)) return;
+  navLive = true; navX = e.clientX; navY = e.clientY;
+}, false);
+deck.addEventListener('pointerup', function(e){
+  if(!navLive) return;
+  navLive = false;
+  var dx = e.clientX - navX, dy = e.clientY - navY;
+  if(dx < -45)      go(1);
+  else if(dx > 45)  go(-1);
+  else if(Math.abs(dx) < 16 && Math.abs(dy) < 16) go(e.clientX < window.innerWidth * 0.25 ? -1 : 1);
+}, false);
+deck.addEventListener('pointercancel', function(){ navLive = false; }, false);
+
+window.addEventListener('gesturestart', function(e){ e.preventDefault(); }, { passive:false });
+window.addEventListener('contextmenu',  function(e){ if(!inPanel(e.target)) e.preventDefault(); }, false);
 
 /* ========== ДЕЙСТВИЯ ========== */
 var panel = document.getElementById('panel');
@@ -536,6 +564,7 @@ var peek  = document.getElementById('peek');
 var bMark = document.getElementById('bMark');
 var bDraw = document.getElementById('bDraw');
 var bFade = document.getElementById('bFade');
+var hudEl = document.getElementById('hud');
 
 function syncUI(){
   bMark.classList.toggle('act', marker);
@@ -545,38 +574,50 @@ function syncUI(){
     b.classList.toggle('act', b.dataset.color.toLowerCase() === color.toLowerCase());
   });
 }
-
 function setColor(c){ color = c; syncUI(); }
 function toggleMarker(){ marker = !marker; syncUI(); }
 function toggleDraw(){ drawOn = !drawOn; syncUI(); }
 function toggleFade(){
   fadeOn = !fadeOn;
+  var now = performance.now();
+  if(fadeOn){
+    strokes.forEach(function(s){ if(s.end !== null) s.end = now; });   // начинают гаснуть с этой секунды
+    repaintInk();      // очистит нижний слой
+    kick();
+  } else {
+    stopLoop();
+    strokes.forEach(function(s){ s.end = s.end === null ? null : now; });
+    repaintInk();      // закрепит всё, что есть
+    clearLive();
+  }
   syncUI();
-  if(fadeOn){ kick(); }
-  else { stopLoop(); renderAll(performance.now()); }
 }
 function undo(){
-  strokes.pop();
-  if(cur && strokes.indexOf(cur) === -1){ cur = null; activeId = null; }
-  renderAll(performance.now());
+  var s = strokes.pop();
+  if(s === cur){ cur = null; touchId = null; activeId = null; }
+  repaintInk();
+  paintLive(performance.now());
   if(needLoop()) kick(); else stopLoop();
 }
 function clearAll(){
-  strokes.length = 0;
-  cur = null; activeId = null;
+  strokes.length = 0; cur = null; touchId = null; activeId = null;
   stopLoop();
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+  repaintInk();
+  clearLive();
 }
 function togglePanel(){
   var hidden = panel.classList.toggle('hidden');
   peek.classList.toggle('on', hidden);
 }
+function toggleSource(){
+  penViaTouch = !penViaTouch;
+  cur = null; touchId = null; activeId = null;
+  updHud();
+}
 function toggleFull(){
   try{
     var d = document, el = d.documentElement;
-    var isFull = d.fullscreenElement || d.webkitFullscreenElement;
-    if(!isFull){
+    if(!(d.fullscreenElement || d.webkitFullscreenElement)){
       if(el.requestFullscreen) el.requestFullscreen({ navigationUI:'hide' });
       else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
       else if(el.webkitRequestFullScreen) el.webkitRequestFullScreen();
@@ -584,11 +625,33 @@ function toggleFull(){
       if(d.exitFullscreen) d.exitFullscreen();
       else if(d.webkitExitFullscreen) d.webkitExitFullscreen();
     }
-  }catch(err){ /* iPad Safari может не уметь — тогда «На экран Домой» */ }
+  }catch(err){}
 }
 
-/* панель: клики не должны попадать в рисовалку */
+/* отладка: что реально приходит с устройства */
+var hudOn = false, hudTimer = 0;
+function updHud(){
+  if(!hudOn) return;
+  hudEl.textContent =
+    'источник : ' + (penViaTouch ? 'touch (перо)' : 'pointer') + '\n' +
+    'последний: ' + stat.src + '\n' +
+    'частота  : ' + stat.hz + ' точек/с\n' +
+    'coalesced: ' + stat.coal + ' на событие\n' +
+    'нажим    : ' + stat.pmin.toFixed(2) + ' .. ' + stat.pmax.toFixed(2) + '\n' +
+    'точек    : ' + stat.pts + '\n' +
+    'coalesced API: ' + (typeof PointerEvent !== 'undefined' && PointerEvent.prototype.getCoalescedEvents ? 'есть' : 'НЕТ') + '\n' +
+    'https    : ' + (window.isSecureContext ? 'да' : 'НЕТ (API урезан)') + '\n' +
+    'dpr      : ' + dpr + '   штрихов: ' + strokes.length;
+}
+function toggleHud(){
+  hudOn = !hudOn;
+  hudEl.classList.toggle('on', hudOn);
+  clearInterval(hudTimer);
+  if(hudOn){ updHud(); hudTimer = setInterval(updHud, 200); }
+}
+
 panel.addEventListener('pointerdown', function(e){ e.stopPropagation(); }, false);
+panel.addEventListener('touchstart',  function(e){ e.stopPropagation(); }, false);
 panel.addEventListener('click', function(e){
   var b = e.target.closest('button');
   if(!b) return;
@@ -604,7 +667,6 @@ panel.addEventListener('click', function(e){
 peek.addEventListener('click', function(e){ e.stopPropagation(); togglePanel(); }, false);
 peek.addEventListener('pointerdown', function(e){ e.stopPropagation(); }, false);
 
-/* панель ярче при касании */
 var liveT = 0;
 function wake(){
   panel.classList.add('live');
@@ -624,17 +686,19 @@ function typing(){
 var PALETTE = ['#FF2E9F','#00E5FF','#00FF95','#FFFFFF'];
 window.addEventListener('keydown', function(e){
   if(typing() || e.metaKey || e.ctrlKey || e.altKey) return;
-  var k = e.key.toLowerCase();
-  if(k === 'd'){ toggleDraw(); }
-  else if(k === 'c'){ clearAll(); }
-  else if(k === 'z'){ undo(); }
-  else if(k === 'm'){ toggleMarker(); }
-  else if(k === 'h'){ togglePanel(); }
-  else if(k === 'f'){ toggleFull(); }
-  else if(k === 'a'){ toggleFade(); }
-  else if(k >= '1' && k <= '4'){ setColor(PALETTE[+k - 1]); }
-  else if(e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown'){ go(1); }
-  else if(e.key === 'ArrowLeft'  || e.key === 'PageUp'){ go(-1); }
+  var k = (e.key || '').toLowerCase();
+  if(k === 'd') toggleDraw();
+  else if(k === 'c') clearAll();
+  else if(k === 'z') undo();
+  else if(k === 'm') toggleMarker();
+  else if(k === 'h') togglePanel();
+  else if(k === 'f') toggleFull();
+  else if(k === 'a') toggleFade();
+  else if(k === 'p') toggleSource();
+  else if(k === 'i') toggleHud();
+  else if(k >= '1' && k <= '4') setColor(PALETTE[+k - 1]);
+  else if(e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') go(1);
+  else if(e.key === 'ArrowLeft'  || e.key === 'PageUp') go(-1);
   else return;
   e.preventDefault();
 }, false);
@@ -642,7 +706,6 @@ window.addEventListener('keydown', function(e){
 /* ========== СТАРТ ========== */
 syncUI();
 resize();
-
 var hint = document.getElementById('hint');
 setTimeout(function(){ hint.style.opacity = '0'; }, 6000);
 
