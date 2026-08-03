@@ -499,13 +499,13 @@ async function notifyIntakeDone(intakeId: string): Promise<void> {
   );
 
   const who = intake.username ? '@' + intake.username : intake.firstName || String(intake.telegramId);
-  const base = process.env.NEXT_PUBLIC_CABINET_URL || 'https://world.thesashatoyz.com';
+  const base = (process.env.NEXT_PUBLIC_CABINET_URL || 'https://world.thesashatoyz.com').replace(/\/$/, '');
 
   await notifyAdmin(
     `📋 <b>Анкета собрана</b>\n\n` +
       `👤 ${who}\n` +
       `🎙 голосовых: ${voices}${minutes ? ` (~${minutes} мин)` : ''}\n` +
       `⏭ пропущено вопросов: ${skipped}\n\n` +
-      `<a href="${base}/api/intake/${intake.id}">открыть досье</a>`,
+      `<a href="${base}/admin/anketa/${intake.id}">открыть досье</a>`,
   );
 }
