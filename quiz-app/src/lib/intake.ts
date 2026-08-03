@@ -31,9 +31,12 @@ export const EXTRA_STEP = -1;
 
 type IntakeRow = {
   id: string;
-  telegramId: bigint;
+  // Пусто у анкеты, выданной ссылкой вслепую: человека, который ни разу не
+  // заходил в бота, мы по telegram_id не знаем до его первого перехода.
+  telegramId: bigint | null;
   username: string | null;
   firstName: string | null;
+  label?: string | null;
   status: string;
   currentStep: number;
   inviteToken: string | null;
@@ -97,6 +100,38 @@ export async function syncUsername(
 
 export async function getIntake(telegramId: number | bigint): Promise<IntakeRow | null> {
   return prisma.intake.findUnique({ where: { telegramId: BigInt(telegramId) } });
+}
+
+/**
+ * Первый переход по ссылке, выданной вслепую: узнаём, кто это, и привязываем.
+ * Если у человека уже есть своя анкета — отдаём её, а пустую закрываем,
+ * иначе на один telegram_id получилось бы две.
+ */
+export async function claimBlindIntake(
+  intake: IntakeRow,
+  telegramId: number,
+  username?: string | null,
+  firstName?: string | null,
+): Promise<IntakeRow> {
+  if (intake.telegramId !== null) return intake;
+
+  const own = await prisma.intake.findUnique({ where: { telegramId: BigInt(telegramId) } });
+  if (own) {
+    await prisma.intake.update({
+      where: { id: intake.id },
+      data: { status: 'superseded', inviteToken: null },
+    });
+    return own;
+  }
+
+  return prisma.intake.update({
+    where: { id: intake.id },
+    data: {
+      telegramId: BigInt(telegramId),
+      username: username || null,
+      firstName: firstName || null,
+    },
+  });
 }
 
 /** Одна анкета на человека: повторный вызов возвращает существующую. */
@@ -430,29 +465,51 @@ export async function adminSendInvite(arg: string): Promise<string> {
   return `приглашение отправлено ${arg}${warn}`;
 }
 
-/** `/anketa_link @username` — персональная ссылка для тех, кто не в боте. */
+/**
+ * `/anketa_link @username` — персональная ссылка.
+ *
+ * Работает и вслепую: человека, который ни разу не заходил в бота, мы по
+ * telegram_id не знаем, и Telegram по юзернейму его не отдаёт. Тогда анкета
+ * заводится пустой, а привязка происходит при первом переходе по ссылке.
+ * Ровно поэтому ссылку нельзя пересылать: досье достанется тому, кто открыл.
+ */
 export async function adminCreateLink(arg: string): Promise<string> {
   const target = await resolveTarget(arg);
   const bot = process.env.BOT_USERNAME || 'testtoyzbot';
+  const link = (t: string) => `https://t.me/${bot}?start=intake_${t}`;
 
-  const tg = target ? Number(target.telegramId) : null;
-  if (!tg) {
-    return `не нашёл ${arg} в базе. ссылку можно выдать только тому, кого мы знаем по telegram_id`;
+  // Человека знаем: ссылка привязана к его telegram_id.
+  if (target) {
+    const tg = Number(target.telegramId);
+    const existing = await prisma.intake.findUnique({ where: { telegramId: BigInt(tg) } });
+    if (existing?.inviteToken) return link(existing.inviteToken);
+
+    const token = randomBytes(9).toString('base64url');
+    if (existing) {
+      await prisma.intake.update({ where: { id: existing.id }, data: { inviteToken: token } });
+    } else {
+      await ensureIntake(tg, target.username, target.firstName, token);
+    }
+    return link(token);
   }
 
-  const existing = await prisma.intake.findUnique({ where: { telegramId: BigInt(tg) } });
-  if (existing?.inviteToken) {
-    return `https://t.me/${bot}?start=intake_${existing.inviteToken}`;
+  // Не знаем: заводим анкету без telegram_id, метим именем.
+  const label = arg.trim();
+  const blind = await prisma.intake.findFirst({
+    where: { telegramId: null, label, status: 'invited' },
+    orderBy: { invitedAt: 'desc' },
+  });
+  if (blind?.inviteToken) {
+    return `${link(blind.inviteToken)}\n\n(${label} в боте не был, ссылка уже выдавалась. привяжется к тому, кто по ней перейдёт, пересылать нельзя)`;
   }
 
   const token = randomBytes(9).toString('base64url');
-  if (existing) {
-    await prisma.intake.update({ where: { id: existing.id }, data: { inviteToken: token } });
-  } else {
-    await ensureIntake(tg, target?.username, target?.firstName, token);
-  }
+  const created = await prisma.intake.create({
+    data: { label, status: 'invited', inviteToken: token },
+  });
+  await scheduleIntakeReminder(created.id);
 
-  return `https://t.me/${bot}?start=intake_${token}`;
+  return `${link(token)}\n\n(${label} в боте не был. анкета привяжется к тому, кто по ссылке перейдёт, поэтому пересылать её нельзя)`;
 }
 
 /** `/anketa_add @username <вопрос>` — добить персонально после сбора анкеты. */
@@ -474,13 +531,19 @@ export async function adminAddQuestion(arg: string, question: string): Promise<s
 
 /** `/anketa_list` — кто на каком месте. */
 export async function adminList(): Promise<string> {
-  const all = await prisma.intake.findMany({ orderBy: { invitedAt: 'desc' }, take: 20 });
+  const all = await prisma.intake.findMany({
+    where: { status: { not: 'superseded' } },
+    orderBy: { invitedAt: 'desc' },
+    take: 20,
+  });
   if (!all.length) return 'анкет пока нет';
 
   const lines = all.map((i) => {
-    const who = i.username ? '@' + i.username : i.firstName || String(i.telegramId);
+    const who = i.username ? '@' + i.username
+      : i.firstName || i.label || (i.telegramId !== null ? String(i.telegramId) : 'без имени');
     if (i.status === 'done') return `✅ ${who} — собрана`;
     if (i.status === 'in_progress') return `⏳ ${who} — вопрос ${i.currentStep + 1} из ${INTAKE_TOTAL}`;
+    if (i.telegramId === null) return `🔗 ${who} — ссылка выдана, ещё не открывал`;
     return `📨 ${who} — приглашён, не начал`;
   });
 
@@ -504,7 +567,8 @@ async function notifyIntakeDone(intakeId: string): Promise<void> {
     intake.answers.reduce((sum, a) => sum + (a.durationSec || 0), 0) / 60,
   );
 
-  const who = intake.username ? '@' + intake.username : intake.firstName || String(intake.telegramId);
+  const who = intake.username ? '@' + intake.username
+    : intake.firstName || intake.label || String(intake.telegramId ?? 'без имени');
   const base = (process.env.NEXT_PUBLIC_CABINET_URL || 'https://world.thesashatoyz.com').replace(/\/$/, '');
 
   await notifyAdmin(

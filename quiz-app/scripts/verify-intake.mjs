@@ -142,6 +142,39 @@ await text(TG_WITH_ACCESS, '/anketa');
 intake = await intakeOf(TG_WITH_ACCESS);
 check('12. повторный /anketa не сбрасывает собранную', intake.status === 'done', intake.status);
 
+// ── Ссылка, выданная вслепую: человека нет в базе, привязка при переходе ──
+
+const TG_BLIND = 999000003;
+const blindFrom = { id: TG_BLIND, first_name: 'Незнакомец', username: 'probe_blind' };
+
+await db.query(`DELETE FROM intakes WHERE label = 'probe-blind' OR telegram_id = $1`, [TG_BLIND]);
+await db.query('DELETE FROM users WHERE telegram_id = $1', [TG_BLIND]);
+
+const blindToken = 'probeblindtoken1';
+await db.query(
+  `INSERT INTO intakes (id, label, status, current_step, invite_token, invited_at, created_at, updated_at)
+   VALUES (gen_random_uuid(), 'probe-blind', 'invited', 0, $1, now(), now(), now())`,
+  [blindToken],
+);
+
+// 13. Анкета существует без telegram_id
+let blind = (await db.query('SELECT * FROM intakes WHERE invite_token = $1', [blindToken])).rows[0];
+check('13. слепая ссылка заводится без telegram_id', blind.telegram_id === null, String(blind.telegram_id));
+
+// 14. Переход по ссылке привязывает её к тому, кто открыл
+await send({ message: { chat: { id: TG_BLIND }, from: blindFrom, text: `/start intake_${blindToken}` } });
+blind = (await db.query('SELECT * FROM intakes WHERE invite_token = $1', [blindToken])).rows[0];
+check('14. переход по ссылке привязал telegram_id',
+  String(blind.telegram_id) === String(TG_BLIND), String(blind.telegram_id));
+
+// 15. Дальше анкета работает как обычная, без гейта по тарифу
+await press(TG_BLIND, 'intake:start');
+blind = (await db.query('SELECT * FROM intakes WHERE invite_token = $1', [blindToken])).rows[0];
+check('15. по ссылке анкета стартует без тарифа в базе', blind.status === 'in_progress', blind.status);
+
+await db.query(`DELETE FROM intakes WHERE label = 'probe-blind' OR telegram_id = $1`, [TG_BLIND]);
+await db.query('DELETE FROM users WHERE telegram_id = $1', [TG_BLIND]);
+
 // Уборка
 await db.query('DELETE FROM intakes WHERE telegram_id = ANY($1)', [[TG_WITH_ACCESS, TG_NO_ACCESS]]);
 await db.query('DELETE FROM product_access WHERE source = $1', ['verify-intake-script']);

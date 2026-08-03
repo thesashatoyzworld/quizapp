@@ -317,9 +317,13 @@ model DwyLead {
 
 model Intake {
   id          String    @id @default(uuid())
-  telegramId  BigInt    @unique @map("telegram_id")
+  // Пусто, пока человек не перешёл по персональной ссылке: тех, кто ни разу
+  // не заходил в бота, мы по telegram_id не знаем. Проставляется при переходе.
+  telegramId  BigInt?   @unique @map("telegram_id")
   username    String?
   firstName   String?   @map("first_name")
+  /** как Саша назвал человека, когда выдавал ссылку вслепую */
+  label       String?
   status      String    @default("invited") // invited | in_progress | done
   currentStep Int       @default(0) @map("current_step")
   inviteToken String?   @unique @map("invite_token") // персональная ссылка для тех, кто не в боте
