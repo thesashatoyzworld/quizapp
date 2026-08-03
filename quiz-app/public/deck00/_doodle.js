@@ -9,7 +9,9 @@
 
    Клавиши: D рисование · C очистить · Z отменить · M маркер
             A автозатухание · O тёмная обводка · H панель
-            P источник ввода · I отладка · 1-4 цвет
+            P источник ввода · I отладка
+            1-5 цвет (красный/зелёный/голубой/белый/чёрный)
+            [ и ] толщина линии
    Палец: тап листает, свайп листает, тап по кнопке слайда остаётся кнопке.
    Занятые декой F, V, N, T, R, стрелки, пробел, Home, End не трогаем.
 
@@ -29,9 +31,14 @@ var getStroke = DoodlePF.getStroke;
 /* ---------- настройки ---------- */
 var HOLD = 3200, FADE = 700;          // держим штрих / растворяем, мс
 var OUTLINE = '#07070B', OUTLINE_W = 3;
-var PEN_SIZE = 13, MARK_SIZE = 30, MARK_A = 0.40;
-/* 4-й цвет 'auto': белый на тёмном слайде, почти чёрный на светлом */
-var PALETTE = ['#FF2E9F', '#00E5FF', '#00FF95', 'auto'];
+var MARK_A = 0.40;
+/* красный, зелёный, голубой, белый, чёрный — клавиши 1-5 */
+var PALETTE = ['#FF2D2D', '#00C853', '#00B8FF', '#FFFFFF', '#12121A'];
+var NAMES   = ['Красный (1)', 'Зелёный (2)', 'Голубой (3)', 'Белый (4)', 'Чёрный (5)'];
+/* четыре толщины, клавиши [ и ] */
+var SIZES      = [7, 11, 16, 24];
+var MARK_SIZES = [18, 26, 36, 50];
+var DOTS       = [5, 8, 11, 15];      // размер точки на кнопке панели
 var CLEAR_ON_SLIDE = true;            // чистим холст при смене слайда
 var TAP = true;                       // тап листает
 var SWIPE = true;                     // свайп листает
@@ -59,8 +66,11 @@ var CSS =
 '.doodle-panel button:active{background:rgba(255,255,255,.12)}' +
 '.doodle-panel button.act{background:rgba(255,255,255,.18);color:#fff}' +
 '.doodle-panel .sep{width:1px;height:18px;background:rgba(255,255,255,.14);margin:0 2px}' +
-'.doodle-panel .sw{width:23px;height:23px;border-radius:50%;border:2px solid transparent}' +
+'.doodle-panel .sw{width:23px;height:23px;border-radius:50%;border:2px solid transparent;' +
+  'box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)}' +
 '.doodle-panel .sw.act{border-color:#fff}' +
+'.doodle-panel .szdot{display:block;border-radius:50%;background:#C9C9D4}' +
+'.doodle-panel button:hover .szdot{background:#fff}' +
 '#dl-peek{position:fixed;z-index:9500;width:24px;height:24px;border-radius:50%;border:0;' +
   'background:rgba(255,255,255,.12);display:none;cursor:pointer;touch-action:manipulation}' +
 '#dl-peek.on{display:block}' +
@@ -84,12 +94,12 @@ function el(tag, id, html){
 var cInk  = el('canvas', 'dl-ink');
 var cLive = el('canvas', 'dl-live');
 var panel = el('div', 'dl-panel',
-  '<button class="sw" data-color="#FF2E9F" style="background:#FF2E9F"></button>' +
-  '<button class="sw" data-color="#00E5FF" style="background:#00E5FF"></button>' +
-  '<button class="sw" data-color="#00FF95" style="background:#00FF95"></button>' +
-  '<button class="sw" data-color="auto" title="Контрастный к слайду"' +
-    ' style="background:linear-gradient(135deg,#FFFFFF 0 50%,#12121A 50% 100%)"></button>' +
+  PALETTE.map(function(c, i){
+    return '<button class="sw" data-color="' + c + '" title="' + NAMES[i] +
+           '" style="background:' + c + '"></button>';
+  }).join('') +
   '<div class="sep"></div>' +
+  '<button data-a="size" title="Толщина ([ и ])"><span class="szdot"></span></button>' +
   '<button data-a="mark" title="Маркер (M)">▬</button>' +
   '<button data-a="draw" title="Рисование (D)">✎</button>' +
   '<button data-a="fade" title="Автозатухание (A)">◔</button>' +
@@ -109,6 +119,7 @@ var xLive = cLive.getContext('2d');
 /* ---------- состояние ---------- */
 var strokes = [], cur = null;
 var color = PALETTE[0], marker = false, drawOn = true, fadeOn = true;
+var sizeIdx = 1;          // индекс в SIZES
 var outlineOn = false;   // тёмная обводка под цветом, клавиша O
 var rafId = 0, dpr = 1;
 var box = { x:0, y:0, w:0, h:0 };      // кадр 16:9 в CSS-пикселях
@@ -156,17 +167,11 @@ function placePanel(){
   peek.style.right   = '14px';
 }
 
-function autoColor(){
-  var s = document.querySelector('.dslide.on');
-  return (s && s.classList.contains('dark')) ? '#FFFFFF' : '#12121A';
-}
-function resolveColor(){ return color === 'auto' ? autoColor() : color; }
-
 /* ---------- геометрия штриха ---------- */
 function optsFor(s, done){
-  if(s.marker) return { size:MARK_SIZE, thinning:0, smoothing:.62, streamline:.52,
+  if(s.marker) return { size:s.msize || MARK_SIZES[1], thinning:0, smoothing:.62, streamline:.52,
                         simulatePressure:false, last:done, start:{cap:true}, end:{cap:true} };
-  return { size:PEN_SIZE, thinning:s.simulated ? .32 : .55, smoothing:.55, streamline:.38,
+  return { size:s.size || SIZES[1], thinning:s.simulated ? .32 : .55, smoothing:.55, streamline:.38,
            simulatePressure:s.simulated, last:done, easing:function(t){ return t; },
            start:{cap:true, taper:0}, end:{cap:true, taper:0} };
 }
@@ -238,7 +243,8 @@ function inFrame(x, y){ return x >= box.x && x <= box.x + box.w && y >= box.y &&
 function inPanel(t){ return !!(t && t.closest && (t.closest('.doodle-panel') || t.closest('#dl-peek'))); }
 
 function begin(cx, cy, p, simulated, src){
-  cur = { pts:[[cx - box.x, cy - box.y, p]], color:resolveColor(), marker:marker,
+  cur = { pts:[[cx - box.x, cy - box.y, p]], color:color, marker:marker,
+          size:SIZES[sizeIdx], msize:MARK_SIZES[sizeIdx],
           end:null, path:null, simulated:simulated };
   strokes.push(cur);
   stat.src = src; stat.pts = 1; stat.t0 = performance.now(); stat.pmin = p; stat.pmax = p;
@@ -375,6 +381,8 @@ function nav(dir){
   var D = null;
   try { if(typeof Deck !== 'undefined') D = Deck; } catch(err){}
   if(!D && window.Deck) D = window.Deck;
+  /* nav деки сначала листает кадры внутри карусели и только потом слайд */
+  if(D && typeof D.nav === 'function'){ D.nav(dir); return; }
   if(D && typeof D.show === 'function' && typeof D.index === 'number'){ D.show(D.index + dir); return; }
   var btn = document.querySelector('.ab[data-dir="' + dir + '"]');   /* запасной путь */
   if(btn) btn.click();
@@ -393,6 +401,8 @@ function syncUI(){
   panel.querySelectorAll('.sw').forEach(function(b){
     b.classList.toggle('act', b.dataset.color.toLowerCase() === color.toLowerCase());
   });
+  var dot = panel.querySelector('.szdot');
+  if(dot){ dot.style.width = DOTS[sizeIdx] + 'px'; dot.style.height = DOTS[sizeIdx] + 'px'; }
 }
 function clearAll(){
   strokes.length = 0; cur = null; touchId = null; activeId = null;
@@ -410,6 +420,10 @@ function toggleFade(){
   if(fadeOn){ strokes.forEach(function(s){ if(s.end !== null) s.end = now; }); repaintInk(); kick(); }
   else { stopLoop(); repaintInk(); clearLive(); }
   syncUI(); updHud();
+}
+function setSize(i){
+  sizeIdx = Math.max(0, Math.min(SIZES.length - 1, i));
+  syncUI();
 }
 function toggleOutline(){
   outlineOn = !outlineOn;
@@ -462,6 +476,7 @@ panel.addEventListener('click', function(e){
   else if(a === 'draw'){ drawOn = !drawOn; syncUI(); }
   else if(a === 'fade') toggleFade();
   else if(a === 'outline') toggleOutline();
+  else if(a === 'size') setSize((sizeIdx + 1) % SIZES.length);
   else if(a === 'undo') undo();
   else if(a === 'clear') clearAll();
   else if(a === 'hide') togglePanel();
@@ -481,17 +496,21 @@ window.addEventListener('keydown', function(e){
   var a = document.activeElement, tg = a ? (a.tagName || '').toLowerCase() : '';
   if(tg === 'input' || tg === 'textarea' || tg === 'select' || (a && a.isContentEditable)) return;
   if(e.metaKey || e.ctrlKey || e.altKey) return;
-  var k = (e.key || '').toLowerCase();
-  if(k === 'd'){ drawOn = !drawOn; syncUI(); }
-  else if(k === 'c') clearAll();
-  else if(k === 'z') undo();
-  else if(k === 'm'){ marker = !marker; syncUI(); }
-  else if(k === 'a') toggleFade();
-  else if(k === 'o') toggleOutline();
-  else if(k === 'h') togglePanel();
-  else if(k === 'p'){ penViaTouch = !penViaTouch; cur = null; touchId = null; activeId = null; updHud(); }
-  else if(k === 'i') toggleHud();
-  else if(k >= '1' && k <= '4'){ color = PALETTE[+k - 1]; syncUI(); }
+  var code = e.code || '', k = (e.key || '').toLowerCase();
+  var is = function(c, letter){ return code ? code === c : k === letter; };
+  var digit = code.indexOf('Digit') === 0 ? +code.slice(5) : (k >= '1' && k <= '9' ? +k : 0);
+  if(is('KeyD', 'd')){ drawOn = !drawOn; syncUI(); }
+  else if(is('KeyC', 'c')) clearAll();
+  else if(is('KeyZ', 'z')) undo();
+  else if(is('KeyM', 'm')){ marker = !marker; syncUI(); }
+  else if(is('KeyA', 'a')) toggleFade();
+  else if(is('KeyO', 'o')) toggleOutline();
+  else if(is('KeyH', 'h')) togglePanel();
+  else if(is('KeyP', 'p')){ penViaTouch = !penViaTouch; cur = null; touchId = null; activeId = null; updHud(); }
+  else if(is('KeyI', 'i')) toggleHud();
+  else if(code === 'BracketLeft'  || e.key === '[') setSize(sizeIdx - 1);
+  else if(code === 'BracketRight' || e.key === ']') setSize(sizeIdx + 1);
+  else if(digit >= 1 && digit <= PALETTE.length){ color = PALETTE[digit - 1]; syncUI(); }
   else return;                       /* F, V, N, T, R, стрелки и пробел остаются деке */
   e.preventDefault();
 }, false);
