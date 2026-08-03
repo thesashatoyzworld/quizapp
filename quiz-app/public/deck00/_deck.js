@@ -270,6 +270,13 @@ const Deck = (() => {
     location.hash = 's' + (idx + 1);
   }
 
+  function setClean(on) {
+    document.body.classList.toggle('clean', on);
+    if (on) document.body.classList.remove('prompt');   // суфлёр режет высоту стейджа
+    fit();
+    setTimeout(fit, 260);                               // #fit едет с transition .2s
+  }
+
   function fit() {
     if (say) {
       const ph = Math.min(340, Math.round(window.innerHeight * 0.3));
@@ -304,6 +311,7 @@ const Deck = (() => {
       if (e.key === 'End') show(slides.length - 1);
       if (e.key.toLowerCase() === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
       if (e.key.toLowerCase() === 'v') document.body.classList.toggle('nocam');
+      if (e.key.toLowerCase() === 'k') setClean(!document.body.classList.contains('clean'));
       if (e.key.toLowerCase() === 'n') document.body.classList.toggle('notes');
       if (e.key.toLowerCase() === 't') togglePrompter();
       if (e.key.toLowerCase() === 'r') toggleFullText();
@@ -318,10 +326,13 @@ const Deck = (() => {
       const n = Number((location.hash || '').replace('#s', ''));
       if (n > 0 && n - 1 !== idx) show(n - 1);
     });
+    const standalone = window.navigator.standalone === true ||
+      (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    if (location.search.indexOf('clean') > -1 || standalone) setClean(true);
     fit();
     const h = Number((location.hash || '').replace('#s', ''));
     show(h > 0 ? h - 1 : 0);
   }
 
-  return { build, show: i => show(i), get index() { return idx; } };
+  return { build, show: i => show(i), setClean, get index() { return idx; } };
 })();

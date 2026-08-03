@@ -183,3 +183,16 @@ body.fulltext #fulltext{display:flex;}
   font-family:"Courier New",monospace;font-size:19px;line-height:1.4;color:#b45309;background:#fffbeb;
   border:1px dashed #f59e0b;padding:14px 18px;z-index:50;}
 body.notes .todo{display:block;}
+
+/* ── чистый кадр для записи экрана (клавиша K) ──────────────
+   Убирает весь интерфейс: суфлёр, стрелки, счётчик, подсказку,
+   прогресс-бар, полный текст и пунктирную рамку кадра камеры.
+   Зона камеры остаётся на месте, чтобы вёрстка слайдов не поехала.
+   Свернуть её целиком по-прежнему можно клавишей V. */
+body.clean #ctrl,
+body.clean #pbar,
+body.clean #prompter,
+body.clean #fulltext,
+body.clean .vguide,
+body.clean .todo{display:none !important;}
+body.clean #fit{height:100% !important;}

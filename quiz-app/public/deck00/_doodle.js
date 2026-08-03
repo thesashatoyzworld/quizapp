@@ -469,6 +469,13 @@ if(window.ResizeObserver){
 document.addEventListener('transitionend', function(e){
   if(e.target && e.target.id === 'fit') layout();
 }, false);
+/* дека пересчитывает масштаб через style.transform у #stage.
+   ResizeObserver трансформ не ловит, поэтому смотрим за атрибутом. */
+if(window.MutationObserver){
+  var stEl = document.getElementById('stage');
+  if(stEl) new MutationObserver(function(){ layout(); })
+    .observe(stEl, { attributes:true, attributeFilter:['style'] });
+}
 
 syncUI();
 layout();
