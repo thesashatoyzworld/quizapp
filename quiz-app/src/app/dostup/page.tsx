@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { SECTIONS } from '@/content/rooms';
+import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 
 // Официальная кнопка «Войти через Telegram» (Login Widget). Рендерится только
 // в браузере (в Mini App не нужна — там опознаём по initData). Требует, чтобы
@@ -53,12 +54,13 @@ function DostupInner() {
   const [viewer, setViewer] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
-    const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
-    if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
-    const tgId = tg?.initDataUnsafe?.user?.id;
-
     let stop = false;
     (async () => {
+      // SDK подключён с defer, поэтому ждём его появления (в браузере вернётся null).
+      const tg = await waitForTelegramWebApp();
+      if (stop) return;
+      if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
+      const tgId = tg?.initDataUnsafe?.user?.id;
       try {
         // В Mini App опознаёмся по initData id. В браузере id нет — эндпоинт
         // попробует подписанную сессию-cookie (вход через Telegram Login Widget).

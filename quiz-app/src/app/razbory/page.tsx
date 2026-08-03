@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
+import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 
 // Раздел «Разборы» — записи и конспекты разборов реальных созвонов учеников.
 // Доступ: активный «Новый уровень контента» тарифа 2 или 3. Проверка живёт на
@@ -55,11 +56,6 @@ function RazboryInner() {
   const [preview, setPreview] = useState(false);
 
   useEffect(() => {
-    const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number } } } } }).Telegram?.WebApp;
-    if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
-    const id = tg?.initDataUnsafe?.user?.id ?? null;
-    setTgId(id);
-
     // ?preview=1 — превью вёрстки при локальной разработке (сервер пускает
     // только вне продакшена).
     const preview = new URLSearchParams(window.location.search).get('preview') === '1';
@@ -67,6 +63,12 @@ function RazboryInner() {
 
     let stop = false;
     (async () => {
+      // SDK подключён с defer — ждём его, иначе потеряли бы опознание по initData.
+      const tg = await waitForTelegramWebApp();
+      if (stop) return;
+      if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
+      const id = tg?.initDataUnsafe?.user?.id ?? null;
+      setTgId(id);
       try {
         const qs = new URLSearchParams();
         if (id) qs.set('telegramId', String(id));

@@ -20,10 +20,12 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <head>
-        {/* SDK Telegram грузим ПЕРВЫМ: синхронный скрипт после <link rel=stylesheet>
-            ждёт эту таблицу стилей, а вместе с ним стоит и парсер — то есть <body>
-            вообще не появляется, пока не ответит хост шрифтов. */}
-        <script src="https://telegram.org/js/telegram-web-app.js" />
+        {/* SDK Telegram: defer, а не синхронно. Синхронный скрипт блокирует парсер,
+            и если telegram.org тормозит или режется провайдером (сам сайт в РФ
+            блокируют, хотя мессенджер работает) — <body> не появляется вовсе, экран
+            белый. С defer страница рисуется сразу; те, кто читает window.Telegram
+            при монтировании, ждут SDK через waitForTelegramWebApp(). */}
+        <script src="https://telegram.org/js/telegram-web-app.js" defer />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Шрифты грузятся НЕблокирующе: media="print" не подходит экрану, поэтому

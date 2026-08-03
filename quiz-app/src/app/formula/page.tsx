@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Content } from '@/content/formula/types';
 import contentJson from '@/content/formula/content.json';
 import FormulaApp from './FormulaApp';
+import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 
 const content = contentJson as unknown as Content;
 const ROLE = 'uroven'; // бонус для купивших «Новый уровень контента»
@@ -19,20 +20,9 @@ export default function FormulaPage() {
   const [tgLabel, setTgLabel] = useState('');
 
   useEffect(() => {
-    const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void; initDataUnsafe?: { user?: { id: number; username?: string; first_name?: string } } } } }).Telegram?.WebApp;
-    if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
-    const tgUser = tg?.initDataUnsafe?.user;
-    const tgId = tgUser?.id;
-    if (tgUser) {
-      const who = tgUser.username ? '@' + tgUser.username : tgUser.first_name || '';
-      setTgLabel(who ? `${who} · ${tgUser.id}` : String(tgUser.id));
-    }
-    const urlToken = new URLSearchParams(window.location.search).get('t');
-    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('kb_token') : null;
-    const token = urlToken || savedToken;
-    const qs = tgId ? `telegramId=${tgId}` : token ? `token=${encodeURIComponent(token)}` : '';
-
     let stop = false;
+    let qs = '';
+    let tgId: number | undefined;
     async function load() {
       if (!qs) { setAskEmail(true); setUnlocked([]); return; }
       try {
@@ -48,7 +38,24 @@ export default function FormulaPage() {
         if (!stop) { setAskEmail(true); setUnlocked([]); }
       }
     }
-    load();
+    (async () => {
+      // SDK подключён с defer — ждём его, иначе опознание по initData отвалится
+      // и купивший увидел бы форму «введи почту».
+      const tg = await waitForTelegramWebApp();
+      if (stop) return;
+      if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
+      const tgUser = tg?.initDataUnsafe?.user;
+      tgId = tgUser?.id;
+      if (tgUser) {
+        const who = tgUser.username ? '@' + tgUser.username : tgUser.first_name || '';
+        setTgLabel(who ? `${who} · ${tgUser.id}` : String(tgUser.id));
+      }
+      const urlToken = new URLSearchParams(window.location.search).get('t');
+      const savedToken = localStorage.getItem('kb_token');
+      const token = urlToken || savedToken;
+      qs = tgId ? `telegramId=${tgId}` : token ? `token=${encodeURIComponent(token)}` : '';
+      load();
+    })();
     return () => { stop = true; };
   }, []);
 
