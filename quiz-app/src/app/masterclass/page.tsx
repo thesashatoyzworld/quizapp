@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useTelegram } from '@/hooks/useTelegram';
 import { useTracking } from '@/hooks/useTracking';
 import { buildPaymentUrl } from '@/lib/payment';
+import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 
 export default function MasterclassPage() {
   const [utmSource, setUtmSource] = useState<string | null>(null);
@@ -17,19 +18,22 @@ export default function MasterclassPage() {
       setUtmSource(source);
     }
 
-    // Track page view
-    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    fetch('/api/track-event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event_type: 'masterclass_view',
-        user_id: tgUser?.id,
-        username: tgUser?.username,
-        first_name: tgUser?.first_name,
-        utm_source: source || undefined,
-      }),
-    }).catch(() => {});
+    // Track page view. SDK грузится с defer, поэтому ждём его — иначе событие
+    // ушло бы без user_id.
+    waitForTelegramWebApp().then((tg) => {
+      const tgUser = tg?.initDataUnsafe?.user;
+      fetch('/api/track-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'masterclass_view',
+          user_id: tgUser?.id,
+          username: tgUser?.username,
+          first_name: tgUser?.first_name,
+          utm_source: source || undefined,
+        }),
+      }).catch(() => {});
+    });
   }, []);
 
   const handlePayment = async () => {
