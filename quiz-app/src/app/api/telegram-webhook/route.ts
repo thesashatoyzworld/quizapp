@@ -40,6 +40,10 @@ interface TelegramUpdate {
   message?: {
     chat: {
       id: number;
+      // private | group | supergroup | channel. Анкета живёт только в личке:
+      // бот сидит админом в клиентских группах, и без этой проверки он
+      // принимал сообщения оттуда за ответы на вопросы и отвечал в группу.
+      type?: string;
     };
     text?: string;
     from?: {
@@ -65,7 +69,7 @@ interface TelegramUpdate {
       username?: string;
     };
     message?: {
-      chat: { id: number };
+      chat: { id: number; type?: string };
       message_id: number;
     };
   };
@@ -200,6 +204,17 @@ async function sendSubscriptionGate(chatId: number, slug: string, lm: LeadMagnet
   await sendMessage(chatId, gateText, gateMarkup);
 }
 
+/**
+ * Личка или нет. В приватном чате chat.id совпадает с id отправителя, в группе
+ * chat.id отрицательный и общий на всех. Анкета работает только в личке:
+ * бот админом сидит в клиентских группах, и без этой проверки он принимал
+ * сообщения оттуда за ответы на вопросы анкеты и отвечал прямо в группу.
+ */
+function isPrivateChat(chat: { id: number; type?: string }, fromId?: number): boolean {
+  if (chat.type) return chat.type === 'private';
+  return fromId !== undefined && chat.id === fromId;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const update: TelegramUpdate = await request.json();
@@ -213,6 +228,9 @@ export async function POST(request: NextRequest) {
       if (data.startsWith('intake:') && cb.message) {
         const chatId = cb.message.chat.id;
         await answerCallbackQuery(cb.id);
+
+        // Кнопки анкеты тоже только в личке.
+        if (!isPrivateChat(cb.message.chat, cb.from.id)) return NextResponse.json({ ok: true });
 
         await syncUsername(cb.from.id, cb.from.username, cb.from.first_name);
         const intake = await getIntake(cb.from.id);
@@ -410,7 +428,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Анкета тарифа 3: человек сам вернулся продолжить или начать.
-    if (update.message?.text?.trim().startsWith('/anketa') && update.message.from?.id) {
+    if (
+      update.message?.text?.trim().startsWith('/anketa') &&
+      update.message.from?.id &&
+      isPrivateChat(update.message.chat, update.message.from.id)
+    ) {
       const chatId = update.message.chat.id;
       const tgId = update.message.from.id;
 
@@ -441,7 +463,11 @@ export async function POST(request: NextRequest) {
 
     // Ответ на вопрос анкеты: голос, текст, скрин, ссылка, кружок, файл.
     // Команды сюда не попадают, они разобраны выше.
-    if (update.message?.from?.id && !update.message.text?.startsWith('/')) {
+    if (
+      update.message?.from?.id &&
+      !update.message.text?.startsWith('/') &&
+      isPrivateChat(update.message.chat, update.message.from.id)
+    ) {
       const m = update.message;
       const tgId = m.from!.id!;
 

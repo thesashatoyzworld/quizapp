@@ -130,6 +130,21 @@ await text(TG_WITH_ACCESS, 'ещё сообщение');
 const u = (await db.query('SELECT username FROM users WHERE telegram_id = $1', [TG_WITH_ACCESS])).rows[0];
 check('10. протухший юзернейм обновлён', u.username === `probe_${TG_WITH_ACCESS}`, u.username);
 
+// 10a. Сообщение из ГРУППЫ не должно попадать в анкету.
+// Бот сидит админом в клиентских группах. Без проверки на приватный чат он
+// принимал сообщения оттуда за ответы на вопросы и отвечал прямо в группу.
+const beforeGroup = (await answersOf(intake.id)).length;
+await send({
+  message: {
+    chat: { id: -1009000000001, type: 'supergroup' },
+    from: from(TG_WITH_ACCESS),
+    text: 'обычное рабочее сообщение в группе',
+  },
+});
+const afterGroup = (await answersOf(intake.id)).length;
+check('10a. сообщение из группы НЕ попадает в анкету', afterGroup === beforeGroup,
+  `было ${beforeGroup}, стало ${afterGroup}`);
+
 // 11. Доходим до конца: анкета закрывается
 for (let i = intake.current_step; i < 11; i++) {
   await press(TG_WITH_ACCESS, 'intake:skip');
