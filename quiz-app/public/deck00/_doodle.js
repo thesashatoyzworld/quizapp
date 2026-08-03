@@ -8,8 +8,9 @@
    только внутри кадра 16:9, который попадёт в монтаж.
 
    Клавиши: D рисование · C очистить · Z отменить · M маркер
-            A автозатухание · H панель · P источник ввода · I отладка
-            1-4 цвет
+            A автозатухание · O тёмная обводка · H панель
+            P источник ввода · I отладка · 1-4 цвет
+   Палец: тап листает, свайп листает, тап по кнопке слайда остаётся кнопке.
    Занятые декой F, V, N, T, R, стрелки, пробел, Home, End не трогаем.
 
    Внутри вклеен perfect-freehand v1.2.2 (MIT),
@@ -29,13 +30,17 @@ var getStroke = DoodlePF.getStroke;
 var HOLD = 3200, FADE = 700;          // держим штрих / растворяем, мс
 var OUTLINE = '#07070B', OUTLINE_W = 3;
 var PEN_SIZE = 13, MARK_SIZE = 30, MARK_A = 0.40;
-var PALETTE = ['#FF2E9F', '#00E5FF', '#00FF95', '#FFFFFF'];
+/* 4-й цвет 'auto': белый на тёмном слайде, почти чёрный на светлом */
+var PALETTE = ['#FF2E9F', '#00E5FF', '#00FF95', 'auto'];
 var CLEAR_ON_SLIDE = true;            // чистим холст при смене слайда
-var SWIPE = true;                     // листание свайпом пальца
+var TAP = true;                       // тап листает
+var SWIPE = true;                     // свайп листает
 var SWIPE_MIN = 70;
+var TAP_MAX = 14;                     // смещение, до которого жест считается тапом
 
 /* ---------- стили ---------- */
 var CSS =
+'#fit{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}' +
 '#dl-ink,#dl-live{position:fixed;pointer-events:none;display:block;z-index:9000}' +
 '#dl-live{z-index:9001}' +
 '.doodle-panel{position:fixed;z-index:9500;display:flex;align-items:center;gap:3px;' +
@@ -82,11 +87,13 @@ var panel = el('div', 'dl-panel',
   '<button class="sw" data-color="#FF2E9F" style="background:#FF2E9F"></button>' +
   '<button class="sw" data-color="#00E5FF" style="background:#00E5FF"></button>' +
   '<button class="sw" data-color="#00FF95" style="background:#00FF95"></button>' +
-  '<button class="sw" data-color="#FFFFFF" style="background:#FFFFFF"></button>' +
+  '<button class="sw" data-color="auto" title="Контрастный к слайду"' +
+    ' style="background:linear-gradient(135deg,#FFFFFF 0 50%,#12121A 50% 100%)"></button>' +
   '<div class="sep"></div>' +
   '<button data-a="mark" title="Маркер (M)">▬</button>' +
   '<button data-a="draw" title="Рисование (D)">✎</button>' +
   '<button data-a="fade" title="Автозатухание (A)">◔</button>' +
+  '<button data-a="outline" title="Тёмная обводка (O)">◐</button>' +
   '<div class="sep"></div>' +
   '<button data-a="undo" title="Отменить (Z)">↶</button>' +
   '<button data-a="clear" title="Очистить (C)">✕</button>' +
@@ -102,6 +109,7 @@ var xLive = cLive.getContext('2d');
 /* ---------- состояние ---------- */
 var strokes = [], cur = null;
 var color = PALETTE[0], marker = false, drawOn = true, fadeOn = true;
+var outlineOn = false;   // тёмная обводка под цветом, клавиша O
 var rafId = 0, dpr = 1;
 var box = { x:0, y:0, w:0, h:0 };      // кадр 16:9 в CSS-пикселях
 
@@ -148,6 +156,12 @@ function placePanel(){
   peek.style.right   = '14px';
 }
 
+function autoColor(){
+  var s = document.querySelector('.dslide.on');
+  return (s && s.classList.contains('dark')) ? '#FFFFFF' : '#12121A';
+}
+function resolveColor(){ return color === 'auto' ? autoColor() : color; }
+
 /* ---------- геометрия штриха ---------- */
 function optsFor(s, done){
   if(s.marker) return { size:MARK_SIZE, thinning:0, smoothing:.62, streamline:.52,
@@ -181,7 +195,7 @@ function paint(x, s, alpha){
     x.globalAlpha = MARK_A * alpha; x.fillStyle = s.color; x.fill(path);
   } else {
     x.globalAlpha = alpha;
-    x.lineWidth = OUTLINE_W; x.strokeStyle = OUTLINE; x.stroke(path);
+    if(outlineOn){ x.lineWidth = OUTLINE_W; x.strokeStyle = OUTLINE; x.stroke(path); }
     x.fillStyle = s.color; x.fill(path);
   }
   x.globalAlpha = 1;
@@ -224,7 +238,7 @@ function inFrame(x, y){ return x >= box.x && x <= box.x + box.w && y >= box.y &&
 function inPanel(t){ return !!(t && t.closest && (t.closest('.doodle-panel') || t.closest('#dl-peek'))); }
 
 function begin(cx, cy, p, simulated, src){
-  cur = { pts:[[cx - box.x, cy - box.y, p]], color:color, marker:marker,
+  cur = { pts:[[cx - box.x, cy - box.y, p]], color:resolveColor(), marker:marker,
           end:null, path:null, simulated:simulated };
   strokes.push(cur);
   stat.src = src; stat.pts = 1; stat.t0 = performance.now(); stat.pmin = p; stat.pmax = p;
@@ -328,26 +342,42 @@ function endTouch(e){
 window.addEventListener('touchend',    endTouch, { capture:true, passive:false });
 window.addEventListener('touchcancel', endTouch, { capture:true, passive:false });
 
-/* Свайп пальцем листает деку. Тапы не трогаем: на слайдах есть кнопки и карусели. */
-var swX = 0, swY = 0, swOn = false;
-if(SWIPE){
-  window.addEventListener('pointerdown', function(e){
-    if(e.pointerType !== 'touch' || inPanel(e.target)) return;
-    if(e.target.closest && e.target.closest('button,a,input,.lock,.st6,.dot,.cfrs')) return;
-    swOn = true; swX = e.clientX; swY = e.clientY;
-  }, false);
-  window.addEventListener('pointerup', function(e){
-    if(!swOn || e.pointerType !== 'touch') return;
-    swOn = false;
-    var dx = e.clientX - swX, dy = e.clientY - swY;
-    if(Math.abs(dx) < SWIPE_MIN || Math.abs(dy) > Math.abs(dx)) return;
-    nav(dx < 0 ? 1 : -1);
-  }, false);
-}
-function nav(dir){
-  if(window.Deck && typeof Deck.show === 'function' && typeof Deck.index === 'number'){
-    Deck.show(Deck.index + dir);
+/* Тап и свайп пальцем листают деку.
+   Кликабельные элементы слайда (кнопки, строки диагностики, карусели)
+   определяем по computed cursor:pointer и тап отдаём им. */
+function clickable(t){
+  for(var n = t, i = 0; n && n !== document.body && i < 6; n = n.parentElement, i++){
+    var tag = (n.tagName || '').toLowerCase();
+    if(tag === 'button' || tag === 'a' || tag === 'input' || tag === 'select' || tag === 'textarea') return true;
+    try { if(getComputedStyle(n).cursor === 'pointer') return true; } catch(err){}
   }
+  return false;
+}
+var swX = 0, swY = 0, swOn = false, swSkipTap = false;
+window.addEventListener('pointerdown', function(e){
+  swOn = false;
+  if(e.pointerType !== 'touch' || inPanel(e.target)) return;
+  swOn = true; swSkipTap = clickable(e.target);
+  swX = e.clientX; swY = e.clientY;
+}, false);
+window.addEventListener('pointerup', function(e){
+  if(!swOn || e.pointerType !== 'touch') return;
+  swOn = false;
+  var dx = e.clientX - swX, dy = e.clientY - swY;
+  if(SWIPE && Math.abs(dx) >= SWIPE_MIN && Math.abs(dx) > Math.abs(dy)){ nav(dx < 0 ? 1 : -1); return; }
+  if(swSkipTap) return;                       /* тап по кнопке слайда: не листаем */
+  if(TAP && Math.abs(dx) < TAP_MAX && Math.abs(dy) < TAP_MAX)
+    nav(e.clientX < window.innerWidth * 0.25 ? -1 : 1);
+}, false);
+window.addEventListener('pointercancel', function(){ swOn = false; }, false);
+function nav(dir){
+  /* Deck объявлен через const, в window его нет: берём лексическую глобаль */
+  var D = null;
+  try { if(typeof Deck !== 'undefined') D = Deck; } catch(err){}
+  if(!D && window.Deck) D = window.Deck;
+  if(D && typeof D.show === 'function' && typeof D.index === 'number'){ D.show(D.index + dir); return; }
+  var btn = document.querySelector('.ab[data-dir="' + dir + '"]');   /* запасной путь */
+  if(btn) btn.click();
 }
 
 /* смена слайда чистит холст */
@@ -357,7 +387,8 @@ if(CLEAR_ON_SLIDE) window.addEventListener('hashchange', function(){ clearAll();
 function syncUI(){
   panel.querySelectorAll('button[data-a]').forEach(function(b){
     var a = b.dataset.a;
-    b.classList.toggle('act', (a === 'mark' && marker) || (a === 'draw' && drawOn) || (a === 'fade' && fadeOn));
+    b.classList.toggle('act', (a === 'mark' && marker) || (a === 'draw' && drawOn) ||
+                             (a === 'fade' && fadeOn) || (a === 'outline' && outlineOn));
   });
   panel.querySelectorAll('.sw').forEach(function(b){
     b.classList.toggle('act', b.dataset.color.toLowerCase() === color.toLowerCase());
@@ -379,6 +410,11 @@ function toggleFade(){
   if(fadeOn){ strokes.forEach(function(s){ if(s.end !== null) s.end = now; }); repaintInk(); kick(); }
   else { stopLoop(); repaintInk(); clearLive(); }
   syncUI(); updHud();
+}
+function toggleOutline(){
+  outlineOn = !outlineOn;
+  repaintInk(); paintLive(performance.now());
+  syncUI();
 }
 function togglePanel(){
   var hidden = panel.classList.toggle('hidden');
@@ -425,6 +461,7 @@ panel.addEventListener('click', function(e){
   if(a === 'mark'){ marker = !marker; syncUI(); }
   else if(a === 'draw'){ drawOn = !drawOn; syncUI(); }
   else if(a === 'fade') toggleFade();
+  else if(a === 'outline') toggleOutline();
   else if(a === 'undo') undo();
   else if(a === 'clear') clearAll();
   else if(a === 'hide') togglePanel();
@@ -450,6 +487,7 @@ window.addEventListener('keydown', function(e){
   else if(k === 'z') undo();
   else if(k === 'm'){ marker = !marker; syncUI(); }
   else if(k === 'a') toggleFade();
+  else if(k === 'o') toggleOutline();
   else if(k === 'h') togglePanel();
   else if(k === 'p'){ penViaTouch = !penViaTouch; cur = null; touchId = null; activeId = null; updHud(); }
   else if(k === 'i') toggleHud();
