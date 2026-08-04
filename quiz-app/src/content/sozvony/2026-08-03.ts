@@ -1,4 +1,4 @@
-// Конспект группового созвона 03.08.2026. Сгенерирован из
+// Конспект группового созвона 2026-08-03. Сгенерирован из
 // GSD-BRAND/clients/sasha/sozvony/2026-08-03/KONSPEKT.html — править там, не здесь.
 
 export const SOZVON_2026_08_03 = String.raw`<!DOCTYPE html>
