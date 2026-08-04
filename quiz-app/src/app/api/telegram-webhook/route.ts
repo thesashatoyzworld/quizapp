@@ -651,6 +651,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Разделы кабинета deep-link: /start sozvony | razbory → кнопка сразу в раздел.
+      // Нужен для анонсов в группе: ссылка из поста открывает нужный раздел в боте.
+      // Ничего не выдаёт — раздел гейтит по telegram_id на сервере.
+      if (startParam === 'sozvony' || startParam === 'razbory') {
+        const room = startParam === 'sozvony'
+          ? { url: 'https://world.thesashatoyz.com/sozvony', button: '🎥 Открыть созвоны', what: 'записи групповых созвонов с конспектами' }
+          : { url: 'https://world.thesashatoyz.com/razbory', button: '🎥 Открыть разборы', what: 'разборы созвонов учеников с конспектами' };
+        await prisma.user.upsert({
+          where: { telegramId: BigInt(chatId) },
+          create: { telegramId: BigInt(chatId), username: username || null, firstName: update.message.from?.first_name || null },
+          update: {},
+        });
+        await sendMessage(
+          chatId,
+          `${firstName}, ${room.what} здесь 👇\n\nраздел открыт на тарифах 2 и 3. если не открывается — напиши сюда.`,
+          { inline_keyboard: [[{ text: room.button, web_app: { url: room.url } }]] }
+        );
+        return NextResponse.json({ ok: true });
+      }
+
       // Lead-magnet deep link (slug from content/leadmagnets.json)
       if (startParam) {
         const lm = getLeadMagnet(startParam);
