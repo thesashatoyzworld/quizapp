@@ -351,7 +351,7 @@ window.addEventListener('touchcancel', endTouch, { capture:true, passive:false }
 /* Тап и свайп пальцем листают деку.
    Кликабельные элементы слайда (кнопки, строки диагностики, карусели)
    определяем по computed cursor:pointer и тап отдаём им. */
-function clickable(t){
+function clickChain(t){
   for(var n = t, i = 0; n && n !== document.body && i < 6; n = n.parentElement, i++){
     var tag = (n.tagName || '').toLowerCase();
     if(tag === 'button' || tag === 'a' || tag === 'input' || tag === 'select' || tag === 'textarea') return true;
@@ -359,11 +359,29 @@ function clickable(t){
   }
   return false;
 }
-var swX = 0, swY = 0, swOn = false, swSkipTap = false;
+/* Палец толще мишени. У мелких SVG-кнопок (маркеры на графиках) между кружком и
+   подписью есть зазор: точное попадание в него отдаёт событие фону, и тап уходит
+   в перелистывание. Поэтому промах добираем кольцом точек радиусом с полпальца.
+   Возвращает true при точном попадании и сам промазанный элемент, когда его
+   нашло кольцо: по нему потом кликаем руками, синтетического клика там не будет. */
+var TAP_R = 16;
+function clickable(t, x, y){
+  if(clickChain(t)) return true;
+  if(typeof x !== 'number' || typeof y !== 'number') return false;
+  var d = TAP_R * 0.7, ring = [[TAP_R,0],[-TAP_R,0],[0,TAP_R],[0,-TAP_R],[d,d],[-d,d],[d,-d],[-d,-d]];
+  for(var i = 0; i < ring.length; i++){
+    var el = document.elementFromPoint(x + ring[i][0], y + ring[i][1]);
+    if(el && clickChain(el)) return el;
+  }
+  return false;
+}
+var swX = 0, swY = 0, swOn = false, swSkipTap = false, swSnap = null;
 window.addEventListener('pointerdown', function(e){
   swOn = false;
   if(e.pointerType !== 'touch' || inPanel(e.target)) return;
-  swOn = true; swSkipTap = clickable(e.target);
+  swOn = true;
+  var hit = clickable(e.target, e.clientX, e.clientY);
+  swSkipTap = !!hit; swSnap = hit === true ? null : hit;
   swX = e.clientX; swY = e.clientY;
 }, false);
 window.addEventListener('pointerup', function(e){
@@ -371,7 +389,13 @@ window.addEventListener('pointerup', function(e){
   swOn = false;
   var dx = e.clientX - swX, dy = e.clientY - swY;
   if(SWIPE && Math.abs(dx) >= SWIPE_MIN && Math.abs(dx) > Math.abs(dy)){ nav(dx < 0 ? 1 : -1); return; }
-  if(swSkipTap) return;                       /* тап по кнопке слайда: не листаем */
+  if(swSkipTap){                              /* тап по кнопке слайда: не листаем */
+    /* попали рядом с мишенью — клика от браузера не будет, зовём сами */
+    if(swSnap && Math.abs(dx) < TAP_MAX && Math.abs(dy) < TAP_MAX){
+      try { swSnap.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true })); } catch(err){}
+    }
+    return;
+  }
   if(TAP && Math.abs(dx) < TAP_MAX && Math.abs(dy) < TAP_MAX)
     nav(e.clientX < window.innerWidth * 0.25 ? -1 : 1);
 }, false);
