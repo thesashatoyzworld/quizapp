@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<base href="/deck03/">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Уровень 2">
+<meta name="robots" content="noindex">
+<title>Уровень 2 · Делал, но бросил</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  .valley{position:relative;max-width:1080px;margin:0 auto;}
+  .valley svg{width:100%;height:auto;display:block;}
+  .vstage{cursor:pointer;}
+  .vstage circle{transition:.2s;}
+  .vstage.on circle{r:16;fill:#e8590c;}
+  .vstage text{font-size:15px;font-weight:700;fill:#6f6660;}
+  .vstage.on text{fill:#14110f;}
+  .valout{margin-top:20px;border-top:2px solid var(--ink);padding-top:20px;text-align:left;min-height:130px;}
+  .valout .h{font-size:30px;font-weight:800;margin-bottom:8px;}
+  .valout .p{font-size:25px;line-height:1.4;color:var(--muted);}
+  .causes{display:flex;flex-direction:column;gap:12px;max-width:1020px;margin:0 auto;}
+  .cause{display:flex;gap:20px;align-items:center;border:2px solid var(--line);background:#fff;padding:16px 22px;
+    cursor:pointer;text-align:left;transition:.15s;}
+  .cause:hover{border-color:var(--accent);}
+  .cause.on{border-color:var(--accent);background:var(--accent-soft);}
+  .cause .t{font-size:27px;font-weight:700;flex:1;}
+  .cause .go{font-size:22px;color:var(--accent);font-weight:800;opacity:0;}
+  .cause.on .go{opacity:1;}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div id="pbar"></div>
+  <div id="deck"></div>
+  <div id="ctrl">
+    <div class="ab" data-dir="-1">‹</div>
+    <div class="ab" data-dir="1">›</div>
+    <div class="ab" id="fsbtn" title="весь экран (F)">⛶</div>
+    <span id="cnt">01 / 01</span>
+    <span id="hint">F — весь экран · ← → листать · V — кадр камеры · N — заметки · T — суфлёр · R — полный текст</span>
+  </div>
+</div></div>
+
+<script src="say/03.js"></script>
+<script src="full/03.js"></script>
+<script src="_deck.js"></script>
+<script>
+const STAGES = [
+  {x:60,  y:70,  nm:'1. Неинформированный оптимизм',
+   p:'нашли идею, которая вдохновляет, готовы окунуться на 100%. ещё не знаете, что впереди'},
+  {x:230, y:130, nm:'2. Информированный пессимизм',
+   p:'оказывается, всё не так просто. не хватает навыков или недооценили сложность'},
+  {x:420, y:250, nm:'3. Долина отчаяния',
+   p:'всё валится из рук, сила воли трещит. мозг подкидывает НОВУЮ классную идею или просто говорит «мы устали». здесь выходят 95%'},
+  {x:640, y:140, nm:'4. Информированный оптимизм',
+   p:'прошли испытание, всё начинает медленно работать. опыт есть, вы близко'},
+  {x:820, y:60,  nm:'5. Успех', p:'результат получен'}
+];
+
+const CAUSES = [
+  {t:'Вы ждали результатов', go:'→ на первый уровень', p:'и не увидели их в тот срок, который сами себе назначили'},
+  {t:'Вы задрали планку сложности', go:'→ на первый уровень', p:'снимали слишком долго, монтировали слишком тщательно, требовали слишком много'},
+  {t:'Вы делали не в той форме', go:'→ на третий уровень', p:'писали, хотя комфортнее говорить. или снимали, хотя проще писать'},
+  {t:'Вы говорили не своё', go:'→ на третий уровень', p:'брали чужие темы и смыслы, потому что они «должны работать»'},
+  {t:'У вас изменился контекст', go:'вы ничего не бросали', p:'переезд, работа, ребёнок, здоровье. это вообще не про контент'}
+];
+
+const SLIDES = [
+  {k:'cover', t:'Уровень 2<br>Делал, но бросил', sub:'вы не проиграли — вы выключили игру'},
+
+  {k:'st', t:'если вы здесь — поздравляю', sub:'у вас уже есть опыт и первые набитые шишки'},
+  {k:'img', kicker:'кадр 7 — продолжение истории с первого уровня', src:'assets/ohrannik-7.png', h:560,
+   cap:'вы вернулись побитым. но дверь открыта, и замки так и лежат на полу'},
+  {k:'st', t:'по-хорошему это даже<br>не отдельный уровень', sm:true,
+   sub:'вы на первом. просто выключили игру'},
+  {k:'st', t:'ничего не сломалось,<br>прогресс никуда не делся', sm:true,
+   sub:'нужно вернуться, понять, почему вышли, и включить обратно'},
+
+  {k:'sec', n:'опасность', t:'пауза превращается<br>в вывод'},
+  {k:'list', kicker:'как это звучит по шагам', t:'', numbered:true,
+   items:['«я потом вернусь»', '«видимо, это не моё»', '«я пробовал, у меня не получилось»']},
+  {k:'st', t:'и каждый следующий заход тяжелее', sm:true,
+   sub:'потому что теперь у вас есть «опыт неудачи». хотя неудачи не было'},
+
+  {k:'sec', n:'что с вами было', t:'долина отчаяния'},
+  {k:'ix', kicker:'кликните на любую стадию', t:'любое движение к цели выглядит так',
+   html:`<div class="valley">
+      <svg viewBox="0 0 900 320">
+        <path d="M60,70 C160,80 180,120 230,130 C320,150 350,240 420,250 C520,262 560,180 640,140 C720,100 760,70 820,60"
+              fill="none" stroke="#ddd6d0" stroke-width="6"/>
+        ${STAGES.map((s,i)=>`<g class="vstage" data-i="${i}">
+            <circle cx="${s.x}" cy="${s.y}" r="11" fill="#b3aaa4"/>
+            <text x="${s.x}" y="${s.y-26}" text-anchor="middle">${i+1}</text>
+          </g>`).join('')}
+        <text x="420" y="298" text-anchor="middle" font-size="17" fill="#c92a2a" font-weight="700">здесь выходят 95%</text>
+      </svg>
+      <div class="valout" id="valout"><div class="p" style="opacity:.55">нажмите на точку</div></div>
+    </div>`,
+   hint:'на записи: прохожу по стадиям и показываю, где именно человек выходит',
+   init(root){
+     const out=root.querySelector('#valout');
+     root.querySelectorAll('.vstage').forEach(g=>{
+       g.addEventListener('click',()=>{
+         root.querySelectorAll('.vstage').forEach(x=>x.classList.remove('on'));
+         g.classList.add('on');
+         const s=STAGES[Number(g.dataset.i)];
+         out.innerHTML=`<div class="h">${s.nm}</div><div class="p">${s.p}</div>`;
+       });
+     });
+   }},
+  {k:'st', t:'оставшиеся 5% продолжают<br>и выбираются', sm:true,
+   sub:'ни навыки, ни деньги, ни знакомства не делают такой разницы, как способность пройти эту долину'},
+  {k:'st', t:'как только вы её пройдёте,<br>сформируется нейронный мост', sm:true,
+   sub:'«это возможно»', dark:true},
+
+  {k:'sec', n:'почему это происходит', t:'сложность против<br>навыка'},
+  {k:'img', kicker:'поток', src:'assets/potok.png', h:560,
+   cap:'сложно и нет навыка — тревога. просто и есть навык — скука. поток только на пересечении'},
+  {k:'st', t:'держите планку сложности<br>на минимальном уровне', sm:true,
+   sub:'потому что люди в 99% случаев переоценивают свои возможности'},
+
+  {k:'sec', n:'разбор', t:'почему вы<br>вышли из игры'},
+  {k:'ix', kicker:'найдите свою причину', t:'вариантов немного, и они почти всегда отсюда',
+   html:`<div class="causes" id="causes">${CAUSES.map((c,i)=>
+      `<div class="cause" data-i="${i}"><div class="t">${c.t}</div><div class="go">${c.go}</div></div>`).join('')}</div>
+      <div class="valout" id="causeout" style="max-width:1020px;margin-left:auto;margin-right:auto;min-height:90px">
+        <div class="p" style="opacity:.55">разница принципиальная: от причины зависит, куда вам идти</div></div>`,
+   hint:'на записи: разбираю каждую причину и куда с ней идти',
+   init(root){
+     const out=root.querySelector('#causeout');
+     root.querySelectorAll('.cause').forEach(el=>{
+       el.addEventListener('click',()=>{
+         root.querySelectorAll('.cause').forEach(x=>x.classList.remove('on'));
+         el.classList.add('on');
+         const c=CAUSES[Number(el.dataset.i)];
+         out.innerHTML=`<div class="p"><b style="color:#14110f">${c.go}</b> — ${c.p}</div>`;
+       });
+     });
+   }},
+
+  {k:'sec', n:'итог', t:'задача уровня'},
+  {k:'list', kicker:'делаем руками', t:'', numbered:true,
+   items:['выписать честно, почему бросили: сколько единиц, чего ждали, что получили, когда перестали',
+          'найти, что можно убрать или упростить прямо сейчас',
+          'вернуться на первый уровень и сделать ОДНУ единицу по новым правилам',
+          'дать себе две недели без оценки результатов']},
+  {k:'st', t:'не с новой стратегией и не с понедельника', sm:true,
+   sub:'с теми же действиями первого уровня, только с пониженной планкой'},
+  {k:'st', t:'маркер: мысль «а вдруг опять не пойдёт»<br>больше не останавливает', sm:true, dark:true},
+];
+Deck.build(SLIDES);
+</script>
+
+<script src="_doodle.js"></script>
+</body>
+</html>

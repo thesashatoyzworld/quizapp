@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<base href="/deck01/">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Цель и мотивация блога">
+<meta name="robots" content="noindex">
+<title>Цель и мотивация блога</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  /* пирамида потребностей */
+  .pyr{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .pyr .lvl{border:2px solid var(--ink);background:#fff;padding:14px 0;font-size:26px;font-weight:700;text-align:center;}
+  .pyr .lvl.base{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  /* ручка громкости */
+  .knob-wrap{display:flex;gap:44px;align-items:center;justify-content:center;}
+  .knob{position:relative;width:300px;height:300px;flex:0 0 auto;}
+  .knob svg{width:100%;height:100%;}
+  .knob .val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:96px;font-weight:800;color:var(--accent);pointer-events:none;}
+  .knob-side{text-align:left;max-width:470px;}
+  /* столбик пробития: слышно вас или нет */
+  .hear{flex:0 0 auto;width:272px;text-align:center;}
+  .hear .cap{font-size:18px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+    font-weight:800;margin-bottom:16px;white-space:nowrap;}
+  .hear .col{width:96px;height:306px;margin:0 auto;border:3px solid var(--ink);background:#fff;
+    position:relative;display:flex;flex-direction:column-reverse;}
+  .hear .seg{flex:1;border-top:2px solid var(--line);transition:background .2s;}
+  .hear .seg:last-child{border-top:none;}
+  .hear .seg.on{background:#e6e1dc;}
+  .hear .seg.on.loud{background:var(--accent);}
+  .hear .thr{position:absolute;left:-16px;right:-16px;bottom:60%;height:0;
+    border-top:3px dashed var(--ink);}
+  .hear .thrlab{position:absolute;right:-70px;bottom:calc(60% + 6px);font-size:19px;
+    color:var(--ink);font-weight:800;white-space:nowrap;}
+  .hear .nums{position:absolute;left:-42px;top:0;bottom:0;display:flex;flex-direction:column;
+    justify-content:space-around;font-size:20px;font-weight:700;color:var(--muted);}
+  /* два режима: что каждый тратит и что приносит */
+  .modes{display:flex;gap:34px;max-width:1140px;margin:0 auto;}
+  .mcard{flex:1;border:2px solid var(--line);background:#fff;padding:30px 32px;text-align:left;
+    display:flex;flex-direction:column;}
+  .mcard .h{font-size:42px;font-weight:800;margin-bottom:16px;}
+  .mcard .p{font-size:26px;line-height:1.3;color:var(--muted);min-height:112px;}
+  .mcard .flow{display:flex;gap:34px;margin:22px 0 20px;border-top:2px solid var(--line);padding-top:22px;}
+  .mcard .fl{display:flex;align-items:center;gap:10px;}
+  .mcard .fl .ic{font-size:30px;font-weight:800;}
+  .mcard .fl .lb{font-size:25px;font-weight:700;}
+  .mcard .fl .ar{font-size:34px;font-weight:800;}
+  .mcard .fl .ar.up{color:var(--ok);}
+  .mcard .fl .ar.down{color:var(--bad);}
+  .mcard .sum{font-size:27px;font-weight:800;margin-top:auto;}
+
+  /* обмен: что режим тратит и что приносит */
+  .swap{margin-top:26px;display:flex;gap:46px;justify-content:center;align-items:center;}
+  .swap .res{display:flex;align-items:center;gap:16px;}
+  .swap .res .nm{font-size:23px;font-weight:800;min-width:96px;text-align:right;}
+  .swap .bar{width:250px;height:26px;border:3px solid var(--ink);background:#fff;position:relative;overflow:hidden;}
+  .swap .bar i{position:absolute;left:0;top:0;bottom:0;width:0;transition:width .3s;}
+  .swap .res.energy .bar i{background:var(--ink);}
+  .swap .res.money  .bar i{background:var(--accent);}
+  .swap .arr{font-size:32px;font-weight:800;width:34px;text-align:center;}
+  .swap .arr.up{color:var(--ok);}
+  .swap .arr.down{color:var(--bad);}
+  .swapline{margin-top:16px;font-size:27px;font-weight:800;}
+
+  .hear .out{margin-top:18px;font-size:24px;font-weight:800;line-height:1.25;min-height:76px;}
+  .hear .out.quiet{color:var(--muted);}
+  .hear .out.loud{color:var(--accent);}
+  .knob-side .mode{display:flex;gap:12px;margin-bottom:26px;}
+  .knob-side .desc{font-size:32px;line-height:1.35;min-height:150px;}
+  .knob-side .desc b{color:var(--accent);}
+  .knob-ctl{display:flex;gap:10px;margin-top:22px;}
+  .knob-ctl .btn{padding:12px 22px;font-size:24px;}
+  .warnline{margin-top:26px;font-size:26px;color:var(--bad);font-weight:700;}
+
+  /* строка против столбика */
+  .rowjam{display:flex;gap:10px;justify-content:center;flex-wrap:nowrap;max-width:1150px;margin:0 auto;}
+  .rowjam .pill{border:2px solid var(--line);background:#fff;padding:14px 10px;font-size:20px;
+    line-height:1.2;font-weight:700;flex:1 1 0;min-width:0;text-align:center;}
+  .rowjam .pill.shake{animation:jam .5s ease-in-out infinite;}
+  @keyframes jam{0%,100%{transform:translateY(0)}25%{transform:translateY(-3px)}75%{transform:translateY(3px)}}
+  .psyche{margin-top:36px;display:flex;align-items:center;gap:20px;justify-content:center;}
+  .psyche .lab{font-size:26px;color:var(--muted);white-space:nowrap;min-width:270px;text-align:right;}
+  .psyche .bar{width:520px;height:22px;border:2px solid var(--ink);background:#fff;position:relative;overflow:hidden;}
+  .psyche .bar i{position:absolute;inset:0 100% 0 0;background:var(--accent);transition:right .25s linear;}
+  .psyche .verdict{font-size:28px;font-weight:800;color:var(--bad);min-width:270px;text-align:left;}
+
+  .stackwrap{max-width:900px;margin:0 auto;}
+  .stackwrap .row{display:flex;align-items:center;gap:22px;border:2px solid var(--line);background:#fff;
+    padding:16px 24px;margin-bottom:12px;text-align:left;opacity:.32;transition:.25s;}
+  .stackwrap .row.live{opacity:1;border-color:var(--accent);background:var(--accent-soft);}
+  .stackwrap .row.done{opacity:1;border-color:var(--ink);background:#fff;}
+  .stackwrap .row .n{font-size:30px;font-weight:800;color:var(--accent);min-width:44px;}
+  .stackwrap .row.done .n{color:var(--ok);}
+  .stackwrap .row .txt{font-size:28px;font-weight:600;}
+  .stackwrap .row.done .txt{text-decoration:line-through;color:var(--muted);}
+  .stackfoot{margin-top:26px;display:flex;align-items:center;gap:24px;justify-content:center;}
+  .stackfoot .note{font-size:26px;color:var(--muted);text-align:left;min-width:520px;}
+  .stackfoot .note b{color:var(--ink);}
+
+  /* круг, из которого он не выходит */
+  .ring{position:relative;width:1100px;height:640px;margin:0 auto;}
+  .ring svg{position:absolute;inset:0;width:100%;height:100%;}
+  .ring .track{fill:none;stroke:var(--line);stroke-width:3;stroke-dasharray:10 10;}
+  .ring .cyn{position:absolute;width:236px;transform:translate(-50%,-50%);
+    border:2px solid var(--line);background:#fff;padding:13px 14px;font-size:22px;line-height:1.2;
+    font-weight:700;text-align:center;opacity:.3;transition:.25s;}
+  .ring .cyn.on{opacity:1;border-color:var(--accent);background:var(--accent-soft);}
+  .ring .cyn.past{opacity:1;border-color:var(--ink);background:#fff;}
+  /* центр круга: кадр текущего шага */
+  .ring .mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:390px;height:352px;display:flex;align-items:center;justify-content:center;}
+  /* все кадры лежат стопкой в одной точке, видно только активный */
+  .ring .mid img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    max-width:100%;max-height:100%;object-fit:contain;opacity:0;transition:opacity .2s;}
+  .ring .mid img.on{opacity:1;}
+  .ringfoot{margin-top:10px;display:flex;align-items:center;gap:26px;justify-content:center;}
+  .ringfoot .verdict{font-size:30px;font-weight:800;opacity:0;transition:.3s;text-align:left;min-width:420px;}
+  .ringfoot .verdict.on{opacity:1;}
+  .ringfoot .verdict span{display:block;font-size:23px;font-weight:600;color:var(--muted);}
+
+  /* локальные против глобальных */
+  .lg{display:flex;gap:30px;max-width:1140px;margin:0 auto;align-items:stretch;}
+  .lgcol{flex:1;border:2px solid var(--line);background:#fff;padding:24px 26px;text-align:left;
+    cursor:pointer;transition:.2s;display:flex;flex-direction:column;}
+  .lgcol:hover{border-color:var(--accent);}
+  .lgcol.on{border-color:var(--accent);background:var(--accent-soft);}
+  .lgcol.off{opacity:.35;}
+  .lgcol .h{font-size:32px;font-weight:800;margin-bottom:16px;}
+  .lgcol .li{font-size:25px;line-height:1.25;padding-left:34px;position:relative;margin-bottom:11px;}
+  .lgcol .li:before{content:"";position:absolute;left:0;top:11px;width:20px;height:3px;background:var(--accent);}
+  .lgout{margin-top:30px;min-height:104px;border-top:2px solid var(--ink);padding-top:22px;
+    max-width:1140px;margin-left:auto;margin-right:auto;}
+  .lgout .q{font-size:26px;color:var(--muted);}
+  .lgout .a{font-size:38px;font-weight:800;color:var(--bad);margin-top:6px;}
+
+  /* график: беготня по кругу и выход из него */
+  .gr{max-width:1140px;margin:0 auto;}
+  .grsvg{width:100%;height:auto;display:block;}
+  .gr .ax{stroke:var(--accent);stroke-width:6;stroke-linecap:round;fill:none;}
+  .gr .guide{stroke:#c9c2bc;stroke-width:3;stroke-dasharray:4 12;stroke-linecap:round;fill:none;}
+  .gr .wave{stroke:var(--ink);stroke-width:5;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+  .gr .dot{fill:var(--accent);}
+  .gr .link{stroke:var(--accent);stroke-width:3;stroke-dasharray:9 9;fill:none;}
+  .gr .dot,.gr .note,.gr .link{opacity:0;transition:opacity .35s;}
+  .gr .dot.on,.gr .note.on,.gr .link.on{opacity:1;}
+  .gr .note{font-family:'Segoe Print','Comic Sans MS',cursive;font-size:25px;fill:var(--ink);}
+  .gr .tick{font-family:'Segoe Print','Comic Sans MS',cursive;font-size:22px;fill:var(--muted);}
+  .gr .axlab{font-family:'Segoe Print','Comic Sans MS',cursive;font-size:28px;fill:var(--muted);}
+  .grfoot{margin-top:14px;display:flex;align-items:center;gap:26px;justify-content:center;}
+  .grfoot .btn{white-space:nowrap;}
+  .grfoot .verdict{font-size:29px;font-weight:800;opacity:0;transition:.3s;text-align:left;min-width:640px;}
+  .grfoot .verdict.on{opacity:1;}
+
+  /* предложение: материалы по монетизации */
+  .ofr{max-width:1000px;margin:0 auto;text-align:left;}
+  .ofr .lead{font-size:32px;line-height:1.35;margin-bottom:30px;}
+  .ofr .items{display:flex;flex-direction:column;gap:14px;margin-bottom:34px;}
+  .ofr .it{display:flex;gap:20px;align-items:flex-start;border:2px solid var(--line);
+    background:#fff;padding:18px 24px;font-size:29px;font-weight:600;line-height:1.25;}
+  .ofr .it:before{content:"";flex:0 0 auto;width:26px;height:4px;background:var(--accent);margin-top:16px;}
+  .ofr .price{border:3px solid var(--ink);background:var(--accent-soft);padding:24px 28px;
+    display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;}
+  .ofr .price .sum{font-size:52px;font-weight:800;color:var(--accent);}
+  .ofr .price .minus{font-size:28px;font-weight:600;}
+  .ofr .term{margin-top:20px;font-size:26px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div id="pbar"></div>
+  <div id="deck"></div>
+  <div id="ctrl">
+    <div class="ab" data-dir="-1">‹</div>
+    <div class="ab" data-dir="1">›</div>
+    <div class="ab" id="fsbtn" title="весь экран (F)">⛶</div>
+    <span id="cnt">01 / 01</span>
+    <span id="hint">F — весь экран · ← → листать · V — кадр камеры · N — заметки · T — суфлёр · R — полный текст</span>
+  </div>
+</div></div>
+
+<script src="say/01.js"></script>
+<script src="full/01.js"></script>
+<script src="_deck.js"></script>
+<script>
+const VOL = {
+  peredatchik: [
+    'вы вообще не говорите, что у вас можно что-то купить. люди искренне не знают, чем вы занимаетесь',
+    'есть где-то в шапке профиля, но вы про это молчите',
+    'иногда упоминаете вскользь, в конце, извиняющимся тоном',
+    'регулярно рассказываете, что делаете и с какими задачами к вам приходят',
+    'есть прямые предложения с призывом к действию, вы запускаете диалоги первым',
+    'активная промо-кампания: оффер каждый день, во всех форматах, пока не закроете задачу'
+  ],
+  priemnik: [
+    'вы не проявляетесь, вас нет',
+    'выкладываете раз в месяц то, что не жалко',
+    'делитесь, но всё время себя одёргиваете',
+    'делитесь тем, что вам самому интересно, без оглядки на продажи',
+    'говорите свободно и про то, что вас правда занимает',
+    'отдаётесь процессу полностью, делаете только то, что хотите, вообще не думая про деньги'
+  ]
+};
+
+/* ── Ручка громкости ─────────────────────────────────────────────────
+   Один инструмент на три слайда, элементы добавляются по одному:
+   parts.hear — столбик пробития справа, parts.swap — обмен энергии и денег внизу.
+   Иначе на одном экране оказывается три схемы разом и читать нечего.   */
+const KNOB = (() => {
+  const html = p => `<div class="knob-wrap">
+      <div class="knob">
+        <svg viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="82" fill="#fff" stroke="#14110f" stroke-width="3"/>
+          <circle class="arc" cx="100" cy="100" r="70" fill="none" stroke="#e8590c" stroke-width="14"
+                  stroke-linecap="round" transform="rotate(135 100 100)" stroke-dasharray="0 999"/>
+          <g class="ticks"></g>
+          <line class="ptr" x1="100" y1="100" x2="100" y2="42" stroke="#14110f" stroke-width="6"
+                stroke-linecap="round" transform="rotate(-135 100 100)"/>
+          <circle cx="100" cy="100" r="10" fill="#14110f"/>
+        </svg>
+        <div class="val knobval" style="transform:translateY(58px);font-size:52px">0</div>
+      </div>
+      <div class="knob-side"${p.hear ? '' : ' style="max-width:640px"'}>
+        <div class="mode">
+          <button class="btn on" data-mode="peredatchik">Передатчик</button>
+          <button class="btn" data-mode="priemnik">Приёмник</button>
+        </div>
+        <div class="desc knobdesc"></div>
+        <div class="knob-ctl">
+          <button class="btn" data-step="-1">− тише</button>
+          <button class="btn" data-step="1">громче +</button>
+        </div>
+      </div>
+      ${p.hear ? `<div class="hear">
+        ${p.swap ? '<div class="cap">слышно вас или нет</div>' : '<div class="cap">&nbsp;</div>'}
+        <div class="col hearcol">
+          <div class="seg"></div><div class="seg"></div><div class="seg"></div>
+          <div class="seg"></div><div class="seg"></div>
+          <div class="thr"></div><div class="thrlab">порог</div>
+          <div class="nums"><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+        </div>
+        <div class="out quiet hearout">на этой громкости<br>вас не слышно</div>
+      </div>` : ''}
+    </div>
+    ${p.swap ? `<div class="swap">
+      <div class="res energy"><span class="nm">энергия</span>
+        <div class="bar"><i class="sw-e"></i></div><span class="arr sw-ea">&nbsp;</span></div>
+      <div class="res money"><span class="nm">деньги</span>
+        <div class="bar"><i class="sw-m"></i></div><span class="arr sw-ma">&nbsp;</span></div>
+    </div>
+    <div class="swapline">&nbsp;</div>` : ''}`;
+
+  const init = root => {
+    let mode='peredatchik', v=0;
+    const q = s => root.querySelector(s);
+    const arc=q('.arc'), ptr=q('.ptr'), val=q('.knobval'), desc=q('.knobdesc'), ticks=q('.ticks'),
+          segs=[...root.querySelectorAll('.hearcol .seg')], hout=q('.hearout'),
+          swE=q('.sw-e'), swM=q('.sw-m'), swEa=q('.sw-ea'), swMa=q('.sw-ma'), swLine=q('.swapline');
+    ticks.innerHTML = [0,1,2,3,4,5].map(i=>{
+      const a=(-135+i*54)*Math.PI/180;
+      const x1=100+Math.sin(a)*88, y1=100-Math.cos(a)*88;
+      const x2=100+Math.sin(a)*96, y2=100-Math.cos(a)*96;
+      return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#b3aaa4" stroke-width="3"/>`;
+    }).join('');
+    const R=70, FULL=2*Math.PI*R*(270/360);
+    function draw(){
+      ptr.setAttribute('transform',`rotate(${-135+v*54} 100 100)`);
+      arc.setAttribute('stroke-dasharray',`${(FULL*v/5).toFixed(1)} 999`);
+      val.textContent=v;
+      desc.innerHTML=`<b>${v}</b> — ${VOL[mode][v]}`;
+      if(hout){                                   // столбик пробития
+        segs.forEach((s,i)=>{ s.className='seg'+(i<v?' on':'')+(i<v&&i>=3?' loud':''); });
+        hout.className='out '+(v>=4?'loud':'quiet');
+        hout.innerHTML = v===0 ? 'вас нет в поле зрения'
+          : v<4 ? 'на этой громкости<br>вас не слышно'
+          : mode==='peredatchik' ? 'вас начинают замечать.<br>и покупать'
+                                 : 'вас начинают замечать.<br>и слушать';
+      }
+      if(swE){                                    // обмен энергии и денег
+        const t=v/5;
+        swE.style.width=(mode==='peredatchik' ? 92-72*t : 26+70*t)+'%';
+        swM.style.width=(mode==='peredatchik' ? 18+74*t : 88-70*t)+'%';
+        swEa.textContent = v===0 ? '' : (mode==='peredatchik' ? '↓' : '↑');
+        swMa.textContent = v===0 ? '' : (mode==='peredatchik' ? '↑' : '↓');
+        swEa.className='arr sw-ea '+(mode==='peredatchik'?'down':'up');
+        swMa.className='arr sw-ma '+(mode==='peredatchik'?'up':'down');
+        swLine.innerHTML = v===0 ? '&nbsp;'
+          : mode==='peredatchik' ? 'расходуете энергию, зарабатываете деньги'
+                                 : 'наполняете энергию, тратите деньги';
+      }
+    }
+    root.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{
+      root.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on'); mode=b.dataset.mode; draw();
+    }));
+    root.querySelectorAll('[data-step]').forEach(b=>b.addEventListener('click',()=>{
+      v=Math.max(0,Math.min(5,v+Number(b.dataset.step))); draw();
+    }));
+    draw();
+  };
+  return {html, init};
+})();
+
+/* ── График «беготня по кругу» и «выход» ─────────────────────────────
+   Перерисовка двух слайдов Сашиной карусели (тёмная тема → стиль курса).
+   mode='loop'  — волна колеблется между двумя горизонталями, роста нет
+   mode='out'   — та же волна в коридоре, наклонённом вверх              */
+const GRAPH = (() => {
+  const X0 = 150, X1 = 1050, PER = 180, AMP = 80, YEAR = 180;
+  const wave = mode => {
+    const base = x => mode === 'loop' ? 260 : 380 - (x - X0) * 0.29;
+    const y = x => base(x) - AMP * Math.sin(2 * Math.PI * (x - X0) / PER);
+    const pts = [];
+    for (let x = X0; x <= X1; x += 4) pts.push([x, y(x)]);
+    return {y, d: pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')};
+  };
+  const svg = mode => {
+    const w = wave(mode), peak = X0 + PER / 4, dip = X0 + PER * 0.75 + PER * 3;
+    const gu = mode === 'loop'
+      ? `<path class="guide" d="M${X0} 180 L${X1} 180"/><path class="guide" d="M${X0} 340 L${X1} 340"/>`
+      : `<path class="guide" d="M${X0} ${(380 - AMP).toFixed(0)} L${X1} ${(380 - (X1 - X0) * 0.29 - AMP).toFixed(0)}"/>
+         <path class="guide" d="M${X0} ${(380 + AMP).toFixed(0)} L${X1} ${(380 - (X1 - X0) * 0.29 + AMP).toFixed(0)}"/>`;
+    const n1 = mode === 'loop'
+      ? ['когда хорошо —', 'ничего не делаем']
+      : ['когда хорошо —', 'решаем глобальные задачи'];
+    const n2 = mode === 'loop'
+      ? ['когда плохо —', 'тушим локальные задачи']
+      : ['когда плохо — решаем локальные,', 'и наше «плохо» стало нашим «хорошо»', 'трёхлетней давности'];
+    // в режиме роста волна идёт вверх: подпись под точкой упирается в линию, верхнюю уводим влево
+    const dy2 = mode === 'loop' ? 62 : 104;
+    const nx1 = mode === 'loop' ? peak + 40 : peak + 20;
+    const nx2 = mode === 'loop' ? dip - 250 : dip - 330;   // подпись длиннее — сдвигаем левее
+    const dy1 = mode === 'loop' ? -78 : -128;   // в режиме роста подпись поднимаем выше следующего пика
+    const ticks = [1, 2, 3, 4, 5].map(i => {
+      const x = X0 + i * YEAR;
+      return `<path class="ax" style="stroke-width:4" d="M${x} 444 L${x} 458"/>
+              <text class="tick" x="${x}" y="492" text-anchor="middle">${i === 1 ? '1 год' : i < 5 ? i + ' года' : '5 лет'}</text>`;
+    }).join('');
+    return `<svg class="grsvg" viewBox="0 0 1140 540">
+      <path class="ax" d="M110 450 L1080 450 M1064 438 L1080 450 L1064 462"/>
+      <path class="ax" d="M110 450 L110 46 M98 62 L110 46 L122 62"/>
+      <text class="axlab" x="66" y="250">₽</text>
+      <text class="axlab" x="595" y="530" text-anchor="middle">время</text>
+      ${ticks}${gu}
+      <path class="wave" id="gr-wave" d="${w.d}"/>
+      ${mode === 'out' ? `<path class="link" id="gr-link" d="M${peak} ${w.y(peak).toFixed(1)} L${dip} ${w.y(dip).toFixed(1)}"/>` : ''}
+      <circle class="dot" id="gr-d1" cx="${peak}" cy="${w.y(peak).toFixed(1)}" r="9"/>
+      <circle class="dot" id="gr-d2" cx="${dip}" cy="${w.y(dip).toFixed(1)}" r="9"/>
+      <g class="note" id="gr-n1">
+        ${n1.map((t, i) => `<text x="${nx1}" y="${(w.y(peak) + dy1 + i * 30).toFixed(1)}">${t}</text>`).join('')}
+        <path class="ax" style="stroke-width:3" d="M${peak + 34} ${(w.y(peak) + dy1 + 20).toFixed(1)} L${peak + 8} ${(w.y(peak) - 18).toFixed(1)} M${peak + 6} ${(w.y(peak) - 30).toFixed(1)} L${peak + 8} ${(w.y(peak) - 16).toFixed(1)} L${peak + 20} ${(w.y(peak) - 22).toFixed(1)}"/>
+      </g>
+      <g class="note" id="gr-n2">
+        ${n2.map((t, i) => `<text x="${nx2}" y="${(w.y(dip) + dy2 + i * 30).toFixed(1)}">${t}</text>`).join('')}
+        <path class="ax" style="stroke-width:3" d="M${dip - 60} ${(w.y(dip) + dy2 - 6).toFixed(1)} L${dip - 12} ${(w.y(dip) + 22).toFixed(1)} M${dip - 26} ${(w.y(dip) + 26).toFixed(1)} L${dip - 10} ${(w.y(dip) + 20).toFixed(1)} L${dip - 16} ${(w.y(dip) + 36).toFixed(1)}"/>
+      </g>
+    </svg>`;
+  };
+  // прочерчивание линии слева направо + подписи по ходу
+  const play = (root, verdict) => {
+    const path = root.querySelector('#gr-wave'), len = path.getTotalLength();
+    const d1 = root.querySelector('#gr-d1'), d2 = root.querySelector('#gr-d2');
+    const n1 = root.querySelector('#gr-n1'), n2 = root.querySelector('#gr-n2');
+    const link = root.querySelector('#gr-link');
+    const vd = root.querySelector('.verdict'), btn = root.querySelector('.grfoot .btn');
+    let timers = [];
+    const reset = () => {
+      timers.forEach(clearTimeout); timers = [];
+      path.style.transition = 'none';
+      path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+      [d1, d2, n1, n2, link].forEach(e => e && e.classList.remove('on'));
+      vd.classList.remove('on');
+      btn.textContent = 'прожить пять лет';
+    };
+    btn.addEventListener('click', () => {
+      if (btn.dataset.run === '1') { btn.dataset.run = '0'; reset(); return; }
+      btn.dataset.run = '1'; btn.textContent = '↻ ещё раз';
+      path.getBoundingClientRect();                       // форсим reflow, иначе transition не стартует
+      path.style.transition = 'stroke-dashoffset 4s linear';
+      path.style.strokeDashoffset = 0;
+      timers.push(setTimeout(() => { d1.classList.add('on'); n1.classList.add('on'); }, 500));
+      timers.push(setTimeout(() => { d2.classList.add('on'); n2.classList.add('on'); }, 2900));
+      if (link) timers.push(setTimeout(() => link.classList.add('on'), 3400));
+      timers.push(setTimeout(() => vd.classList.add('on'), 4100));
+    });
+    reset();
+  };
+  return {svg, play};
+})();
+
+const SLIDES = [
+  {k:'cover', t:'Цель и мотивация<br>блога', sub:'блок, без которого всё остальное развалится на второй неделе'},
+
+  {k:'st', t:'прежде чем идти по уровням,<br>нужно закрыть один вопрос', sm:true},
+  {k:'st', t:'зачем вам этот блог', dark:true},
+  {k:'st', t:'если человек не понимает, зачем он этим занимается', xs:true,
+   sub:'он не сможет заниматься этим долго'},
+  {k:'st', t:'дело не в лени', sub:'просто у мозга нет причины тратить на это ресурс'},
+
+  {k:'sec', n:'часть 1', t:'сначала посмотрите<br>вниз, а не вверх'},
+  {k:'ix', kicker:'пирамида потребностей', t:'работа с контентом на дистанции — это верхние этажи',
+   html:`<div class="pyr" style="max-width:760px;margin:0 auto">
+      <div class="lvl" style="width:46%">самовыражение</div>
+      <div class="lvl" style="width:58%">статус</div>
+      <div class="lvl" style="width:70%">социализация</div>
+      <div class="lvl base" style="width:84%">безопасность</div>
+      <div class="lvl base" style="width:96%">физические потребности</div>
+    </div>`,
+   hint:'оранжевое — то, что должно быть закрыто, иначе верх не работает'},
+  {k:'st', t:'если не перекрыт нижний уровень —<br>творчеством заниматься тяжело', sm:true,
+   sub:'мозг будет скатываться в тревогу, потому что вам физически нужны деньги'},
+  {k:'st', t:'психика будет требовать быстрых результатов', xs:true,
+   sub:'и закидывать планку ожиданий всё выше'},
+
+  {k:'img', kicker:'у меня есть друг', src:'assets/krug-druga-1.png', h:700,
+   cap:'каждый раз, когда мы встречаемся, он говорит: «да надо делать контент»'},
+  {k:'st', t:'два года он это говорит', sm:true,
+   sub:'иногда начинает, не видит быстрых результатов и бросает'},
+  {k:'ix', t:'а по итогу это выглядит так',
+   html:`<div class="ring" id="ring">
+     <svg viewBox="0 0 1100 640" preserveAspectRatio="none">
+       <ellipse class="track" cx="550" cy="320" rx="495" ry="256"/>
+     </svg>
+     <div class="cyn" style="left:50%;top:10%">«да надо делать контент»</div>
+     <div class="cyn" style="left:89%;top:30%">нужны деньги</div>
+     <div class="cyn" style="left:89%;top:70%">идёт искать клиентов. находит</div>
+     <div class="cyn" style="left:50%;top:90%">«контент делать не надо»</div>
+     <div class="cyn" style="left:11%;top:70%">делает работу</div>
+     <div class="cyn" style="left:11%;top:30%">деньги закончились</div>
+     <div class="mid">
+       <img src="assets/krug-druga-1.png" alt="">
+       <img src="assets/krug-druga-2.png" alt="" hidden>
+       <img src="assets/krug-druga-3.png" alt="" hidden>
+       <img src="assets/krug-druga-4.png" alt="" hidden>
+       <img src="assets/krug-druga-5.png" alt="" hidden>
+       <img src="assets/krug-druga-6.png" alt="" hidden>
+     </div>
+   </div>
+   <div class="ringfoot">
+     <button class="btn" id="ring-go">дальше →</button>
+     <div class="verdict" id="ring-verdict">два года<span>и каждый раз с нуля</span></div>
+   </div>`,
+   init:root=>{
+     const ns=[...root.querySelectorAll('.cyn')], btn=root.querySelector('#ring-go'),
+           imgs=[...root.querySelectorAll('.mid img')], vd=root.querySelector('#ring-verdict'),
+           svg=root.querySelector('#ring svg');
+     // стрелки направления между узлами — иначе не видно, что круг крутится в одну сторону
+     const N=ns.length, CX=550, CY=320, RX=495, RY=256, R=Math.PI/180;
+     for(let k=0;k<N;k++){
+       const a=(-90+(k+0.5)*360/N)*R;
+       const x=CX+RX*Math.cos(a), y=CY+RY*Math.sin(a);
+       const deg=Math.atan2(RY*Math.cos(a), -RX*Math.sin(a))/R;   // касательная
+       const tri=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+       tri.setAttribute('points','-10,-8 12,0 -10,8');
+       tri.setAttribute('fill','#b9b0aa');
+       tri.setAttribute('transform',`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${deg.toFixed(1)})`);
+       svg.appendChild(tri);
+     }
+     imgs.forEach(im=>im.hidden=false);          // прячем через opacity, чтобы не дёргалась вёрстка
+     let i=-1;
+     const show=k=>imgs.forEach((im,j)=>im.classList.toggle('on',j===k));
+     const reset=()=>{ i=-1; ns.forEach(n=>n.className='cyn'); show(-1);
+       vd.classList.remove('on'); btn.textContent='дальше →'; };
+     btn.addEventListener('click',()=>{
+       if(i>=ns.length-1){ reset(); return; }
+       if(i>=0) ns[i].className='cyn past';
+       i++; ns[i].className='cyn on'; show(i);
+       if(i===ns.length-1){ btn.textContent='↻ и снова сначала'; vd.classList.add('on'); }
+     });
+     reset();
+   }},
+
+  {k:'sec', n:'здесь надо развести две вещи', t:'локальные задачи<br>и глобальные'},
+  {k:'ix', t:'что есть что',
+   html:`<div class="lg">
+     <div class="lgcol" style="cursor:default">
+       <div class="h">локальные</div>
+       <div class="li">бытовые расходы</div>
+       <div class="li">питание</div>
+       <div class="li">безопасность</div>
+       <div class="li">здоровье</div>
+     </div>
+     <div class="lgcol" style="cursor:default">
+       <div class="h">глобальные</div>
+       <div class="li">действия, направленные на развитие проекта</div>
+       <div class="li">сбор документов для переезда</div>
+       <div class="li">изучение нового навыка, который откроет новые возможности</div>
+     </div>
+   </div>`},
+  {k:'ix', t:'а теперь перекос в одну сторону',
+   hint:'нажмите на колонку',
+   html:`<div class="lg" id="lg">
+     <div class="lgcol" data-k="loc">
+       <div class="h">решаю только локальные</div>
+       <div class="li">бытовые расходы</div>
+       <div class="li">питание</div>
+       <div class="li">безопасность</div>
+       <div class="li">здоровье</div>
+     </div>
+     <div class="lgcol" data-k="glob">
+       <div class="h">решаю только глобальные</div>
+       <div class="li">развитие проекта</div>
+       <div class="li">документы для переезда</div>
+       <div class="li">новый навык</div>
+     </div>
+   </div>
+   <div class="lgout"><div class="q" id="lg-q">&nbsp;</div><div class="a" id="lg-a">&nbsp;</div></div>`,
+   init:root=>{
+     const cols=[...root.querySelectorAll('#lg .lgcol')],
+           q=root.querySelector('#lg-q'), a=root.querySelector('#lg-a');
+     const OUT={
+       loc:['всё закрыто, жить можно','но вы будете топтаться на месте'],
+       glob:['проект двигается','зато всегда пожар, суета, и вы ничего не успеваете']
+     };
+     cols.forEach(c=>c.addEventListener('click',()=>{
+       const k=c.dataset.k;
+       cols.forEach(x=>x.className='lgcol'+(x===c?' on':' off'));
+       q.textContent=OUT[k][0]; a.textContent=OUT[k][1];
+     }));
+   }},
+
+  {k:'st', t:'когда жопа в огне<br>и надо закрывать кредиты', sm:true,
+   sub:'вкладываться в глобальное развитие невозможно. биология выживания не позволит'},
+  {k:'ix', kicker:'получается', t:'на дистанции это выглядит так',
+   html:`<div class="gr">${GRAPH.svg('loop')}</div>
+   <div class="grfoot">
+     <button class="btn">прожить пять лет</button>
+     <div class="verdict">замкнутый круг. времени ушло пять лет, уровень тот же</div>
+   </div>`,
+   init:root=>GRAPH.play(root)},
+  {k:'ix', kicker:'выход', t:'а задача — продолжать движение',
+   html:`<div class="gr">${GRAPH.svg('out')}</div>
+   <div class="grfoot">
+     <button class="btn">прожить пять лет</button>
+     <div class="verdict">качели те же — изменился уровень</div>
+   </div>`,
+   init:root=>GRAPH.play(root)},
+
+  {k:'cards', kicker:'два выхода, оба рабочие', t:'',
+   cards:[{h:'Идти через монетизацию сразу',p:'не растить аудиторию годами, а искать клиентов и делать продажи с первого месяца. нужен оффер'},
+          {h:'Сначала разгрестись',p:'закрыть долги и дыры, выделить себе бюджет и время под блог. чтобы работа шла спокойно'}]},
+  {k:'img', kicker:'как выглядит путь через монетизацию', src:'assets/voronka-reels.png',
+   cap:'короткое видео приводит новых, телеграм удерживает, дальше диалог и предложение'},
+  {k:'img', kicker:'Вася · 500 подписчиков на старте', src:'assets/vasya-890k.jpg', h:520,
+   cap:'«держу стабильность, 500 000 есть, в августе апнул рекорд — 890 000». две квартиры при 1 500 подписчиков',
+   todo:'сюда же можно поставить видео-нарезку с Васей (vasya-narezka.mp4)'},
+
+  {k:'ix', kicker:'если хотите разобраться в монетизации', t:'что можно добрать к курсу',
+   html:`<div class="ofr">
+     <div class="items">
+       <div class="it">все мои материалы по заработку через блог</div>
+       <div class="it">доступ к общему чату, где я даю обратную связь</div>
+       <div class="it">созвон раз в месяц для вопросов</div>
+     </div>
+     <div class="price">
+       <span class="sum">10 000 ₽</span>
+       <span class="minus">в месяц, минус то, что вы заплатили за этот курс</span>
+     </div>
+     <div class="term">предложение действует месяц с момента покупки курса</div>
+   </div>`},
+
+  {k:'sec', n:'часть 2', t:'чего вы хотите:<br>лайков или денег'},
+  {k:'ix', kicker:'два состояния, оба нормальные', t:'',
+   html:`<div class="modes">
+     <div class="mcard">
+       <div class="h">Приёмник</div>
+       <div class="p">хотим получать: лайки, просмотры, похвалу.<br>состояние творца, который творит ради творения</div>
+       <div class="flow">
+         <div class="fl"><span class="ic">⚡</span><span class="lb">энергия</span><span class="ar up">↑</span></div>
+         <div class="fl"><span class="ic">₽</span><span class="lb">деньги</span><span class="ar down">↓</span></div>
+       </div>
+       <div class="sum">наполняет вас, но кормится из кармана</div>
+     </div>
+     <div class="mcard">
+       <div class="h">Передатчик</div>
+       <div class="p">хотим зарабатывать и делать бизнес.<br>посылаем сигнал, что у нас есть то, что нужно людям</div>
+       <div class="flow">
+         <div class="fl"><span class="ic">⚡</span><span class="lb">энергия</span><span class="ar down">↓</span></div>
+         <div class="fl"><span class="ic">₽</span><span class="lb">деньги</span><span class="ar up">↑</span></div>
+       </div>
+       <div class="sum">жжёт вас, но приносит деньги</div>
+     </div>
+   </div>`},
+  {k:'st', t:'проблема — быть в первом состоянии<br>и решать задачи второго', sm:true,
+   sub:'хочется лайков, а надо зарабатывать. и наоборот'},
+
+  {k:'ix', kicker:'инструмент', t:'ручка громкости',
+   html:KNOB.html({}),
+   hint:'на записи: кручу ручку и проговариваю каждое деление',
+   init:KNOB.init},
+
+  {k:'ix', kicker:'а теперь важное', t:'слышно вас или нет',
+   html:KNOB.html({hear:true}),
+   init:KNOB.init},
+
+  {k:'ix', kicker:'и чем вы за это платите', t:'у каждого режима своя цена',
+   html:KNOB.html({hear:true, swap:true}),
+   init:KNOB.init},
+
+  {k:'st', t:'проблема почти никогда не в том,<br>что вы выбрали не тот режим', sm:true,
+   sub:'проблема в том, что ручка стоит на двойке'},
+  {k:'st', t:'продать нельзя — вас не слышно', xs:true,
+   sub:'и покайфовать нельзя — вы всё время себя одёргиваете'},
+  {k:'quote', kicker:'как это у меня',
+   t:['когда мне нужны клиенты, я не «немножко продаю»',
+      'я выкручиваю на максимум и продаю в открытую, пока задача не закрыта',
+      'а когда меня начинает тошнить, я не «продаю чуть меньше»',
+      'я выкручиваю в другую сторону и делаю то, что хочется мне']},
+
+  {k:'st', t:'я эти состояния не «ловлю».<br>я иду от задачи', sm:true,
+   sub:'если моя задача — продажи и клиенты, я в режиме передатчика: раздаю, ищу клиентов, делаю продающий контент'},
+  {k:'list', kicker:'как это переключается', t:'', numbered:true,
+   items:['пусть страшно и некомфортно — просто постепенно начинаю продавать',
+          'становится скучно, противно, устал продавать — переключаюсь в приёмник',
+          'делаю то, что хочется мне',
+          'вижу, что клиентов маловато — возвращаюсь в передатчик']},
+  {k:'st', t:'как долго длится каждый режим —<br>зависит от ваших ритмов и целей', xs:true,
+   sub:'здесь нет схемы, смотрите по внутренним ощущениям'},
+  {k:'st', t:'что при этом меняется в самом контенте,<br>здесь не разбираем', xs:true,
+   sub:'это тема продающего контента, под неё есть отдельный воркшоп. коротко: контент становится прицельным, появляются призывы к действию, включается промо'},
+
+  {k:'sec', n:'важная развилка', t:'почему нельзя и то,<br>и другое одновременно'},
+  {k:'st', t:'хотите зарабатывать деньги — не ждите,<br>что в этот же момент соберёте аудиторию', xs:true,
+   sub:'это возможно, но в редких случаях: воронки, волшебные таблетки и формулы. это исключения'},
+  {k:'st', t:'когда отдаёте и привлекаете внимание — вы собираете аудиторию.<br>когда начинаете просить и брать — вы зарабатываете', xs:true, dark:true},
+
+  {k:'sec', n:'а если хочу и то, и то', t:'одна задача<br>за раз'},
+  {k:'st', t:'когда человек говорит «хочу делать контент»,<br>он думает, что сказал одно', xs:true},
+  {k:'list', kicker:'на самом деле он сказал шесть вещей сразу', t:'',
+   items:['чтобы приносил деньги',
+          'чтобы собирал просмотры',
+          'чтобы не отнимал время',
+          'чтобы нравился мне',
+          'чтобы нравился другим',
+          'и чтобы был «правильным»']},
+
+  {k:'ix', t:'шесть задач в одну строку',
+   html:`<div class="rowjam" id="jam-row">
+     <div class="pill">приносил<br>деньги</div>
+     <div class="pill">собирал<br>просмотры</div>
+     <div class="pill">не отнимал<br>время</div>
+     <div class="pill">нравился<br>мне</div>
+     <div class="pill">нравился<br>другим</div>
+     <div class="pill">был<br>«правильным»</div>
+   </div>
+   <div class="psyche">
+     <span class="lab">психика берётся за работу</span>
+     <div class="bar"><i id="jam-fill"></i></div>
+     <div class="verdict" id="jam-verdict">&nbsp;</div>
+   </div>
+   <div style="margin-top:30px"><button class="btn" id="jam-go">взяться за это</button></div>`,
+   init:root=>{
+     const fill=root.querySelector('#jam-fill'), vd=root.querySelector('#jam-verdict'),
+           btn=root.querySelector('#jam-go'), pills=[...root.querySelectorAll('#jam-row .pill')];
+     let t=null;
+     btn.addEventListener('click',()=>{
+       clearInterval(t);
+       pills.forEach(p=>p.classList.add('shake'));
+       vd.textContent=''; btn.disabled=true; btn.textContent='…';
+       let p=0;
+       t=setInterval(()=>{
+         p+=2;
+         // до конца не доходит никогда: откатывается и застревает
+         if(p>34){ p=0; }
+         fill.style.right=(100-p)+'%';
+         if(p===0){
+           vd.textContent='не делает ничего';
+           clearInterval(t);
+           pills.forEach(x=>x.classList.remove('shake'));
+           btn.disabled=false; btn.textContent='↻ ещё раз';
+         }
+       },40);
+     });
+   }},
+
+  {k:'ix', t:'та же мысль в столбик',
+   hint:'из этой вертикали и выросли шесть уровней',
+   html:`<div class="stackwrap" id="stk">
+     <div class="row live"><span class="n">1</span><span class="txt">чтобы контент вообще выходил</span></div>
+     <div class="row"><span class="n">2</span><span class="txt">чтобы не бесил</span></div>
+     <div class="row"><span class="n">3</span><span class="txt">чтобы не жрал время</span></div>
+     <div class="row"><span class="n">4</span><span class="txt">чтобы приносил отклик</span></div>
+     <div class="row"><span class="n">5</span><span class="txt">и только потом масштаб</span></div>
+   </div>
+   <div class="stackfoot">
+     <button class="btn" id="stk-go">закрыть эту задачу</button>
+     <div class="note" id="stk-note">берёте одну, закрываете, идёте к следующей</div>
+   </div>`,
+   init:root=>{
+     const rows=[...root.querySelectorAll('#stk .row')], btn=root.querySelector('#stk-go'),
+           note=root.querySelector('#stk-note');
+     let i=0;
+     btn.addEventListener('click',()=>{
+       if(i>=rows.length){
+         i=0; rows.forEach((r,k)=>{ r.className='row'+(k?'':' live'); });
+         btn.textContent='закрыть эту задачу';
+         note.textContent='берёте одну, закрываете, идёте к следующей';
+         return;
+       }
+       rows[i].className='row done'; i++;
+       if(i<rows.length){ rows[i].className='row live'; }
+       else{
+         btn.textContent='↻ сначала';
+         note.innerHTML='<b>стек собран.</b> ни одну из них вы не решали параллельно';
+       }
+     });
+   }},
+  {k:'st', t:'берёте одну, закрываете,<br>идёте к следующей', sm:true,
+   sub:'через год оглядываетесь — а у вас собран весь стек. именно из этой вертикали и выросли шесть уровней', dark:true},
+
+  {k:'sec', n:'часть 3', t:'почему это<br>про ваши метрики'},
+  {k:'list', kicker:'мои цифры за один период', t:'',
+   items:['рилсы четыре месяца — около 1 000 просмотров',
+          'охваты в телеграме — 250–350',
+          'январь 800 000 ₽ · февраль 450 000 ₽ · март 250 000 ₽ · апрель 450 000 ₽']},
+  {k:'st', t:'были бы целью просмотры —<br>это провал', sm:true, sub:'целью были деньги, поэтому это нормальный результат'},
+  {k:'st', t:'пока вы не выбрали цель,<br>вы не знаете, какая метрика для вас плохая', sm:true, dark:true},
+
+  {k:'sec', n:'часть 4', t:'на контент никогда<br>не будет времени'},
+  {k:'st', t:'у вас есть личная жизнь, семья, работа, хобби', xs:true, sub:'и вы устаёте'},
+  {k:'st', t:'ваш контент всегда будет<br>скатываться вниз в приоритетах', sm:true,
+   sub:'сначала на третье место, потом на десятое, потом исчезнет'},
+  {k:'st', t:'дело не во времени', sub:'дело в том, что у этой работы нет прямой связи с вашим будущим'},
+  {k:'st', t:'к этой связи надо возвращаться<br>два-три раза в неделю', sm:true},
+
+  {k:'sec', n:'что с этим делать', t:'полюбить<br>своё будущее'},
+  {k:'st', t:'зафиксировать для себя то будущее,<br>которое произойдёт, когда это начнёт работать', xs:true,
+   sub:'работа простая по описанию и непростая по исполнению'},
+  {k:'st', t:'не «хочу 100К подписчиков»', sm:true,
+   sub:'а что конкретно изменится в вашей жизни, когда это случится'},
+  {k:'st', t:'а если будущее размытое<br>и представить его не получается', xs:true,
+   sub:'тогда заходим с другой стороны'},
+  {k:'st', t:'антивидение', sub:'пропишите, что произойдёт, если вы этого делать НЕ будете. где вы окажетесь через год, через три, через пять', dark:true},
+  {k:'st', t:'это работает жёстче,<br>потому что тут представлять ничего не надо', xs:true,
+   sub:'вы там уже стоите. под это собран отдельный промпт'},
+  {k:'st', t:'копируете промпт в нейронку —<br>и она задаёт вам вопросы по одному', sm:true,
+   sub:'не утешает, не подбадривает и не даёт отделаться словами «ну будет примерно так же»',
+   todo:'ссылка на «Промпт — антивидение»'},
+  {k:'list', kicker:'что получите на выходе', t:'', numbered:true,
+   items:['где вы через год, через три и через пять — вашими же словами',
+          'цена бездействия: что конкретно теряете',
+          'ваши оправдания, выписанные прямой речью',
+          'разворот: та же жизнь, если вы этим всё-таки занимаетесь',
+          'одна фраза, которую можно повесить перед глазами']},
+
+  {k:'sec', n:'часть 5', t:'цепочка «зачем»'},
+  {k:'st', t:'моё хочу — это топливо<br>моё надо — это двигатель', sm:true,
+   sub:'без топлива двигатель не поедет, без двигателя топливо стоит в баке'},
+  {k:'quote', kicker:'история: подъёмы в 5 утра',
+   t:['почему я не могу проснуться? нет причины',
+      'зачем чувствовать себя лучше? чтобы делать работу качественно',
+      'зачем качественно? чтобы решения приближали меня к цели',
+      'зачем деньги? чтобы был ресурс менять свою жизнь',
+      'зачем ресурс? чтобы не зависеть от других',
+      'зачем не зависеть? потому что я хочу свободы'],
+   sub:'вот здесь я нашёл своё ядро'},
+  {k:'quote', kicker:'история: младший брат',
+   t:['«давай соберём костюм железного человека?»',
+      '«а что у него посередине?» — «ядерный реактор»',
+      '«значит нужна физика» — «давай физику»',
+      '«в физике цифры, значит нужна математика»',
+      '«в математике примеры текстом, а ты не знаешь букв — значит азбука»'],
+   sub:'полгода занимались физикой по азбуке. он сам приходил с букварём'},
+  {k:'cards', kicker:'два вопроса, которые всё решают', t:'',
+   cards:[{h:'«Зачем мне это?»',p:'собирает поддержку для вашего ХОЧУ. зачем — весомая ли причина, мне — моё или чужое, это — та ли цель'},
+          {h:'«Как я хочу?»',p:'собирает поддержку для вашего НАДО. как — способ, я — мой или навязанный, хочу — нравится ли так делать'}]},
+  {k:'st', t:'как победить такую цепочку?<br><span class="ac">никак, потому что она моя</span>', sm:true, dark:true},
+
+  {k:'sec', n:'и ещё', t:'если вы не знаете,<br>зачем вам блог'},
+  {k:'quote', kicker:'Сева',
+   t:['«хочу больше денег зарабатывать»',
+      '— если завтра возьмём ещё 5 проектов, как ощущения?',
+      '— хочу сдохнуть, вообще нет сил',
+      '— а если завтра выходной, вообще без телефона?',
+      '— ахуеть, хочу!'],
+   sub:'он шёл зарабатывать, не понимая зачем. нашли: Япония на горнолыжку осенью'},
+  {k:'st', t:'цель не обязана быть великой', sub:'она должна быть вашей и достаточно близкой, чтобы вы её чувствовали'},
+
+  {k:'sec', n:'закрываем тему', t:'дисциплина —<br>это следствие'},
+  {k:'quote', kicker:'футбол в 7 утра',
+   t:['мне не нужно было себя пинать',
+      'вставал в 7, приезжал первым, открывал раздевалки',
+      'две тренировки, потом школа, потом домашка',
+      'сложно? да, только если для вас это «не легко»',
+      'я был в синхроне с самим собой'],
+   sub:'если кажется, что не хватает дисциплины — не хватает своей цели и своего способа к ней идти'},
+
+  {k:'list', kicker:'задача', t:'что сделать после этого блока', numbered:true,
+   items:['посмотреть на нижний этаж: закрыты ли деньги и безопасность',
+          'выбрать одно: деньги и клиенты ИЛИ аудитория и охваты',
+          'собрать цепочку «зачем» до ядра',
+          'собрать антивидение: что будет через год, три и пять, если не делать',
+          'ответить «как я хочу это делать»: 3–4 пункта',
+          'положить ответ туда, где будете видеть его 2–3 раза в неделю']},
+  {k:'st', t:'теперь можно идти по уровням', dark:true},
+];
+Deck.build(SLIDES);
+</script>
+
+<script src="_doodle.js"></script>
+</body>
+</html>

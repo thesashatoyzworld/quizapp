@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<base href="/deck02/">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Уровень 1">
+<meta name="robots" content="noindex">
+<title>Уровень 1 · Хочу, но не делаю</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  .locks{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1050px;margin:0 auto;}
+  .lock{border:2px solid var(--line);background:#fff;padding:22px 20px;cursor:pointer;transition:.15s;text-align:left;}
+  .lock:hover{border-color:var(--accent);}
+  .lock.on{border-color:var(--accent);background:var(--accent-soft);}
+  .lock .ic{font-size:34px;line-height:1;}
+  .lock .nm{font-size:26px;font-weight:700;margin-top:10px;}
+  .lockout{margin-top:26px;border-top:2px solid var(--ink);padding-top:22px;text-align:left;max-width:1050px;
+    margin-left:auto;margin-right:auto;min-height:170px;}
+  .lockout .h{font-size:30px;font-weight:800;margin-bottom:10px;}
+  .lockout .k{font-size:22px;color:var(--accent);text-transform:uppercase;letter-spacing:.14em;font-weight:800;margin:16px 0 8px;}
+  .lockout .p{font-size:25px;line-height:1.4;color:var(--muted);}
+  .lockout .p b{color:var(--ink);}
+
+  /* цикл синдрома самозванца */
+  .cyc{display:flex;align-items:stretch;justify-content:center;gap:6px;flex-wrap:nowrap;margin:0 auto;}
+  .cyc .st6{border:2px solid var(--line);background:#fff;padding:16px 14px;flex:0 0 192px;min-height:200px;
+    display:flex;flex-direction:column;justify-content:center;opacity:.28;transition:.25s;text-align:left;}
+  .cyc .st6.on{opacity:1;border-color:var(--accent);background:var(--accent-soft);}
+  .cyc .st6 .n{font-size:18px;font-weight:800;color:var(--accent);letter-spacing:.1em;}
+  .cyc .st6 .x{font-size:22px;line-height:1.3;font-weight:700;margin-top:8px;}
+  .cyc .ar{font-size:26px;color:var(--muted);opacity:.5;align-self:center;flex:0 0 auto;}
+  .cycbtn{margin-top:30px;}
+  .cycbtn button{font:inherit;font-size:24px;font-weight:700;padding:13px 30px;border:2px solid var(--ink);
+    background:var(--ink);color:#fff;cursor:pointer;}
+  .cycbtn button:hover{background:var(--accent);border-color:var(--accent);}
+  .cycnote{margin-top:22px;font-size:26px;color:var(--accent);font-weight:700;min-height:36px;}
+
+  /* спортзал: три захода на весы */
+  .gym{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1150px;margin:0 auto;}
+  .gym .g{border:2px solid var(--line);background:#fff;padding:26px 22px;}
+  .gym .g .w{font-size:22px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:800;}
+  .gym .g .r{font-size:34px;font-weight:800;margin-top:14px;color:var(--accent);}
+
+  /* шкала уровней: где вы на самом деле / где себя видите / куда прыгаете */
+  .xp{display:flex;align-items:center;justify-content:center;gap:40px;max-width:1320px;margin:0 auto;}
+  .xp .xpwrap{position:relative;flex:0 0 700px;height:400px;}
+  .xp .bars{position:absolute;inset:0;display:flex;align-items:flex-end;gap:5px;}
+  .xp .bars i{flex:1;background:var(--line);opacity:.5;transition:.35s;}
+  .xp .bars i.lit{background:var(--accent);opacity:.3;}
+  .xp .mk{position:absolute;transform:translateX(-50%);text-align:center;opacity:0;transition:.45s;}
+  .xp .mk.on{opacity:1;}
+  .xp .mk .dot{width:24px;height:24px;border-radius:50%;background:var(--accent);border:4px solid #fff;
+    box-shadow:0 0 0 2px var(--accent);margin:0 auto;}
+  .xp .mk .lb{font-size:21px;font-weight:800;margin-top:7px;white-space:nowrap;}
+  .xp .mk.ghost{transform:translateX(-14px);text-align:left;}
+  .xp .mk.ghost .dot{background:#fff;border-color:var(--muted);box-shadow:0 0 0 2px var(--muted);margin:0;}
+  .xp .mk.ghost .lb{color:var(--muted);text-align:left;}
+  .xp .jump{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:.45s;pointer-events:none;}
+  .xp .jump.on{opacity:1;}
+  .xp .jump.dead #xppath{stroke:var(--muted);opacity:.4;}
+  .xp .jump.dead #xparrow path{fill:var(--muted);opacity:.4;}
+  .xp .jump.dead #xpcross{opacity:1;}
+  .xp #xpcross{opacity:0;transition:.45s;}
+  .xp.blind .bars i{opacity:.16;}
+  .xp.blind .mk:not(.ghost){opacity:0;}
+  .xp .axis{position:absolute;left:0;right:0;bottom:-34px;display:flex;justify-content:space-between;
+    font-size:19px;color:var(--muted);font-weight:700;}
+  .xp .xpside{flex:1;text-align:left;}
+  .xp .xph{font-size:34px;font-weight:800;line-height:1.25;min-height:88px;}
+  .xp .xpn{font-size:25px;line-height:1.4;color:var(--muted);margin-top:14px;min-height:140px;}
+  .xp .btn{margin-top:22px;font:inherit;font-size:24px;font-weight:700;padding:13px 30px;
+    border:2px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;}
+  .xp .btn:hover{background:var(--accent);border-color:var(--accent);}
+
+  /* поток: точка ходит по диаграмме */
+  .flow{display:flex;align-items:center;justify-content:center;gap:44px;max-width:1300px;margin:0 auto;}
+  .flow .fwrap{position:relative;flex:0 0 640px;}
+  .flow .fwrap img{width:100%;display:block;}
+  .flow .fdot{position:absolute;width:30px;height:30px;border-radius:50%;background:var(--accent);
+    border:4px solid #fff;box-shadow:0 0 0 2px var(--accent);transform:translate(-50%,-50%);
+    transition:left .55s cubic-bezier(.4,0,.2,1), top .55s cubic-bezier(.4,0,.2,1);}
+  .flow .fside{flex:1;text-align:left;}
+  .flow .fstep{font-size:34px;font-weight:800;line-height:1.25;min-height:130px;}
+  .flow .fnote{font-size:26px;line-height:1.4;color:var(--muted);margin-top:16px;min-height:110px;}
+  .flow .btn{margin-top:26px;font:inherit;font-size:24px;font-weight:700;padding:13px 30px;
+    border:2px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;}
+  .flow .btn:hover{background:var(--accent);border-color:var(--accent);}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div id="pbar"></div>
+  <div id="deck"></div>
+  <div id="ctrl">
+    <div class="ab" data-dir="-1">‹</div>
+    <div class="ab" data-dir="1">›</div>
+    <div class="ab" id="fsbtn" title="весь экран (F)">⛶</div>
+    <span id="cnt">01 / 01</span>
+    <span id="hint">F — весь экран · ← → листать · V — кадр камеры · N — заметки · T — суфлёр · R — полный текст</span>
+  </div>
+</div></div>
+
+<script src="say/02.js"></script>
+<script src="full/02.js"></script>
+<script src="_deck.js"></script>
+<script>
+const LOCKS = [
+  {ic:'👀', nm:'Страх осуждения', why:'психика сформирована так, чтобы НЕ выделяться. вне стаи шансов выжить было мало. заставляя себя, вы боретесь со своей природой',
+   how:'<b>снимайте в галерею</b>, никуда не выкладывая · и <b>заведите новый аккаунт</b>, где вас никто не знает'},
+  {ic:'📉', nm:'Страх неудачи', why:'вы пришли в спортзал и после первого упражнения встали на весы. ничего не изменилось — разочарование',
+   how:'<b>смените критерий</b>: выложил единицу = победа. результат привычки — её повторение, а не цифры'},
+  {ic:'💎', nm:'Перфекционизм', why:'скрытая форма страха. планка настолько высокая, что вызывает стресс, а стресс жрёт время и энергию, которых нет',
+   how:'<b>один дубль</b> — не переснимать вообще · <b>потолок времени вместо потолка качества</b>: выкладываете то, что получилось, когда время вышло'},
+  {ic:'🎭', nm:'Синдром самозванца', why:'«я недостаточно хорош» → надо стараться → слишком тяжело → оправдание → бездействие → «я недостаточно хорош». цикл замкнулся',
+   how:'<b>принять текущий уровень</b> · <b>инвентаризация опыта</b> — выписать свои кейсы · <b>признание другим человеком</b>'},
+  {ic:'👑', nm:'Эго', why:'«это слишком просто». эго хочет выстрадать результат, иначе он ничего не стоит. с этим чаще всего сталкиваются творцы',
+   how:'<b>разделите контент и свою потребность</b>. быть уникальным — в продукте. контент — просто инструмент привлечения внимания'},
+  {ic:'🔋', nm:'Нет мотивации', why:'если вы быстро загораетесь, вы так же быстро тухнете. чаще всего это значит, что вы этого не хотите',
+   how:'<b>вернуться к цепочке «зачем»</b> в блоке про цель · и честно: часть вещей решается только <b>с психотерапевтом</b>'}
+];
+
+const CYCLE = [
+  {n:'1', x:'«я недостаточно хорош, компетентен, квалифицирован»'},
+  {n:'2', x:'значит надо стараться, работать, делать лучше'},
+  {n:'3', x:'это слишком сложно и тяжело'},
+  {n:'4', x:'«мне это не подходит, у меня нет времени и энергии»'},
+  {n:'5', x:'я ничего не делаю'},
+];
+
+const SLIDES = [
+  {k:'cover', t:'Уровень 1<br>Хочу, но не делаю', sub:'задача: просто начать выкладывать'},
+
+  {k:'list', kicker:'это вы, если', t:'',
+   items:['давно смотрите на других и хотите начать',
+          'может даже покупали какие-то обучения',
+          'но ничего не делаете. или попробовали и разочаровались',
+          'или поняли, что это сложнее, чем казалось']},
+  {k:'st', t:'здесь мы разберём одну простую вещь', sm:true, sub:'что вам мешает просто начать'},
+  {k:'ix', kicker:'результат уровня', t:'вы какое-то время выкладываете контент',
+   html:`<div style="max-width:1120px;margin:0 auto">
+     <img src="assets/l1-do-posle.png" alt="" style="width:100%;display:block;border-radius:4px">
+     <div style="display:flex;margin-top:16px">
+       <div class="kicker" style="flex:1;margin:0">до</div>
+       <div class="kicker" style="flex:1;margin:0">после</div>
+     </div>
+   </div>`,
+   todo:'читка: плевать какой контент, плевать какие цифры'},
+  {k:'st', t:'уровень пройден, когда кнопка «опубликовать»<br>перестала быть страшной', sm:true,
+   sub:'а выложенная единица начала ощущаться как победа'},
+
+  {k:'sec', n:'разбор', t:'шесть замков<br>на двери'},
+  {k:'car', kicker:'как это выглядит целиком', t:'',
+   items:[
+     {src:'assets/ohrannik-1.png', h:'дверь «соц. сети»',
+      p:'между вами и кнопкой стоит охрана. связка ключей у неё на поясе, не у вас'},
+     {src:'assets/ohrannik-2.png', h:'шесть замков',
+      p:'страх осуждения · страх неудачи · перфекционизм · синдром самозванца · эго · нет мотивации'},
+     {src:'assets/ohrannik-3.png', h:'новый аккаунт',
+      p:'дверь не ломаем. идём туда, где на вас никто не смотрит'},
+     {src:'assets/ohrannik-4.png', h:'лаборатория нового контента',
+      p:'выкладываете единицу за единицей. охрана стоит рядом и записывает'},
+     {src:'assets/ohrannik-5.png', h:'блокнот охраны',
+      p:'не больно. не страшно. всем похуй'},
+     {src:'assets/ohrannik-6.png', h:'открыто',
+      p:'замки снимает он сам, потому что собрал доказательства. и остаётся рядом, просто больше не мешает'},
+   ]},
+  {k:'ix', kicker:'кликните на любой', t:'что именно вас держит',
+   html:`<div class="locks" id="locks">${LOCKS.map((l,i)=>
+      `<div class="lock" data-i="${i}"><div class="ic">${l.ic}</div><div class="nm">${l.nm}</div></div>`).join('')}</div>
+      <div class="lockout" id="lockout"><div class="p" style="opacity:.55">каждый замок открывается своим ключом — нажмите, чтобы посмотреть</div></div>`,
+   hint:'обзор перед разбором: дальше каждый замок идёт отдельным блоком',
+   init(root){
+     const out=root.querySelector('#lockout');
+     root.querySelectorAll('.lock').forEach(el=>{
+       el.addEventListener('click',()=>{
+         root.querySelectorAll('.lock').forEach(x=>x.classList.remove('on'));
+         el.classList.add('on');
+         const l=LOCKS[Number(el.dataset.i)];
+         out.innerHTML=`<div class="h">${l.ic} ${l.nm}</div>
+           <div class="k">что за этим стоит</div><div class="p">${l.why}</div>
+           <div class="k">как обойти</div><div class="p">${l.how}</div>`;
+       });
+     });
+   }},
+
+  {k:'st', t:'заставлять себя и подключать силу воли<br>смысла нет', sm:true,
+   sub:'психика защищает вас, и она сильнее. поэтому систему безопасности мы обходим, а не ломаем'},
+  {k:'img', kicker:'почему сила воли тут не работает', t:'',
+   src:'assets/potok.png', h:780,
+   cap:'по горизонтали ваш навык, по вертикали сложность задачи, которую вы себе поставили'},
+
+  {k:'ix', kicker:'чем вы управляете прямо сейчас', t:'',
+   html:`<div class="flow" id="flow">
+     <div class="fwrap">
+       <img src="assets/potok.png" alt="">
+       <div class="fdot" id="fdot"></div>
+     </div>
+     <div class="fside">
+       <div class="fstep" id="fstep">снять ролик со сценарием, светом и монтажом</div>
+       <div class="fnote" id="fnote">при вашем навыке это тревога. отсюда вы и не начинаете</div>
+       <button class="btn" id="fgo">дальше →</button>
+     </div>
+   </div>`,
+   init(root){
+     // x — навык (растёт месяцами), y — планка (двигается сегодня)
+     const STEPS=[
+       {x:33,y:24,t:'снять ролик со сценарием, светом и монтажом',
+        n:'при вашем навыке это тревога. отсюда вы и не начинаете'},
+       {x:29,y:64,t:'снять то же самое на телефон одним дублем',
+        n:'тот же вы, та же камера. опустили планку — попали в поток'},
+       {x:62,y:72,t:'прошло два месяца, вы снимаете это на автомате',
+        n:'навык уехал вправо, и та же задача стала скучной'},
+       {x:66,y:40,t:'добавляете сложность: свет, монтаж, сценарий',
+        n:'снова поток. так и идёте по диагонали, из уровня в уровень'},
+     ];
+     const dot=root.querySelector('#fdot'), st=root.querySelector('#fstep'),
+           nt=root.querySelector('#fnote'), btn=root.querySelector('#fgo');
+     let i=0;
+     const show=k=>{ const s=STEPS[k];
+       dot.style.left=s.x+'%'; dot.style.top=s.y+'%';
+       st.textContent=s.t; nt.textContent=s.n;
+       btn.textContent = k===STEPS.length-1 ? '↻ сначала' : 'дальше →'; };
+     btn.addEventListener('click',()=>{ i=(i+1)%STEPS.length; show(i); });
+     show(0);
+   }},
+
+  {k:'st', t:'навык двигается вправо месяцами.<br>планка опускается сегодня', sm:true,
+   sub:'поэтому на первом уровне мы работаем не с навыком, а с планкой'},
+
+  {k:'st', t:'если начать с насилия над собой', xs:true,
+   sub:'у вас сформируется негативное отношение к контенту, и каждая публикация будет вызывать боль'},
+  {k:'st', t:'у нас два варианта', sm:true,
+   sub:'либо разбираемся в вопросе, либо создаём себе комфортные условия. либо всё вместе'},
+
+  /* ── ЗАМОК 1 ───────────────────────────────────────────────── */
+  {k:'sec', n:'замок 1', t:'страх осуждения'},
+  {k:'img', kicker:'мозг оценивает это как выход к трибуналу', t:'',
+   src:'assets/zamok-1.png', h:640,
+   cap:'тени показывают пальцами только в вашей голове. живые люди рядом идут мимо, уткнувшись в свои экраны'},
+  {k:'st', t:'«что подумают мои друзья,<br>родственники, коллеги?»', sm:true,
+   sub:'самый страшный демон'},
+  {k:'st', t:'зажимает настолько, что мозг придумывает<br>миллион оправданий, лишь бы этого не делать', xs:true,
+   sub:'оно и понятно: наша психика защищает нас'},
+  {k:'st', t:'мы как вид выжили потому,<br>что научились собираться в группы', sm:true,
+   sub:'раньше, если вы не принадлежали к стае, шансов на выживание было минимум'},
+  {k:'st', t:'психика сформирована так,<br>чтобы НЕ выделяться', sm:true,
+   sub:'нас это пугает до жути, потому что включает режим безопасности, который формировался сотнями лет', dark:true},
+  {k:'st', t:'заставляя себя, вы боретесь<br>со своей природой', sm:true,
+   sub:'а это всегда заканчивается плохо. поэтому предлагаю эту систему обойти'},
+
+  {k:'sec', n:'обход системы', t:'два шага'},
+  {k:'list', kicker:'шаг первый', t:'включай камеру и снимай себя',
+   items:['никуда не выкладывать — просто снимаешь в галерею',
+          'можешь молчать и снимать, как ты куда-то идёшь',
+          'или просто говорить, что в голове — вообще плевать',
+          'режем задачу до минимально выполнимой']},
+  {k:'st', t:'когда ты привыкнешь к себе в кадре<br>и перестанешь смущаться', xs:true,
+   sub:'а это произойдёт, и ты это почувствуешь — переходим к следующему шагу'},
+  {k:'quote', kicker:'от себя', t:['я сам постоянно разговариваю на камеру: когда мне грустно, страшно, я устал, хочу поныть, высказаться',
+          'это офигенная практика, которая помогает многие состояния просто проживать, когда тебе не с кем поделиться',
+          'что-то из этого я потом могу выложить, а могу нет']},
+  {k:'list', kicker:'шаг второй', t:'новый аккаунт и публикация',
+   items:['страшно, что подумают те, кто на тебя подписан — сделай новый аккаунт',
+          'всё. проблема решена',
+          'туда можно публиковать любую дичь из галереи, и это никто не увидит']},
+  {k:'st', t:'только через действие<br>можно снять блок смущения', sm:true,
+   sub:'выложил пару видосов и показал своему мозгу: ничего страшного не произошло. страх начнёт рассасываться сам'},
+
+  /* ── ЗАМОК 2 ───────────────────────────────────────────────── */
+  {k:'sec', n:'замок 2', t:'страх неудачи'},
+  {k:'img', kicker:'результата ждут после первого подхода', t:'',
+   src:'assets/zamok-2.png', h:640,
+   cap:'одно отжимание — и сразу в зеркало: почему я ещё не такой'},
+  {k:'st', t:'все мы хотим видеть крутые цифры.<br>это нормально', sm:true,
+   sub:'но если привычка и навык не сформированы — это завышенные ожидания'},
+  {k:'st', t:'«а что если я выложу рилс<br>и он не наберёт просмотров?»', sm:true,
+   sub:'звучит голос в голове. давление слишком большое — и начинается саботаж'},
+  {k:'ix', kicker:'разбираемся в вопросе', t:'вы пришли в спортзал и встали на весы',
+   html:`<div class="gym">
+      <div class="g"><div class="w">после первого упражнения</div><div class="r">разочарование</div></div>
+      <div class="g"><div class="w">после всей тренировки</div><div class="r">разочарование</div></div>
+      <div class="g"><div class="w">через неделю</div><div class="r">разочарование</div></div>
+    </div>`,
+   hint:'веду голосом: ничего не поменялось, потому что не поменяется'},
+  {k:'st', t:'любой, кто сосредоточен<br>на получении результата, — бросит', sm:true,
+   sub:'потому что не понимает своего уровня и что для него является победой'},
+  {k:'list', kicker:'важно принять свой уровень', t:'', numbered:true,
+   items:['приняв свой уровень — вы перестанете себя сравнивать',
+          'а значит — перестанете закидывать планку ожиданий',
+          'а значит — перестанете разочаровываться',
+          'а значит — будете продолжать «приходить в спортзал»']},
+
+  {k:'sec', n:'обход системы', t:'смена критерия'},
+  {k:'table', kicker:'что меняем', t:'',
+   head:['', 'как было', 'как делаем'],
+   rows:[['выложил единицу','-пришёл в спортзал','+пришёл в спортзал'],
+         ['не набрала цифр','-вес не изменился','+не смотрим на весы'],
+         ['итог','-разочарование','+победа']]},
+  {k:'st', t:'выложить контент уже является<br>прогрессом и результатом сам по себе', xs:true,
+   sub:'вы практикуетесь и закрепляете навык в своей нервной системе'},
+  {k:'st', t:'а что является результатом привычки?<br>её повторение', sm:true, dark:true},
+
+  /* ── ПРУФ ──────────────────────────────────────────────────── */
+  {k:'sec', n:'пруф', t:'а есть ли смысл<br>начинать с нуля'},
+  {k:'quote', kicker:'Наташа', t:['у Наташи на аккаунте было 44 подписчика',
+          'не 44 тысячи, а сорок четыре человека',
+          'ровно та ситуация, в которой страшнее всего выкладывать: кажется, что тебя никто не смотрит, а любая цифра будет позорной']},
+  {k:'img', kicker:'один ролик · когда дошли до потока спроса', src:'assets/natasha.jpg', h:600,
+   cap:'168 127 просмотров · 121 498 аккаунтов · 122 подписки · 3 300 пересылок'},
+  {k:'st', t:'я показываю это не для того,<br>чтобы вы ждали таких цифр', sm:true,
+   sub:'а чтобы снять вопрос: смысл есть. но добираются туда те, кто сначала просто начал и не бросил'},
+
+  /* ── ЗАМОК 3 ───────────────────────────────────────────────── */
+  {k:'sec', n:'замок 3', t:'перфекционизм'},
+  {k:'img', kicker:'гири навешиваете вы сами', t:'',
+   src:'assets/zamok-3.png', h:640,
+   cap:'время, силы, нервы, деньги. дверь рядом, только ролик уже не сдвинуть'},
+  {k:'st', t:'сначала собрать всю информацию —<br>и только потом начать', sm:true,
+   sub:'собрать систему, подобрать форматы, разобраться в хуках. смотрят кучу информации и покупают обучения'},
+  {k:'st', t:'но чаще всего перфекционизм —<br>это скрытая форма страха', sm:true, dark:true},
+  {k:'list', kicker:'разбираемся в вопросе', t:'перфекционизм — это попытка сделать «идеально»', numbered:true,
+   items:['планка требований настолько высокая, что вызывает стресс и давление',
+          'чем выше требования и сложность — тем выше сопротивление',
+          'чем выше сопротивление — тем больше энергии и времени нужно на задачу',
+          'а ни энергии, ни времени в современном мире у человека нет']},
+  {k:'st', t:'и получается удобная картина', sm:true,
+   sub:'«да я хочу делать контент, но у меня нет времени и энергии». то есть я не плохой, я ведь хочу'},
+  {k:'st', t:'система безопасности решает<br>простую задачу: не столкнуться с реальностью', xs:true,
+   sub:'с реальностью, где ты не «идеальный». где твои идеи, даже доведённые до максимума, могут не откликнуться. а это больно'},
+  {k:'st', t:'вложено много — значит<br>планка ожиданий будет большая', sm:true,
+   sub:'время, силы, нервы, деньги. и если фокус на цифрах — человека ждёт разочарование'},
+  {k:'st', t:'поэтому удобно сидеть в своей голове<br>с «идеальным» контентом', sm:true,
+   sub:'который так и не вышел в свет'},
+
+  {k:'sec', n:'обход системы', t:'два приёма'},
+  {k:'st', t:'приём первый: один дубль', sm:true,
+   sub:'снимаете один раз и не пересниматесь. вообще. запнулись, оговорились, забыли слово — оставляем как есть'},
+  {k:'st', t:'перфекционизм живёт в пересъёмке', sm:true,
+   sub:'именно там вы восемь раз повторяете одно и то же и в итоге не выкладываете ничего. свой рилс за три минуты я снял именно так'},
+  {k:'st', t:'приём второй: потолок времени<br>вместо потолка качества', sm:true,
+   sub:'до того как начать, назовите вслух, сколько времени вы на это даёте. и выкладываете то, что получилось к этому моменту'},
+  {k:'table', kicker:'ради этой подмены всё и затевалось', t:'',
+   head:['критерий', 'ответ'],
+   rows:[['«достаточно ли это хорошо»','-на него вы никогда не ответите «да»'],
+         ['«уложился ли я в своё время»','+на него всегда есть честный ответ']]},
+
+  /* ── ЗАМОК 4 ───────────────────────────────────────────────── */
+  {k:'sec', n:'замок 4', t:'синдром самозванца'},
+  {k:'img', kicker:'вы видите себя ниже, чем стоите', t:'',
+   src:'assets/zamok-4.png', h:640,
+   cap:'стоите на пятой ступени, в отражении — на первой и ростом меньше'},
+  {k:'st', t:'эта бадяга сводит с ума<br>десятки тысяч людей и крутых спецов', sm:true,
+   sub:'про неё я писал отдельную статью — «не обнуляй свой опыт»'},
+  {k:'ix', kicker:'кликайте — цикл замкнётся', t:'как работает эта связка',
+   html:`<div class="cyc" id="cyc">${CYCLE.map((c,i)=>
+      `${i?'<div class="ar">→</div>':''}<div class="st6" data-i="${i}"><div class="n">${c.n}</div><div class="x">${c.x}</div></div>`).join('')}</div>
+      <div class="cycnote" id="cycnote"></div>
+      <div class="cycbtn"><button id="cycbtn">дальше →</button></div>`,
+   hint:'открываю по одному, на пятом показываю, что цикл замыкается в начало',
+   init(root){
+     let i=-1;
+     const btn=root.querySelector('#cycbtn'), note=root.querySelector('#cycnote');
+     const cards=[...root.querySelectorAll('.st6')];
+     btn.addEventListener('click',()=>{
+       i++;
+       if(i>=cards.length){
+         cards.forEach(c=>c.classList.remove('on'));
+         note.textContent=''; btn.textContent='дальше →'; i=-1; return;
+       }
+       cards[i].classList.add('on');
+       if(i===cards.length-1){
+         note.textContent='→ и от бездействия снова «я недостаточно хорош». цикл замкнулся';
+         btn.textContent='↻ сначала';
+       }
+     });
+   }},
+  {k:'st', t:'то есть перфекционизм —<br>это прикрытие для синдрома самозванца', xs:true,
+   sub:'и ноги у всего этого растут из простого слова — «самоценность»'},
+  {k:'st', t:'если вы обесцениваете свой опыт', sm:true,
+   sub:'вы всегда будете позади той точки, в которой находитесь на самом деле. а значит — нужны сверхусилия на любую задачу'},
+  {k:'ix', kicker:'смотрим, что происходит на самом деле', t:'',
+   html:`<div class="xp" id="xp">
+     <div class="xpwrap">
+       <div class="bars" id="xpbars"></div>
+       <svg class="jump" id="xpjump" viewBox="0 0 700 400" preserveAspectRatio="none">
+         <defs><marker id="xparrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7"
+           orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker></defs>
+         <path id="xppath" d="" fill="none" stroke="var(--accent)" stroke-width="3"
+           stroke-dasharray="9 7" marker-end="url(#xparrow)" vector-effect="non-scaling-stroke"/>
+         <g id="xpcross" stroke="var(--muted)" stroke-width="4" vector-effect="non-scaling-stroke">
+           <line id="xpc1" x1="0" y1="0" x2="0" y2="0"/><line id="xpc2" x1="0" y1="0" x2="0" y2="0"/>
+         </g>
+       </svg>
+       <div class="mk" id="xpreal"><div class="dot"></div><div class="lb">вы</div></div>
+       <div class="mk ghost" id="xpfelt"><div class="dot"></div><div class="lb">каким себя видите</div></div>
+       <div class="axis"><span>уровень 1</span><span>уровень 20</span></div>
+     </div>
+     <div class="xpside">
+       <div class="xph" id="xph">на самом деле вы вот здесь</div>
+       <div class="xpn" id="xpn">годы практики, решённые задачи, люди, которым вы уже помогли. игра это засчитала, хотите вы того или нет</div>
+       <button class="btn" id="xpbtn">дальше →</button>
+     </div>
+   </div>`,
+   hint:'открываю по одному: реальная точка → как себя вижу → куда прыгаю → провал между → саботаж',
+   init(root){
+     const REAL=15, FELT=1, JUMP=20, N=20, H=400;
+     const top = n => H - (8 + (n-1)/(N-1)*84)/100*H;   // y вершины столбика уровня n
+     const midX = n => (n-0.5)/N*100;
+     const bars=root.querySelector('#xpbars');
+     bars.innerHTML=Array.from({length:N},(_,i)=>
+       `<i data-n="${i+1}" style="height:${8+i/(N-1)*84}%"></i>`).join('');
+     const real=root.querySelector('#xpreal'), felt=root.querySelector('#xpfelt'),
+           jump=root.querySelector('#xpjump'), path=root.querySelector('#xppath'),
+           h=root.querySelector('#xph'), nt=root.querySelector('#xpn'), btn=root.querySelector('#xpbtn');
+     real.style.left=midX(REAL)+'%'; real.style.bottom=(H-top(REAL)+10)+'px';
+     felt.style.left=midX(FELT)+'%'; felt.style.bottom=(H-top(FELT)+10)+'px';
+     const x=n=>(n-0.5)/N*700;
+     path.setAttribute('d',`M${x(FELT)},${top(FELT)-16} Q${(x(FELT)+x(JUMP))/2},${top(JUMP)-95} ${x(JUMP)},${top(JUMP)-16}`);
+     // крест на середине дуги — прыжок не состоялся
+     const cx=(x(FELT)+x(JUMP))/2, cy=(top(FELT)-16 + 2*(top(JUMP)-95) + top(JUMP)-16)/4, r=22;
+     const c1=root.querySelector('#xpc1'), c2=root.querySelector('#xpc2');
+     c1.setAttribute('x1',cx-r); c1.setAttribute('y1',cy-r); c1.setAttribute('x2',cx+r); c1.setAttribute('y2',cy+r);
+     c2.setAttribute('x1',cx+r); c2.setAttribute('y1',cy-r); c2.setAttribute('x2',cx-r); c2.setAttribute('y2',cy+r);
+     const wrap=root.querySelector('#xp');
+     const STEPS=[
+       {h:'на самом деле вы вот здесь',
+        n:'годы практики, решённые задачи, люди, которым вы уже помогли. игра это засчитала, хотите вы того или нет'},
+       {h:'а видите себя вот здесь',
+        n:'опыт обесценен, победы не присвоены. каждое утро вы начинаете как новичок'},
+       {h:'и прыгаете отсюда сразу сюда',
+        n:'берёте объём, к которому ещё не готовы. не потому что наглый, а потому что не видите, где стоите'},
+       {h:'вот этот кусок вы себе не засчитали',
+        n:'четырнадцать уровней. поэтому на любую задачу вам нужны сверхусилия'},
+       {h:'и поэтому вы не беретесь вообще',
+        n:'с первого уровня на двадцатый не допрыгнуть, и вы это чувствуете. со стороны это выглядит как лень, а внутри это трезвый расчёт. так и работает саботаж'},
+     ];
+     const paint=k=>{
+       real.classList.toggle('on', k>=0);
+       felt.classList.toggle('on', k>=1);
+       jump.classList.toggle('on', k>=2);
+       jump.classList.toggle('dead', k>=4);
+       wrap.classList.toggle('blind', k>=4);
+       bars.querySelectorAll('i').forEach(b=>
+         b.classList.toggle('lit', k===3 && Number(b.dataset.n)<=REAL));
+       h.textContent=STEPS[k].h; nt.textContent=STEPS[k].n;
+       btn.textContent = k===STEPS.length-1 ? '↻ сначала' : 'дальше →';
+     };
+     let i=0; paint(0);
+     btn.addEventListener('click',()=>{ i=(i+1)%STEPS.length; paint(i); });
+   }},
+
+  {k:'st', t:'когда у вас всё хорошо с самоценностью —<br>вам не нужен Х', sm:true,
+   sub:'никакой внешний фактор не будет определяющим для того, чтобы говорить о чём вы хотите и как хотите', dark:true},
+
+  {k:'sec', n:'обход системы', t:'три приёма'},
+  {k:'st', t:'первое: принять текущий уровень', sm:true,
+   sub:'отказаться от сверхцелей, которые создают иллюзию важности: «когда я достигну Х — тогда я буду крутым»'},
+  {k:'img', kicker:'но вы уже крутой. на текущем уровне', t:'', dark:true,
+   src:'assets/ty-nisha.png', h:760,
+   cap:'позади вас сотни тысяч людей, которые хотели бы оказаться там, где вы сейчас. давайте делать контент для них'},
+  {k:'st', t:'второе: инвентаризация опыта', sm:true,
+   sub:'садитесь и описываете свои кейсы и результаты. не все — начните с одного. нет кейсов — начните с момента старта карьеры'},
+  {k:'quote', kicker:'как делать', t:['чем чаще вы будете это делать — тем больше будете присваивать себе свой опыт',
+          'если писать лень — делайте это через аудиосообщения и нейронку, можно записывать видео',
+          'когда вы начнёте делиться этим опытом публично — он закрепится внутри и станет опорой']},
+  {k:'st', t:'не выбрасывайте этот файл', sm:true,
+   sub:'на пятом уровне мы будем собирать вашу карту смыслов — и собирается она ровно из этого материала'},
+  {k:'st', t:'третье: признание другим человеком', sm:true,
+   sub:'найти 2–3 человека, с которыми можно откровенно поговорить и попросить сказать, как они вас воспринимают. либо заплатить психологу'},
+  {k:'st', t:'почему нужны именно другие люди', sm:true,
+   sub:'другой человек воспринимает ваш опыт не сквозь призму ваших травм — он подсветит то, что вы не замечаете или обесцениваете'},
+
+  /* ── ЗАМОК 5 ───────────────────────────────────────────────── */
+  {k:'sec', n:'замок 5', t:'эго'},
+  {k:'img', kicker:'приз одинаковый, разная только цена', t:'',
+   src:'assets/zamok-5.png', h:640,
+   cap:'рядом ровная дорога к тому же флагу. но по ней победа не считается'},
+  {k:'st', t:'«почему бы не сделать такие же<br>результаты для себя?»', sm:true,
+   sub:'я часто встречал людей, которые делали результаты клиентам, но не себе. ответ был один: «потому что это слишком просто»'},
+  {k:'st', t:'а эго хочет быть особенным', sm:true,
+   sub:'оно говорит вам, что вы хотите славы и признания. но по факту оно просто хочет чувствовать себя особенным', dark:true},
+  {k:'st', t:'с этим чаще всего сталкиваются творцы', sm:true,
+   sub:'им недостаточно получить результат — нужно, чтобы путь и способ были уникальными. иначе результат не ценен. его надо выстрадать'},
+  {k:'st', t:'«если я буду страдать и получу результаты — я герой.<br>если получу легко — это ничего не стоит»', xs:true,
+   sub:'система безопасности за счёт сложностей придаёт ценность результатам'},
+  {k:'quote', kicker:'моя история', t:['в какой-то момент я обнаружил себя в состоянии страшной гонки, в которой моё внутреннее состояние выжигается напалмом',
+          'я начал разбираться и понял: я постоянно закидываю планку. даже в играх ставлю самую высокую сложность',
+          'ведь если я пройду игру легко — ценность победы будет небольшой']},
+  {k:'quote', kicker:'вопрос, который перещёлкнул', t:['работая с психологом, Лена задала вопрос: «ты хочешь пройти игру или с кайфом поиграть?»',
+          'если я буду с кайфом играть — я буду играть постоянно. а если буду играть постоянно — я 100% пройду игру, это неизбежно']},
+  {k:'st', t:'моя цель — играть в свою игру с кайфом,<br>а результаты — неизбежность', xs:true,
+   sub:'«делай то, что для тебя игра, а для других тяжёлый труд»'},
+
+  {k:'sec', n:'обход системы', t:'чит-код'},
+  {k:'st', t:'разделить контент<br>и закрытие своей потребности', sm:true},
+  {k:'cards', kicker:'куда девать потребность', t:'',
+   cards:[{h:'быть уникальным',p:'закрывайте это в своих продуктах или своём творчестве'},
+          {h:'быть героем и преодолевать',p:'закрывайте это со своими клиентами или в процессе создания'},
+          {h:'а контент',p:'инструмент привлечения внимания к вашему уникальному продукту'}]},
+  {k:'st', t:'ваш контент не равно ваш продукт,<br>услуга или творение', sm:true,
+   sub:'это просто инструмент. когда вы начнёте это разделять — к контенту станет сильно проще относиться'},
+
+  /* ── ЗАМОК 6 ───────────────────────────────────────────────── */
+  {k:'sec', n:'замок 6', t:'отсутствие<br>мотивации'},
+  {k:'img', kicker:'телегу «надо» вы тащите в гору сами', t:'',
+   src:'assets/zamok-6.png', h:640,
+   cap:'а велосипед «хочу» стоит рядом и на нём никто не едет'},
+  {k:'st', t:'хотят подписчиков, просмотров и денег.<br>но ничего для этого не делают', xs:true,
+   sub:'«у меня недостаточно мотивации» — говорят они'},
+  {k:'st', t:'к счастью, мир устроен другим образом.<br>у всего есть цена', sm:true,
+   sub:'и данная позиция является очень инфантильной'},
+  {k:'st', t:'насколько быстро вы загораетесь —<br>настолько же быстро тухнете', sm:true,
+   sub:'потому что по факту вы этого не хотите. внутри говорит невроз или травма, которую вы пока не понимаете', dark:true},
+  {k:'st', t:'здесь у вас два пути', sm:true,
+   sub:'первый — вернуться в блок «цель и мотивация блога» и собрать цепочку «зачем» до самого ядра'},
+  {k:'st', t:'«нет мотивации» часто означает ровно одно', sm:true,
+   sub:'работа с контентом никак не связана с вашим будущим, и мозг справедливо отказывается тратить на неё ресурс'},
+  {k:'st', t:'второй путь — пойти к психотерапевту.<br>и я говорю это без иронии', xs:true,
+   sub:'я не смогу разобрать все ваши тараканы в формате, где вы помогаете себе сами. часть вещей решается только в работе с человеком'},
+
+  /* ── САММАРИ ───────────────────────────────────────────────── */
+  {k:'sec', n:'итог разбора', t:'саммари'},
+  {k:'st', t:'чаще всего это проблема<br>не технического характера', sm:true,
+   sub:'за годы практики и работы больше чем с 500 людьми я могу это говорить уверенно'},
+  {k:'st', t:'решить проблему можно только<br>через действие и на уровне мышления', xs:true,
+   sub:'я лишь подсветил ракурсы, с которых вы можете посмотреть на ситуацию'},
+  {k:'st', t:'но я считаю, что подсветить,<br>где висят замки и какие ключи их открывают', xs:true,
+   sub:'это уже больше, чем даёт 99% людей, рассказывающих о контенте'},
+
+  /* ── ПРО ЧТО СНИМАТЬ ───────────────────────────────────────── */
+  {k:'sec', n:'вопрос номер два', t:'а про что<br>снимать'},
+  {k:'st', t:'сейчас задача — набить руку,<br>а не попасть в аудиторию', sm:true,
+   sub:'нормальный сбор идей будет на четвёртом и пятом уровне'},
+  {k:'cards', kicker:'три угла, которых хватит', t:'',
+   cards:[{h:'Что сегодня произошло',p:'рабочая задача, разговор с клиентом, ошибка, находка, вывод'},
+          {h:'Что вас зацепило',p:'чужой ролик, новость, совет, с которым вы не согласны'},
+          {h:'Что объясняете по десять раз',p:'то, что вам кажется очевидным, а вас всё равно спрашивают'}]},
+  {k:'st', t:'заметьте: ни в одном из трёх пунктов<br>не надо ничего придумывать', xs:true,
+   sub:'все три — это то, что уже есть в вашем дне'},
+  {k:'st', t:'вопрос не «что бы снять»', sm:true,
+   sub:'а «что я сегодня делал, о чём можно рассказать за минуту»'},
+
+  /* ── ЗАДАЧА ────────────────────────────────────────────────── */
+  {k:'sec', n:'итог', t:'задача уровня'},
+  {k:'list', kicker:'делаем руками', t:'',
+   items:['снять 10–12 роликов и выложить',
+          'можно на новый аккаунт — это полигон, о котором знаете только вы',
+          'если почувствуете опору — часть можно выложить на основной']},
+  {k:'st', t:'со временем вы либо расскажете<br>про этот аккаунт, либо перейдёте на основной', xs:true,
+   sub:'а пока это полигон для тренировок'},
+  {k:'st', t:'наша цель — продолжать делать это легко', sm:true,
+   sub:'баловаться, хулиганить и экспериментировать'},
+  {k:'st', t:'дальше две дороги', dark:true,
+   sub:'продолжаете — вам на третий уровень. остановились — на второй, и это нормально'},
+];
+Deck.build(SLIDES);
+</script>
+
+<script src="_doodle.js"></script>
+</body>
+</html>
