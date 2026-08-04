@@ -63,7 +63,6 @@ export const SECTIONS: Section[] = [
       { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '', note: 'Откроются 7 августа.', subhead: 'Основной курс · с 7 августа' },
       { kind: 'slides', title: 'Методички и задания', url: '', note: 'Материалы к каждому уровню.' },
       { kind: 'chat', title: 'Чат с обратной связью', url: '', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
-      { kind: 'live', title: 'Групповые созвоны', url: '/sozvony', note: 'Записи прошедших встреч с конспектами.', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
       { kind: 'recording', title: 'Библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Все прошлые воркшопы и мини-курсы.', minTier: 3, lockedNote: 'Доступно на тарифе «делаем вместе» (3).', subhead: 'Полная библиотека · тариф «делаем вместе»' },
     ],
   },
