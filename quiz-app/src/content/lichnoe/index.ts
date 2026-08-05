@@ -9,6 +9,8 @@
 // publish-lichnoe.mjs в GSD-BRAND), импортировать, дописать запись. Новые сверху.
 // ─────────────────────────────────────────────────────────────
 
+import { LICHNOE_LICHNYY_SOZVON_2026_08_05 } from './lichnyy-sozvon-2026-08-05';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -28,7 +30,19 @@ export interface LichnyMaterial {
   html: string;
 }
 
-export const LICHNOE: LichnyMaterial[] = [];
+export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-2026-08-05',
+    telegramIds: [866228378],
+    title: "Как вытащить себя из круга «почистила, полежала, деньги кончились»",
+    subtitle: "Разложили продукты, собрали тарифную сетку 30/60/100 и план: список покупателей, два оффера, две анкеты",
+    date: '2026-08-05',
+    duration: "63 мин",
+    tags: ["тарифы", "офферы", "диагностика", "рассрочка"],
+    kinescopeId: 'j36K6FUncUHbkbAMcYVbsD',
+    html: LICHNOE_LICHNYY_SOZVON_2026_08_05,
+  },
+];
 
 /** Материалы, доступные конкретному человеку. */
 export function forTelegram(telegramId: number): LichnyMaterial[] {
