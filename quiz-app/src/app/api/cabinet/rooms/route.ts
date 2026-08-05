@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getActiveAccessByTelegram } from '@/lib/access';
 import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
+import { forTelegram } from '@/content/lichnoe';
 
 export const runtime = 'nodejs';
 
@@ -58,10 +59,15 @@ export async function GET(request: NextRequest) {
     const unlockedRoles = Array.from(new Set(activeRows.map((r) => r.role)));
     const tiers = computeTiers(activeRows);
 
+    // Раздел «Личное» показываем только тем, у кого личные материалы реально
+    // есть. Остальным его в кабинете не существует — даже под замком: пустой
+    // запертый раздел выглядел бы как «мне что-то не додали».
+    const hasPersonal = telegramId != null && forTelegram(telegramId).length > 0;
+
     // identified — знаем ЛИ мы, кто это (по Telegram или сессии). Кабинет так
     // отличает «вошёл, но без покупок» (показать разделы под замком) от «не вошёл»
     // (показать кнопку входа).
-    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, pending: false, token: null });
+    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, hasPersonal, pending: false, token: null });
   } catch (error) {
     console.error('[Cabinet] rooms error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

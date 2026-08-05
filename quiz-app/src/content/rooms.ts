@@ -38,9 +38,25 @@ export interface Section {
   materials: RoomMaterial[];
   /** куда вести, если раздел закрыт и человек хочет его получить (лендинг продукта) */
   landingUrl?: string;
+  /**
+   * Персональный раздел: показывается только тем, у кого личные материалы есть
+   * (rooms-эндпоинт отдаёт hasPersonal). Остальным его в кабинете нет вовсе —
+   * ни открытым, ни под замком.
+   */
+  personal?: boolean;
 }
 
 export const SECTIONS: Section[] = [
+  {
+    key: 'lichnoe',
+    role: null,
+    personal: true,
+    title: 'Личное',
+    subtitle: 'Твои личные созвоны — видишь только ты',
+    materials: [
+      { kind: 'live', title: 'Записи личных созвонов', url: '/lichnoe', note: 'Видео встреч и конспект по таймкодам: что решили и что делать дальше.' },
+    ],
+  },
   {
     key: 'free',
     role: null,
