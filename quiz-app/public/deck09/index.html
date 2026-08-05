@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<base href="/deck09/">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Финал">
+<meta name="robots" content="noindex">
+<title>Финал · Новый уровень контента</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  .stairs{display:flex;flex-direction:column-reverse;gap:8px;max-width:1000px;margin:0 auto;}
+  .step{display:flex;align-items:center;gap:20px;border:2px solid var(--line);background:#fff;
+    padding:14px 22px;cursor:pointer;transition:.2s;text-align:left;}
+  .step:hover{border-color:var(--accent);}
+  .step.done{border-color:var(--ok);background:#f4fbf5;}
+  .step .n{font-size:26px;font-weight:800;color:var(--accent);min-width:40px;}
+  .step.done .n{color:var(--ok);}
+  .step .t{font-size:25px;font-weight:700;flex:1;}
+  .step .g{font-size:21px;color:var(--muted);max-width:520px;}
+  .step .ck{font-size:26px;opacity:0;}
+  .step.done .ck{opacity:1;}
+  .stairs-out{margin-top:26px;font-size:28px;min-height:70px;}
+  .stairs-out b{color:var(--ok);}
+  .princ{display:flex;gap:22px;max-width:1100px;margin:0 auto;}
+  .princ .p{flex:1;border-top:5px solid var(--accent);padding:22px 4px 0;text-align:left;}
+  .princ .p .n{font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:800;}
+  .princ .p h4{font-size:30px;margin:10px 0 12px;}
+  .princ .p div{font-size:23px;color:var(--muted);line-height:1.4;}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div id="pbar"></div>
+  <div id="deck"></div>
+  <div id="ctrl">
+    <div class="ab" data-dir="-1">‹</div>
+    <div class="ab" data-dir="1">›</div>
+    <div class="ab" id="fsbtn" title="весь экран (F)">⛶</div>
+    <span id="cnt">01 / 01</span>
+    <span id="hint">F — весь экран · ← → листать · V — кадр камеры · N — заметки · T — суфлёр · R — полный текст</span>
+  </div>
+</div></div>
+
+<script src="say/09.js"></script>
+<script src="full/09.js"></script>
+<script src="_deck.js"></script>
+<script>
+const STEPS = [
+  {t:'Зачем вам блог', g:'есть цепочка, которая держит контент в приоритетах'},
+  {t:'Уровень 1 · начали', g:'знаете, как обходить свою систему безопасности, а не бороться с ней'},
+  {t:'Уровень 2 · вернулись', g:'знаете, почему бросили в прошлый раз и что делать, если повторится'},
+  {t:'Уровень 3 · не бесит', g:'собрали свою форму, свою правду и свою ставку'},
+  {t:'Уровень 4 · не жрёт время', g:'единица занимает столько, сколько вы ей отвели'},
+  {t:'Уровень 5 · есть отклик', g:'поток спроса плюс ваша правда, упакованные так, чтобы человек узнал себя'},
+  {t:'Уровень 6 · масштаб', g:'тиражируете то, что работает, вместо того чтобы пахать больше'}
+];
+
+const SLIDES = [
+  {k:'cover', t:'Финал', sub:'что у вас теперь есть и что дальше'},
+
+  {k:'st', t:'вот и всё', sub:'мы прошли шесть уровней, и я хочу закончить тем же, с чего начинал'},
+  {k:'st', t:'контент — это навык,<br>а не лотерея', sm:true, dark:true},
+  {k:'st', t:'чек-лист выдаёт результат один раз<br>и то, если повезёт', sm:true, sub:'навык накапливается'},
+  {k:'st', t:'здесь нельзя проиграть', sub:'можно только остановиться. а остановившись — вернуться туда, где сломалось'},
+
+  {k:'sec', n:'ваш результат', t:'что у вас<br>теперь есть'},
+  {k:'ix', kicker:'отметьте, что уже закрыто', t:'пройдитесь по своему пути',
+   html:`<div class="stairs" id="stairs">${STEPS.map((s,i)=>
+      `<div class="step" data-i="${i}"><div class="n">${i===0?'0':i}</div><div class="t">${s.t}</div>
+        <div class="g">${s.g}</div><div class="ck">✓</div></div>`).join('')}</div>
+      <div class="stairs-out" id="stout">нажимайте на ступени, которые вы уже закрыли</div>`,
+   hint:'на записи: отмечаю ступени и проговариваю, что человек получил на каждой',
+   init(root){
+     const out=root.querySelector('#stout');
+     function upd(){
+       const n=root.querySelectorAll('.step.done').length;
+       out.innerHTML = n===0 ? 'нажимайте на ступени, которые вы уже закрыли'
+         : (n===STEPS.length ? '<b>весь стек собран.</b> дальше — только сверка раз в месяц и масштаб'
+            : 'закрыто <b>'+n+'</b> из '+STEPS.length+'. остальное — ваш план на ближайшие месяцы');
+     }
+     root.querySelectorAll('.step').forEach(el=>el.addEventListener('click',()=>{el.classList.toggle('done');upd();}));
+   }},
+  {k:'st', t:'это и есть та карта,<br>которой нет у 99%', sm:true,
+   sub:'не потому что она секретная. а потому что почти никто не разбирает свой контент по уровням'},
+
+  {k:'sec', n:'если забудете всё', t:'три принципа,<br>на которых всё держится'},
+  {k:'ix', kicker:'', t:'',
+   html:`<div class="princ">
+      <div class="p"><div class="n">принцип 1</div><h4>Создавайте вокруг правды и того, во что верите</h4>
+        <div>единственное, что нельзя делегировать ни человеку, ни нейронке. и единственное, что люди считывают безошибочно</div></div>
+      <div class="p"><div class="n">принцип 2</div><h4>Оптимизируйте процесс создания, а не результат</h4>
+        <div>на результат вы не влияете — это барабан. на процесс влияете полностью. поэтому весь курс был про процесс</div></div>
+      <div class="p"><div class="n">принцип 3</div><h4>Давайте своему контенту много шансов</h4>
+        <div>одна идея — несколько заходов. не сработало с первого раза не значит плохо</div></div>
+    </div>`},
+  {k:'st', t:'вы не проигрываете,<br>пока продолжаете делать ставки', sm:true, dark:true},
+
+  {k:'sec', n:'что дальше', t:'вы просто живёте<br>по своей карте'},
+  {k:'list', kicker:'ритм', t:'',
+   items:['раз в месяц — сверка: где я, что изменилось, не откатило ли',
+          'когда откатывает — возвращаетесь на сломавшийся уровень и чините',
+          'когда всё работает — масштабируете']},
+  {k:'st', t:'никакой новой системы вам не нужно', sm:true},
+
+  {k:'st', t:'кому нужно быстрее и с сопровождением —<br>идём вместе', sm:true,
+   todo:'CTA: формулировку и ссылку дать. плюс решить, ставить ли сюда видео-отзыв (Сева / Говорухин / Вася)'},
+
+  {k:'sec', n:'последнее', t:'дверь открываете<br>вы'},
+  {k:'st', t:'я не смогу сделать так,<br>чтобы у вас всё получилось', sm:true, sub:'никто не сможет'},
+  {k:'st', t:'я могу показать, где висят замки<br>и какие ключи их открывают', sm:true, sub:'это я и сделал'},
+  {k:'st', t:'вам не нужно быть особенным,<br>талантливым или интересным', sm:true, sub:'вам нужно продолжать'},
+  {k:'st', t:'всё остальное — вопрос времени', dark:true},
+];
+Deck.build(SLIDES);
+</script>
+
+<script src="_doodle.js"></script>
+</body>
+</html>

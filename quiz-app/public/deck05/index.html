@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<base href="/deck05/">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Уровень 4">
+<meta name="robots" content="noindex">
+<title>Уровень 4 · Не бесит, но жрёт время</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  .calc{max-width:1000px;margin:0 auto;text-align:left;}
+  .calc .row{display:flex;align-items:center;gap:20px;margin-bottom:20px;}
+  .calc .lb{font-size:26px;flex:1;}
+  .calc .vv{font-size:34px;font-weight:800;color:var(--accent);min-width:120px;text-align:right;}
+  .calc input[type=range]{width:420px;accent-color:#e8590c;}
+  .calc .res{margin-top:26px;border-top:2px solid var(--ink);padding-top:24px;display:flex;gap:40px;}
+  .calc .res .box{flex:1;}
+  .calc .res .cap{font-size:20px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);font-weight:800;}
+  .calc .res .big{font-size:64px;font-weight:800;line-height:1.1;margin-top:6px;}
+  .calc .res .big.bad{color:var(--bad);}
+  .calc .res .big.ok{color:var(--ok);}
+  .calc .res .sm{font-size:22px;color:var(--muted);margin-top:6px;}
+  /* обмен «время ↔ результат» */
+  .xch{max-width:1120px;margin:0 auto;}
+  .xch-body{display:flex;gap:40px;align-items:flex-end;justify-content:center;min-height:330px;}
+  .xch-col{display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .xch-cap{font-size:20px;text-transform:uppercase;letter-spacing:.13em;font-weight:800;color:var(--muted);}
+  .xch-bars{display:flex;gap:14px;align-items:flex-end;height:280px;}
+  .xch-bar{width:92px;background:var(--accent);border:2px solid var(--ink);height:0;transition:height .5s ease;
+    display:flex;align-items:flex-start;justify-content:center;color:#fff;font-size:18px;font-weight:800;padding-top:7px;
+    white-space:nowrap;overflow:hidden;}
+  .xch-res{display:flex;gap:14px;align-items:flex-end;height:280px;}
+  .xch-unit{width:92px;height:46px;border:2px solid var(--ink);background:#fff;opacity:0;transition:opacity .4s;
+    display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--muted);}
+  .xch-unit.on{opacity:1;}
+  /* вертикальная связка: раздражение вверх — приоритет вниз */
+  .vlink{display:flex;gap:64px;justify-content:center;align-items:flex-start;max-width:1000px;margin:0 auto;}
+  .vcol{display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .vtrack{width:120px;height:340px;border:2px solid var(--ink);background:#fff;display:flex;align-items:flex-end;}
+  .vfill{width:100%;height:0;background:var(--accent);transition:height .55s ease;}
+  .vfill.max{background:var(--bad);}
+  .vcap{font-size:21px;text-transform:uppercase;letter-spacing:.13em;font-weight:800;color:var(--muted);}
+  .vval{font-size:34px;font-weight:800;color:var(--accent);}
+  .vval.max{color:var(--bad);}
+  .vlist{display:flex;flex-direction:column;gap:12px;width:420px;}
+  .vrow{height:62px;border:2px solid var(--line);background:#fff;display:flex;align-items:center;
+    padding:0 22px;font-size:27px;transition:transform .55s ease,border-color .4s,color .4s,opacity .4s;}
+  .vrow .num{font-size:20px;font-weight:800;color:var(--muted);margin-right:16px;min-width:26px;}
+  .vrow.hot{border-color:var(--bad);color:var(--bad);opacity:.5;}
+  .vtrack.over{border-color:var(--bad);animation:vshake .45s ease 2;}
+  @keyframes vshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  .vcase{display:flex;flex-direction:column;gap:10px;width:520px;text-align:left;}
+  .vcase .c{border:2px solid var(--line);background:#fff;padding:14px 20px;font-size:25px;opacity:.25;transition:.45s;}
+  .vcase .c b{display:block;font-size:20px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px;}
+  .vcase .c.on{opacity:1;border-color:var(--accent);}
+  .vcase .c.on.bad{border-color:var(--bad);}
+  .vcase .c.on.bad b{color:var(--bad);}
+  .xch-out{margin-top:20px;font-size:27px;color:var(--muted);min-height:74px;line-height:1.35;}
+  .xch-out b{color:var(--ink);}
+  /* бесконечный список задач */
+  .tsk{display:flex;gap:48px;justify-content:center;align-items:flex-start;max-width:1040px;margin:0 auto;}
+  .tsk-list{width:560px;display:flex;flex-direction:column;gap:9px;text-align:left;}
+  .tsk-i{border:2px solid var(--line);background:#fff;padding:11px 18px;font-size:24px;transition:.35s;}
+  .tsk-i.done{color:var(--muted);text-decoration:line-through;opacity:.35;border-style:dashed;}
+  .tsk-i.fresh{border-color:var(--accent);}
+  .tsk-side{display:flex;flex-direction:column;gap:26px;align-items:center;padding-top:6px;}
+  .tsk-num{font-size:72px;font-weight:800;line-height:1;color:var(--accent);}
+  .tsk-lb{font-size:19px;text-transform:uppercase;letter-spacing:.13em;font-weight:800;color:var(--muted);text-align:center;}
+  .tsk-done{width:150px;height:26px;border:2px solid var(--ink);background:#fff;}
+  .tsk-done i{display:block;height:100%;width:0;background:var(--ok);}
+  /* от цели против от ресурса */
+  .gr{max-width:1000px;margin:0 auto;}
+  .gr-tabs{display:flex;gap:14px;justify-content:center;margin-bottom:28px;}
+  .gr-row{display:flex;gap:18px;align-items:center;margin-bottom:18px;}
+  .gr-name{width:230px;text-align:right;font-size:23px;text-transform:uppercase;letter-spacing:.09em;font-weight:800;color:var(--muted);
+    display:flex;align-items:center;justify-content:flex-end;gap:10px;}
+  .gr-name .ic{font-size:30px;}
+  .gr-name .lk{font-size:24px;opacity:0;transition:.3s;}
+  .gr-row.locked .gr-name{color:var(--ink);}
+  .gr-row.locked .gr-name .lk{opacity:1;}
+  .gr-bar{flex:1;height:56px;border:2px solid var(--line);background:#fff;position:relative;transition:border-color .4s,border-width .4s;}
+  .gr-bar i{display:block;height:100%;width:30%;transition:width .55s ease,background .4s;}
+  .gr-row.locked .gr-bar{border-width:4px;border-color:var(--ink);}
+  .gr-tag{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:21px;font-weight:800;color:var(--ink);}
+  .b-goal i{background:#8c7ae6;}
+  .b-time i{background:var(--accent);}
+  .b-pow i{background:var(--ok);}
+  .b-pow.low i{background:var(--bad);}
+  .angles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:1000px;margin:0 auto;text-align:left;}
+  .angle{border:2px solid var(--line);background:#fff;padding:14px 18px;font-size:24px;}
+  .angle b{display:block;color:var(--accent);font-size:20px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;}
+  /* доска: как идея двигается по этапам */
+  .board{display:flex;gap:12px;justify-content:center;max-width:1220px;margin:0 auto;}
+  .bcol{flex:1 1 0;display:flex;}
+  .bhead{flex:1;border:2px solid var(--ink);background:#fff;padding:44px 8px;font-size:24px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.07em;text-align:center;display:flex;align-items:center;justify-content:center;}
+  .bcol.on .bhead{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .bnote{margin-top:34px;font-size:26px;color:var(--muted);}
+  /* принять, что */
+  .acc{display:flex;flex-direction:column;gap:18px;max-width:920px;margin:0 auto;text-align:left;}
+  .ac{border:2px solid var(--line);background:#fff;padding:18px 28px;font-size:33px;line-height:1.25;
+    opacity:.16;transition:opacity .45s,border-color .45s,transform .45s;transform:translateY(8px);}
+  .ac.on{opacity:1;border-color:var(--accent);transform:translateY(0);}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div id="pbar"></div>
+  <div id="deck"></div>
+  <div id="ctrl">
+    <div class="ab" data-dir="-1">‹</div>
+    <div class="ab" data-dir="1">›</div>
+    <div class="ab" id="fsbtn" title="весь экран (F)">⛶</div>
+    <span id="cnt">01 / 01</span>
+    <span id="hint">F — весь экран · ← → листать · V — кадр камеры · N — заметки · T — суфлёр · R — полный текст</span>
+  </div>
+</div></div>
+
+<script src="say/05.js"></script>
+<script src="full/05.js"></script>
+<script src="_deck.js"></script>
+<script>
+const SLIDES = [
+  {k:'cover', t:'Уровень 4<br>Не бесит, но жрёт время', sub:'задача: сжать время, а не найти его'},
+
+  {k:'list', kicker:'это вы, если', t:'',
+   items:['процесс выстроен, сопротивления почти нет',
+          'но один ролик — и половина дня прошла',
+          'неделя кончилась, а вы сделали две единицы вместо пяти',
+          'и опять ставите паузу, просто чтобы выдохнуть']},
+  {k:'st', t:'больше времени не будет', sub:'у всех 24 часа: и у бомжа на улице, и у миллиардера в самолёте'},
+  {k:'st', t:'резать сон — не мой подход', sub:'здоровье и своё состояние я считаю самым дорогим, что у меня есть'},
+  {k:'st', t:'«как освободить своё время,<br>чтобы заниматься более важным?»', sm:true, dark:true},
+
+  {k:'sec', n:'опасность', t:'откат на уровень<br>назад'},
+  {k:'st', t:'когда единица занимает полдня,<br>а результат приходит не сразу', sm:true,
+   sub:'контент снова начинает раздражать. дальше пауза, ещё одна — и вы там, откуда пришли'},
+
+  {k:'ix', kicker:'нажмите «сделать единицу»', t:'что вы отдаёте и что получаете взамен',
+   html:`<div class="xch">
+      <div class="xch-body">
+        <div class="xch-col">
+          <div class="xch-bars">
+            <div class="xch-bar" data-h="90"></div>
+            <div class="xch-bar" data-h="170"></div>
+            <div class="xch-bar" data-h="270"></div>
+          </div>
+          <div class="xch-cap">времени на единицу</div>
+        </div>
+        <div class="xch-col">
+          <div class="xch-res">
+            <div class="xch-unit">1</div>
+            <div class="xch-unit">1</div>
+            <div class="xch-unit">1</div>
+          </div>
+          <div class="xch-cap">получено взамен</div>
+        </div>
+      </div>
+      <div class="xch-out" id="xout">три захода подряд. смотрите, что растёт, а что стоит на месте</div>
+      <div style="margin-top:18px"><button class="btn" id="xbtn">сделать единицу</button></div>
+    </div>`,
+   hint:'на записи: жму три раза, держу паузу после второго — башня выросла вдвое, а справа то же самое',
+   init(root){
+     const bars=[...root.querySelectorAll('.xch-bar')];
+     const units=[...root.querySelectorAll('.xch-unit')];
+     const out=root.querySelector('#xout');
+     const btn=root.querySelector('#xbtn');
+     const STEPS=[
+       {t:'2 часа', say:'первый ролик. два часа, один результат. пока нормально'},
+       {t:'4 часа', say:'второй занял вдвое больше. а взамен — <b>ровно столько же</b>'},
+       {t:'полдня', say:'третий съел полдня. и снова один. <b>вы вкладываете всё больше, а получаете столько же</b>'}
+     ];
+     let i=0;
+     btn.addEventListener('click',()=>{
+       if(i>=STEPS.length){
+         i=0;
+         bars.forEach(b=>{b.style.height='0';b.textContent='';});
+         units.forEach(u=>u.classList.remove('on'));
+         out.innerHTML='три захода подряд. смотрите, что растёт, а что стоит на месте';
+         btn.textContent='сделать единицу';
+         return;
+       }
+       bars[i].style.height=bars[i].dataset.h+'px';
+       bars[i].textContent=STEPS[i].t;
+       units[i].classList.add('on');
+       out.innerHTML=STEPS[i].say;
+       i++;
+       if(i>=STEPS.length) btn.textContent='↻ заново';
+     });
+   }},
+
+  {k:'ix', kicker:'нажимайте — по одному заходу за раз', t:'чем больше раздражения,<br>тем ниже это в приоритетах',
+   html:`<div class="xch">
+      <div class="vlink">
+        <div class="vcol">
+          <div class="vval" id="vval">0%</div>
+          <div class="vtrack"><div class="vfill" id="vfill"></div></div>
+          <div class="vcap">раздражение</div>
+        </div>
+        <div class="vcol">
+          <div class="vlist" id="vlist">
+            <div class="vrow" data-i="0"><span class="num">1</span>контент</div>
+            <div class="vrow" data-i="1"><span class="num">2</span>работа</div>
+            <div class="vrow" data-i="2"><span class="num">3</span>семья</div>
+            <div class="vrow" data-i="3"><span class="num">4</span>спорт</div>
+          </div>
+          <div class="vcap">ваши приоритеты</div>
+        </div>
+      </div>
+      <div class="xch-out" id="vout">после каждого захода раздражение растёт. смотрите, куда едет контент</div>
+      <div style="margin-top:18px"><button class="btn" id="vbtn">следующий заход</button></div>
+    </div>`,
+   hint:'на записи: три захода, показываю что слева вверх, а справа вниз',
+   init(root){
+     const rows=[...root.querySelectorAll('.vrow')];
+     const fill=root.querySelector('#vfill');
+     const val=root.querySelector('#vval');
+     const out=root.querySelector('#vout');
+     const btn=root.querySelector('#vbtn');
+     const STEP=74;
+     const ORDER=[
+       ['контент','работа','семья','спорт'],
+       ['работа','контент','семья','спорт'],
+       ['работа','семья','контент','спорт'],
+       ['работа','семья','спорт','контент']
+     ];
+     const STEPS=[
+       {v:30, say:'после первого захода — терпимо. контент сдвинулся на вторую строку'},
+       {v:65, say:'после второго уже заметно. и он опускается ещё ниже'},
+       {v:100, say:'после третьего вы на пределе, и контент оказался последним.<br><b>вы снова ставите паузу, просто чтобы выдохнуть</b>'}
+     ];
+     const name=r=>r.textContent.replace(/^\d+/,'').trim();
+     function place(step){
+       const ord=ORDER[step];
+       rows.forEach(r=>{
+         const to=ord.indexOf(name(r));
+         const from=Number(r.dataset.i);
+         r.style.transform='translateY('+((to-from)*STEP)+'px)';
+         r.querySelector('.num').textContent=to+1;
+       });
+     }
+     let i=0;
+     place(0);
+     btn.addEventListener('click',()=>{
+       if(i>=STEPS.length){
+         i=0; place(0);
+         fill.style.height='0'; fill.classList.remove('max');
+         val.textContent='0%'; val.classList.remove('max');
+         rows.forEach(r=>r.classList.remove('hot'));
+         out.innerHTML='после каждого захода раздражение растёт. смотрите, куда едет контент';
+         btn.textContent='следующий заход';
+         return;
+       }
+       const s=STEPS[i];
+       fill.style.height=s.v+'%';
+       val.textContent=s.v+'%';
+       place(i+1);
+       out.innerHTML=s.say;
+       if(s.v===100){
+         fill.classList.add('max'); val.classList.add('max');
+         rows.find(r=>name(r)==='контент').classList.add('hot');
+       }
+       i++;
+       if(i>=STEPS.length) btn.textContent='↻ заново';
+     });
+   }},
+  {k:'ix', kicker:'а дальше всё решает рандом', t:'что будет с раздражением,<br>зависит не от вас',
+   html:`<div class="xch">
+      <div class="vlink">
+        <div class="vcol">
+          <div class="vval" id="wval">100%</div>
+          <div class="vtrack" id="wtrack"><div class="vfill max" id="wfill" style="height:100%"></div></div>
+          <div class="vcap">раздражение</div>
+        </div>
+        <div class="vcase" id="wcase">
+          <div class="c" data-i="0"><b>вариант 1 — стрельнуло</b>отпустило. хотя вы ничего не изменили</div>
+          <div class="c" data-i="1"><b>вариант 2 — не стрельнуло</b>копится дальше, потому что вы целитесь в результат</div>
+          <div class="c" data-i="2"><b>вариант 3 — стрельнуло, а потом перестало</b>зашкаливает. вы уже знаете, что бывает по-другому</div>
+        </div>
+      </div>
+      <div class="xch-out" id="wout">вы отдали полдня. дальше решает не качество, а розыгрыш</div>
+      <div style="margin-top:18px"><button class="btn" id="wbtn">следующий вариант</button></div>
+    </div>`,
+   hint:'на записи: три варианта по очереди, на третьем держу паузу',
+   init(root){
+     const fill=root.querySelector('#wfill');
+     const track=root.querySelector('#wtrack');
+     const val=root.querySelector('#wval');
+     const cases=[...root.querySelectorAll('.vcase .c')];
+     const out=root.querySelector('#wout');
+     const btn=root.querySelector('#wbtn');
+     let i=0, timer=null;
+     const set=(h,bad)=>{fill.style.height=h+'%'; val.textContent=h+'%';
+       fill.classList.toggle('max',!!bad); val.classList.toggle('max',!!bad);};
+     const reset=()=>{clearTimeout(timer); i=0; set(100,true); track.classList.remove('over');
+       cases.forEach(c=>c.classList.remove('on','bad'));
+       out.innerHTML='вы отдали полдня. дальше решает не качество, а розыгрыш';
+       btn.textContent='следующий вариант';};
+     btn.addEventListener('click',()=>{
+       if(i>=3){reset();return;}
+       clearTimeout(timer);
+       cases.forEach(c=>c.classList.remove('on','bad'));
+       track.classList.remove('over');
+       cases[i].classList.add('on');
+       if(i===0){
+         set(10,false);
+         out.innerHTML='ролик выстрелил, и раздражение как рукой сняло. <b>но вы ничего не изменили — просто выпал джекпот</b>';
+       } else if(i===1){
+         set(100,true);
+         out.innerHTML='ролик не выстрелил. раздражение никуда не делось и <b>копится дальше, потому что вы целитесь в результат</b>';
+       } else {
+         cases[i].classList.add('bad');
+         set(10,false);
+         out.innerHTML='сначала выстрелил, и вы выдохнули...';
+         timer=setTimeout(()=>{
+           set(100,true); track.classList.add('over');
+           out.innerHTML='...а следующие пять не выстрелили. <b>теперь вы знаете, что бывает по-другому, и вот здесь психику ломает по-настоящему</b>';
+         },1200);
+       }
+       i++;
+       if(i>=3) btn.textContent='↻ заново';
+     });
+   }},
+
+  {k:'sec', n:'шаг 1', t:'сначала снимаем оценку,<br>потом механику'},
+  {k:'quote', kicker:'Сева',
+   t:['«почему ты не сделал для себя то, что делаешь для других?»',
+      '«каждый раз это сложно и больно, потому что идеи, которые я придумываю, очень крутые»',
+      'у него на идеи и сценарий уходило четыре часа',
+      'сейчас собирает две единицы за пятнадцать минут',
+      'механику мы не меняли. он просто перестал оценивать то, что делает']},
+  {k:'img', kicker:'мой эксперимент', src:'assets/experiment-15min.jpg', h:560,
+   cap:'рилс за 3 минуты без монтажа: 12 297 просмотров, 55 подписок · карусель за 15 минут: 89 140 просмотров, 221 подписка'},
+  {k:'st', t:'люди думают, что они медленные,<br>потому что не знают приёмов', sm:true,
+   sub:'а они медленные, потому что оценивают каждую единицу, пока её делают'},
+  {k:'st', t:'дело не в том, что я быстрый', sub:'я просто не оцениваю то, что делаю'},
+  {k:'img', kicker:'вот вся разница', src:'assets/l4-do-posle.png', h:600,
+   cap:'слева меряют просмотры, справа — время. и после публикации идут к следующей задаче'},
+
+  {k:'ix', kicker:'нажимайте — по одному пункту', t:'чтобы перестать оценивать,<br>надо принять, что:',
+   html:`<div class="acc">
+      <div class="ac">вы уже заебись</div>
+      <div class="ac">вам уже можно делать так, как хочется вам</div>
+      <div class="ac">количество времени не влияет на качество</div>
+      <div class="ac">качество это вещь субъективная</div>
+    </div>
+    <div style="margin-top:26px"><button class="btn" id="acbtn">дальше</button></div>`,
+   hint:'на записи: четыре клика, после каждого пауза — на каждый пункт есть что сказать',
+   init(root){
+     const items=[...root.querySelectorAll('.ac')];
+     const btn=root.querySelector('#acbtn');
+     let i=0;
+     btn.addEventListener('click',()=>{
+       if(i>=items.length){
+         i=0; items.forEach(x=>x.classList.remove('on')); btn.textContent='дальше'; return;
+       }
+       items[i].classList.add('on');
+       i++;
+       if(i>=items.length) btn.textContent='↻ заново';
+     });
+   }},
+  {k:'st', t:'как это принять?', sm:true,
+   sub:'вернитесь на уровень 1, в блок про самоценность. скорее всего авария где-то там'},
+
+  {k:'sec', n:'шаг 2', t:'списки задач не работают —<br>работает расписание'},
+  {k:'st', t:'списки задач никогда не заканчиваются', sm:true,
+   sub:'а неделя заканчивается. и вы сидите в пятницу с ощущением, что ничего не сделали'},
+  {k:'ix', kicker:'вычеркните пару задач', t:'что на самом деле выматывает',
+   html:`<div class="tsk">
+      <div class="tsk-list" id="tlist"></div>
+      <div class="tsk-side">
+        <div><div class="tsk-num" id="tnum">5</div><div class="tsk-lb">осталось</div></div>
+        <div><div class="tsk-done"><i id="tdone"></i></div><div class="tsk-lb">чувство,<br>что закончил</div></div>
+      </div>
+    </div>
+    <div class="xch-out" id="tout">вычеркиваете задачу — и смотрите, что происходит со списком</div>
+    <div style="margin-top:18px"><button class="btn" id="tbtn">вычеркнуть задачу</button></div>`,
+   hint:'на записи: вычёркиваю три раза, показываю что счётчик растёт, а полоса стоит',
+   init(root){
+     const list=root.querySelector('#tlist');
+     const num=root.querySelector('#tnum');
+     const out=root.querySelector('#tout');
+     const btn=root.querySelector('#tbtn');
+     const START=['смонтировать рилс','написать пост','придумать тему на среду','ответить в директ','снять сторис'];
+     const NEXT=[['доснять второй дубль','переписать заголовок'],
+                 ['сделать обложку','ответить на комменты'],
+                 ['перезалить, зашакалило','сценарий на пятницу']];
+     const SAY=['вычеркнули одну — прилетело две','вычеркнули ещё — и снова две',
+       'и так по кругу. <b>дело не в том, что список длинный. дело в том, что вы ни разу не дошли до конца</b>'];
+     const VIEW=4;
+     let i=0, queue=[...START], struck=null;
+     function render(){
+       const head=struck?`<div class="tsk-i done">${struck}</div>`:'';
+       const shown=queue.slice(0,VIEW).map((t,k)=>
+         `<div class="tsk-i${i&&k>=queue.length-2?' fresh':''}">${t}</div>`).join('');
+       const rest=queue.length-VIEW;
+       const tail=rest>0?`<div class="tsk-i" style="border:none;color:var(--muted);opacity:.6">…и ещё ${rest}</div>`:'';
+       list.innerHTML=head+shown+tail;
+       num.textContent=queue.length;
+     }
+     render();
+     btn.addEventListener('click',()=>{
+       if(i>=NEXT.length){
+         i=0; queue=[...START]; struck=null; render();
+         out.innerHTML='вычеркиваете задачу — и смотрите, что происходит со списком';
+         btn.textContent='вычеркнуть задачу';
+         return;
+       }
+       struck=queue.shift();
+       queue=queue.concat(NEXT[i]);
+       i++;
+       render();
+       out.innerHTML=SAY[i-1];
+       if(i>=NEXT.length) btn.textContent='↻ заново';
+     });
+   }},
+
+  {k:'ix', kicker:'нажмите, чтобы сменить подход', t:'от чего вы отталкиваетесь',
+   html:`<div class="gr">
+      <div class="gr-tabs"><button class="btn on" id="gbtn">от ЦЕЛИ</button></div>
+      <div class="gr-row locked" id="grow-goal">
+        <div class="gr-name"><span class="ic">🎯</span>цель<span class="lk">🔒</span></div>
+        <div class="gr-bar b-goal" id="gcel"><i style="width:100%"></i><span class="gr-tag" id="gcelt">полный объём</span></div>
+      </div>
+      <div class="gr-row" id="grow-time">
+        <div class="gr-name"><span class="ic">⏱</span>время<span class="lk">🔒</span></div>
+        <div class="gr-bar b-time" id="gtime"><i style="width:95%"></i><span class="gr-tag" id="gtimet">4 часа</span></div>
+      </div>
+      <div class="gr-row" id="grow-pow">
+        <div class="gr-name"><span class="ic">🔋</span>силы<span class="lk">🔒</span></div>
+        <div class="gr-bar b-pow low" id="gpow"><i style="width:10%"></i><span class="gr-tag" id="gpowt">на нуле</span></div>
+      </div>
+    </div>
+    <div class="xch-out" id="gout">цель держим любой ценой. значит, <b>расплачиваемся ресурсом — временем, деньгами и собой</b></div>`,
+   hint:'на записи: показываю замок и что происходит с силами, потом переключаю',
+   init(root){
+     const btn=root.querySelector('#gbtn');
+     const rows={goal:root.querySelector('#grow-goal'),time:root.querySelector('#grow-time'),pow:root.querySelector('#grow-pow')};
+     const bars={goal:root.querySelector('#gcel'),time:root.querySelector('#gtime'),pow:root.querySelector('#gpow')};
+     const tags={goal:root.querySelector('#gcelt'),time:root.querySelector('#gtimet'),pow:root.querySelector('#gpowt')};
+     const out=root.querySelector('#gout');
+     const VIEW={
+       goal:{lock:{goal:1},w:{goal:100,time:95,pow:10},
+             t:{goal:'полный объём',time:'4 часа',pow:'на нуле'},
+             say:'цель держим любой ценой. значит, <b>расплачиваемся ресурсом — временем, деньгами и собой</b>'},
+       res :{lock:{time:1,pow:1},w:{goal:55,time:25,pow:100},
+             t:{goal:'сколько влезло',time:'один час',pow:'целы'},
+             say:'ресурс закреплён, подстраивается объём. <b>и это перестаёт быть подвигом, это просто работа</b>'}
+     };
+     let mode='goal';
+     function apply(){
+       const v=VIEW[mode];
+       for(const k of ['goal','time','pow']){
+         rows[k].classList.toggle('locked',!!v.lock[k]);
+         bars[k].querySelector('i').style.width=v.w[k]+'%';
+         tags[k].textContent=v.t[k];
+       }
+       bars.pow.classList.toggle('low',v.w.pow<50);
+       btn.textContent = mode==='goal' ? 'от ЦЕЛИ' : 'от РЕСУРСА';
+       out.innerHTML=v.say;
+     }
+     apply();
+     btn.addEventListener('click',()=>{mode = mode==='goal' ? 'res' : 'goal'; apply();});
+   }},
+  {k:'st', t:'расписание — это и есть<br>работа от ресурса', sm:true,
+   sub:'сначала вы кладёте на неделю своё время, и только потом вписываете туда задачи. у задачи появляется честный дедлайн, а не выдуманный'},
+
+  {k:'img', kicker:'моя неделя', src:'assets/raspisanie.png', h:600,
+   cap:'зелёное — сон · голубое — личные блоки · бежевое — приоритетный проект · оранжевое — контент · розовое — свободно'},
+  {k:'list', kicker:'что здесь важно', t:'',
+   items:['свободного места очень много, выходные полностью свободны',
+          'контент занимает несколько блоков, а не размазан по всем дням',
+          'утро — самое продуктивное время, туда ставим рычаги']},
+  {k:'st', t:'всё, что не успели за неделю — досвидания', sm:true,
+   sub:'значит, не сильно было важно', dark:true},
+
+  {k:'sec', n:'шаг 3', t:'закон Паркинсона'},
+  {k:'st', t:'задача занимает ровно столько,<br>сколько вы на неё отвели', sm:true,
+   sub:'отвели день — будете делать день, и результат не станет лучше в шесть раз'},
+  {k:'list', kicker:'живые замеры', t:'',
+   items:['пост в телеграм + сценарий рилса по нему — 6 минут',
+          'полтора часа: пост, 6 тредсов, карусель, смонтированный рилс и сторис',
+          'один час — контент на неделю']},
+
+  {k:'ix', kicker:'посчитайте свою неделю', t:'сколько времени забирает контент и сколько можно вернуть',
+   html:`<div class="calc">
+      <div class="row"><div class="lb">единиц контента в неделю</div>
+        <input type="range" id="cnt2" min="1" max="15" value="5"><div class="vv" id="cntv">5</div></div>
+      <div class="row"><div class="lb">часов на одну единицу сейчас</div>
+        <input type="range" id="hrs" min="1" max="8" step="0.5" value="3"><div class="vv" id="hrsv">3 ч</div></div>
+      <div class="res">
+        <div class="box"><div class="cap">сейчас в месяц</div><div class="big bad" id="now">0 ч</div>
+          <div class="sm" id="nowd">рабочих дней съедено</div></div>
+        <div class="box"><div class="cap">если сжать до 30 минут</div><div class="big ok" id="after">0 ч</div>
+          <div class="sm" id="afterd">освободится</div></div>
+      </div>
+    </div>`,
+   hint:'на записи: подставляю цифры зрителя и показываю, сколько он теряет',
+   init(root){
+     const cnt=root.querySelector('#cnt2'), hrs=root.querySelector('#hrs');
+     function upd(){
+       const c=Number(cnt.value), h=Number(hrs.value);
+       root.querySelector('#cntv').textContent=c;
+       root.querySelector('#hrsv').textContent=h+' ч';
+       const nowM=c*h*4.3, aftM=c*0.5*4.3, saved=nowM-aftM;
+       root.querySelector('#now').textContent=Math.round(nowM)+' ч';
+       root.querySelector('#nowd').textContent='это '+(nowM/8).toFixed(1)+' рабочих дней в месяц';
+       root.querySelector('#after').textContent=Math.round(aftM)+' ч';
+       root.querySelector('#afterd').textContent='освободится '+Math.round(saved)+' часов, это '+(saved/8).toFixed(1)+' рабочих дней';
+     }
+     cnt.addEventListener('input',upd); hrs.addEventListener('input',upd); upd();
+   }},
+
+  {k:'sec', n:'шаг 4', t:'коллекционируй,<br>а не создавай'},
+  {k:'st', t:'пилить доску — это работа', sub:'опилки от работы — это контент'},
+  {k:'st', t:'заполнить календарь заявками сложно', sm:true, sub:'а сделать скриншот календаря с заявками — просто'},
+  {k:'img', kicker:'пруф', src:'assets/kazah-491k.jpg', h:600,
+   cap:'ролик на 31 секунду, вырезанный из рабочего созвона: 189 тыс. через пять дней → 406 тыс. через три месяца → 491 609 сейчас'},
+  {k:'quote', kicker:'100+ созвонов лежали на диске',
+   t:['взял один, отправил монтажёру',
+      'он прислал хронометраж, мы утвердили, он нарезал',
+      'полное видео на ютубе — 2 200 просмотров и 30+ человек в телеграм',
+      'а одна из нарезок пошла в разгон',
+      'всё, что я сделал — отправил файл. пять минут моего времени']},
+  {k:'ix', kicker:'десять углов', t:'где искать контент, который у вас уже есть',
+   html:`<div class="angles">
+      <div class="angle"><b>что уже сделано</b>работа, о которой можно рассказать</div>
+      <div class="angle"><b>что можно записать</b>работу, которую вы и так делаете</div>
+      <div class="angle"><b>переписки</b>скриншоты диалогов, собеседника замазать</div>
+      <div class="angle"><b>что вы видите</b>чужой ролик, новость, острая тема</div>
+      <div class="angle"><b>цифры</b>скриншоты метрик и результатов</div>
+      <div class="angle"><b>вопросы</b>что спрашивают клиенты и подписчики</div>
+      <div class="angle"><b>переупаковка</b>длинное в короткое, короткое в текст</div>
+      <div class="angle"><b>повтор</b>то, что уже хорошо сработало</div>
+      <div class="angle"><b>победы</b>результаты клиентов, отзывы</div>
+      <div class="angle"><b>рабочие материалы</b>то, что делаете для работы</div>
+    </div>`},
+  {k:'st', t:'музей идей', sub:'одно место, куда падает всё, что пришло. не в голову, не в заметки, не в десять разных мест'},
+  {k:'list', kicker:'заведите отдельный телеграм-канал только для себя', t:'и кидайте туда всё подряд:',
+   items:['голосовое, пока мысль горячая — расшифруете потом',
+          'видео с телефона: как вы что-то делаете прямо сейчас',
+          'текст: формулировка, заголовок, фраза клиента',
+          'скриншоты: переписки, метрики, результаты',
+          'чужие ролики и посты, которые вас зацепили']},
+  {k:'st', t:'идея, которую вы не записали,<br>стоит ноль', sm:true,
+   sub:'а когда садитесь делать контент, вы не придумываете с нуля. вы приходите в музей и выбираете'},
+  {k:'img', kicker:'что если ваша жизнь уже голливуд', src:'assets/gory.jpg', h:520,
+   cap:'у меня из окна горы. я стараюсь их замечать, но они стали фоном. а для приехавшего впервые — отвал башки'},
+
+  {k:'sec', n:'шаг 5', t:'одна идея —<br>несколько заходов'},
+  {k:'st', t:'2–3 заголовка к одному сценарию — 5 минут', sm:true,
+   sub:'15 роликов превращаются в 45, и вы не потратили ни дня, ни денег'},
+  {k:'img', kicker:'про этот приём я снял отдельный ролик', src:'assets/reel-5zagolovkov.jpg', h:520,
+   cap:'679 тысяч просмотров и 30 тысяч сохранений'},
+
+  {k:'sec', n:'шаг 6', t:'своё время купить нельзя,<br>чужое — можно'},
+  {k:'list', kicker:'монтажёр — хранитель времени', t:'',
+   items:['15 роликов по 3 000 ₽ = 45 000, с пакетной скидкой ≈ 38 250',
+          'монтаж одного ролика ≈ час → вы покупаете 15 часов в месяц',
+          'с приёмом «одна идея — несколько заходов» это уже 45 часов, целая рабочая неделя']},
+  {k:'st', t:'если ваш прайс выше 40 000 ₽', sm:true, sub:'достаточно одного клиента с контента, чтобы это окупить'},
+  {k:'ix', kicker:'как идея двигается по этапам', t:'',
+   html:`<div class="board">
+      <div class="bcol"><div class="bhead">не начато</div></div>
+      <div class="bcol"><div class="bhead">в процессе</div></div>
+      <div class="bcol"><div class="bhead">съёмка</div></div>
+      <div class="bcol on"><div class="bhead">монтаж</div></div>
+      <div class="bcol"><div class="bhead">готово</div></div>
+      <div class="bcol"><div class="bhead">релиз</div></div>
+    </div>
+    <div class="bnote">никакой магии: идея не висит у вас в голове, а физически двигается по этапам</div>`},
+  {k:'list', kicker:'если денег на подрядчиков пока нет', t:'',
+   items:['бартер: тренер помогает монтажёру с фигурой, тот монтирует ему ролики',
+          'новички: берёте начинающего, он экспериментирует на вас',
+          'знакомые: просто просите друзей, пока не вышли на доход']},
+
+  {k:'sec', n:'шаг 7', t:'нейросети'},
+  {k:'st', t:'нейронка снимает рутину<br>вокруг уже готового материала', sm:true,
+   sub:'расшифровать созвон, вытащить тезисы, собрать описание, переложить длинное в короткое'},
+  {k:'st', t:'чего от неё ждать не надо —<br>что она придумает за вас смысл', sm:true, dark:true},
+  {k:'st', t:'толку от экономии времени нет,<br>если это не даёт результат', sm:true},
+
+  {k:'sec', n:'шаг 8', t:'регулярность против<br>вдохновения'},
+  {k:'st', t:'постоянно ≠ каждый день', sub:'постоянно = полгода-год, с ошибками и паузами'},
+  {k:'st', t:'а бывает, что расписание<br>не заходит вообще', sm:true,
+   sub:'и это не лень и не отсутствие дисциплины. человеку просто не подходит форма'},
+  {k:'st', t:'режим «фристайл»', sub:'ничего не готовите заранее. снимаете мысли по ходу того, что и так делаете'},
+  {k:'quote', kicker:'Женя · онлайн-тренер для бегунов',
+   t:['сколько мы ни внедряли ему подходы с расписанием — его выворачивало наизнанку',
+      'он бросал контент → клиентов становилось меньше → он снова заставлял себя',
+      'и так по кругу',
+      'всё поменялось, когда я предложил просто снимать свои мысли, пока он бегает',
+      'контент начал выходить постоянно, а клиенты пошли. даже без джекпотов']},
+  {k:'img', kicker:'полный разбор Жени у меня на ютуб канале', src:'assets/zhenya-youtube-cover.jpg', h:520},
+  {k:'st', t:'форма важнее графика', sm:true,
+   sub:'расписание — это костыль под то, что вам тяжело. если в своей форме вам легко, костыль не нужен'},
+
+  {k:'sec', n:'чего не делать', t:'антипаттерны<br>этого уровня'},
+  {k:'list', kicker:'четыре ловушки', t:'',
+   items:['«КАЧЕСТВО ВАЖНЕЕ СКОРОСТИ» — на этом уровне нет: качество вы оцениваете глазами, которые не умеют оценивать свою работу',
+          'ВЫЛИЗЫВАНИЕ ОДНОЙ ЕДИНИЦЫ — вложили день, планка улетела, а барабан крутится как крутился',
+          'ЖДАТЬ ПОДХОДЯЩЕГО МОМЕНТА — его не будет',
+          'РЕЗАТЬ СОН — это не сжатие времени, это кредит под конские проценты']},
+
+  {k:'sec', n:'итог', t:'саммари'},
+  {k:'st', t:'времени больше не станет', sm:true,
+   sub:'значит вопрос не в том, где его взять, а в том, как перестать его сливать'},
+  {k:'list', kicker:'сливается оно в трёх местах', t:'',
+   items:['на оценке того, что вы делаете',
+          'на отсутствии рамок',
+          'на том, что вы каждый раз создаёте с нуля вместо того, чтобы использовать готовое']},
+  {k:'list', kicker:'поэтому порядок такой', t:'', numbered:true,
+   items:['сначала снимаем оценку',
+          'потом ставим рамки времени',
+          'потом начинаем коллекционировать',
+          'и только потом покупаем чужое время']},
+
+  {k:'sec', n:'делаем руками', t:'задача уровня'},
+  {k:'list', kicker:'делаем руками', t:'', numbered:true,
+   items:['собрать черновик расписания на неделю и вписать контент отдельными блоками',
+          'взять одну единицу из того, что уже есть — ничего не создавая специально',
+          'поставить таймер и выложить то, что получилось. не докручивать после сигнала']},
+  {k:'st', t:'маркер: единица занимает столько,<br>сколько вы ей отвели', sm:true,
+   sub:'а не столько, сколько она захочет забрать', dark:true},
+
+  {k:'st', t:'и вот здесь всплывает вопрос,<br>которого раньше просто не было слышно', xs:true,
+   sub:'пока вы боролись с собой, потом с раздражением, потом со временем — вам было не до цифр'},
+  {k:'st', t:'а теперь процесс идёт спокойно,<br>контент выходит регулярно, время не горит', xs:true,
+   sub:'и становится очень заметно, что в ответ тишина. это пятый уровень, и он самый большой в курсе'},
+];
+Deck.build(SLIDES);
+</script>
+
+<script src="_doodle.js"></script>
+</body>
+</html>

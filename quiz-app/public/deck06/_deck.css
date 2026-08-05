@@ -1,0 +1,202 @@
+/* ============================================================
+   НОВЫЙ УРОВЕНЬ КОНТЕНТА — общий стиль презентаций
+   Стейдж 1920x1080, scale-to-viewport. Правая зона 607px = кадр камеры 9:16.
+   Клавиши: ← → листать, F весь экран, V скрыть рамку камеры.
+   ============================================================ */
+:root{
+  --accent:#e8590c;
+  --accent-soft:#fff1e8;
+  --ink:#14110f;
+  --muted:#6f6660;
+  --line:#ddd6d0;
+  --bg:#fdfcfa;
+  --ok:#2f9e44;
+  --bad:#c92a2a;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{background:#000;overflow:hidden;color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif;}
+
+#fit{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden;}
+#stage{position:relative;width:1920px;height:1080px;background:var(--bg);overflow:hidden;transform-origin:center center;flex:0 0 auto;}
+
+.dslide{position:absolute;inset:0;display:flex;opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .26s ease,visibility .26s;}
+.dslide.on{opacity:1;visibility:visible;pointer-events:auto;}
+/* .cfr.on внутри каруселей ставит visibility:visible и этим перебивает
+   скрытие своего неактивного слайда. Без pointer-events кадры каруселей
+   висят поверх всей деки и съедают клики по кнопкам других слайдов. */
+.dslide.dark{background:#14110f;color:#fff;}
+.dslide.dark .tiny,.dslide.dark .sub{color:#a9a19b;}
+.dslide.warm{background:var(--accent-soft);}
+
+/* левая зона — контент, правая — кадр камеры */
+.content{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:64px 84px;position:relative;}
+.c{width:100%;max-width:1150px;}
+body.nocam .vbox{display:none;}
+
+/* типографика */
+.st{font-size:76px;font-weight:800;line-height:1.08;letter-spacing:-.02em;}
+.st.sm{font-size:54px;}
+.st.xs{font-size:42px;line-height:1.2;}
+.num{font-size:210px;font-weight:800;line-height:.9;letter-spacing:-8px;}
+.num.grey{color:#b3aaa4;}
+.ac{color:var(--accent);}
+.sub{margin-top:24px;font-size:32px;color:var(--muted);font-weight:500;line-height:1.35;}
+.tiny{margin-top:20px;font-size:24px;color:var(--muted);}
+.cov{font-size:112px;font-weight:800;line-height:1.02;letter-spacing:-.03em;}
+.csub{margin-top:30px;font-size:40px;color:var(--muted);font-weight:500;}
+.kicker{font-size:26px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-weight:800;margin-bottom:22px;}
+.secn{font-size:28px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:800;margin-bottom:24px;}
+.sec{font-size:96px;font-weight:800;line-height:1.04;letter-spacing:-.02em;}
+
+/* списки */
+.list{text-align:left;display:flex;flex-direction:column;gap:20px;margin-top:10px;}
+.list li,.list .li{list-style:none;font-size:38px;line-height:1.3;padding-left:56px;position:relative;}
+.list .li:before{content:"";position:absolute;left:0;top:16px;width:26px;height:4px;background:var(--accent);}
+.list.num-list .li{padding-left:78px;counter-increment:n;}
+.list.num-list .li:before{content:counter(n);background:none;color:var(--accent);font-weight:800;font-size:34px;top:-2px;width:auto;height:auto;}
+.list{counter-reset:n;}
+
+/* цитата-врезка */
+.quote{text-align:left;border-left:6px solid var(--accent);padding:8px 0 8px 40px;font-size:36px;line-height:1.36;color:#2b2521;}
+.dslide.dark .quote{color:#e9e4e0;}
+
+/* картинка */
+.imgwrap{display:flex;align-items:center;justify-content:center;gap:34px;}
+.imgwrap img{max-width:100%;max-height:640px;object-fit:contain;border:1px solid var(--line);background:#fff;}
+.imgcap{margin-top:22px;font-size:26px;color:var(--muted);}
+
+/* карусель: кадр + контекст под ним */
+.carousel{width:100%;}
+.cfrs{position:relative;height:730px;cursor:pointer;}
+.cfr{position:absolute;inset:0;margin:0;display:flex;flex-direction:column;align-items:center;
+  opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s;}
+.cfr.on{opacity:1;visibility:visible;}
+.cfr img{max-width:100%;max-height:560px;height:auto;object-fit:contain;border:1px solid var(--line);background:#fff;}
+.cfr figcaption{margin-top:26px;max-width:960px;}
+.cfr figcaption b{display:block;font-size:32px;font-weight:800;line-height:1.2;margin-bottom:12px;}
+.cfr figcaption span{display:block;font-size:26px;line-height:1.4;color:var(--muted);}
+.cbar{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:8px;position:relative;}
+.carrow{width:54px;height:54px;border:2px solid var(--ink);background:#fff;color:var(--ink);
+  font-size:30px;line-height:1;cursor:pointer;font-family:inherit;transition:.15s;padding:0;}
+.carrow:hover:not(:disabled){background:var(--ink);color:#fff;}
+.carrow:disabled{opacity:.22;cursor:default;}
+.cdots{display:flex;gap:12px;}
+.cdot{width:13px;height:13px;padding:0;border:2px solid var(--ink);background:#fff;cursor:pointer;transition:.15s;}
+.cdot.on{background:var(--accent);border-color:var(--accent);}
+.ccnt{position:absolute;right:0;font-size:22px;color:#a79e98;letter-spacing:.06em;}
+
+/* таблица */
+table.t{width:100%;border-collapse:collapse;font-size:28px;text-align:left;}
+table.t th,table.t td{border-bottom:1px solid var(--line);padding:18px 20px;}
+table.t th{font-size:22px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:800;}
+table.t td.yes{color:var(--ok);font-weight:700;}
+table.t td.no{color:var(--bad);font-weight:700;}
+
+/* карточки */
+.cards{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;}
+.card{border:2px solid var(--ink);background:#fff;padding:30px 28px;min-width:280px;flex:1;max-width:360px;text-align:left;}
+.card h4{margin:0 0 14px;font-size:32px;}
+.card p{margin:0;font-size:24px;color:var(--muted);line-height:1.35;}
+
+/* интерактивная зона */
+.ix{width:100%;}
+/* подпись «на записи: ...» больше не выводим: налезала на контент */
+.ix-hint{display:none;}
+.btn{border:2px solid var(--ink);background:#fff;padding:16px 28px;font-size:26px;font-weight:700;cursor:pointer;
+  font-family:inherit;color:var(--ink);transition:.15s;}
+.btn:hover{background:var(--ink);color:#fff;}
+.btn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* правая зона: кадр камеры 9:16 */
+.vbox{flex:0 0 auto;width:607px;height:100%;position:relative;border-left:1px solid var(--line);background:#f6f3f0;}
+.dslide.dark .vbox{background:#0c0a09;border-left-color:rgba(255,255,255,.16);}
+.vguide{position:absolute;inset:28px;border:2px dashed var(--accent);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;opacity:.75;}
+.vguide .t{font-size:22px;font-weight:800;color:var(--accent);letter-spacing:.04em;}
+.vguide .s{font-family:"Courier New",monospace;font-size:15px;color:var(--muted);letter-spacing:.16em;text-transform:uppercase;}
+body.nocam .vbox{display:none;}
+
+/* хром */
+#pbar{position:absolute;top:0;left:0;height:5px;background:var(--accent);width:0;z-index:45;transition:width .3s ease;}
+#ctrl{position:absolute;left:60px;bottom:38px;display:flex;align-items:center;gap:18px;z-index:40;font-size:17px;color:var(--muted);}
+.ab{width:52px;height:52px;border:1px solid var(--ink);background:#fff;color:var(--ink);font-size:26px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;line-height:0;}
+.ab:hover{border-color:var(--accent);color:var(--accent);}
+#cnt{font-family:"Courier New",monospace;font-weight:bold;font-size:20px;color:var(--ink);letter-spacing:.05em;}
+#hint{font-size:14px;color:#b3aaa4;}
+.dslide.dark ~ #ctrl{color:#999;}
+
+/* ── СУФЛЁР: панель с текстом читки под слайдом ───────────────────────── */
+#fit{transition:height .2s;}
+body.prompt #fit{height:calc(100% - var(--ph,300px));}
+#prompter{position:fixed;left:0;right:0;bottom:0;height:var(--ph,300px);display:none;
+  background:#14110f;color:#f2ede9;border-top:3px solid var(--accent);z-index:60;}
+body.prompt #prompter{display:flex;}
+#prompter .meta{flex:0 0 250px;padding:20px 22px;border-right:1px solid rgba(255,255,255,.14);
+  display:flex;flex-direction:column;gap:8px;}
+#prompter .pn{font-family:"Courier New",monospace;font-size:26px;font-weight:bold;color:var(--accent);letter-spacing:.06em;}
+#prompter .pt{font-size:19px;font-weight:700;line-height:1.3;color:#fff;}
+#prompter .pd{font-size:15px;color:#8d8580;font-family:"Courier New",monospace;}
+#prompter .pnote{font-size:14px;color:#e8b45c;line-height:1.35;font-style:italic;margin-top:auto;}
+#prompter .say{flex:1;padding:22px 30px 22px 26px;overflow-y:auto;font-size:26px;line-height:1.45;}
+#prompter .say p{margin:0 0 12px;}
+#prompter .say::-webkit-scrollbar{width:10px;}
+#prompter .say::-webkit-scrollbar-thumb{background:#3a3330;border-radius:6px;}
+#prompter .side{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:14px 0;border-left:1px solid rgba(255,255,255,.14);}
+#prompter .side button{width:30px;height:30px;border:1px solid #4a423e;background:transparent;color:#b9b1ac;
+  cursor:pointer;font-size:15px;line-height:0;font-family:inherit;}
+#prompter .side button:hover{border-color:var(--accent);color:var(--accent);}
+#prompter .side .lbl{writing-mode:vertical-rl;font-size:11px;letter-spacing:.2em;color:#6b625d;text-transform:uppercase;}
+
+/* ── ВТОРОЙ СЛОЙ: полный текст блока (R) ──────────────────────────────── */
+#fulltext{position:fixed;top:0;right:0;bottom:0;width:46vw;min-width:520px;max-width:900px;
+  background:#fffdfb;border-left:3px solid var(--accent);z-index:70;display:none;flex-direction:column;
+  box-shadow:-18px 0 44px rgba(0,0,0,.28);}
+body.fulltext #fulltext{display:flex;}
+#fulltext .ft-top{flex:0 0 auto;padding:16px 22px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:14px;background:#fff;}
+#fulltext .ft-top .ttl{flex:1;font-size:17px;font-weight:800;}
+#fulltext .ft-top .sub{font-size:13px;color:var(--muted);font-family:"Courier New",monospace;}
+#fulltext .ft-top button{border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;
+  font-family:inherit;font-size:14px;padding:6px 12px;}
+#fulltext .ft-top button:hover{border-color:var(--accent);color:var(--accent);}
+#fulltext .ft-body{flex:1;overflow-y:auto;padding:20px 26px 60px;font-size:17px;line-height:1.5;}
+#fulltext .ft-sec{padding:14px 16px;margin:0 -16px 10px;border-radius:4px;}
+#fulltext .ft-sec.on{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent);}
+#fulltext .ft-sec h4{margin:0 0 10px;font-size:19px;letter-spacing:-.01em;}
+#fulltext .ft-sec p{margin:0 0 9px;}
+#fulltext .ft-sec p.ff-li{padding-left:18px;position:relative;}
+#fulltext .ft-sec p.ff-li:before{content:"·";position:absolute;left:6px;color:var(--accent);font-weight:800;}
+#fulltext .ft-sec p.ff-tbl{font-family:"Courier New",monospace;font-size:14px;color:var(--muted);white-space:pre-wrap;}
+#fulltext .ft-sec blockquote{margin:10px 0;padding:8px 0 8px 16px;border-left:3px solid var(--accent);color:#3d3531;}
+#fulltext .ft-sec blockquote p{margin:0 0 5px;font-size:16px;}
+#fulltext .ff-img{display:inline-block;font-family:"Courier New",monospace;font-size:13px;
+  color:#b45309;background:#fffbeb;border:1px dashed #f59e0b;padding:1px 7px;}
+#fulltext .ff-link{color:var(--accent);border-bottom:1px dotted var(--accent);}
+#fulltext code{font-size:13px;background:#f3efec;padding:1px 5px;}
+#fulltext .ft-body::-webkit-scrollbar{width:11px;}
+#fulltext .ft-body::-webkit-scrollbar-thumb{background:#d8d0ca;border-radius:6px;}
+
+/* пометка «нужен визуал» — видна только в режиме заметок (N) */
+.todo{display:none;position:absolute;left:60px;top:34px;max-width:900px;text-align:left;
+  font-family:"Courier New",monospace;font-size:19px;line-height:1.4;color:#b45309;background:#fffbeb;
+  border:1px dashed #f59e0b;padding:14px 18px;z-index:50;}
+body.notes .todo{display:block;}
+
+/* ── чистый кадр для записи экрана (клавиша K) ──────────────
+   Убирает весь интерфейс: суфлёр, стрелки, счётчик, подсказку,
+   прогресс-бар, полный текст и пунктирную рамку кадра камеры.
+   Зона камеры остаётся на месте, чтобы вёрстка слайдов не поехала.
+   Свернуть её целиком по-прежнему можно клавишей V. */
+body.clean #ctrl,
+body.clean #pbar,
+body.clean #prompter,
+body.clean #fulltext,
+body.clean .vguide,
+body.clean .todo{display:none !important;}
+body.clean #fit{height:100% !important;}

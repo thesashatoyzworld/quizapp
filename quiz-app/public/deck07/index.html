@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<base href="/deck07/">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Уровень 5">
+<meta name="robots" content="noindex">
+<title>Уровень 5 · Практика — времени хватает, а отклика нет</title>
+<link rel="stylesheet" href="_deck.css">
+<style>
+  .unit{display:flex;gap:18px;justify-content:center;max-width:1080px;margin:0 auto;}
+  .ub{flex:1;border:3px solid var(--ink);background:#fff;padding:26px 22px;text-align:left;transition:.25s;position:relative;}
+  .ub.off{opacity:.18;border-style:dashed;}
+  .ub .n{font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:800;}
+  .ub .h{font-size:36px;font-weight:800;margin:8px 0 10px;}
+  .ub .p{font-size:22px;color:var(--muted);line-height:1.35;}
+  .ub .tog{margin-top:16px;font-size:19px;border:2px solid var(--ink);background:#fff;padding:8px 14px;cursor:pointer;font-family:inherit;font-weight:700;}
+  .ub.off .tog{background:var(--bad);border-color:var(--bad);color:#fff;}
+  .unit-out{margin-top:28px;border-top:2px solid var(--ink);padding-top:22px;font-size:30px;line-height:1.4;min-height:120px;max-width:1080px;margin-left:auto;margin-right:auto;text-align:left;}
+  .unit-out b{color:var(--bad);}
+  .unit-out .ok{color:var(--ok);font-weight:800;}
+  .proofs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:1080px;margin:0 auto;text-align:left;}
+  .pf{border:2px solid var(--line);background:#fff;padding:18px 20px;}
+  .pf b{display:block;font-size:23px;margin-bottom:6px;}
+  .pf span{font-size:20px;color:var(--muted);line-height:1.35;}
+  .layers{display:flex;flex-direction:column;gap:10px;max-width:1000px;margin:0 auto;text-align:left;}
+  .ly{display:flex;gap:20px;align-items:baseline;border-bottom:1px solid var(--line);padding:12px 4px;}
+  .ly .n{font-size:24px;font-weight:800;color:var(--accent);min-width:38px;}
+  .ly .t{font-size:27px;font-weight:700;min-width:230px;}
+  .ly .d{font-size:22px;color:var(--muted);flex:1;}
+  .symp{display:flex;flex-direction:column;gap:10px;max-width:420px;}
+  .sy{border:2px solid var(--line);background:#fff;padding:14px 18px;font-size:25px;font-weight:700;cursor:pointer;transition:.15s;text-align:left;}
+  .sy:hover{border-color:var(--accent);}
+  .sy.on{border-color:var(--accent);background:var(--accent-soft);}
+  .troub{display:flex;gap:40px;max-width:1080px;margin:0 auto;text-align:left;}
+  .troub .right{flex:1;border-left:3px solid var(--line);padding-left:36px;min-height:280px;}
+  .troub .cause{font-size:32px;font-weight:800;margin-bottom:16px;}
+  .troub .k{font-size:20px;color:var(--accent);text-transform:uppercase;letter-spacing:.14em;font-weight:800;margin-bottom:8px;}
+  .troub .p{font-size:24px;line-height:1.45;color:var(--muted);}
+  .prior{display:flex;flex-direction:column;gap:10px;max-width:900px;margin:0 auto;text-align:left;}
+  .prior .pr{display:flex;align-items:center;gap:18px;border:2px solid var(--line);background:#fff;padding:14px 20px;}
+  .prior .pr .n{font-size:30px;font-weight:800;color:var(--accent);min-width:44px;}
+  .prior .pr .t{font-size:26px;font-weight:700;flex:1;}
+  .prior .pr .d{font-size:21px;color:var(--muted);max-width:420px;}
+  .prior .pr.top{border-color:var(--accent);background:var(--accent-soft);}
+  .nishi{display:flex;flex-direction:column;gap:12px;max-width:1120px;margin:0 auto;text-align:left;}
+  .ni{display:flex;gap:22px;align-items:baseline;border:2px solid var(--line);background:#fff;padding:14px 18px;}
+  .ni .nm{font-size:21px;font-weight:800;color:var(--accent);min-width:150px;text-transform:uppercase;letter-spacing:.06em;}
+  .ni .sm{font-size:25px;font-weight:700;flex:1;}
+  .ni .cm{font-size:19px;color:var(--muted);max-width:400px;line-height:1.35;}
+  .shots{display:flex;gap:14px;justify-content:center;max-width:1100px;margin:0 auto;}
+  .shots .sh{flex:1 1 0;display:flex;flex-direction:column;gap:9px;}
+  .shots .sh img{width:100%;height:400px;object-fit:contain;object-position:top;background:#fff;border:2px solid var(--ink);}
+  .shots .sh .cap{font-size:18px;text-transform:uppercase;letter-spacing:.06em;font-weight:800;color:var(--muted);text-align:center;line-height:1.25;}
+  .shots.two .sh img{height:440px;}
+  .shots.four .sh img{height:330px;}
+  .shots-note{margin-top:22px;font-size:23px;color:var(--muted);}
+  .vid{max-width:900px;margin:0 auto;}
+  .vid video{width:100%;display:block;border:3px solid var(--ink);background:#000;}
+  .lnk{font-size:17px;color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent);}
+  .lnk:hover{background:var(--accent-soft);}
+  .ni .lk{font-size:15px;margin-top:4px;}
+  .shots .sh .lk{text-align:center;font-size:15px;}
+  .rvids{display:flex;gap:16px;justify-content:center;max-width:1120px;margin:0 auto;}
+  .rv{flex:1 1 0;display:flex;flex-direction:column;gap:8px;}
+  .rv video{width:100%;height:430px;object-fit:contain;background:#000;border:2px solid var(--ink);display:block;}
+  .rv .who{font-size:20px;font-weight:800;text-align:center;}
+  .rv .st{font-size:17px;color:var(--muted);text-align:center;line-height:1.3;}
+  .rv .st b{color:var(--ink);}
+  .rvnote{margin-top:20px;font-size:21px;color:var(--muted);}
+  .rvids.duo .rv video{height:470px;}
+  .rvids.one{max-width:420px;}
+  .rvids.one .rv video{height:520px;}
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div id="pbar"></div>
+  <div id="deck"></div>
+  <div id="ctrl">
+    <div class="ab" data-dir="-1">‹</div>
+    <div class="ab" data-dir="1">›</div>
+    <div class="ab" id="fsbtn" title="весь экран (F)">⛶</div>
+    <span id="cnt">01 / 01</span>
+    <span id="hint">F — весь экран · ← → листать · V — кадр камеры · N — заметки · T — суфлёр · R — полный текст</span>
+  </div>
+</div></div>
+
+<script src="say/07.js"></script>
+<script src="full/07.js"></script>
+<script src="_deck.js"></script>
+<script>
+const TROUBLE = [
+  {sy:'Мало просмотров', cause:'Вы не цепляете внимание',
+   k:'то есть неинтересные первые 3–4 секунды',
+   p:'• подумать над отличительной фишкой, создать якорь<br>• сделать заголовок интереснее: покажите, что у вас есть ответ<br>• выбрать другую, более интересную идею'},
+  {sy:'Мало сохранений', cause:'Нет ценности, нечего сохранять',
+   k:'человеку нечего забрать с собой',
+   p:'• покажите решение визуально: на доске, в тетрадке, графикой в монтаже<br>• поменяйте идею на такую, которую можно показать'},
+  {sy:'Мало репостов', cause:'Люди не узнают в этом свою ситуацию',
+   k:'делятся тем, в чём узнают себя',
+   p:'• искать идеи, актуальные для зрителя: ютуб, форумы, гугл-запросы<br>• показывать ситуации, с которыми аудитория реально сталкивается'},
+  {sy:'Мало лайков', cause:'Слабая идея',
+   k:'лайк — это реакция на саму мысль',
+   p:'вернитесь к карте смыслов и проверьте идею по четырём категориям'},
+  {sy:'Мало комментариев', cause:'Нет эмоции, это никого не задевает',
+   k:'но паниковать не надо',
+   p:'комментарии сейчас в самом низу приоритета: все начали гонять ключевые слова, и площадка понизила их в рейтинге'}
+];
+
+const SLIDES = [
+  {k:'cover', t:'Уровень 5 · Практика', sub:'времени хватает, а отклика нет'},
+
+  {k:'st', t:'я не про техническую часть', sm:true,
+   sub:'хуки, заголовки и призывы к действию — это Формула Вирусного Контента. я про смысловую'},
+  {k:'cards', kicker:'три составляющих', t:'',
+   cards:[{h:'Смысл',p:'ключевая идея, которую мы продаём'},
+          {h:'Пруф',p:'доказательство, что этот смысл рабочий'},
+          {h:'Упаковка',p:'сладкая оболочка, чтобы человек это скушал'}]},
+
+  {k:'sec', n:'почему такой набор', t:'три вопроса,<br>которые задаёт человек'},
+  {k:'list', kicker:'он их не проговаривает, но задаёт всегда', t:'', numbered:true,
+   items:['«почему я вообще должен это смотреть» — отвечает упаковка',
+          '«почему я должен тебе верить» — отвечает пруф',
+          '«что ты мне говоришь» — и вот это уже смысл']},
+  {k:'st', t:'собираем от смысла,<br>а человек получает с конца', sm:true, dark:true},
+
+  {k:'ix', kicker:'тест на выкидывание', t:'уберите элемент и посмотрите, что сломается',
+   html:`<div class="unit">
+      <div class="ub" data-el="smysl"><div class="n">смысл</div><div class="h">Что я утверждаю</div>
+        <div class="p">«можно не тратить кучу времени на контент, который сдохнет за час»</div>
+        <button class="tog">убрать</button></div>
+      <div class="ub" data-el="pruf"><div class="n">пруф</div><div class="h">Чем я это держу</div>
+        <div class="p">статистика двух единиц: рилс за 3 минуты и карусель за 15 минут</div>
+        <button class="tog">убрать</button></div>
+      <div class="ub" data-el="upak"><div class="n">упаковка</div><div class="h">Как это заходит</div>
+        <div class="p">формат эксперимента: «я проверил на себе и показываю цифры»</div>
+        <button class="tog">убрать</button></div>
+    </div>
+    <div class="unit-out" id="uout"><span class="ok">всё на месте.</span> человек начинает смотреть, верит и забирает смысл</div>`,
+   hint:'на записи: выключаю элементы по одному и показываю, что остаётся',
+   init(root){
+     const state={smysl:true,pruf:true,upak:true};
+     const out=root.querySelector('#uout');
+     const texts=()=>{
+       const {smysl,pruf,upak}=state;
+       if(smysl&&pruf&&upak) return '<span class="ok">всё на месте.</span> человек начинает смотреть, верит и забирает смысл';
+       if(!upak&&smysl&&pruf) return '<b>без упаковки:</b> цифры и мысль остались, но их никто не увидит. до смысла просто не доберутся';
+       if(!pruf&&smysl&&upak) return '<b>без пруфа:</b> осталось «не тратьте много времени» — то есть мнение. таких мнений в ленте тысяча';
+       if(!smysl&&pruf&&upak) return '<b>без смысла:</b> красивый эксперимент с цифрами, из которого непонятно, что вы вообще утверждаете';
+       if(!smysl&&!pruf) return '<b>осталась только форма.</b> посмотрят и забудут через минуту';
+       if(!pruf&&!upak) return '<b>голое утверждение.</b> ни смотреть, ни верить';
+       if(!smysl&&!upak) return '<b>набор цифр без идеи и без входа.</b> это не контент, это отчёт';
+       return '<b>пусто.</b> ничего не осталось';
+     };
+     root.querySelectorAll('.ub').forEach(b=>{
+       b.querySelector('.tog').addEventListener('click',()=>{
+         const k=b.dataset.el; state[k]=!state[k];
+         b.classList.toggle('off',!state[k]);
+         b.querySelector('.tog').textContent = state[k]?'убрать':'вернуть';
+         out.innerHTML=texts();
+       });
+     });
+   }},
+
+  {k:'sec', n:'часть 1', t:'смысл'},
+  {k:'st', t:'это то, что вы утверждаете', sub:'одно предложение, которое можно записать и за которое вы готовы биться'},
+  {k:'st', t:'не тема и не идея для рилса', sub:'а именно утверждение, с которым можно спорить'},
+
+  {k:'sec', n:'инструмент', t:'как собрать<br>свою карту смыслов'},
+  {k:'quote', kicker:'принцип', t:['хороший маркетинг не о том, чтобы рассказать про тысячу идей одним способом',
+      'хороший маркетинг о том, чтобы рассказать про одну идею — тысячей способов']},
+  {k:'list', kicker:'почему это вообще важно', t:'огромная проблема людей в том, что они постоянно транслируют разные идеи',
+   items:['людям непонятно, когда вы скачете между темами',
+          'людям нужно несколько раз повторить одно и то же, чтобы они это запомнили',
+          'алгоритмы из-за этого не понимают, кому вас показывать']},
+  {k:'st', t:'и главное: карта смыслов<br>продаёт ваши идеи', sm:true,
+   sub:'перед покупкой продукта, услуги или товара важно сначала продать идею. все знают девиз авиасейлс не потому, что они делают разное — они продают одну идею тысячей способов'},
+  {k:'list', kicker:'вот моя карта смыслов, она простая', t:'',
+   items:['алгоритмы — это казино, только навык даёт стабильные результаты',
+          'для заработка в онлайне не нужно много подписчиков',
+          'продающий контент привлекает клиентов, полезный — любителей халявы',
+          'ты = ниша',
+          'личный бренд — это про доверие между автором и аудиторией']},
+  {k:'st', t:'это не идеи для рилсов<br>и не темы постов', sm:true,
+   sub:'это смысловые ядра, которые я закладываю в каждую контентную единицу. они могут меняться со временем: какие-то идеи продаются хорошо, какие-то плохо'},
+
+  {k:'ix', kicker:'лучше меня об этом расскажет Ди Каприо и фильм «Начало»', t:'',
+   html:`<div class="vid"><video src="assets/karta-kino.mp4" controls playsinline preload="metadata"></video></div>`,
+   hint:'на записи: включаю кусок, дальше панч про идею'},
+  {k:'st', t:'идея', sm:true, dark:true,
+   sub:'и стоит человеку купить вашу идею — избавиться от неё он уже не сможет'},
+
+  {k:'sec', n:'вариант 1', t:'взять идею,<br>которую уже покупают'},
+  {k:'st', t:'посмотрите на коллег, у которых есть аудитория и деньги', sm:true,
+   sub:'если свести весь их контент к трём смыслам — что это будет?'},
+  {k:'ix', kicker:'три примера', t:'',
+   html:`<div class="nishi">
+      <div class="ni"><div class="nm">Фитнес</div><div class="sm">единственное, почему вы худеете — дефицит калорий
+        <div class="lk"><a class="lnk" href="https://www.instagram.com/reel/DHuT9l8oOgw/" target="_blank">смотреть ролик Макса ↗</a></div></div>
+        <div class="cm">все ролики Макса сводятся к одному тезису: жри чо хочешь, главное дефицит. там даже не карта, а один смысл</div></div>
+      <div class="ni"><div class="nm">Психология</div><div class="sm">ваша жизнь — это ваша ответственность
+        <div class="lk"><a class="lnk" href="https://www.instagram.com/reel/DN3ri5HQL89/" target="_blank">смотреть ролик Петра ↗</a></div></div>
+        <div class="cm">все ролики Петра про то, что человек перекладывает ответственность на других</div></div>
+      <div class="ni"><div class="nm">Маркетинг</div><div class="sm">формат — это то, благодаря чему вы набираете подписчиков
+        <div class="lk"><a class="lnk" href="https://www.instagram.com/reel/DZBZRibsyZn/" target="_blank">смотреть ролик Егора ↗</a></div></div>
+        <div class="cm">Егор транслирует одну истину: найди свой формат, и всё начнёт работать</div></div>
+    </div>`,
+   hint:'их смысл уже сработал — значит на него есть спрос'},
+  {k:'ix', kicker:'вот эти ролики, первые секунды', t:'',
+   html:`<div class="rvids">
+      <div class="rv"><video src="assets/reel-petr-psiho.mp4" controls playsinline preload="none"></video>
+        <div class="who">@petrosipov1</div>
+        <div class="st"><b>5,9 млн</b> просмотров · 187 тыс. лайков<br>8 679 комментариев · 1:28</div></div>
+      <div class="rv"><video src="assets/reel-egor-format.mp4" controls playsinline preload="none"></video>
+        <div class="who">@cherepanov.blog</div>
+        <div class="st"><b>1,1 млн</b> просмотров · 44,7 тыс. лайков<br>531 комментарий · 1:37</div></div>
+    </div>
+    <div class="rvnote">ролик Макса про дефицит калорий открыт только подписчикам — <a class="lnk" href="https://www.instagram.com/reel/DHuT9l8oOgw/" target="_blank">смотреть в инстаграме ↗</a></div>`,
+   hint:'включаю первые секунды каждого — слышно, что смысл один и тот же'},
+  {k:'st', t:'эго начнёт капризничать:<br>«нам надо СВОЁ, мы хотим быть УНИКАЛЬНЫМИ»', sm:true,
+   sub:'идеи и смыслы — это ноты. ещё ни один человек не написал симфонию, используя какие-то другие ноты'},
+  {k:'st', t:'со временем чужие смыслы<br>обретут тот вид, который подходит вам', sm:true,
+   sub:'делаем руками: найдите 3–5 коллег, посмотрите по 10 их рилсов и выпишите 1–3 идеи, которые тянутся из раза в раз'},
+
+  {k:'sec', n:'вариант 2', t:'взять то, во что<br>вы сами верите'},
+  {k:'st', t:'выпишите тезисы, за которые<br>готовы биться до последнего', sm:true,
+   sub:'большинство маркетологов скажет «берите то, что покупают» — и это правда только отчасти'},
+  {k:'cards', kicker:'если вы не верите в то, что говорите', t:'',
+   cards:[{h:'либо вас не будут смотреть и покупать',p:'люди чувствуют, когда их пытаются наколоть'},
+          {h:'либо это сработает',p:'и вы станете заложником чуши, которую теперь придётся нести постоянно'}]},
+  {k:'st', t:'мой пример — контент<br>про алгоритм, инсту и казино', sm:true,
+   sub:'с одной стороны я сам себе стреляю в ноги. с другой — я не могу НЕ говорить об этом, потому что знаю это наверняка, протестировал и доказал'},
+  {k:'list', kicker:'делаем руками, три способа', t:'', numbered:true,
+   items:['записать в тетрадь или заметки то, во что вы верите — можно просто потоком, ключевое вытащить после',
+          'включить камеру и рассказать на неё, потом закинуть расшифровку в нейронку',
+          'сразу рассказать нейронке по промпту «карта смыслов»']},
+  {k:'st', t:'на выходе — 3–5 смыслов', sm:true, dark:true,
+   sub:'вокруг них мы дальше танцуем и тестируем, как они работают. это задача на один час: не надо усложнять и искать что-то уникальное'},
+  {k:'img', kicker:'из одного смысла получается много единиц', src:'assets/shema-chto-pochemu-gde.jpg', h:560,
+   cap:'проблема · результат · идея × почему и где = шесть разных единиц из одного смысла'},
+
+  {k:'sec', n:'часть 2', t:'пруф'},
+  {k:'st', t:'здесь у людей чаще всего каша', sm:true, sub:'потому что пруф путают с упаковкой'},
+  {k:'cards', kicker:'как различить', t:'',
+   cards:[{h:'Убрали → стало мнением',p:'верить нечему → это был пруф'},
+          {h:'Убрали → стало скучно',p:'никто не досмотрит → это была упаковка'}]},
+  {k:'ix', kicker:'шесть видов', t:'что может быть пруфом',
+   html:`<div class="proofs">
+      <div class="pf"><b>Ваш результат</b><span>эксперимент с 3 и 15 минутами, 40 тысяч подписчиков за пять месяцев</span></div>
+      <div class="pf"><b>Результат клиента</b><span>Наташа с 44 подписчиками, Женя с 470, Вася с 1 500</span></div>
+      <div class="pf"><b>Ваш замер</b><span>два аккаунта в приложении: один файл дал 5 879 и 360 576</span></div>
+      <div class="pf"><b>Чужие публичные данные</b><span>80 роликов главы Инстаграма, документы площадок</span></div>
+      <div class="pf"><b>Показ процесса</b><span>скриншот доски, таблица, запись экрана. вы пилите доску на виду</span></div>
+      <div class="pf"><b>Ваш провал</b><span>семь роликов ниже 5 000 с профессиональным оператором</span></div>
+    </div>`},
+  {k:'img', kicker:'мой провал как пруф', src:'assets/proval-operator.jpg', h:520,
+   cap:'1 981 · 2 316 · 1 930. профессиональная съёмка, свет, монтаж — и именно это доказывает мой смысл лучше любого успешного ролика'},
+  {k:'st', t:'провал перестал быть провалом<br>в тот момент, когда стал доказательством', sm:true, dark:true},
+
+  {k:'sec', n:'а если нечем', t:'у меня своих<br>результатов ещё нет'},
+  {k:'ix', kicker:'пруфом может быть не результат, а процесс и честность',
+   t:'показывайте, как вы делаете, что пробуете и что из этого выходит. включая то, что не вышло',
+   html:`<div class="rvids one"><div class="rv">
+        <video src="assets/reel-sasha-sistema.mp4" controls playsinline preload="none"></video>
+        <div class="who">@thesashatoyz · 11 мая 2023</div>
+        <div class="st"><b>37 262</b> проигрывания · 28 126 просмотров<br>1 661 лайк · 18 комментариев · 0:31</div></div></div>
+      <div class="rvnote">мой первый ролик, который набрал тридцать тысяч. никаких результатов у меня тогда не было — я просто показал свою систему создания контента</div>`,
+   hint:'на записи: включаю ролик целиком, дальше панч про то, кому верят'},
+  {k:'st', t:'человек верит не тому, у кого больше', sm:true, sub:'а тому, кто не врёт'},
+
+  {k:'sec', n:'часть 3', t:'упаковка'},
+  {k:'st', t:'это то, как смысл заходит в человека', sm:true, sub:'не как выглядит, а как заходит'},
+  {k:'list', kicker:'ядро одно, вход разный', t:'',
+   items:['«делайте полезный контент» → «делайте продающий контент»',
+          '«снимайте рилсы каждый день» → «можно не снимать каждый день»',
+          '«у женщины должен быть плоский живот» → «у женщины по природе должен быть живот»']},
+  {k:'ix', kicker:'четыре слоя', t:'из чего собирается упаковка',
+   html:`<div class="layers">
+      <div class="ly"><div class="n">1</div><div class="t">Заход</div><div class="d">первые 3 секунды или первый слайд. единственное, что можно честно взять у другого автора</div></div>
+      <div class="ly"><div class="n">2</div><div class="t">Угол</div><div class="d">старая проблема под новым углом: берёте то, что говорят все, и находите противоположное</div></div>
+      <div class="ly"><div class="n">3</div><div class="t">Позиция к зрителю</div><div class="d">снимаете вину или тыкаете в проблему. снятие вины работает в шесть раз лучше</div></div>
+      <div class="ly"><div class="n">4</div><div class="t">Язык</div><div class="d">не «выстроить систему контента с учётом потока спроса», а «делаю ролики, их никто не смотрит»</div></div>
+    </div>`},
+  {k:'cards', kicker:'если совсем коротко, упаковка бывает двух видов', t:'',
+   cards:[{h:'Рабочий или свежий формат',p:'то, что уже заходит у других, или то, чего в вашей нише ещё никто не делал'},
+          {h:'Что-то интересное само по себе',p:'инфоповод, событие, исследование, эксперимент, неожиданный факт, новость'}]},
+
+  {k:'st', t:'как искать углы руками', sm:true,
+   sub:'соберите список того, что сейчас в тренде и что говорит большинство. напротив каждого пункта напишите противоположное мнение — там, где оно у вас правда есть. это даёт огромный пласт идей'},
+
+  {k:'sec', n:'где брать заходы', t:'поток спроса'},
+  {k:'st', t:'заход — единственное, что можно<br>честно взять у другого автора', sm:true,
+   sub:'что такое поток спроса, разобрали в теории. теперь как искать его руками'},
+  {k:'st', t:'давайте «пиздить» правильно', sm:true, dark:true,
+   sub:'я не говорю копировать один в один. карта смыслов у вас уже собрана — берём свои смыслы, а заходы и упаковку те, которые сработали'},
+  {k:'ix', kicker:'карусель коллеги «просто публикуйте всё подряд», 27 тыс. лайков', t:'я собрал на этом заходе свои:',
+   html:`<div class="shots">
+      <div class="sh"><img src="assets/ps-kollega-original.jpg" alt=""><div class="cap">оригинал коллеги</div></div>
+      <div class="sh"><img src="assets/ps-moy-zahod-1.jpg" alt=""><div class="cap">мой первый заход</div></div>
+      <div class="sh"><img src="assets/ps-moy-zahod-2.jpg" alt=""><div class="cap">второй заход</div></div>
+    </div>
+    <div class="shots-note">от её карусели там только первая страница. тезисы в каждой я давал свои</div>`},
+  {k:'list', kicker:'три возражения, которые я слышу', t:'',
+   items:['«фу, копировать чужое стрёмно» — я не копировал, а взял рабочий заход',
+          '«так ты ж не набрал 27 тысяч лайков» — а нахрена мне столько? я собрал охваты, подписчиков и клиентов. задача выполнена',
+          '«я пробовал копировать, это не работает» — хреново пробовали']},
+  {k:'ix', kicker:'пример клиента: два одинаковых ролика в разное время', t:'',
+   html:`<div class="shots two">
+      <div class="sh"><img src="assets/ps-zhenya-1.jpg" alt=""><div class="cap">первый заход</div></div>
+      <div class="sh"><img src="assets/ps-zhenya-2.jpg" alt=""><div class="cap">второй заход</div></div>
+    </div>
+    <div class="shots-note">оригинал я нашёл на ютубе, начало взяли оттуда и подставили тезисы и позицию Жени. для аккаунта в 470 подписчиков это отличные промежуточные результаты</div>`},
+  {k:'st', t:'мы не влияем на то,<br>будет джекпот или нет', sm:true,
+   sub:'мы влияем только на то, что выкладываем и как часто. охваты, лайки и подписчики — уже на стороне алгоритма'},
+  {k:'img', kicker:'Наташа · аккаунт на 44 подписчика', src:'assets/ps-natasha.jpg', h:540,
+   cap:'двигались ровно по методологии — и как только подключили поток спроса, результаты пришли с первого же видео'},
+
+  {k:'sec', n:'четыре способа', t:'как искать<br>поток спроса'},
+  {k:'list', kicker:'что именно ищем', t:'то, что уже работает',
+   items:['в вашей нише или смежной',
+          'на русском или английском — второе для продвинутых',
+          'на уровне идей или на уровне форматов']},
+  {k:'st', t:'можно сразу через нейронку', sm:true,
+   sub:'но я предложил бы выделить часик и потыкать руками, чтобы понять принцип'},
+
+  {k:'sec', n:'способ 1', t:'поиск на ютубе'},
+  {k:'st', t:'ютуб прекрасен тем, что на нём<br>есть нормальный поиск по запросам', sm:true,
+   sub:'цель — найти короткие видео из вашей ниши. покажу на примере Жени, как я искал темы для него'},
+  {k:'img', kicker:'шаг 1 — ключевое слово из ниши', src:'assets/ps-youtube-1.png', h:520},
+  {k:'img', kicker:'шаг 2 — фильтр: шортс · по популярности · за год или месяц', src:'assets/ps-youtube-2.png', h:520},
+  {k:'img', kicker:'шаг 3 — смотрим ролики и берём заходы', src:'assets/ps-youtube-3.png', h:540,
+   cap:'показательно, что тут чувак просто в тачке сидит и говорит в камеру — ничего особенного. а значит тема горячая и имеет спрос'},
+  {k:'list', kicker:'что это даёт', t:'',
+   items:['заходы — начала роликов, которые уже сработали',
+          'телеграм-каналы и инстаграмы коллег: на ютуб-каналах они обычно указаны',
+          'рабочие заголовки для рилсов и каруселей']},
+
+  {k:'sec', n:'способ 2', t:'инстаграмы коллег,<br>лента и дискавери'},
+  {k:'list', kicker:'три места, где смотреть', t:'', numbered:true,
+   items:['подписаться на коллег и следить, что у них хорошо набирает',
+          'своя лента рекомендаций — туда попадает похожий контент',
+          'лента дискавери: жмёте поиск внизу, и инстаграм сам показывает, что рекомендует под ваши интересы']},
+  {k:'img', kicker:'вот так это выглядит', src:'assets/ps-discovery.jpg', h:560,
+   cap:'находите контент, который попадает в эту ленту, — и попадаете в неё сами'},
+
+  {k:'sec', n:'способ 3', t:'контент на английском<br><span class="ac">для продвинутых</span>'},
+  {k:'st', t:'95% контента копируется<br>на наш рынок оттуда', sm:true,
+   sub:'от форматов до смыслов. тот же поиск на ютубе плюс лента инстаграма. если с английским туго — помогут нейронки или яндекс-браузер с переводом'},
+  {k:'ix', kicker:'так я нашёл тему «продающий контент»', t:'',
+   html:`<div class="rvids one">
+      <div class="rv"><video src="assets/reel-prodayushchiy.mp4" controls playsinline preload="none"></video>
+        <div class="who">@jayhiette</div>
+        <div class="st"><b>654 тыс.</b> просмотров · 22,9 тыс. лайков<br>10 782 комментария · 0:56</div></div>
+    </div>
+    <div class="rvnote">я уже видел подобное, но не мог найти слова, которое описывало бы контент, направленный на привлечение клиентов. после этого ролика название пришло само — <a class="lnk" href="https://www.instagram.com/reel/DDt6nqviy9J/" target="_blank">ролик целиком ↗</a></div>`},
+  {k:'ix', kicker:'и дальше я сделал несколько роликов вокруг этой темы', t:'каждый раз они набирали и давали результат:',
+   html:`<div class="shots four">
+      <div class="sh"><img src="assets/ps-prodayushchiy-1.jpg" alt=""></div>
+      <div class="sh"><img src="assets/ps-prodayushchiy-2.jpg" alt=""></div>
+      <div class="sh"><img src="assets/ps-prodayushchiy-3.jpg" alt=""></div>
+      <div class="sh"><img src="assets/ps-prodayushchiy-4.jpg" alt=""></div>
+    </div>`},
+  {k:'ix', kicker:'то же самое работает с форматом', t:'',
+   html:`<div class="rvids duo">
+      <div class="rv"><video src="assets/reel-format-original.mp4" controls playsinline preload="none"></video>
+        <div class="who">оригинал · @andrea.rendl</div>
+        <div class="st"><b>1,87 млн</b> просмотров · 150 тыс. лайков<br>1 293 комментария · 2:46</div></div>
+      <div class="rv"><video src="assets/reel-format-kopiya.mp4" controls playsinline preload="none"></video>
+        <div class="who">копия на русском · @coachmatiunin</div>
+        <div class="st"><b>3,24 млн</b> просмотров · 207 тыс. лайков<br>2 440 комментариев · 1:48</div></div>
+    </div>
+    <div class="rvnote">и обратите внимание: копия собрала больше оригинала. если формат вам отзывается — можно даже не подставлять свои тезисы, просто отметьте автора</div>`},
+  {k:'st', t:'сейчас вы работаете на зачётку.<br>затем зачётка работает на вас', sm:true, dark:true,
+   sub:'уникальность и удовлетворение эго отложим на следующий шаг. наберёте просмотры и аудиторию — там и будете экспериментировать'},
+
+  {k:'sec', n:'способ 4', t:'инстаграмы<br>через нейронку'},
+  {k:'st', t:'нейронка сама листает ленту<br>и собирает заходы', sm:true,
+   sub:'нужен компьютер: через браузер телефона или приложение не сработает. вы даёте нейронке доступ к браузеру, она открывает странички, листает и делает скриншоты'},
+  {k:'img', kicker:'на выходе один файл вот такого вида', src:'assets/ps-neyronka.png', h:540,
+   cap:'то, что заняло бы у вас 2–3 часа, нейронка делает за 15–20 минут'},
+  {k:'st', t:'на выходе — 10 рабочих заходов', sm:true, dark:true,
+   sub:'не текст целиком и не чужие тезисы. только заход: первые три секунды ролика или первый слайд карусели. дальше берёте свои смыслы из карты и раскрываете их через эти заходы'},
+
+  {k:'sec', n:'важно', t:'упаковка — это<br>не про красоту'},
+  {k:'st', t:'монтаж, шрифты, свет, вылизанная картинка', sm:true, sub:'это оформление, и оно почти ничего не решает'},
+  {k:'list', kicker:'мои же цифры', t:'',
+   items:['рилс за 3 минуты без монтажа — 12 297 просмотров, 55 подписок',
+          'карусель за 15 минут — 89 140 просмотров, 221 подписка',
+          'семь роликов с профессиональным оператором и краской — меньше 5 000']},
+  {k:'st', t:'люди путают упаковку с оформлением', sm:true,
+   sub:'и потом четыре часа вылизывают то, что вообще ни на что не влияет', dark:true},
+
+  {k:'sec', n:'не путать', t:'форма ≠ упаковка'},
+  {k:'cards', kicker:'слова похожие, вещи разные', t:'',
+   cards:[{h:'Форма — про вас',p:'в чём вам комфортно создавать. отвечает на «как бы это было, если бы было легко». это третий уровень'},
+          {h:'Упаковка — про зрителя',p:'как ему это заходит. отвечает на «почему он это возьмёт». это пятый уровень'}]},
+  {k:'st', t:'можно быть в правильной форме<br>и в мёртвой упаковке', sm:true,
+   sub:'комфортно писать посты, которые никто не читает. это и есть переход с третьего уровня на пятый'},
+
+  {k:'sec', n:'механика', t:'умножение'},
+  {k:'st', t:'как понять, какой заголовок верный?', sub:'никак. поэтому — сделайте все'},
+  {k:'st', t:'3 хука × 4 призыва = <span class="ac">12 единиц</span>', sm:true, sub:'из одной идеи'},
+
+  {k:'sec', n:'метод', t:'гипотезы'},
+  {k:'list', kicker:'как это собирается в работу', t:'', numbered:true,
+   items:['берём тему из потока спроса',
+          'делаем 7–14 единиц в своём голосе, со своими смыслами',
+          'через две недели смотрим данные',
+          'удваиваем на том, что сработало, или разворачиваемся']},
+  {k:'st', t:'отсутствие результатов — тоже результат', sm:true,
+   sub:'это информация, благодаря которой можно сделать манёвр'},
+
+  {k:'sec', n:'диагностика', t:'докрутка:<br>куда смотреть, если не идёт'},
+  {k:'ix', kicker:'выберите свой симптом', t:'работаем как в траблшутинге — по причинам, а не наугад',
+   html:`<div class="troub">
+      <div class="symp" id="symp">${TROUBLE.map((t,i)=>`<div class="sy" data-i="${i}">${t.sy}</div>`).join('')}</div>
+      <div class="right" id="troubout"><div class="p" style="opacity:.55">нажмите на симптом слева</div></div>
+    </div>`,
+   hint:'на записи: прохожу по симптомам сверху вниз',
+   init(root){
+     const out=root.querySelector('#troubout');
+     root.querySelectorAll('.sy').forEach(el=>{
+       el.addEventListener('click',()=>{
+         root.querySelectorAll('.sy').forEach(x=>x.classList.remove('on'));
+         el.classList.add('on');
+         const t=TROUBLE[Number(el.dataset.i)];
+         out.innerHTML=`<div class="cause">${t.cause}</div><div class="k">${t.k}</div><div class="p">${t.p}</div>`;
+       });
+     });
+   }},
+  {k:'ix', kicker:'приоритет метрик', t:'в каком порядке смотреть',
+   html:`<div class="prior">
+      <div class="pr top"><div class="n">1</div><div class="t">Доля пропусков</div><div class="d">самая важная. больше 45% — ролик скипают, работаем над началом</div></div>
+      <div class="pr"><div class="n">2</div><div class="t">Досматриваемость</div><div class="d">влиять сложнее: интересное начало + ответ в конце, интрига до финала</div></div>
+      <div class="pr"><div class="n">3</div><div class="t">Сохранения</div><div class="d">самое податливое: рецепты, методички, списки, инструкции</div></div>
+      <div class="pr"><div class="n">4</div><div class="t">Шейры</div><div class="d">делятся, когда узнают себя, через знакомые ситуации</div></div>
+      <div class="pr"><div class="n">5</div><div class="t">Лайки и комментарии</div><div class="d">в самом низу приоритета</div></div>
+    </div>`,
+   hint:'докрутите один пункт — увидите промежуточные результаты. три первых — полетите'},
+
+  {k:'sec', n:'итог', t:'как этим<br>пользоваться руками'},
+  {k:'list', kicker:'перед публикацией проверьте три строчки', t:'', numbered:true,
+   items:['что я утверждаю — одним предложением',
+          'чем я это держу — какой у меня пруф и из какого он списка',
+          'как это заходит — какой заход, какой угол, на чьём языке']},
+  {k:'st', t:'пусто на второй — вы выкладываете мнение', sm:true,
+   sub:'пусто на третьей — мнение, которое никто не увидит'},
+  {k:'st', t:'задача: разложите три свои<br>последние единицы', sm:true,
+   sub:'не переделывайте, просто разложите. увидите, чего у вас системно не хватает', dark:true},
+
+  {k:'st', t:'когда вы поняли, что у вас работает,<br>появляется соблазн делать этого больше', xs:true,
+   sub:'и вот здесь большинство ломает себе всё, что собирало пять уровней'},
+  {k:'st', t:'потому что «больше»<br>почти всегда читается как «больше пахать»', xs:true,
+   sub:'на шестом уровне разбираем, как получить больше результата с тех же усилий, а не удвоить нагрузку и откатиться обратно'},
+];
+Deck.build(SLIDES);
+</script>
+
+<script src="_doodle.js"></script>
+</body>
+</html>
