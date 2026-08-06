@@ -48,12 +48,12 @@ function KursInner() {
   const [wm, setWm] = useState('');
   const [open, setOpen] = useState<{ title: string; html: string } | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
-  const [preview, setPreview] = useState(false);
+  const [preview, setPreview] = useState('');
 
   useEffect(() => {
-    // ?preview=1 — превью вёрстки при локальной разработке (сервер пускает
-    // только вне продакшена).
-    const prev = new URLSearchParams(window.location.search).get('preview') === '1';
+    // ?preview=… — превью для ревью: значение просто пробрасываем на сервер,
+    // пускать или нет решает он (локальная разработка либо ревью-ссылка).
+    const prev = new URLSearchParams(window.location.search).get('preview') || '';
     setPreview(prev);
 
     let stop = false;
@@ -72,7 +72,7 @@ function KursInner() {
       try {
         const qs = new URLSearchParams();
         if (id) qs.set('telegramId', String(id));
-        if (prev) qs.set('preview', '1');
+        if (prev) qs.set('preview', prev);
         const res = await fetch(`/api/cabinet/kurs${qs.toString() ? `?${qs}` : ''}`);
         const data = await res.json();
         if (stop) return;
@@ -92,7 +92,7 @@ function KursInner() {
     try {
       const qs = new URLSearchParams({ slug: card.slug });
       if (tgId) qs.set('telegramId', String(tgId));
-      if (preview) qs.set('preview', '1');
+      if (preview) qs.set('preview', preview);
       if (wm) qs.set('wm', wm);
       const res = await fetch(`/api/cabinet/kurs?${qs}`);
       const data = await res.json();

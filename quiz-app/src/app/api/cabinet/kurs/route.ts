@@ -5,6 +5,9 @@ import { LESSONS, KURS_MIN_TIER, KURS_ROLE, findLesson, toCard } from '@/content
 
 export const runtime = 'nodejs';
 
+// ⚠️ ВРЕМЕННО: секрет ревью-ссылки для Саши, снять перед мёржем в master.
+const PREVIEW_SECRET = 'kurs-2026-sasha';
+
 // Уроки курса «Новый уровень контента» отдаём только с сервера и только тем,
 // у кого активен доступ: статья это и есть продукт, в клиентский бандл её не кладём.
 //
@@ -55,8 +58,16 @@ export async function GET(request: NextRequest) {
   try {
     // Превью вёрстки при локальной разработке. На Vercel NODE_ENV=production,
     // так что в проде ветка мертва.
-    const devPreview = process.env.NODE_ENV !== 'production'
-      && request.nextUrl.searchParams.get('preview') === '1';
+    const q = request.nextUrl.searchParams.get('preview');
+    const devPreview = process.env.NODE_ENV !== 'production' && q === '1';
+
+    // ⚠️ ВРЕМЕННО: ссылка Саше на ревью до открытия курса. Работает только на
+    // превью-деплоях Vercel — на боевых доменах курс всё равно за гейтом.
+    // УБРАТЬ перед мёржем в master.
+    const host = request.headers.get('host') || '';
+    const reviewLink = q === PREVIEW_SECRET && host.endsWith('.vercel.app');
+
+    const bypass = devPreview || reviewLink;
 
     let telegramId: number | null = null;
     const qId = request.nextUrl.searchParams.get('telegramId');
@@ -67,12 +78,12 @@ export async function GET(request: NextRequest) {
       telegramId = verifySession(request.cookies.get(SESSION_COOKIE)?.value, secret);
     }
 
-    if (!telegramId && !devPreview) {
+    if (!telegramId && !bypass) {
       return NextResponse.json({ success: true, identified: false, allowed: false, tier: 0, items: [] });
     }
 
     const rows = telegramId ? await getActiveAccessByTelegram(telegramId) : [];
-    const tier = devPreview
+    const tier = bypass
       ? KURS_MIN_TIER
       : rows
           .filter((r) => r.role === KURS_ROLE)
