@@ -49,6 +49,9 @@ function KursInner() {
   const [open, setOpen] = useState<{ title: string; html: string } | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
   const [preview, setPreview] = useState('');
+  // Пройденные уроки. Приезжают с сервера, дополняются на лету, когда человек
+  // домотал статью до конца.
+  const [done, setDone] = useState<string[]>([]);
 
   useEffect(() => {
     // ?preview=… — превью для ревью: значение просто пробрасываем на сервер,
@@ -78,13 +81,44 @@ function KursInner() {
         if (stop) return;
         if (!data.identified) setState('guest');
         else if (!data.allowed) setState('locked');
-        else { setItems(data.items || []); setState('ok'); }
+        else { setItems(data.items || []); setDone(data.done || []); setState('ok'); }
       } catch {
         if (!stop) setState('guest');
       }
     })();
     return () => { stop = true; };
   }, []);
+
+  // Статья живёт в iframe и стучится наверх: дочитал до конца, открой следующий,
+  // вернись к списку.
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      const d = e.data as { kurs?: string; slug?: string };
+      if (!d || typeof d !== 'object' || !d.kurs) return;
+      if (d.kurs === 'done' && d.slug) {
+        const slug = d.slug;
+        setDone((prev) => (prev.includes(slug) ? prev : [...prev, slug]));
+        // Отметка переживает перезаход только при опознанном Telegram —
+        // по ревью-ссылке галка живёт до перезагрузки.
+        if (tgId) {
+          fetch('/api/cabinet/kurs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug, telegramId: tgId }),
+          }).catch(() => { /* noop */ });
+        }
+      }
+      if (d.kurs === 'back') setOpen(null);
+      if (d.kurs === 'open' && d.slug) {
+        const card = items.find((i) => i.slug === d.slug);
+        if (card) { setOpen(null); openLesson(card); }
+      }
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+    // openLesson читает tgId/preview/wm — держим слушателя в курсе свежих значений
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, tgId, preview, wm]);
 
   async function openLesson(card: Card) {
     if (!card.ready) return;
@@ -102,6 +136,7 @@ function KursInner() {
   }
 
   const ready = items.filter((i) => i.ready).length;
+  const passed = items.filter((i) => done.includes(i.slug)).length;
 
   return (
     <main className="kr-wrap">
@@ -153,32 +188,39 @@ function KursInner() {
 
       {state === 'ok' && (
         <div className="kr-count">
-          {ready} из {items.length} частей открыто · остальные выходят по мере съёмки
+          {ready} из {items.length} частей открыто
+          {passed > 0 ? ` · пройдено ${passed}` : ' · остальные выходят по мере съёмки'}
         </div>
       )}
 
-      {state === 'ok' && items.map((c, i) => (
-        <button
-          className={`kr-card kr-item${c.ready ? '' : ' kr-soon'}`}
-          key={c.slug}
-          onClick={() => openLesson(c)}
-          disabled={!c.ready}
-        >
-          <div className="kr-item-head">
-            <span className="kr-num">{String(i).padStart(2, '0')}</span>
-            <span className="kr-badge">{c.badge}</span>
-            <span className="kr-meta">
-              {c.ready ? `🎥 запись ${c.duration} + текст` : 'скоро'}
-            </span>
-          </div>
-          <h2 className="kr-item-title">{c.title}</h2>
-          <p className="kr-item-sub">{c.subtitle}</p>
-          <p className="kr-item-task"><b>Задача:</b> {c.task}</p>
-          {c.ready && (
-            <span className="kr-item-arr">{opening === c.slug ? 'открываю…' : 'Открыть урок ↗'}</span>
-          )}
-        </button>
-      ))}
+      {state === 'ok' && items.map((c, i) => {
+        const isDone = done.includes(c.slug);
+        return (
+          <button
+            className={`kr-card kr-item${c.ready ? '' : ' kr-soon'}${isDone ? ' kr-passed' : ''}`}
+            key={c.slug}
+            onClick={() => openLesson(c)}
+            disabled={!c.ready}
+          >
+            <div className="kr-item-head">
+              <span className="kr-num">{String(i).padStart(2, '0')}</span>
+              <span className="kr-badge">{c.badge}</span>
+              {isDone && <span className="kr-done">✓ пройдено</span>}
+              <span className="kr-meta">
+                {c.ready ? `🎥 запись ${c.duration} + текст` : 'скоро'}
+              </span>
+            </div>
+            <h2 className="kr-item-title">{c.title}</h2>
+            <p className="kr-item-sub">{c.subtitle}</p>
+            <p className="kr-item-task"><b>Задача:</b> {c.task}</p>
+            {c.ready && (
+              <span className="kr-item-arr">
+                {opening === c.slug ? 'открываю…' : isDone ? 'Открыть ещё раз ↗' : 'Открыть урок ↗'}
+              </span>
+            )}
+          </button>
+        );
+      })}
 
       {open && (
         <div className="kr-viewer" role="dialog" aria-modal="true" aria-label={open.title}>
@@ -240,7 +282,13 @@ function KursInner() {
           font-size: 11.5px; font-weight: 700; background: var(--kr-accent-soft);
           color: var(--kr-accent); padding: 4px 9px; border-radius: 999px;
         }
+        .kr-done {
+          font-size: 11.5px; font-weight: 700; color: oklch(0.52 0.14 150);
+          background: oklch(0.94 0.05 150); padding: 4px 9px; border-radius: 999px;
+        }
         .kr-meta { font-size: 12px; color: var(--kr-muted); margin-left: auto; }
+        .kr-passed { border-color: oklch(0.85 0.06 150); }
+        .kr-passed .kr-item-title { color: var(--kr-muted); }
         .kr-item-title {
           font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 20px;
           letter-spacing: -0.02em; line-height: 1.16; margin: 11px 0 0;

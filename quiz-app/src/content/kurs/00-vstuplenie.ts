@@ -439,6 +439,7 @@ body.rev .todo{display:block;}
 <p>И давайте теперь двигаться по этим уровням</p>
 </section>
 
+<!--FOOTER_SLOT-->
 </main>
 
 <div class="readnav" id="readnav">
