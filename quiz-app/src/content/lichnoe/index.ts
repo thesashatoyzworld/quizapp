@@ -11,6 +11,8 @@
 
 import { LICHNOE_LICHNYY_SOZVON_2026_08_05 } from './lichnyy-sozvon-2026-08-05';
 
+import { LICHNOE_LICHNYY_SOZVON_KONSTANTIN_2026_08_05 } from './lichnyy-sozvon-konstantin-2026-08-05';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -31,6 +33,17 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-konstantin-2026-08-05',
+    telegramIds: [309034389],
+    title: "Что для тебя очевидно, для покупателя козырь",
+    subtitle: "Разобрали сегмент, собрали карту из шести смыслов и договорились с чего начинается контент: чужой рабочий заход и пинг-понг",
+    date: '2026-08-05',
+    duration: "60 мин",
+    tags: ["сегмент", "карта смыслов", "пруфы", "форматы"],
+    kinescopeId: '8zpLxr4n2EemNKceS82fkj',
+    html: LICHNOE_LICHNYY_SOZVON_KONSTANTIN_2026_08_05,
+  },
   {
     slug: 'lichnyy-sozvon-2026-08-05',
     telegramIds: [866228378],
