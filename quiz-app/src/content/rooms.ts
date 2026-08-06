@@ -76,7 +76,7 @@ export const SECTIONS: Section[] = [
     materials: [
       { kind: 'recording', title: 'Формула вирусного контента', url: '/formula', note: 'Полный видеокурс по контенту — 25 уроков.', subhead: 'Предобучение · доступно сразу' },
       { kind: 'recording', title: 'Продающий Контент 3.0', url: 'https://kabinet.thesashatoyz.com/w/prodayushchiy-kontent-3', note: 'Мастеркласс + методичка: карта смыслов и 4 способа упаковки.' },
-      { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '', note: 'Откроются 7 августа.', subhead: 'Основной курс · с 7 августа' },
+      { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '/kurs', note: 'Запись каждого урока плюс тот же разбор текстом, с картинками и интерактивами.', subhead: 'Основной курс' },
       { kind: 'slides', title: 'Методички и задания', url: '', note: 'Материалы к каждому уровню.' },
       { kind: 'chat', title: 'Чат с обратной связью', url: '', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
       { kind: 'recording', title: 'Библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Все прошлые воркшопы и мини-курсы.', minTier: 3, lockedNote: 'Доступно на тарифе «делаем вместе» (3).', subhead: 'Полная библиотека · тариф «делаем вместе»' },
