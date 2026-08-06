@@ -671,6 +671,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Личное: /start lichnoe → кнопка в раздел с персональными материалами.
+      // Отдельно от sozvony/razbory: там гейт по тарифу, здесь по конкретному
+      // человеку, поэтому и текст другой. Ссылку можно слать одну на всех:
+      // у кого материалов нет, тот увидит пустой раздел и ничего чужого.
+      if (startParam === 'lichnoe') {
+        await prisma.user.upsert({
+          where: { telegramId: BigInt(chatId) },
+          create: { telegramId: BigInt(chatId), username: username || null, firstName: update.message.from?.first_name || null },
+          update: {},
+        });
+        await sendMessage(
+          chatId,
+          `${firstName}, запись нашего созвона и конспект здесь 👇\n\nэто твой личный раздел: внутри только твои материалы, больше их не видит никто. если не открывается, напиши сюда.`,
+          { inline_keyboard: [[{ text: '🎥 Открыть личное', web_app: { url: 'https://world.thesashatoyz.com/lichnoe' } }]] }
+        );
+        return NextResponse.json({ ok: true });
+      }
+
       // Lead-magnet deep link (slug from content/leadmagnets.json)
       if (startParam) {
         const lm = getLeadMagnet(startParam);
