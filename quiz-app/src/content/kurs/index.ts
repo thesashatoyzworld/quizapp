@@ -12,6 +12,7 @@
 
 import { VSTUPLENIE_00 } from './00-vstuplenie';
 import { CEL_I_MOTIVACIYA_01 } from './01-cel-i-motivaciya';
+import { UROVEN_1_02 } from './02-uroven-1';
 
 /** Курс открыт на всех тарифах «Нового уровня контента». */
 export const KURS_ROLE = 'uroven';
@@ -61,9 +62,9 @@ export const LESSONS: Lesson[] = [
     title: 'Хочу, но не делаю',
     subtitle: 'Шесть замков на двери: осуждение, неудача, перфекционизм, самозванец, эго, мотивация. И как обойти каждый',
     task: 'просто начать выкладывать',
-    duration: '',
-    kinescopeId: '',
-    html: '',
+    duration: '53 мин',
+    kinescopeId: 'oY1fjZSpcXVHiwsvRSguGk',
+    html: UROVEN_1_02,
   },
   {
     slug: '03-uroven-2',
