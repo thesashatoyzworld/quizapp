@@ -11,6 +11,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { VSTUPLENIE_00 } from './00-vstuplenie';
+import { CEL_I_MOTIVACIYA_01 } from './01-cel-i-motivaciya';
 
 /** Курс открыт на всех тарифах «Нового уровня контента». */
 export const KURS_ROLE = 'uroven';
@@ -50,9 +51,9 @@ export const LESSONS: Lesson[] = [
     title: 'Цель и мотивация блога',
     subtitle: 'Приёмник и передатчик, ручка громкости, почему на контент никогда не будет времени, цепочка «зачем» и антивидение',
     task: 'понять, зачем вам этот блог',
-    duration: '',
-    kinescopeId: '',
-    html: '',
+    duration: '43 мин',
+    kinescopeId: 'rKGLqhYyCj47rvwzugEJLk',
+    html: CEL_I_MOTIVACIYA_01,
   },
   {
     slug: '02-uroven-1',
