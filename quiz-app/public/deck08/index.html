@@ -27,6 +27,17 @@
   .path h4{margin:0 0 12px;font-size:30px;}
   .path .who{font-size:21px;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;}
   .path p{margin:0;font-size:23px;color:var(--muted);line-height:1.4;}
+  .team{display:flex;gap:20px;max-width:1180px;margin:0 auto;align-items:flex-start;}
+  .team .role{flex:1;border:2px solid var(--line);background:#fff;padding:22px 22px 18px;text-align:left;cursor:pointer;transition:.2s;}
+  .team .role.on{border-color:var(--accent);background:var(--accent-soft);}
+  .team .num{font-size:19px;letter-spacing:.16em;color:var(--accent);font-weight:800;}
+  .team .role h4{margin:6px 0 0;font-size:32px;}
+  .team .body{max-height:0;overflow:hidden;opacity:0;transition:.25s;font-size:21px;color:var(--muted);line-height:1.45;}
+  .team .role.on .body{max-height:400px;opacity:1;margin-top:12px;}
+  .team .hrs{margin-top:14px;font-size:24px;font-weight:800;color:#b3aaa4;}
+  .team .role.on .hrs{color:var(--accent);}
+  .team-total{margin-top:28px;font-size:32px;}
+  .team-total b{font-size:56px;color:var(--accent);}
 </style>
 </head>
 <body>
@@ -146,10 +157,59 @@ const SLIDES = [
       'и каждый раз мы это бросали, потому что не видели подтверждений'],
    sub:'заход на новую площадку почти всегда выглядит глупо в первые месяцы'},
 
-  {k:'sec', n:'шаг 5', t:'команда и<br>платный трафик'},
+  {k:'sec', n:'шаг 5', t:'монетизация —<br>следующий этап'},
+  {k:'st', t:'дальше своими руками вы не вытянете', sm:true,
+   sub:'чтобы расти, нужны будут другие люди — те, кто развяжет вам руки'},
+  {k:'st', t:'а другим людям надо платить', sm:true,
+   sub:'пока контент не приносит денег, команду собирать не на что. потолок остаётся там же, где был'},
+  {k:'st', t:'здесь вы переходите в статус<br>небольшого предпринимателя', sm:true, dark:true,
+   sub:'уже не просто автор, который делает контент: появляются люди, обязательства перед ними и расходы, которые надо отбивать'},
+
+  {k:'sec', n:'шаг 6', t:'команда'},
   {k:'cards', kicker:'разница с четвёртым уровнем', t:'',
    cards:[{h:'На четвёртом',p:'команда нужна была, чтобы вернуть себе время'},
           {h:'На шестом',p:'команда нужна, чтобы масштаб вообще стал возможен. своими руками вы упрётесь в потолок'}]},
+  {k:'ix', kicker:'кого берём и в каком порядке', t:'кликайте по ролям — смотрите, сколько часов возвращается',
+   html:`<div class="team">
+      <div class="role" data-h="7">
+        <div class="num">1</div><h4>Монтажёр</h4>
+        <div class="body">монтаж одного ролика — час-два, а рилс каждый день.<br>
+          рынок: 20–40 долларов за короткий ролик, за пакет дают скидку.<br>
+          с Максом работаем больше полутора лет, первые 2–3 месяца ушли на процесс</div>
+        <div class="hrs">+7 часов в неделю</div>
+      </div>
+      <div class="role" data-h="6">
+        <div class="num">2</div><h4>Ассистент</h4>
+        <div class="body">залить рилс, выложить пост, выдать материалы клиентам,
+          закинуть контент в платное сообщество, найти подрядчика и вести с ним переписку.<br>
+          первого я уволил — это нормально, был шорт-лист</div>
+        <div class="hrs">+6 часов в неделю</div>
+      </div>
+      <div class="role" data-h="0">
+        <div class="num">3</div><h4>Технический специалист</h4>
+        <div class="body">воронка, лендинг, бот, подключить оплату.<br>
+          не человек на постоянку — задачи под конкретный запуск</div>
+        <div class="hrs">точечно, под запуск</div>
+      </div>
+    </div>
+    <div class="team-total" id="teamtot">возвращается <b>0</b> часов в неделю</div>`,
+   hint:'я не могу купить себе новое время. но я могу купить время другого человека',
+   init(root){
+     const tot=root.querySelector('#teamtot');
+     root.querySelectorAll('.role').forEach(r=>r.addEventListener('click',()=>{
+       r.classList.toggle('on');
+       let n=0; root.querySelectorAll('.role.on').forEach(x=>n+=Number(x.dataset.h));
+       tot.innerHTML='возвращается <b>'+n+'</b> часов в неделю'
+         + (n>=13 ? ' — почти два рабочих дня' : '');
+     }));
+   }},
+  {k:'list', kicker:'давайте посчитаем математику', t:'ассистент',
+   items:['залить рилс — 10 минут, пост в телеграм — 5, выдать материалы — 10, залить в сообщество — 10',
+          '30 минут в день превращаются в 3 часа на неделе',
+          'сюда добавляем поиск подрядчиков и переписку с ними — выходит 6 часов',
+          'снова целый рабочий день']},
+
+  {k:'sec', n:'шаг 7', t:'платный трафик'},
   {k:'st', t:'про платный трафик скажу честно:<br>я не эксперт по закупу', sm:true,
    sub:'я разбираюсь в контенте, а контент — это и есть бесплатный трафик'},
   {k:'st', t:'подключать, когда монетизация уже настроена', sm:true,
