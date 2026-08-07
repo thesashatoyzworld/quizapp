@@ -14,6 +14,7 @@ import { VSTUPLENIE_00 } from './00-vstuplenie';
 import { CEL_I_MOTIVACIYA_01 } from './01-cel-i-motivaciya';
 import { UROVEN_1_02 } from './02-uroven-1';
 import { UROVEN_2_03 } from './03-uroven-2';
+import { UROVEN_3_04 } from './04-uroven-3';
 
 /** Курс открыт на всех тарифах «Нового уровня контента». */
 export const KURS_ROLE = 'uroven';
@@ -83,9 +84,9 @@ export const LESSONS: Lesson[] = [
     title: 'Делаю, но бесит',
     subtitle: 'Три опоры комфортной среды: форма, ваша правда, ваша ставка. Плюс баланс «хочу» и «надо»',
     task: 'убрать сопротивление из процесса',
-    duration: '',
-    kinescopeId: '',
-    html: '',
+    duration: '41 мин',
+    kinescopeId: '0Y1yv7JXCneHxLFnW5S93c',
+    html: UROVEN_3_04,
   },
   {
     slug: '05-uroven-4',
