@@ -38,6 +38,37 @@
   .team .role.on .hrs{color:var(--accent);}
   .team-total{margin-top:28px;font-size:32px;}
   .team-total b{font-size:56px;color:var(--accent);}
+  .ofr{max-width:1000px;margin:0 auto;text-align:left;}
+  .ofr .items{display:flex;flex-direction:column;gap:14px;margin-bottom:34px;}
+  .ofr .it{display:flex;gap:20px;align-items:flex-start;border:2px solid var(--line);
+    background:#fff;padding:18px 24px;font-size:29px;font-weight:600;line-height:1.25;}
+  .ofr .it:before{content:"";flex:0 0 auto;width:26px;height:4px;background:var(--accent);margin-top:16px;}
+  .ofr .price{border:3px solid var(--ink);background:var(--accent-soft);padding:24px 28px;
+    display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;}
+  .ofr .price .sum{font-size:52px;font-weight:800;color:var(--accent);}
+  .ofr .price .minus{font-size:28px;font-weight:600;}
+  .ofr .term{margin-top:20px;font-size:26px;color:var(--muted);}
+  .reinv{max-width:1120px;margin:0 auto;}
+  .reinv .ringwrap{display:inline-block;}
+  .reinv .ring{display:flex;align-items:center;justify-content:center;gap:0;cursor:pointer;}
+  .reinv .node{flex:0 0 190px;border:2px solid var(--line);background:#fff;padding:18px 10px;
+    text-align:center;opacity:.25;transition:.25s;position:relative;}
+  .reinv .node+.node{margin-left:44px;}
+  .reinv .node+.node:before{content:"→";position:absolute;left:-38px;top:50%;transform:translateY(-50%);
+    font-size:30px;color:var(--line);}
+  .reinv .node.on{opacity:1;border-color:var(--accent);background:var(--accent-soft);}
+  .reinv .node .ic{font-size:38px;line-height:1;}
+  .reinv .node .lb{margin-top:8px;font-size:21px;font-weight:700;line-height:1.2;}
+  .reinv .ring.closed .node:last-child{border-width:3px;}
+  .reinv .loopline{display:block;width:100%;height:76px;opacity:0;transition:.3s;}
+  .reinv.closed .loopline{opacity:1;}
+  .reinv .legend{margin-top:6px;text-align:left;display:flex;flex-direction:column;gap:9px;min-height:210px;}
+  .reinv .lg{font-size:23px;color:var(--muted);line-height:1.35;opacity:0;transition:.25s;}
+  .reinv .lg.on{opacity:1;}
+  .reinv .lg b{color:var(--accent);}
+  .reinv .lg.loop{font-weight:700;color:var(--ink);border-top:2px solid var(--line);padding-top:10px;}
+  .reinv .rnext{margin-top:16px;display:inline-block;border:2px solid var(--ink);background:var(--ink);
+    color:#fff;padding:10px 20px;font-size:22px;font-weight:700;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -164,6 +195,62 @@ const SLIDES = [
    sub:'пока контент не приносит денег, команду собирать не на что. потолок остаётся там же, где был'},
   {k:'st', t:'здесь вы переходите в статус<br>небольшого предпринимателя', sm:true, dark:true,
    sub:'уже не просто автор, который делает контент: появляются люди, обязательства перед ними и расходы, которые надо отбивать'},
+  {k:'st', t:'как только пойдёт трафик —<br>монетизацию придётся подключать', sm:true,
+   sub:'люди приходят, а брать с них нечего: продавать нечего, оффера нет, деньги в команду вкладывать не из чего'},
+  {k:'ix', kicker:'если хотите разобраться в монетизации', t:'что можно добрать к курсу',
+   html:`<div class="ofr">
+     <div class="items">
+       <div class="it">все мои материалы по заработку через блог</div>
+       <div class="it">доступ к общему чату, где я даю обратную связь</div>
+       <div class="it">созвон раз в месяц для вопросов</div>
+     </div>
+     <div class="price">
+       <span class="sum">10 000 ₽</span>
+       <span class="minus">в месяц, минус то, что вы заплатили за этот курс</span>
+     </div>
+     <div class="term">предложение действует месяц с момента покупки курса</div>
+   </div>`},
+  {k:'ix', kicker:'что происходит с деньгами дальше', t:'кликайте — собираем круг',
+   html:`<div class="reinv">
+    <div class="ringwrap">
+     <div class="ring">
+       <div class="node" data-i="1"><div class="ic">🔋</div><div class="lb">энергия и время</div></div>
+       <div class="node" data-i="2"><div class="ic">🧩</div><div class="lb">монетизация</div></div>
+       <div class="node" data-i="3"><div class="ic">₽</div><div class="lb">деньги</div></div>
+       <div class="node" data-i="4"><div class="ic">↺</div><div class="lb">обратно в блог</div></div>
+     </div>
+     <svg class="loopline" viewBox="0 0 1000 70" preserveAspectRatio="none" aria-hidden="true">
+       <path d="M 893 0 L 893 46 L 106 46 L 106 14" fill="none" stroke="#e8590c" stroke-width="3"
+             vector-effect="non-scaling-stroke"/>
+       <path d="M 96 28 L 106 8 L 116 28" fill="none" stroke="#e8590c" stroke-width="3"
+             vector-effect="non-scaling-stroke"/>
+     </svg>
+    </div>
+     <div class="legend">
+       <div class="lg" data-i="1"><b>1.</b> сначала вы вкладываете только своё — энергию и время. других ресурсов нет</div>
+       <div class="lg" data-i="2"><b>2.</b> из этого вырастает монетизация: есть оффер, есть кому и что продавать</div>
+       <div class="lg" data-i="3"><b>3.</b> блог начинает приносить деньги</div>
+       <div class="lg" data-i="4"><b>4.</b> и вот теперь деньги можно вернуть обратно в блог: подрядчики, платный трафик, продакшн</div>
+       <div class="lg loop" data-i="5">круг замкнулся — дальше он крутится сам, и каждый оборот вы уже вкладываете не только себя</div>
+     </div>
+     <div class="rnext">дальше →</div>
+   </div>`,
+   hint:'до этого момента вы были единственным вложением в свой блог',
+   init(root){
+     let step=0;
+     const btn=root.querySelector('.rnext');
+     function show(){
+       root.querySelectorAll('.node').forEach(n=>n.classList.toggle('on',Number(n.dataset.i)<=step));
+       root.querySelectorAll('.lg').forEach(l=>l.classList.toggle('on',Number(l.dataset.i)<=step));
+       root.querySelector('.ring').classList.toggle('closed',step>=5);
+       root.querySelector('.reinv').classList.toggle('closed',step>=5);
+       btn.textContent = step>=5 ? '↻ сначала' : 'дальше →';
+     }
+     function next(){ step = step>=5 ? 0 : step+1; show(); }
+     btn.addEventListener('click',next);
+     root.querySelector('.ring').addEventListener('click',next);
+     show();
+   }},
 
   {k:'sec', n:'шаг 6', t:'команда'},
   {k:'cards', kicker:'разница с четвёртым уровнем', t:'',
