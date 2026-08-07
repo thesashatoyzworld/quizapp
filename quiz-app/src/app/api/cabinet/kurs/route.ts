@@ -25,9 +25,6 @@ async function doneSlugs(telegramId: number | null): Promise<string[]> {
   return [...set];
 }
 
-// ⚠️ ВРЕМЕННО: секрет ревью-ссылки для Саши, снять перед мёржем в master.
-const PREVIEW_SECRET = 'kurs-2026-sasha';
-
 // Уроки курса «Новый уровень контента» отдаём только с сервера и только тем,
 // у кого активен доступ: статья это и есть продукт, в клиентский бандл её не кладём.
 //
@@ -148,13 +145,7 @@ export async function GET(request: NextRequest) {
     const q = request.nextUrl.searchParams.get('preview');
     const devPreview = process.env.NODE_ENV !== 'production' && q === '1';
 
-    // ⚠️ ВРЕМЕННО: ссылка Саше на ревью до открытия курса. Работает только на
-    // превью-деплоях Vercel — на боевых доменах курс всё равно за гейтом.
-    // УБРАТЬ перед мёржем в master.
-    const host = request.headers.get('host') || '';
-    const reviewLink = q === PREVIEW_SECRET && host.endsWith('.vercel.app');
-
-    const bypass = devPreview || reviewLink;
+    const bypass = devPreview;
 
     let telegramId: number | null = null;
     const qId = request.nextUrl.searchParams.get('telegramId');
