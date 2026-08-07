@@ -15,6 +15,7 @@ import { CEL_I_MOTIVACIYA_01 } from './01-cel-i-motivaciya';
 import { UROVEN_1_02 } from './02-uroven-1';
 import { UROVEN_2_03 } from './03-uroven-2';
 import { UROVEN_3_04 } from './04-uroven-3';
+import { UROVEN_4_05 } from './05-uroven-4';
 
 /** Курс открыт на всех тарифах «Нового уровня контента». */
 export const KURS_ROLE = 'uroven';
@@ -94,9 +95,9 @@ export const LESSONS: Lesson[] = [
     title: 'Не бесит, но жрёт время',
     subtitle: 'Снять оценку, поставить рамки времени, коллекционировать вместо создания, купить чужое время',
     task: 'сжать время, а не найти его',
-    duration: '',
-    kinescopeId: '',
-    html: '',
+    duration: '39 мин',
+    kinescopeId: 'uB6WrLP8v8JjYsDpzoz9q3',
+    html: UROVEN_4_05,
   },
   {
     slug: '06-uroven-5',
