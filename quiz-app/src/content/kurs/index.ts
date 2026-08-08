@@ -16,6 +16,10 @@ import { UROVEN_1_02 } from './02-uroven-1';
 import { UROVEN_2_03 } from './03-uroven-2';
 import { UROVEN_3_04 } from './04-uroven-3';
 import { UROVEN_4_05 } from './05-uroven-4';
+import { UROVEN_5_06 } from './06-uroven-5';
+import { OBSHAYA_FORMULA_07 } from './07-obshaya-formula';
+import { UROVEN_6_08 } from './08-uroven-6';
+import { FINAL_09 } from './09-final';
 
 /** Курс открыт на всех тарифах «Нового уровня контента». */
 export const KURS_ROLE = 'uroven';
@@ -105,9 +109,9 @@ export const LESSONS: Lesson[] = [
     title: 'Времени хватает, а отклика нет',
     subtitle: 'Разворот камеры, эго, промежуточные результаты и формула единицы: смысл, пруф, упаковка',
     task: 'поймать промежуточные результаты',
-    duration: '',
-    kinescopeId: '',
-    html: '',
+    duration: '29 мин',
+    kinescopeId: '42tmfddTfPG8mXtdYAB83v',
+    html: UROVEN_5_06,
   },
   {
     slug: '07-obshaya-formula',
@@ -115,9 +119,9 @@ export const LESSONS: Lesson[] = [
     title: 'Собираем единицу руками',
     subtitle: 'Карта смыслов, пруф, упаковка, поток спроса и четыре способа поиска заходов, умножение и докрутка',
     task: 'собрать свою карту смыслов',
-    duration: '',
-    kinescopeId: '',
-    html: '',
+    duration: '35 мин',
+    kinescopeId: 'qkhRLjdV5RhehGMSHwEgif',
+    html: OBSHAYA_FORMULA_07,
   },
   {
     slug: '08-uroven-6',
@@ -125,9 +129,9 @@ export const LESSONS: Lesson[] = [
     title: 'Всё работает, хочу больше',
     subtitle: 'Масштаб это не объём: два пути роста, переупаковка, площадки с органикой, команда и платный трафик',
     task: 'тиражировать то, что работает',
-    duration: '',
-    kinescopeId: '',
-    html: '',
+    duration: '31 мин',
+    kinescopeId: 'kFf2Z8s3UM2W1PXPuqSzzL',
+    html: UROVEN_6_08,
   },
   {
     slug: '09-final',
@@ -135,9 +139,9 @@ export const LESSONS: Lesson[] = [
     title: 'Что у вас теперь есть',
     subtitle: 'Карта пройденного пути, три принципа и ритм на дальше',
     task: 'жить по своей карте',
-    duration: '',
-    kinescopeId: '',
-    html: '',
+    duration: '8 мин',
+    kinescopeId: 'gBmYGfLYA5AYuxiHwd3xER',
+    html: FINAL_09,
   },
 ];
 
