@@ -19,6 +19,7 @@ import { UROVEN_4_05 } from './05-uroven-4';
 import { UROVEN_5_06 } from './06-uroven-5';
 import { OBSHAYA_FORMULA_07 } from './07-obshaya-formula';
 import { UROVEN_6_08 } from './08-uroven-6';
+import { FINAL_09 } from './09-final';
 
 /** Курс открыт на всех тарифах «Нового уровня контента». */
 export const KURS_ROLE = 'uroven';
@@ -138,9 +139,9 @@ export const LESSONS: Lesson[] = [
     title: 'Что у вас теперь есть',
     subtitle: 'Карта пройденного пути, три принципа и ритм на дальше',
     task: 'жить по своей карте',
-    duration: '',
-    kinescopeId: '',
-    html: '',
+    duration: '8 мин',
+    kinescopeId: 'gBmYGfLYA5AYuxiHwd3xER',
+    html: FINAL_09,
   },
 ];
 
