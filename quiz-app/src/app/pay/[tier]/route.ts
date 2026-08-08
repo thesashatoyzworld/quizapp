@@ -59,7 +59,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     paid_content:
       `Оплата принята: «Новый уровень контента» (${t.name}). ` +
       `Открой доступ в Telegram: ${bind} — внутри предобучение: ` +
-      `«Продающий Контент» и «Формула Вирусного Контента». Курс — 7 августа.`,
+      `«Продающий Контент» и «Формула Вирусного Контента». Курс записан целиком.`,
     urlNotification: NOTIFY,
     urlSuccess: bind,
   };

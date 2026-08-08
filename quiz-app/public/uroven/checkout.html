@@ -90,7 +90,7 @@ h1 {
 </head>
 <body>
   <main class="card">
-    <p class="eyebrow">Предпродажа · предобучение сразу, курс 7 августа</p>
+    <p class="eyebrow">Курс записан целиком · доступ сразу после оплаты</p>
     <h1>Новый уровень <span class="hl">контента</span></h1>
 
     <div class="tiers">
@@ -106,7 +106,7 @@ h1 {
     <div class="price-wrap">
       <div class="price" id="price"></div>
       <p class="per" id="per"></p>
-      <p class="deadline">предобучение открывается сразу · курс — <b>7 августа</b></p>
+      <p class="deadline">курс записан целиком · доступ <b>сразу</b> после оплаты</p>
     </div>
 
     <button class="btn" id="pay">Оформить доступ</button>
@@ -174,7 +174,7 @@ h1 {
     var dl = document.querySelector('.deadline');
     if (dl) dl.innerHTML = closed
       ? WAITLIST_NOTE[tier]
-      : 'предобучение открывается сразу · курс — <b>7 августа</b>';
+      : 'курс записан целиком · доступ <b>сразу</b> после оплаты';
   }
 
   var btns = document.querySelectorAll('.tiers button');
@@ -188,7 +188,7 @@ h1 {
     // Доступ привязан к Telegram (оплата из бота). Кабинет — только через Telegram.
     var paidContent = 'Оплата принята: «Новый уровень контента» (' + t.name + '). '
       + 'Доступ привязан к твоему Telegram — открой кабинет через бота @testtoyzbot. '
-      + 'Предобучение открывается сразу: «Продающий Контент» и «Формула Вирусного Контента». Курс — 7 августа.';
+      + 'Внутри сразу весь курс и два воркшопа: «Продающий Контент» и «Формула Вирусного Контента».';
     var f = {
       'do': 'pay',
       'order_id': orderId,
