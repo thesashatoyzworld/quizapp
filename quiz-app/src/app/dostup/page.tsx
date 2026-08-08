@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { SECTIONS } from '@/content/rooms';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
+import OpenInBrowser from '@/components/OpenInBrowser';
 
 // Официальная кнопка «Войти через Telegram» (Login Widget). Рендерится только
 // в браузере (в Mini App не нужна — там опознаём по initData). Требует, чтобы
@@ -106,6 +107,9 @@ function DostupInner() {
       <header className="kb-top">
         <div className="kb-brand">Кабинет</div>
         <div className="kb-sub">TOYZ · пространство участника</div>
+        {/* Внутри Телеграма даём выход в обычный браузер: читать длинные статьи
+            и качать файлы там удобнее. В браузере кнопка не рисуется. */}
+        <OpenInBrowser path="/dostup" className="kb-browser" />
       </header>
 
       {browserSession && tgId && (
@@ -273,6 +277,14 @@ function DostupInner() {
         .kb-account-out:hover { opacity: .8; }
         .kb-brand { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; margin: 0; }
         .kb-sub { color: var(--kb-muted); font-size: 13px; margin-top: 2px; }
+        .kb-browser {
+          display: inline-block; margin-top: 12px; cursor: pointer;
+          background: none; border: 1px solid var(--kb-line); color: var(--kb-muted);
+          font-family: inherit; font-weight: 600; font-size: 13px;
+          padding: 8px 13px; border-radius: 10px;
+        }
+        .kb-browser:hover { border-color: var(--kb-accent); color: var(--kb-accent); }
+        .kb-browser:disabled { opacity: 0.6; cursor: default; }
         .kb-banner {
           display: flex; align-items: center; gap: 10px; background: var(--kb-accent-soft);
           color: var(--kb-text); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 16px;

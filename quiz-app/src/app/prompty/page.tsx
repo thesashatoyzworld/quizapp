@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
+import OpenInBrowser from '@/components/OpenInBrowser';
 
 // Раздел «Промпты» — инструменты к урокам курса. Человек копирует промпт
 // целиком, вставляет в нейронку и отвечает голосовыми.
@@ -108,6 +109,9 @@ function PromptyInner() {
         <a className="pr-back" href="/dostup">‹ Кабинет</a>
         <div className="pr-brand">Промпты</div>
         <div className="pr-sub">Инструменты к урокам. Копируешь целиком, вставляешь в нейронку и отвечаешь на её вопросы</div>
+        {/* Промпты копируют и вставляют в другую программу, поэтому из Телеграма
+            логично сразу уйти в браузер. */}
+        <OpenInBrowser path="/prompty" className="pr-browser" />
       </header>
 
       {state === 'load' && (
@@ -222,6 +226,14 @@ function PromptyInner() {
         .pr-back:hover { color: var(--pr-accent); }
         .pr-brand { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; line-height: 1.1; }
         .pr-sub { color: var(--pr-muted); font-size: 13px; margin-top: 5px; line-height: 1.4; }
+        .pr-browser {
+          display: inline-block; margin-top: 12px; cursor: pointer;
+          background: none; border: 1px solid var(--pr-line); color: var(--pr-muted);
+          font-family: inherit; font-weight: 600; font-size: 13px;
+          padding: 8px 13px; border-radius: 10px;
+        }
+        .pr-browser:hover { border-color: var(--pr-accent); color: var(--pr-accent); }
+        .pr-browser:disabled { opacity: 0.6; cursor: default; }
         .pr-note {
           background: var(--pr-surface); border: 1px solid var(--pr-accent);
           border-radius: 18px; padding: 16px 18px; margin-bottom: 12px;
