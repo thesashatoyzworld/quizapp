@@ -15,14 +15,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
+import { isOnSale, waitlistLink } from '@/lib/sales';
 
 const FORM = 'https://thesashatoyz.payform.ru';
 const BOT = 'https://t.me/testtoyzbot';
 const NOTIFY = 'https://quizapp-ivory-delta.vercel.app/api/prodamus-webhook';
 
 const TIERS: Record<string, { name: string; price: number; sub?: string }> = {
-  t1: { name: 'Тариф 1 (делаешь сам)', price: 3450 },
-  t2: { name: 'Тариф 2 (сам + монетизация)', price: 7500, sub: '2987944' },
+  t1: { name: 'Тариф 1 (делаешь сам)', price: 5450 },
+  t2: { name: 'Тариф 2 (сам + монетизация)', price: 10000, sub: '2987944' },
   t3: { name: 'Тариф 3 (делаем вместе)', price: 50000, sub: '2989937' },
 };
 
@@ -30,6 +31,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { tier: raw } = await params;
   const tier = TIERS[raw] ? raw : 't1';
   const t = TIERS[tier];
+
+  // Набор на тариф закрыт: ссылка не ведёт в тупик, а записывает в лист ожидания.
+  // Старые ссылки из постов и переписок продолжают работать — просто иначе.
+  if (!isOnSale(tier)) {
+    const src = (request.nextUrl.searchParams.get('src') || '')
+      .toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32);
+    try {
+      await trackEvent({
+        event_type: 'waitlist_redirect',
+        utm_source: src ? `uroven_${src}` : 'uroven_paylink',
+        metadata: { tag: 'uroven', tier, src: src || null },
+      });
+    } catch {}
+    return NextResponse.redirect(waitlistLink(tier), 302);
+  }
 
   // base36 без «_», иначе ломается разбор order_id по «_web_»
   const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);

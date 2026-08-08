@@ -71,16 +71,19 @@ export const CATALOG: Record<string, CatalogProduct> = {
   uroven_t1: {
     slug: 'uroven-t1',
     name: 'Новый уровень контента — Тариф 1 (сам)',
-    price: 3450,
+    price: 5450,
     type: 'one_time',
     role: 'uroven',
     period: null,
     orderPrefix: 'uroven_t1',
   },
+  // ⚠️ Цена нового набора 10 000. Тем, кто уже платит по подписке 2987944,
+  // продолжает списываться 7 500 — старую карточку в Продамусе не трогать.
+  // Под новую цену нужна СВОЯ карточка: 2356023 занята «Синхронизацией» (sync_month).
   uroven_t2: {
     slug: 'uroven-t2',
     name: 'Новый уровень контента — Тариф 2 (сам + монетизация)',
-    price: 7500,
+    price: 10000,
     type: 'subscription',
     role: 'uroven',
     period: 'month',

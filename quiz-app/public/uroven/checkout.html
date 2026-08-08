@@ -125,13 +125,20 @@ h1 {
 
   // incl = только то, что добавляет сам тариф. Состав предыдущих подставляется
   // при рендере списком (приглушённо), чтобы человек видел объём целиком.
+  // Режим продаж по тарифу. Копия константы из src/lib/sales.ts: этот файл —
+  // статика, импортировать неоткуда. Переключать только скриптом
+  // GSD-BRAND/scripts/sales-mode.mjs, иначе две страницы разъедутся.
+  var SALES = { t1: 'sale', t2: 'waitlist', t3: 'waitlist' };
+  var WAITLIST_NOTE = { t1: '', t2: 'набор в сентябре, 20 мест', t3: '5 мест' };
+  var BOT = 'https://t.me/testtoyzbot';
+
   var ORDER = ['t1', 't2', 't3'];
   var TIERS = {
-    t1: { name: 'Тариф 1 — делаешь сам', price: 3450, per: 'разово, доступ навсегда',
+    t1: { name: 'Тариф 1 — делаешь сам', price: 5450, per: 'разово, доступ навсегда · в рассрочку от 227 ₽/мес',
       incl: ['6 уровней прохождения контента', 'видеоуроки + методички', 'доступ навсегда',
              'предобучение сразу: <b>«Продающий Контент»</b> — система создания контента, который привлекает клиентов',
              'предобучение сразу: <b>«Формула Вирусного Контента»</b> — пошаговый план написания и создания коротких роликов на миллионы просмотров'] },
-    t2: { name: 'Тариф 2 — сам + монетизация', price: 7500, per: 'в месяц', sub: '2987944',
+    t2: { name: 'Тариф 2 — сам + монетизация', price: 10000, per: 'в месяц', sub: '2987944',
       incl: ['чат с обратной связью', 'воркшопы по монетизации и воронкам', 'созвон раз в месяц группой'] },
     t3: { name: 'Тариф 3 — делаем вместе', price: 50000, per: 'в месяц', sub: '2989937',
       incl: ['первый созвон 1-1 со мной', '12 созвонов группой за 3 месяца'] }
@@ -160,6 +167,14 @@ h1 {
     document.getElementById('incl').innerHTML = html;
     var btns = document.querySelectorAll('.tiers button');
     for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-tier') === tier);
+
+    // Набор на тариф закрыт: кнопка ведёт в лист ожидания, а не в оплату.
+    var closed = SALES[tier] !== 'sale';
+    document.getElementById('pay').textContent = closed ? 'Записаться в лист ожидания' : 'Оформить доступ';
+    var dl = document.querySelector('.deadline');
+    if (dl) dl.innerHTML = closed
+      ? WAITLIST_NOTE[tier]
+      : 'предобучение открывается сразу · курс — <b>7 августа</b>';
   }
 
   var btns = document.querySelectorAll('.tiers button');
@@ -220,6 +235,14 @@ h1 {
   }
 
   document.getElementById('pay').addEventListener('click', function () {
+    // Тариф закрыт — вместо оплаты записываем в лист ожидания через бота.
+    if (SALES[tier] !== 'sale') {
+      trackCheckout('waitlist');
+      var wl = BOT + '?start=waitlist_' + tier;
+      if (tg && tg.openTelegramLink) tg.openTelegramLink(wl);
+      else window.location.href = wl;
+      return;
+    }
     if (!uid) {
       trackCheckout('bounce_bot');
       // Вне бота — уводим в бота, чтобы доступ привязался к Telegram

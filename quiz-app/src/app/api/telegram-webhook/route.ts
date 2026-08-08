@@ -5,6 +5,7 @@ import { notifyAdmin, sendBotMessage } from '@/lib/telegram';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
+import { isOnSale, WAITLIST_REPLY, WAITLIST_OFFER } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import {
   INTAKE_CB,
@@ -127,6 +128,44 @@ async function editMessageText(chatId: number, messageId: number, text: string) 
   });
 }
 
+// Записывает человека в лист ожидания тарифа «Нового уровня контента».
+// Возвращает true, если он там уже был: повторный клик не должен задваивать
+// запись и не должен выглядеть как ошибка.
+async function joinWaitlist(
+  telegramId: number,
+  tier: string,
+  who: { username: string | null; firstName: string | null },
+): Promise<boolean> {
+  const existing = await prisma.event.findFirst({
+    where: {
+      type: 'waitlist_join',
+      telegramId: BigInt(telegramId),
+      metadata: { path: ['tier'], equals: tier },
+    },
+    select: { id: true },
+  });
+  if (existing) return true;
+
+  await prisma.event.create({
+    data: {
+      type: 'waitlist_join',
+      telegramId: BigInt(telegramId),
+      productSlug: `uroven-${tier}`,
+      utmSource: 'uroven_waitlist',
+      metadata: { product: 'uroven', tier, username: who.username, firstName: who.firstName },
+    },
+  });
+
+  await notifyAdmin(
+    `📌 <b>Запись в лист ожидания</b> — тариф ${tier.toUpperCase().replace('T', '')}\n\n` +
+    `👤 ${who.firstName || '—'}\n` +
+    `💬 ${who.username ? '@' + who.username : 'без username'}\n` +
+    `🆔 <code>${telegramId}</code>`,
+  );
+
+  return false;
+}
+
 // Check whether a user is a member of a public channel.
 // Requires @testtoyzbot to be an admin of that channel, otherwise Telegram
 // returns an error and we fail open (treat as subscribed) to avoid blocking
@@ -244,6 +283,35 @@ export async function POST(request: NextRequest) {
         else if (data === INTAKE_CB.next) await advanceIntake(intake, chatId);
         else if (data === INTAKE_CB.skip) await skipStep(intake, chatId);
         else if (data === INTAKE_CB.later) await pauseIntake(intake, chatId);
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Лист ожидания «Нового уровня контента»: набор на тариф закрыт.
+      // Отдельную таблицу не заводим — пишем событие в общий `events`
+      // (миграции на общей базе опасны). Тариф храним в metadata, чтобы
+      // на открытии позвать отдельно тех, кто ждал двойку, и отдельно тройку.
+      if (data.startsWith('waitlist_') && cb.message) {
+        const tier = data.slice('waitlist_'.length);
+        const chatId = cb.message.chat.id;
+
+        if (!['t1', 't2', 't3'].includes(tier)) {
+          await answerCallbackQuery(cb.id);
+          return NextResponse.json({ ok: true });
+        }
+
+        await syncUsername(cb.from.id, cb.from.username, cb.from.first_name);
+        const already = await joinWaitlist(cb.from.id, tier, {
+          username: cb.from.username || null,
+          firstName: cb.from.first_name || null,
+        });
+
+        await answerCallbackQuery(cb.id, already ? 'Ты уже в списке ✓' : 'Записал ✓');
+        await editMessageText(
+          chatId,
+          cb.message.message_id,
+          already ? `Ты уже в листе ожидания ✓\n\n${WAITLIST_REPLY}` : `Готово ⚡\n\n${WAITLIST_REPLY}`,
+        );
 
         return NextResponse.json({ ok: true });
       }
@@ -892,6 +960,28 @@ export async function POST(request: NextRequest) {
       // uroven_kanal → тариф по умолчанию + тот же источник. Так видно, какой канал
       // привёл покупателя (utm_source = uroven_<метка>).
       // Открываем компактный checkout в мини-аппе; оплата привязывается к Telegram.
+      // Прямая ссылка записи с сайта: t.me/testtoyzbot?start=waitlist_t2
+      // Записываем сразу, без лишнего шага — человек уже нажал кнопку на странице.
+      if (startParam.startsWith('waitlist_')) {
+        const tier = startParam.slice('waitlist_'.length).split('_')[0];
+        if (['t1', 't2', 't3'].includes(tier)) {
+          const already = await joinWaitlist(chatId, tier, { username, firstName: fullName });
+          await sendMessage(
+            chatId,
+            already ? `${firstName}, ты уже в списке ✓\n\n${WAITLIST_REPLY}` : `${firstName}, ${WAITLIST_REPLY}`,
+          );
+          await trackEvent({
+            event_type: 'bot_start',
+            user_id: chatId,
+            username: username || undefined,
+            first_name: fullName || undefined,
+            utm_source: 'uroven_waitlist',
+            metadata: { product: 'uroven', tier, startParam, already },
+          });
+          return NextResponse.json({ ok: true });
+        }
+      }
+
       if (startParam === 'uroven' || startParam.startsWith('uroven_')) {
         const rest = startParam.startsWith('uroven_') ? startParam.slice('uroven_'.length) : '';
         const parts = rest ? rest.split('_') : [];
@@ -899,6 +989,25 @@ export async function POST(request: NextRequest) {
         const safeTier = hasTier ? parts[0] : 't1';
         // Метка: только буквы/цифры/дефис, до 32 символов. Пустая → нет метки.
         const src = (hasTier ? parts.slice(1) : parts).join('-').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || null;
+
+        // Человек пришёл по старой ссылке на тариф, набор которого закрыт.
+        // Не молчим и не открываем чекаут — объясняем и предлагаем лист ожидания.
+        if (!isOnSale(safeTier)) {
+          await sendMessage(
+            chatId,
+            `${firstName}, ${WAITLIST_OFFER[safeTier as 't1' | 't2' | 't3'] || 'этот тариф сейчас закрыт.'}\n\nМогу записать — напишу тебе первым, когда открою.`,
+            { inline_keyboard: [[{ text: '✍️ Записаться в лист ожидания', callback_data: `waitlist_${safeTier}` }]] },
+          );
+          await trackEvent({
+            event_type: 'bot_start',
+            user_id: chatId,
+            username: username || undefined,
+            first_name: fullName || undefined,
+            utm_source: src ? `uroven_${src}` : startParam,
+            metadata: { product: 'uroven', tier: safeTier, src, startParam, closed: true },
+          });
+          return NextResponse.json({ ok: true });
+        }
 
         const checkoutUrl = `${WEBAPP_URL}/uroven/checkout.html?tier=${safeTier}${src ? `&src=${src}` : ''}`;
 
