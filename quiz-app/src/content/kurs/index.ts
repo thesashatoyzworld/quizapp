@@ -18,6 +18,7 @@ import { UROVEN_3_04 } from './04-uroven-3';
 import { UROVEN_4_05 } from './05-uroven-4';
 import { UROVEN_5_06 } from './06-uroven-5';
 import { OBSHAYA_FORMULA_07 } from './07-obshaya-formula';
+import { UROVEN_6_08 } from './08-uroven-6';
 
 /** Курс открыт на всех тарифах «Нового уровня контента». */
 export const KURS_ROLE = 'uroven';
@@ -127,9 +128,9 @@ export const LESSONS: Lesson[] = [
     title: 'Всё работает, хочу больше',
     subtitle: 'Масштаб это не объём: два пути роста, переупаковка, площадки с органикой, команда и платный трафик',
     task: 'тиражировать то, что работает',
-    duration: '',
-    kinescopeId: '',
-    html: '',
+    duration: '31 мин',
+    kinescopeId: 'kFf2Z8s3UM2W1PXPuqSzzL',
+    html: UROVEN_6_08,
   },
   {
     slug: '09-final',
