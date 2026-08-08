@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
+import OpenInBrowser from '@/components/OpenInBrowser';
 
 // Раздел «Поток спроса» — раздача из двух файлов: методичка ученику и правила,
 // которые он отдаёт программе.
@@ -98,6 +99,9 @@ function PotokInner() {
         <a className="pt-back" href="/dostup">‹ Кабинет</a>
         <div className="pt-brand">Поток спроса</div>
         <div className="pt-sub">Как находить заходы, которые уже сработали, и наливать внутрь свой смысл</div>
+        {/* Файлы качать из вебвью Телеграма неудобно, поэтому выход в браузер здесь
+            нужнее всего. Метод всё равно требует компьютера. */}
+        <OpenInBrowser path="/potok" className="pt-browser" />
       </header>
 
       {state === 'load' && (
@@ -224,6 +228,14 @@ function PotokInner() {
         .pt-back:hover { color: var(--pt-accent); }
         .pt-brand { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; line-height: 1.1; }
         .pt-sub { color: var(--pt-muted); font-size: 13px; margin-top: 5px; line-height: 1.4; }
+        .pt-browser {
+          display: inline-block; margin-top: 12px; cursor: pointer;
+          background: none; border: 1px solid var(--pt-line); color: var(--pt-muted);
+          font-family: inherit; font-weight: 600; font-size: 13px;
+          padding: 8px 13px; border-radius: 10px;
+        }
+        .pt-browser:hover { border-color: var(--pt-accent); color: var(--pt-accent); }
+        .pt-browser:disabled { opacity: 0.6; cursor: default; }
         .pt-card {
           display: block; width: 100%; text-align: left; background: var(--pt-surface);
           border: 1px solid var(--pt-line); border-radius: 18px; padding: 18px; margin-bottom: 14px;

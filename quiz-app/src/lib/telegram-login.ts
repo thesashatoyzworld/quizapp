@@ -16,6 +16,8 @@ import crypto from 'node:crypto';
 export const SESSION_COOKIE = 'kb_session';
 const SESSION_TTL_SEC = 60 * 60 * 24 * 30; // 30 days
 const AUTH_MAX_AGE_SEC = 60 * 60 * 24; // widget payload must be < 1 day old
+const INITDATA_MAX_AGE_SEC = 60 * 60 * 24; // Mini App initData must be < 1 day old
+const TICKET_TTL_SEC = 5 * 60; // handoff link to the browser is short-lived
 
 export type TelegramLoginData = Record<string, string>;
 
@@ -73,3 +75,74 @@ export function verifySession(token: string | undefined, secret: string): number
 }
 
 export const SESSION_MAX_AGE = SESSION_TTL_SEC;
+
+/**
+ * Verify Mini App initData.
+ *
+ * The id we read from `initDataUnsafe` on the client is exactly that — unsafe:
+ * anyone can call our API with someone else's number. The raw `initData` string,
+ * on the other hand, is signed by Telegram, so it is the only thing we can trust
+ * when handing out a browser session.
+ *
+ * Note the secret differs from the Login Widget: here it is
+ * HMAC(bot_token, "WebAppData"), not SHA256(bot_token).
+ * https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+ */
+export function verifyInitData(initData: string, botToken: string): number | null {
+  if (!initData || !botToken) return null;
+
+  const params = new URLSearchParams(initData);
+  const hash = params.get('hash');
+  if (!hash) return null;
+
+  const checkString = [...params.entries()]
+    .filter(([k]) => k !== 'hash')
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`)
+    .join('\n');
+
+  const secret = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
+  const expected = crypto.createHmac('sha256', secret).update(checkString).digest('hex');
+
+  const a = Buffer.from(expected, 'hex');
+  const b = Buffer.from(hash, 'hex');
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+
+  const authDate = Number(params.get('auth_date') || 0);
+  if (!authDate || Math.floor(Date.now() / 1000) - authDate > INITDATA_MAX_AGE_SEC) return null;
+
+  try {
+    const user = JSON.parse(params.get('user') || '{}') as { id?: number };
+    return user.id || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One-time-ish handoff ticket: the Mini App asks for it, the browser trades it
+ * for a normal session. Lives five minutes, so a leaked link is useless by the
+ * time anyone finds it. Prefixed so it can never be confused with a session token.
+ */
+export function signTicket(telegramId: number, secret: string): string {
+  const exp = Math.floor(Date.now() / 1000) + TICKET_TTL_SEC;
+  const payload = `t.${telegramId}.${exp}`;
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return `${payload}.${sig}`;
+}
+
+/** Verify a handoff ticket; returns the telegramId if valid and unexpired. */
+export function verifyTicket(token: string | undefined, secret: string): number | null {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 4 || parts[0] !== 't') return null;
+  const [, idStr, expStr, sig] = parts;
+  const payload = `t.${idStr}.${expStr}`;
+  const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  const a = Buffer.from(expected, 'hex');
+  const b = Buffer.from(sig, 'hex');
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  if (Math.floor(Date.now() / 1000) > Number(expStr)) return null;
+  const id = Number(idStr);
+  return id || null;
+}
