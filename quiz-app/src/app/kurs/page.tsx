@@ -43,6 +43,8 @@ function TelegramLoginButton() {
 
 function KursInner() {
   const [state, setState] = useState<'load' | 'guest' | 'locked' | 'ok'>('load');
+  const kbAutoOpen = useRef<string | null>(null);
+  const kbOpened = useRef(false);
   const [items, setItems] = useState<Card[]>([]);
   const [tgId, setTgId] = useState<number | null>(null);
   const [wm, setWm] = useState('');
@@ -57,6 +59,8 @@ function KursInner() {
     // ?preview=… — превью для ревью: значение просто пробрасываем на сервер,
     // пускать или нет решает он (локальная разработка либо ревью-ссылка).
     const prev = new URLSearchParams(window.location.search).get('preview') || '';
+    // ?open=<slug> — переход из бота сразу в нужный материал.
+    kbAutoOpen.current = new URLSearchParams(window.location.search).get('open');
     setPreview(prev);
 
     let stop = false;
@@ -119,6 +123,17 @@ function KursInner() {
     // openLesson читает tgId/preview/wm — держим слушателя в курсе свежих значений
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, tgId, preview, wm]);
+
+  // Пришли по ссылке из бота — открываем материал, как только список загрузился.
+  useEffect(() => {
+    if (state !== 'ok' || kbOpened.current || !kbAutoOpen.current) return;
+    const card = items.find((i) => i.slug === kbAutoOpen.current);
+    if (card && card.ready) {
+      kbOpened.current = true;
+      openLesson(card);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, items]);
 
   async function openLesson(card: Card) {
     if (!card.ready) return;
