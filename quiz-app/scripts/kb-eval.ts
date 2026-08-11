@@ -71,24 +71,35 @@ async function run(cases: Case[]) {
     console.log(`ЖДЁМ: ${c.expect}`);
 
     if (!res) {
+      // Честное «не знаю» — тоже правильный исход, если его и ждали.
       console.log(`ОТВЕТ: — ответа в материалах нет — (${ms} мс)`);
+      if (c.expect.includes('нет')) ok++;
+      else console.log('⚠ ждали ответ, а бот промолчал');
       continue;
     }
 
     console.log(`РАЗДЕЛ: ${res.entry.section}/${res.entry.slug}${res.block ? ` → ${res.block}` : ''}`);
     console.log(`ОТВЕТ (${ms} мс): ${res.text}`);
 
+    let clean = true;
+
     if (res.entry.minTier > (c.tiers.uroven ?? 0)) {
       console.log('❌ УТЕЧКА: материал закрыт тарифом спрашивающего');
-    } else {
-      ok++;
+      clean = false;
     }
 
-    const hit = NAMES.filter((n) => res.text.toLowerCase().includes(n));
-    if (hit.length) console.log(`⚠ в ответе имя: ${hit.join(', ')}`);
+    // Имена ищем и в ответе, и в названии блока — блок уходит человеку вместе с ответом.
+    const both = `${res.text} ${res.block ?? ''}`.toLowerCase();
+    const hit = NAMES.filter((n) => both.includes(n));
+    if (hit.length) {
+      console.log(`❌ ИМЯ участника в выдаче: ${hit.join(', ')}`);
+      clean = false;
+    }
+
+    if (clean) ok++;
   }
   console.log(`\n─────────────────────────────────────────────`);
-  console.log(`Ответов без нарушения тарифа: ${ok} из ${cases.length}`);
+  console.log(`Чистых исходов: ${ok} из ${cases.length}`);
 }
 
 async function main() {

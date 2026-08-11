@@ -35,6 +35,11 @@ export interface MapEntry {
   minTier: number;
   /** раздел кабинета, куда вести человека */
   path: string;
+  /**
+   * Имена участников встречи. Из разборов и созвонов бот берёт приём, но не
+   * называет, с кем его разбирали: по этому списку выдача чистится.
+   */
+  people: string[];
 }
 
 // ── HTML → текст ─────────────────────────────────────────────────────────────
@@ -169,6 +174,7 @@ export function buildMap(): MapEntry[] {
       role: KURS_ROLE,
       minTier: KURS_MIN_TIER,
       path: '/kurs',
+      people: [],
     });
   }
 
@@ -182,6 +188,7 @@ export function buildMap(): MapEntry[] {
       role: PROMPTY_ROLE,
       minTier: PROMPTY_MIN_TIER,
       path: '/prompty',
+      people: [],
     });
   }
 
@@ -195,6 +202,7 @@ export function buildMap(): MapEntry[] {
       role: POTOK_ROLE,
       minTier: POTOK_MIN_TIER,
       path: '/potok',
+      people: [],
     });
   }
 
@@ -210,6 +218,7 @@ export function buildMap(): MapEntry[] {
       role: FORMULA_ROLE,
       minTier: FORMULA_MIN_TIER,
       path: '/formula',
+      people: [],
     });
   }
 
@@ -223,6 +232,7 @@ export function buildMap(): MapEntry[] {
       role: RAZBORY_ROLE,
       minTier: RAZBORY_MIN_TIER,
       path: '/razbory',
+      people: [],
     });
   }
 
@@ -236,6 +246,7 @@ export function buildMap(): MapEntry[] {
       role: SOZVONY_ROLE,
       minTier: SOZVONY_MIN_TIER,
       path: '/sozvony',
+      people: s.participants ?? [],
     });
   }
 
