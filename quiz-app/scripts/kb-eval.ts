@@ -2,6 +2,7 @@
 //
 //   npx tsx scripts/kb-eval.ts            # весь набор
 //   npx tsx scripts/kb-eval.ts --map      # только карта, без обращений к модели
+//   npx tsx scripts/kb-eval.ts --window   # ловится ли нарезка по блокам
 //   npx tsx scripts/kb-eval.ts "вопрос"   # один свой вопрос
 //
 // Набор проверяет ровно то, что обещано в спеке: попадание в нужный урок,
@@ -10,7 +11,7 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
-import { buildMap, visibleTo, renderMap, materialText, isOpen } from '../src/lib/kb/map';
+import { buildMap, visibleTo, renderMap, materialText, isOpen, textAround } from '../src/lib/kb/map';
 import { answerQuestion, usdOf, ZERO_USAGE, type KbUsage } from '../src/lib/kb/answer';
 
 const T1 = { uroven: 1 };
@@ -66,6 +67,38 @@ function showMap() {
   const longest = [...all].sort((a, b) => materialText(b).length - materialText(a).length)[0];
   console.log(`Самый длинный материал: ${longest.slug} — ${lengths[0]} знаков`);
   console.log(`Средний материал: ${avg} знаков ≈ ${Math.round(avg / 3)} токенов (это второе обращение)\n`);
+}
+
+/**
+ * Работает ли нарезка по блокам: заголовки из оглавления ищутся в тексте
+ * материала. Промахи означают, что длинный материал поедет целиком —
+ * не поломка, но втрое дороже. Гонять после правок разметки материалов.
+ */
+function showWindows() {
+  let long = 0;
+  let hit = 0;
+  let miss = 0;
+
+  for (const e of buildMap()) {
+    const text = materialText(e);
+    if (text.length <= 8_000) continue;
+    long += 1;
+
+    const missed = e.headings.filter((h) => !textAround(text, h));
+    const found = e.headings.length - missed.length;
+    hit += found;
+    miss += missed.length;
+
+    const win = e.headings.length && found ? textAround(text, e.headings.find((h) => textAround(text, h))!)!.length : 0;
+    const flag = missed.length ? '⚠' : ' ';
+    console.log(
+      `${flag} ${`${e.section}/${e.slug}`.padEnd(42)} ${String(text.length).padStart(6)} знаков → окно ${String(win).padStart(5)} · блоков ${found}/${e.headings.length}`,
+    );
+    if (missed.length) console.log(`   не нашлись: ${missed.slice(0, 4).join(' | ')}`);
+  }
+
+  console.log(`\nДлинных материалов: ${long}. Заголовков найдено ${hit}, промахов ${miss}.`);
+  console.log('Промах = материал уедет целиком, ответ не пострадает, но вопрос дороже.\n');
 }
 
 function sumUsage(a: KbUsage, b: KbUsage): KbUsage {
@@ -139,6 +172,7 @@ async function main() {
   const arg = process.argv[2];
   showMap();
   if (arg === '--map') return;
+  if (arg === '--window') return showWindows();
   await run(arg ? [{ q: arg, tiers: T2, expect: '(свой вопрос)' }] : CASES);
 }
 

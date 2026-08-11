@@ -308,6 +308,57 @@ export function findEntry(section: string, slug: string): MapEntry | undefined {
  */
 const MAX_CHARS = 90_000;
 
+/** Короче этого материал едет целиком: резать нечего, а риск промахнуться есть. */
+const WINDOW_FROM = 8_000;
+/** Сколько знаков берём вокруг найденного блока. */
+const WINDOW_BEFORE = 1_000;
+const WINDOW_AFTER = 4_500;
+/** Начало материала едет всегда — там тема и обращение, по ним модель держит тон. */
+const HEAD_KEEP = 600;
+
+function normalize(s: string): string {
+  return s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+/**
+ * Кусок материала вокруг названного блока.
+ *
+ * Длинный урок — это 28 000 знаков, и целиком он едет в каждый вопрос по нему.
+ * Шаг выбора уже видит заголовки блоков в оглавлении, поэтому там же спрашиваем,
+ * в каком блоке ответ, и сюда приезжает только окно вокруг него. Блок не нашёлся
+ * или материал короткий — возвращаем `null`, и наверху уедет полный текст.
+ */
+export function textAround(text: string, heading: string | null): string | null {
+  if (!heading || text.length <= WINDOW_FROM) return null;
+
+  const wanted = normalize(heading);
+  if (wanted.length < 4) return null;
+
+  const lines = text.split('\n');
+  let at = -1;
+  let pos = 0;
+  for (const line of lines) {
+    const norm = normalize(line);
+    // Заголовок в тексте — отдельная короткая строка; сверяем по вхождению,
+    // чтобы пережить номер блока или хвост вроде «(часть 2)».
+    if (norm.length <= wanted.length * 2 + 20 && norm.includes(wanted)) {
+      at = pos;
+      break;
+    }
+    pos += line.length + 1;
+  }
+  if (at < 0) return null;
+
+  const from = Math.max(0, at - WINDOW_BEFORE);
+  const to = Math.min(text.length, at + WINDOW_AFTER);
+  const window = text.slice(from, to);
+  if (window.length >= text.length * 0.8) return null; // резать нечего
+
+  const head = from > HEAD_KEEP ? `${text.slice(0, HEAD_KEEP)}\n…\n` : '';
+  const tail = to < text.length ? '\n…' : '';
+  return `${head}${window}${tail}`;
+}
+
 export function materialText(entry: MapEntry): string {
   let text = '';
 

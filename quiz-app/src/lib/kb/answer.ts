@@ -5,7 +5,7 @@
 // знаний: не хватило текста — возвращает признак «ответа нет».
 
 import Anthropic from '@anthropic-ai/sdk';
-import { materialText, renderMap, type MapEntry } from './map';
+import { materialText, renderMap, textAround, type MapEntry } from './map';
 
 const MODEL = process.env.KB_MODEL || 'claude-haiku-4-5';
 
@@ -78,6 +78,10 @@ const SELECT_SYSTEM = `Ты подбираешь материал по огла�
 ровно как она написана в оглавлении, вместе с косой чертой. Например
 id = "kurs/02-uroven-1". Ничего к ней не добавляй и не переписывай.
 
+В поле block скопируй заголовок блока этого материала, где ответ вероятнее
+всего лежит — дословно из строки «блоки:». Если блоков у материала не показано
+или ни один не подходит, оставь block пустой строкой.
+
 Если в оглавлении нет ничего подходящего, верни found=false. Лучше честно
 сказать «нет», чем притянуть неподходящий материал: ученик получит ответ не по делу.`;
 
@@ -103,8 +107,12 @@ const SELECT_SCHEMA = {
       type: 'string',
       description: 'метка материала из квадратных скобок целиком, например kurs/02-uroven-1',
     },
+    block: {
+      type: 'string',
+      description: 'заголовок блока из строки «блоки:» дословно, либо пустая строка',
+    },
   },
-  required: ['found', 'id'],
+  required: ['found', 'id', 'block'],
   additionalProperties: false,
 } as const;
 
@@ -163,8 +171,8 @@ function firstJson<T>(message: Anthropic.Message): T | null {
 export async function selectEntry(
   question: string,
   entries: MapEntry[],
-): Promise<{ entry: MapEntry | null; usage: KbUsage }> {
-  if (!entries.length) return { entry: null, usage: ZERO_USAGE };
+): Promise<{ entry: MapEntry | null; block: string | null; usage: KbUsage }> {
+  if (!entries.length) return { entry: null, block: null, usage: ZERO_USAGE };
 
   const message = await anthropic().messages.create({
     model: MODEL,
@@ -183,8 +191,8 @@ export async function selectEntry(
   });
 
   const usage = addUsage(ZERO_USAGE, message);
-  const picked = firstJson<{ found: boolean; id: string }>(message);
-  if (!picked?.found || !picked.id) return { entry: null, usage };
+  const picked = firstJson<{ found: boolean; id: string; block: string }>(message);
+  if (!picked?.found || !picked.id) return { entry: null, block: null, usage };
 
   // Модель иногда оборачивает метку в скобки или добавляет пробелы — сверяем по сути.
   const wanted = picked.id.trim().replace(/^\[|\]$/g, '').toLowerCase();
@@ -192,7 +200,7 @@ export async function selectEntry(
     entries.find((e) => `${e.section}/${e.slug}`.toLowerCase() === wanted) ??
     entries.find((e) => e.slug.toLowerCase() === wanted) ??
     null;
-  return { entry, usage };
+  return { entry, block: picked.block?.trim() || null, usage };
 }
 
 /**
@@ -206,35 +214,45 @@ export async function selectEntry(
 export async function answerFrom(
   question: string,
   entry: MapEntry,
+  hint: string | null = null,
 ): Promise<{ answer: KbAnswer | null; usage: KbUsage }> {
-  const text = materialText(entry);
-  if (!text) return { answer: null, usage: ZERO_USAGE };
+  const full = materialText(entry);
+  if (!full) return { answer: null, usage: ZERO_USAGE };
 
-  const message = await anthropic().messages.create({
-    model: MODEL,
-    max_tokens: 512,
-    system: ANSWER_SYSTEM,
-    output_config: { format: { type: 'json_schema', schema: ANSWER_SCHEMA } },
-    messages: [
-      {
-        role: 'user',
-        content: `МАТЕРИАЛ «${entry.title}»:\n\n${text}\n\n---\n\nВОПРОС УЧЕНИКА: ${question}`,
-      },
-    ],
-  });
+  const window = textAround(full, hint);
+  let usage = ZERO_USAGE;
 
-  const usage = addUsage(ZERO_USAGE, message);
-  const parsed = firstJson<{ found: boolean; answer: string; block: string }>(message);
-  if (!parsed?.found || !parsed.answer.trim()) return { answer: null, usage };
+  // Сначала пробуем окном вокруг блока. Не хватило — тот же вопрос по полному
+  // тексту: лишнее обращение платится редко, а ответ не теряется.
+  for (const text of window ? [window, full] : [full]) {
+    const message = await anthropic().messages.create({
+      model: MODEL,
+      max_tokens: 512,
+      system: ANSWER_SYSTEM,
+      output_config: { format: { type: 'json_schema', schema: ANSWER_SCHEMA } },
+      messages: [
+        {
+          role: 'user',
+          content: `МАТЕРИАЛ «${entry.title}»:\n\n${text}\n\n---\n\nВОПРОС УЧЕНИКА: ${question}`,
+        },
+      ],
+    });
 
-  return {
-    answer: {
-      entry,
-      text: parsed.answer.trim(),
-      block: stripPeople(parsed.block?.trim() || null, entry.people),
-    },
-    usage,
-  };
+    usage = addUsage(usage, message);
+    const parsed = firstJson<{ found: boolean; answer: string; block: string }>(message);
+    if (parsed?.found && parsed.answer.trim()) {
+      return {
+        answer: {
+          entry,
+          text: parsed.answer.trim(),
+          block: stripPeople(parsed.block?.trim() || null, entry.people),
+        },
+        usage,
+      };
+    }
+  }
+
+  return { answer: null, usage };
 }
 
 /** Весь путь: вопрос → ответ с адресом, либо null, если ответа в материалах нет. */
@@ -245,7 +263,7 @@ export async function answerQuestion(
   const picked = await selectEntry(question, entries);
   if (!picked.entry) return { answer: null, usage: picked.usage };
 
-  const answered = await answerFrom(question, picked.entry);
+  const answered = await answerFrom(question, picked.entry, picked.block);
   return {
     answer: answered.answer,
     usage: {
