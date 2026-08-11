@@ -29,6 +29,48 @@ export interface KbAnswer {
   block: string | null;
 }
 
+/**
+ * Кэш на час, а не на пять минут по умолчанию.
+ *
+ * Оглавление и текст материала — большие неизменные куски, которые едут в
+ * каждом вопросе. Запись в часовой кэш стоит вдвое против обычной цены, зато
+ * чтение — десятую часть. При пятиминутном кэше вопросы приходят реже, чем он
+ * живёт, и каждый платит полную цену; при часовом окупается с третьего вопроса.
+ */
+const CACHE: { type: 'ephemeral'; ttl: '1h' } = { type: 'ephemeral', ttl: '1h' };
+
+/** Сколько токенов ушло на вопрос — чтобы видеть деньги, а не догадываться. */
+export interface KbUsage {
+  /** входные мимо кэша, полная цена */
+  input: number;
+  /** прочитано из кэша, десятая часть цены */
+  cacheRead: number;
+  /** записано в кэш, двойная цена (ttl 1h) */
+  cacheWrite: number;
+  output: number;
+}
+
+export const ZERO_USAGE: KbUsage = { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 };
+
+function addUsage(a: KbUsage, m: Anthropic.Message): KbUsage {
+  return {
+    input: a.input + m.usage.input_tokens,
+    cacheRead: a.cacheRead + (m.usage.cache_read_input_tokens ?? 0),
+    cacheWrite: a.cacheWrite + (m.usage.cache_creation_input_tokens ?? 0),
+    output: a.output + m.usage.output_tokens,
+  };
+}
+
+/**
+ * Цена вопроса в долларах по прайсу Haiku 4.5: $1 за миллион входных,
+ * $5 за выходные. Запись в часовой кэш — вдвое, чтение — десятая часть.
+ */
+export function usdOf(u: KbUsage): number {
+  return (
+    (u.input * 1 + u.cacheWrite * 2 + u.cacheRead * 0.1 + u.output * 5) / 1_000_000
+  );
+}
+
 const SELECT_SYSTEM = `Ты подбираешь материал по оглавлению курса Саши Тойза.
 
 Тебе дают оглавление и вопрос ученика. Верни ровно один материал, в котором
@@ -121,8 +163,8 @@ function firstJson<T>(message: Anthropic.Message): T | null {
 export async function selectEntry(
   question: string,
   entries: MapEntry[],
-): Promise<MapEntry | null> {
-  if (!entries.length) return null;
+): Promise<{ entry: MapEntry | null; usage: KbUsage }> {
+  if (!entries.length) return { entry: null, usage: ZERO_USAGE };
 
   const message = await anthropic().messages.create({
     model: MODEL,
@@ -131,33 +173,42 @@ export async function selectEntry(
       {
         type: 'text',
         text: `${SELECT_SYSTEM}\n\nОГЛАВЛЕНИЕ:\n\n${renderMap(entries)}`,
-        // Оглавление одинаковое для всех, кому открыт один набор разделов.
-        cache_control: { type: 'ephemeral' },
+        // Оглавление одинаковое для всех, кому открыт один набор разделов,
+        // и едет в каждом вопросе — самый выгодный кусок для кэша.
+        cache_control: CACHE,
       },
     ],
     output_config: { format: { type: 'json_schema', schema: SELECT_SCHEMA } },
     messages: [{ role: 'user', content: question }],
   });
 
+  const usage = addUsage(ZERO_USAGE, message);
   const picked = firstJson<{ found: boolean; id: string }>(message);
-  if (!picked?.found || !picked.id) return null;
+  if (!picked?.found || !picked.id) return { entry: null, usage };
 
   // Модель иногда оборачивает метку в скобки или добавляет пробелы — сверяем по сути.
   const wanted = picked.id.trim().replace(/^\[|\]$/g, '').toLowerCase();
-  return (
+  const entry =
     entries.find((e) => `${e.section}/${e.slug}`.toLowerCase() === wanted) ??
     entries.find((e) => e.slug.toLowerCase() === wanted) ??
-    null
-  );
+    null;
+  return { entry, usage };
 }
 
-/** Шаг 2: ответить по тексту выбранного материала. */
+/**
+ * Шаг 2: ответить по тексту выбранного материала.
+ *
+ * Текст материала намеренно НЕ кэшируется. Материалов шесть десятков, и один
+ * и тот же дважды за час выбирается редко — запись в кэш стоила бы вдвое, а
+ * читать её было бы почти некому. Кэш окупается только на оглавлении, которое
+ * едет в каждом вопросе.
+ */
 export async function answerFrom(
   question: string,
   entry: MapEntry,
-): Promise<KbAnswer | null> {
+): Promise<{ answer: KbAnswer | null; usage: KbUsage }> {
   const text = materialText(entry);
-  if (!text) return null;
+  if (!text) return { answer: null, usage: ZERO_USAGE };
 
   const message = await anthropic().messages.create({
     model: MODEL,
@@ -172,13 +223,17 @@ export async function answerFrom(
     ],
   });
 
+  const usage = addUsage(ZERO_USAGE, message);
   const parsed = firstJson<{ found: boolean; answer: string; block: string }>(message);
-  if (!parsed?.found || !parsed.answer.trim()) return null;
+  if (!parsed?.found || !parsed.answer.trim()) return { answer: null, usage };
 
   return {
-    entry,
-    text: parsed.answer.trim(),
-    block: stripPeople(parsed.block?.trim() || null, entry.people),
+    answer: {
+      entry,
+      text: parsed.answer.trim(),
+      block: stripPeople(parsed.block?.trim() || null, entry.people),
+    },
+    usage,
   };
 }
 
@@ -186,8 +241,18 @@ export async function answerFrom(
 export async function answerQuestion(
   question: string,
   entries: MapEntry[],
-): Promise<KbAnswer | null> {
-  const entry = await selectEntry(question, entries);
-  if (!entry) return null;
-  return answerFrom(question, entry);
+): Promise<{ answer: KbAnswer | null; usage: KbUsage }> {
+  const picked = await selectEntry(question, entries);
+  if (!picked.entry) return { answer: null, usage: picked.usage };
+
+  const answered = await answerFrom(question, picked.entry);
+  return {
+    answer: answered.answer,
+    usage: {
+      input: picked.usage.input + answered.usage.input,
+      cacheRead: picked.usage.cacheRead + answered.usage.cacheRead,
+      cacheWrite: picked.usage.cacheWrite + answered.usage.cacheWrite,
+      output: picked.usage.output + answered.usage.output,
+    },
+  };
 }

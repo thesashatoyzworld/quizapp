@@ -353,12 +353,53 @@ export function materialText(entry: MapEntry): string {
   return text.length > MAX_CHARS ? `${text.slice(0, MAX_CHARS)}\n…(материал обрезан)` : text;
 }
 
+// ── оглавление для модели ────────────────────────────────────────────────────
+//
+// Оглавление едет в каждом вопросе, поэтому каждая запись живёт в бюджете
+// знаков, а не в лимите на количество заголовков: у воркшопов заголовки
+// длинные и их полсотни, у уроков короткие и их десяток. Бюджет уравнивает —
+// короткие заголовки помещаются числом, длинные обрезаются.
+
+/** Сколько знаков отдаём под описание материала. */
+const NOTE_BUDGET = 180;
+/** Сколько знаков отдаём под заголовки блоков одной записи. */
+const HEADINGS_BUDGET = 320;
+/** Длиннее этого заголовок обрезаем: дальше идёт подзаголовок, а не суть. */
+const HEADING_MAX = 70;
+
+function clip(s: string, max: number): string {
+  const t = s.replace(/\s+/g, ' ').trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trim()}…`;
+}
+
+/** Заголовки блоков, уложенные в бюджет знаков. Дубли выбрасываются. */
+function fitHeadings(headings: string[]): string {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  let used = 0;
+
+  for (const raw of headings) {
+    const h = clip(raw, HEADING_MAX);
+    const key = h.toLowerCase();
+    if (!h || seen.has(key)) continue;
+    if (used + h.length > HEADINGS_BUDGET) break;
+    seen.add(key);
+    out.push(h);
+    used += h.length + 3; // « · »
+  }
+  return out.join(' · ');
+}
+
 /** Оглавление в том виде, в котором его читает модель. */
 export function renderMap(entries: MapEntry[]): string {
   return entries
     .map((e) => {
-      const head = e.headings.length ? `\n   блоки: ${e.headings.slice(0, 25).join(' · ')}` : '';
-      return `[${e.section}/${e.slug}] ${e.title}\n   ${e.note}${head}`;
+      const head = fitHeadings(e.headings);
+      const tail = head ? `\n   блоки: ${head}` : '';
+      return `[${e.section}/${e.slug}] ${e.title}\n   ${clip(e.note, NOTE_BUDGET)}${tail}`;
     })
     .join('\n\n');
 }

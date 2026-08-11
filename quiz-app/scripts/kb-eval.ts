@@ -11,7 +11,7 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import { buildMap, visibleTo, renderMap, materialText, isOpen } from '../src/lib/kb/map';
-import { answerQuestion } from '../src/lib/kb/answer';
+import { answerQuestion, usdOf, ZERO_USAGE, type KbUsage } from '../src/lib/kb/answer';
 
 const T1 = { uroven: 1 };
 const T2 = { uroven: 2 };
@@ -61,21 +61,42 @@ function showMap() {
   const empty = all.filter((e) => !materialText(e).trim());
   console.log(empty.length ? `⚠ пустой текст: ${empty.map((e) => e.slug).join(', ')}` : '✓ у всех записей есть текст');
 
+  const lengths = all.map((e) => materialText(e).length).sort((a, b) => b - a);
+  const avg = Math.round(lengths.reduce((s, n) => s + n, 0) / lengths.length);
   const longest = [...all].sort((a, b) => materialText(b).length - materialText(a).length)[0];
-  console.log(`Самый длинный материал: ${longest.slug} — ${materialText(longest).length} знаков\n`);
+  console.log(`Самый длинный материал: ${longest.slug} — ${lengths[0]} знаков`);
+  console.log(`Средний материал: ${avg} знаков ≈ ${Math.round(avg / 3)} токенов (это второе обращение)\n`);
+}
+
+function sumUsage(a: KbUsage, b: KbUsage): KbUsage {
+  return {
+    input: a.input + b.input,
+    cacheRead: a.cacheRead + b.cacheRead,
+    cacheWrite: a.cacheWrite + b.cacheWrite,
+    output: a.output + b.output,
+  };
+}
+
+function usageLine(u: KbUsage): string {
+  const cents = (usdOf(u) * 100).toFixed(3);
+  return `вход ${u.input} · из кэша ${u.cacheRead} · в кэш ${u.cacheWrite} · выход ${u.output} → ${cents}¢`;
 }
 
 async function run(cases: Case[]) {
   let ok = 0;
+  let total = ZERO_USAGE;
+
   for (const c of cases) {
     const entries = visibleTo(c.tiers);
     const started = Date.now();
-    const res = await answerQuestion(c.q, entries);
+    const { answer: res, usage } = await answerQuestion(c.q, entries);
     const ms = Date.now() - started;
+    total = sumUsage(total, usage);
 
     console.log(`\n─────────────────────────────────────────────`);
     console.log(`ВОПРОС (доступ ${JSON.stringify(c.tiers)}): ${c.q}`);
     console.log(`ЖДЁМ: ${c.expect}`);
+    console.log(`ТОКЕНЫ: ${usageLine(usage)}`);
 
     if (!res) {
       // Честное «не знаю» — тоже правильный исход, если его и ждали.
@@ -107,6 +128,11 @@ async function run(cases: Case[]) {
   }
   console.log(`\n─────────────────────────────────────────────`);
   console.log(`Чистых исходов: ${ok} из ${cases.length}`);
+  console.log(`Токены за прогон: ${usageLine(total)}`);
+  const perQuestion = usdOf(total) / cases.length;
+  console.log(
+    `Средний вопрос: ${(perQuestion * 100).toFixed(3)}¢ → ${(perQuestion * 100 * 30).toFixed(2)} $/мес при сотне вопросов в день`,
+  );
 }
 
 async function main() {

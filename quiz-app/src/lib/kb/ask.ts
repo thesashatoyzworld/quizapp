@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { sendBotMessage } from '@/lib/telegram';
 import { visibleTo } from './map';
 import { tiersForTelegram } from './tier';
-import { answerQuestion } from './answer';
+import { answerQuestion, usdOf, ZERO_USAGE, type KbUsage } from './answer';
 
 const WEBAPP = (process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://world.thesashatoyz.com').replace(/\/$/, '');
 /** Библиотека воркшопов — отдельный проект на своём домене. */
@@ -41,6 +41,23 @@ interface KbLog {
   section?: string;
   slug?: string;
   answered?: boolean;
+  /** токены вопроса и его цена в центах — иначе про расходы можно только гадать */
+  tokIn?: number;
+  tokCacheRead?: number;
+  tokCacheWrite?: number;
+  tokOut?: number;
+  cents?: number;
+}
+
+/** Токены в поля лога: одной строкой, чтобы не размазывать по двум местам. */
+function usageFields(u: KbUsage): Partial<KbLog> {
+  return {
+    tokIn: u.input,
+    tokCacheRead: u.cacheRead,
+    tokCacheWrite: u.cacheWrite,
+    tokOut: u.output,
+    cents: Math.round(usdOf(u) * 10_000) / 100,
+  };
 }
 
 async function log(type: 'kb_question' | 'kb_gap', telegramId: number, metadata: KbLog) {
@@ -105,8 +122,11 @@ export async function handleKbQuestion(params: {
   await sendBotMessage(chatId, 'Ищу в материалах…', undefined, null);
 
   let answer;
+  let usage: KbUsage = ZERO_USAGE;
   try {
-    answer = await answerQuestion(question, entries);
+    const res = await answerQuestion(question, entries);
+    answer = res.answer;
+    usage = res.usage;
   } catch (e) {
     console.error('[kb] answer failed', e);
     await sendBotMessage(chatId, 'Не смог посмотреть материалы, попробуй ещё раз через минуту.', undefined, null);
@@ -114,7 +134,7 @@ export async function handleKbQuestion(params: {
   }
 
   if (!answer) {
-    await log('kb_gap', telegramId, { question, tier: tiers.uroven ?? 0 });
+    await log('kb_gap', telegramId, { question, tier: tiers.uroven ?? 0, ...usageFields(usage) });
     await sendBotMessage(
       chatId,
       'Этого в материалах нет. Спроси иначе или задай вопрос Саше на групповом созвоне.',
@@ -153,6 +173,7 @@ export async function handleKbQuestion(params: {
     slug: answer.entry.slug,
     tier: tiers.uroven ?? 0,
     answered: true,
+    ...usageFields(usage),
   });
 
   return { handled: true };
