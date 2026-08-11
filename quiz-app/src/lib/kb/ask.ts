@@ -10,6 +10,8 @@ import { tiersForTelegram } from './tier';
 import { answerQuestion } from './answer';
 
 const WEBAPP = (process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://world.thesashatoyz.com').replace(/\/$/, '');
+/** Библиотека воркшопов — отдельный проект на своём домене. */
+const WORKSHOPS_HOST = 'https://kabinet.thesashatoyz.com';
 
 /** Длиннее — просим сформулировать короче: это уже не вопрос, а история. */
 const MAX_QUESTION = 500;
@@ -125,18 +127,25 @@ export async function handleKbQuestion(params: {
   const where = answer.block ? `${answer.entry.title} → ${answer.block}` : answer.entry.title;
   const text = `${answer.text}\n\nЭто здесь: ${where}`;
 
+  // Библиотека воркшопов живёт на своём домене и опознаёт человека по ?tg=,
+  // поэтому туда ведёт обычная ссылка, а не мини-апп.
   // Курс, разборы и созвоны открывают материал сразу по ?open=<slug>.
   // В промптах, «Потоке» и «Формуле» открывать нечего — ведём в раздел.
-  const deepLink = ['kurs', 'razbory', 'sozvony'].includes(answer.entry.section)
-    ? `${WEBAPP}${answer.entry.path}?open=${encodeURIComponent(answer.entry.slug)}`
-    : `${WEBAPP}${answer.entry.path}`;
+  const button = answer.entry.external
+    ? {
+        text: 'Открыть воркшоп',
+        url: `${WORKSHOPS_HOST}${answer.entry.path}?tg=${telegramId}`,
+      }
+    : {
+        text: 'Открыть в кабинете',
+        web_app: {
+          url: ['kurs', 'razbory', 'sozvony'].includes(answer.entry.section)
+            ? `${WEBAPP}${answer.entry.path}?open=${encodeURIComponent(answer.entry.slug)}`
+            : `${WEBAPP}${answer.entry.path}`,
+        },
+      };
 
-  await sendBotMessage(
-    chatId,
-    text,
-    { inline_keyboard: [[{ text: 'Открыть в кабинете', web_app: { url: deepLink } }]] },
-    null,
-  );
+  await sendBotMessage(chatId, text, { inline_keyboard: [[button]] }, null);
 
   await log('kb_question', telegramId, {
     question,

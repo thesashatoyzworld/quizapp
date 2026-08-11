@@ -12,16 +12,36 @@ import { PROMPTS, PROMPTY_ROLE, PROMPTY_MIN_TIER } from '@/content/prompty';
 import { POTOK_FILES, POTOK_ROLE, POTOK_MIN_TIER } from '@/content/potok';
 import { RAZBORY, RAZBORY_ROLE, RAZBORY_MIN_TIER } from '@/content/razbory';
 import { SOZVONY, SOZVONY_ROLE, SOZVONY_MIN_TIER } from '@/content/sozvony';
+import { WORKSHOPS_KB } from '@/content/workshops';
 import contentJson from '@/content/formula/content.json';
 import type { Content, Block, Rich, NavNode } from '@/content/formula/types';
 
 const formula = contentJson as unknown as Content;
 
+// Правила доступа библиотеки воркшопов повторяют gated.tsx на её страницах:
+// премиум — «Синхронизация» либо «Новый уровень» от тарифа 2; предобучение —
+// любой «Новый уровень» либо «Синхронизация».
+const WORKSHOP_PREMIUM: AccessRule[] = [
+  { role: 'sync', minTier: 0 },
+  { role: 'uroven', minTier: 2 },
+];
+const WORKSHOP_PREOBUCHENIE: AccessRule[] = [
+  { role: 'uroven', minTier: 0 },
+  { role: 'sync', minTier: 0 },
+];
+
 /** «Формула вирусного контента» открыта по роли uroven на любом тарифе. */
 const FORMULA_ROLE = 'uroven';
 const FORMULA_MIN_TIER = 1;
 
-export type Section = 'kurs' | 'prompty' | 'potok' | 'formula' | 'razbory' | 'sozvony';
+export type Section =
+  | 'kurs' | 'prompty' | 'potok' | 'formula' | 'razbory' | 'sozvony' | 'workshops';
+
+/** Роль плюс минимальный тариф. Тариф 0 = роли достаточно самой по себе. */
+export interface AccessRule {
+  role: string;
+  minTier: number;
+}
 
 export interface MapEntry {
   section: Section;
@@ -31,10 +51,12 @@ export interface MapEntry {
   note: string;
   /** заголовки блоков внутри — чтобы модель понимала содержание, не читая материал */
   headings: string[];
-  role: string;
-  minTier: number;
+  /** доступ открыт, если выполнено ЛЮБОЕ из правил */
+  access: AccessRule[];
   /** раздел кабинета, куда вести человека */
   path: string;
+  /** материал живёт на другом домене (библиотека воркшопов) */
+  external?: boolean;
   /**
    * Имена участников встречи. Из разборов и созвонов бот берёт приём, но не
    * называет, с кем его разбирали: по этому списку выдача чистится.
@@ -171,8 +193,7 @@ export function buildMap(): MapEntry[] {
       title: `${l.badge} · ${l.title}`,
       note: l.subtitle,
       headings: headingsFromHtml(l.html),
-      role: KURS_ROLE,
-      minTier: KURS_MIN_TIER,
+      access: [{ role: KURS_ROLE, minTier: KURS_MIN_TIER }],
       path: '/kurs',
       people: [],
     });
@@ -185,8 +206,7 @@ export function buildMap(): MapEntry[] {
       title: p.title,
       note: `${p.intro} На выходе: ${p.outcome}`,
       headings: [],
-      role: PROMPTY_ROLE,
-      minTier: PROMPTY_MIN_TIER,
+      access: [{ role: PROMPTY_ROLE, minTier: PROMPTY_MIN_TIER }],
       path: '/prompty',
       people: [],
     });
@@ -199,8 +219,7 @@ export function buildMap(): MapEntry[] {
       title: `«Поток спроса» — ${f.label}`,
       note: f.note,
       headings: [],
-      role: POTOK_ROLE,
-      minTier: POTOK_MIN_TIER,
+      access: [{ role: POTOK_ROLE, minTier: POTOK_MIN_TIER }],
       path: '/potok',
       people: [],
     });
@@ -215,9 +234,22 @@ export function buildMap(): MapEntry[] {
       title: `Формула вирусного контента · ${node.title}`,
       note: formulaNote(page.blocks),
       headings: formulaHeadings(page.blocks),
-      role: FORMULA_ROLE,
-      minTier: FORMULA_MIN_TIER,
+      access: [{ role: FORMULA_ROLE, minTier: FORMULA_MIN_TIER }],
       path: '/formula',
+      people: [],
+    });
+  }
+
+  for (const w of WORKSHOPS_KB) {
+    entries.push({
+      section: 'workshops',
+      slug: w.slug,
+      title: `Воркшоп · ${w.title}`,
+      note: w.blurb,
+      headings: w.headings,
+      access: w.rule === 'preobuchenie' ? WORKSHOP_PREOBUCHENIE : WORKSHOP_PREMIUM,
+      path: `/w/${w.slug}`,
+      external: true,
       people: [],
     });
   }
@@ -229,8 +261,7 @@ export function buildMap(): MapEntry[] {
       title: `Разбор · ${r.title}`,
       note: r.subtitle,
       headings: headingsFromHtml(r.html),
-      role: RAZBORY_ROLE,
-      minTier: RAZBORY_MIN_TIER,
+      access: [{ role: RAZBORY_ROLE, minTier: RAZBORY_MIN_TIER }],
       path: '/razbory',
       people: [],
     });
@@ -243,8 +274,7 @@ export function buildMap(): MapEntry[] {
       title: `Групповой созвон ${s.date} · ${s.title}`,
       note: s.subtitle,
       headings: headingsFromHtml(s.html),
-      role: SOZVONY_ROLE,
-      minTier: SOZVONY_MIN_TIER,
+      access: [{ role: SOZVONY_ROLE, minTier: SOZVONY_MIN_TIER }],
       path: '/sozvony',
       people: s.participants ?? [],
     });
@@ -254,9 +284,18 @@ export function buildMap(): MapEntry[] {
   return entries;
 }
 
+/** Открыт ли материал человеку с такими ролями и тарифами. */
+export function isOpen(entry: MapEntry, tiers: Record<string, number>): boolean {
+  return entry.access.some((rule) => {
+    const tier = tiers[rule.role];
+    if (tier === undefined) return false;
+    return tier >= rule.minTier;
+  });
+}
+
 /** Что из карты открыто человеку с такими тарифами. */
 export function visibleTo(tiers: Record<string, number>): MapEntry[] {
-  return buildMap().filter((e) => (tiers[e.role] ?? 0) >= e.minTier);
+  return buildMap().filter((e) => isOpen(e, tiers));
 }
 
 export function findEntry(section: string, slug: string): MapEntry | undefined {
@@ -292,6 +331,11 @@ export function materialText(entry: MapEntry): string {
     case 'formula': {
       const page = formula.pages?.[entry.slug];
       text = page ? `${page.title}\n\n${blocksToText(page.blocks).join('\n')}` : '';
+      break;
+    }
+    case 'workshops': {
+      const w = WORKSHOPS_KB.find((x) => x.slug === entry.slug);
+      text = w ? w.text : '';
       break;
     }
     case 'razbory': {

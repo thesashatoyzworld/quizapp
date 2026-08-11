@@ -10,11 +10,12 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
-import { buildMap, visibleTo, renderMap, materialText } from '../src/lib/kb/map';
+import { buildMap, visibleTo, renderMap, materialText, isOpen } from '../src/lib/kb/map';
 import { answerQuestion } from '../src/lib/kb/answer';
 
 const T1 = { uroven: 1 };
 const T2 = { uroven: 2 };
+const SYNC = { sync: 0 };
 
 interface Case {
   q: string;
@@ -32,6 +33,12 @@ const CASES: Case[] = [
   { q: 'что писать человеку, который пропал и не отвечает?', tiers: T2, expect: 'созвон 10.08, без имён и цифр' },
   { q: 'как продавать в переписке, чтобы не отпугнуть?', tiers: T2, expect: 'созвон, приём без имён' },
   { q: 'какой рецепт борща?', tiers: T2, expect: 'ответа нет' },
+  // Воркшопы: премиум открыт с тарифа 2 и по «Синхронизации», тарифу 1 — нет.
+  { q: 'как собрать лид-магнит, который приводит заявки?', tiers: T2, expect: 'воркшоп «Кэш Магниты»' },
+  { q: 'как сделать запуск продукта и собрать первых клиентов?', tiers: T2, expect: 'воркшоп «Солдаут»' },
+  { q: 'как собрать лид-магнит, который приводит заявки?', tiers: T1, expect: 'воркшопы тарифу 1 закрыты' },
+  // Делегируется монтаж и обложки, а не съёмка — вопрос сформулирован по материалу.
+  { q: 'как найти монтажёра и что ему делегировать?', tiers: SYNC, expect: 'воркшоп «Контент чужими руками» по «Синхронизации»' },
 ];
 
 const NAMES = ['даш', 'азамат', 'марат', 'евген', 'костя', 'вася', 'сев', 'наташ', 'инна', 'лилит'];
@@ -67,7 +74,7 @@ async function run(cases: Case[]) {
     const ms = Date.now() - started;
 
     console.log(`\n─────────────────────────────────────────────`);
-    console.log(`ВОПРОС (тариф ${c.tiers.uroven}): ${c.q}`);
+    console.log(`ВОПРОС (доступ ${JSON.stringify(c.tiers)}): ${c.q}`);
     console.log(`ЖДЁМ: ${c.expect}`);
 
     if (!res) {
@@ -83,8 +90,8 @@ async function run(cases: Case[]) {
 
     let clean = true;
 
-    if (res.entry.minTier > (c.tiers.uroven ?? 0)) {
-      console.log('❌ УТЕЧКА: материал закрыт тарифом спрашивающего');
+    if (!isOpen(res.entry, c.tiers)) {
+      console.log('❌ УТЕЧКА: материал закрыт доступом спрашивающего');
       clean = false;
     }
 
