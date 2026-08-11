@@ -38,6 +38,20 @@ export const maxDuration = 60;
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'https://quizapp-ivory-delta.vercel.app';
 
+// Телеграм подписывает свои запросы заголовком: тот же секрет, что передан
+// в setWebhook. Без проверки роут дёргает кто угодно, а с базой знаний каждый
+// чужой POST — два обращения к модели за наш счёт (лимит 20/сутки считается по
+// telegram_id, а его в поддельном апдейте можно поставить любой).
+// Ставится скриптом `node scripts/set-webhook.mjs set`.
+const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
+
+function isFromTelegram(request: NextRequest): boolean {
+  // Секрет не задан — пропускаем всех, как было. Это окно на раскатку:
+  // код уезжает в прод раньше, чем секрет прописан в Vercel и в setWebhook.
+  if (!WEBHOOK_SECRET) return true;
+  return request.headers.get('x-telegram-bot-api-secret-token') === WEBHOOK_SECRET;
+}
+
 interface TelegramUpdate {
   message?: {
     chat: {
@@ -256,6 +270,12 @@ function isPrivateChat(chat: { id: number; type?: string }, fromId?: number): bo
 }
 
 export async function POST(request: NextRequest) {
+  // Чужой запрос отбиваем до чтения тела: ни записей в базу, ни обращений
+  // к модели. Телеграму 401 никогда не прилетит — он шлёт заголовок сам.
+  if (!isFromTelegram(request)) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
+
   try {
     const update: TelegramUpdate = await request.json();
 
