@@ -24,10 +24,17 @@ const db = new pg.Client({
 
 const from = (id) => ({ id, first_name: 'Проверка', username: `probe_${id}` });
 
+// Роут отбивает всё, что пришло без секрета Телеграма (401). Прогон должен
+// представляться так же, иначе до анкеты дело не дойдёт.
+const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
+
 const send = (body) =>
   fetch(HOOK, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(SECRET ? { 'X-Telegram-Bot-Api-Secret-Token': SECRET } : {}),
+    },
     body: JSON.stringify(body),
   });
 
