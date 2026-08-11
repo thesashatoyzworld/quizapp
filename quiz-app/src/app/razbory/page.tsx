@@ -46,6 +46,8 @@ function ru(date: string) {
 
 function RazboryInner() {
   const [state, setState] = useState<'load' | 'guest' | 'locked' | 'ok'>('load');
+  const kbAutoOpen = useRef<string | null>(null);
+  const kbOpened = useRef(false);
   const [tier, setTier] = useState(0);
   const [items, setItems] = useState<Card[]>([]);
   const [tgId, setTgId] = useState<number | null>(null);
@@ -59,6 +61,8 @@ function RazboryInner() {
     // ?preview=1 — превью вёрстки при локальной разработке (сервер пускает
     // только вне продакшена).
     const preview = new URLSearchParams(window.location.search).get('preview') === '1';
+    // ?open=<slug> - переход из бота сразу в нужный материал.
+    kbAutoOpen.current = new URLSearchParams(window.location.search).get('open');
     setPreview(preview);
 
     let stop = false;
@@ -86,6 +90,17 @@ function RazboryInner() {
     })();
     return () => { stop = true; };
   }, []);
+
+  // Пришли по ссылке из бота - открываем материал, как только список загрузился.
+  useEffect(() => {
+    if (state !== 'ok' || kbOpened.current || !kbAutoOpen.current) return;
+    const card = items.find((i) => i.slug === kbAutoOpen.current);
+    if (card) {
+      kbOpened.current = true;
+      openRazbor(card);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, items]);
 
   async function openRazbor(card: Card) {
     setOpening(card.slug);

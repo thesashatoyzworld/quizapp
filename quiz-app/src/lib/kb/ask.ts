@@ -125,14 +125,16 @@ export async function handleKbQuestion(params: {
   const where = answer.block ? `${answer.entry.title} → ${answer.block}` : answer.entry.title;
   const text = `${answer.text}\n\nЭто здесь: ${where}`;
 
+  // Курс, разборы и созвоны открывают материал сразу по ?open=<slug>.
+  // В промптах, «Потоке» и «Формуле» открывать нечего — ведём в раздел.
+  const deepLink = ['kurs', 'razbory', 'sozvony'].includes(answer.entry.section)
+    ? `${WEBAPP}${answer.entry.path}?open=${encodeURIComponent(answer.entry.slug)}`
+    : `${WEBAPP}${answer.entry.path}`;
+
   await sendBotMessage(
     chatId,
     text,
-    {
-      inline_keyboard: [
-        [{ text: 'Открыть в кабинете', web_app: { url: `${WEBAPP}${answer.entry.path}` } }],
-      ],
-    },
+    { inline_keyboard: [[{ text: 'Открыть в кабинете', web_app: { url: deepLink } }]] },
     null,
   );
 
