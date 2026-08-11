@@ -7,6 +7,7 @@ import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { isOnSale, WAITLIST_REPLY, WAITLIST_OFFER } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
+import { handleKbQuestion } from '@/lib/kb/ask';
 import {
   INTAKE_CB,
   adminAddQuestion,
@@ -563,6 +564,18 @@ export async function POST(request: NextRequest) {
           });
         }
         return NextResponse.json({ ok: true });
+      }
+
+      // Анкета сообщение не забрала — значит человек просто написал вопрос.
+      // Отвечаем по материалам курса. Голосовые и файлы база знаний не берёт:
+      // эти типы занимает анкета, пересечение сломало бы обе ветки.
+      if (m.text) {
+        const kb = await handleKbQuestion({
+          chatId: m.chat.id,
+          telegramId: tgId,
+          text: m.text,
+        });
+        if (kb.handled) return NextResponse.json({ ok: true });
       }
     }
 
