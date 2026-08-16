@@ -38,6 +38,17 @@ function post(body: Record<string, unknown>): void {
   } catch { /* noop */ }
 }
 
+/** Заход в кабинет как таковой. Тот же получасовой шаг, что и у разделов. */
+export function trackCabinetOpen(telegramId: number | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const last = Number(sessionStorage.getItem('ct:open') || 0);
+    if (last && Date.now() - last < SECTION_TTL_MS) return;
+    sessionStorage.setItem('ct:open', String(Date.now()));
+  } catch { /* приватный режим — просто пишем каждый раз */ }
+  post({ event_type: 'cabinet_open', telegram_id: telegramId });
+}
+
 /** Заход в раздел. Повторные заходы в течение получаса не пишем. */
 export function trackSection(section: Section, telegramId: number | null): void {
   if (typeof window === 'undefined') return;
