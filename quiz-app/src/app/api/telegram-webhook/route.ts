@@ -5,7 +5,7 @@ import { notifyAdmin, sendBotMessage } from '@/lib/telegram';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
-import { isOnSale, WAITLIST_REPLY, WAITLIST_OFFER } from '@/lib/sales';
+import { isOnSale, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { handleKbQuestion } from '@/lib/kb/ask';
 import {
@@ -129,7 +129,12 @@ async function answerCallbackQuery(callbackQueryId: string, text?: string) {
   });
 }
 
-async function editMessageText(chatId: number, messageId: number, text: string) {
+async function editMessageText(
+  chatId: number,
+  messageId: number,
+  text: string,
+  markup?: { inline_keyboard: unknown[][] },
+) {
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`;
   await fetch(url, {
     method: 'POST',
@@ -139,47 +144,22 @@ async function editMessageText(chatId: number, messageId: number, text: string) 
       message_id: messageId,
       text,
       parse_mode: 'HTML',
+      ...(markup ? { reply_markup: markup } : {}),
     }),
   });
 }
 
-// Записывает человека в лист ожидания тарифа «Нового уровня контента».
-// Возвращает true, если он там уже был: повторный клик не должен задваивать
-// запись и не должен выглядеть как ошибка.
-async function joinWaitlist(
-  telegramId: number,
-  tier: string,
-  who: { username: string | null; firstName: string | null },
-): Promise<boolean> {
-  const existing = await prisma.event.findFirst({
-    where: {
-      type: 'waitlist_join',
-      telegramId: BigInt(telegramId),
-      metadata: { path: ['tier'], equals: tier },
-    },
-    select: { id: true },
-  });
-  if (existing) return true;
-
-  await prisma.event.create({
-    data: {
-      type: 'waitlist_join',
-      telegramId: BigInt(telegramId),
-      productSlug: `uroven-${tier}`,
-      utmSource: 'uroven_waitlist',
-      metadata: { product: 'uroven', tier, username: who.username, firstName: who.firstName },
-    },
-  });
-
-  await notifyAdmin(
-    `📌 <b>Запись в лист ожидания</b> — тариф ${tier.toUpperCase().replace('T', '')}\n\n` +
-    `👤 ${who.firstName || '—'}\n` +
-    `💬 ${who.username ? '@' + who.username : 'без username'}\n` +
-    `🆔 <code>${telegramId}</code>`,
-  );
-
-  return false;
+/** Кнопка на анкету листа ожидания — единственная дверь в этот список. */
+function anketaButton(tier: string) {
+  return {
+    inline_keyboard: [[{ text: '✍️ Заполнить анкету', url: waitlistLink(tier, 'bot') }]],
+  };
 }
+
+// Записи в лист ожидания одним кликом больше нет: из бота приходил только
+// username, а достучаться потом получалось не всегда. Единственная дверь —
+// анкета, там же и телефон с инстаграмом. Старые ссылки и кнопки не ломаем,
+// а уводим на неё же. Прежние записи лежат в events как `waitlist_join`.
 
 // Check whether a user is a member of a public channel.
 // Requires @testtoyzbot to be an admin of that channel, otherwise Telegram
@@ -309,9 +289,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Лист ожидания «Нового уровня контента»: набор на тариф закрыт.
-      // Отдельную таблицу не заводим — пишем событие в общий `events`
-      // (миграции на общей базе опасны). Тариф храним в metadata, чтобы
-      // на открытии позвать отдельно тех, кто ждал двойку, и отдельно тройку.
+      // Кнопка не записывает, а ведёт на анкету — список один, живёт
+      // в `dwy_leads` вместе с анкетами на менторство.
       if (data.startsWith('waitlist_') && cb.message) {
         const tier = data.slice('waitlist_'.length);
         const chatId = cb.message.chat.id;
@@ -322,16 +301,12 @@ export async function POST(request: NextRequest) {
         }
 
         await syncUsername(cb.from.id, cb.from.username, cb.from.first_name);
-        const already = await joinWaitlist(cb.from.id, tier, {
-          username: cb.from.username || null,
-          firstName: cb.from.first_name || null,
-        });
-
-        await answerCallbackQuery(cb.id, already ? 'Ты уже в списке ✓' : 'Записал ✓');
+        await answerCallbackQuery(cb.id);
         await editMessageText(
           chatId,
           cb.message.message_id,
-          already ? `Ты уже в листе ожидания ✓\n\n${WAITLIST_REPLY}` : `Готово ⚡\n\n${WAITLIST_REPLY}`,
+          WAITLIST_ANKETA_ASK,
+          anketaButton(tier),
         );
 
         return NextResponse.json({ ok: true });
@@ -993,23 +968,20 @@ export async function POST(request: NextRequest) {
       // uroven_kanal → тариф по умолчанию + тот же источник. Так видно, какой канал
       // привёл покупателя (utm_source = uroven_<метка>).
       // Открываем компактный checkout в мини-аппе; оплата привязывается к Telegram.
-      // Прямая ссылка записи с сайта: t.me/testtoyzbot?start=waitlist_t2
-      // Записываем сразу, без лишнего шага — человек уже нажал кнопку на странице.
+      // Старая ссылка записи с сайта: t.me/testtoyzbot?start=waitlist_t2.
+      // Её могли разослать, поэтому не молчим — уводим на анкету, там же
+      // спрашиваем телефон и инстаграм. Сами тут ничего не записываем.
       if (startParam.startsWith('waitlist_')) {
         const tier = startParam.slice('waitlist_'.length).split('_')[0];
         if (['t1', 't2', 't3'].includes(tier)) {
-          const already = await joinWaitlist(chatId, tier, { username, firstName: fullName });
-          await sendMessage(
-            chatId,
-            already ? `${firstName}, ты уже в списке ✓\n\n${WAITLIST_REPLY}` : `${firstName}, ${WAITLIST_REPLY}`,
-          );
+          await sendMessage(chatId, `${firstName}, ${WAITLIST_ANKETA_ASK}`, anketaButton(tier));
           await trackEvent({
             event_type: 'bot_start',
             user_id: chatId,
             username: username || undefined,
             first_name: fullName || undefined,
             utm_source: 'uroven_waitlist',
-            metadata: { product: 'uroven', tier, startParam, already },
+            metadata: { product: 'uroven', tier, startParam },
           });
           return NextResponse.json({ ok: true });
         }
@@ -1028,8 +1000,8 @@ export async function POST(request: NextRequest) {
         if (!isOnSale(safeTier)) {
           await sendMessage(
             chatId,
-            `${firstName}, ${WAITLIST_OFFER[safeTier as 't1' | 't2' | 't3'] || 'этот тариф сейчас закрыт.'}\n\nМогу записать — напишу тебе первым, когда открою.`,
-            { inline_keyboard: [[{ text: '✍️ Записаться в лист ожидания', callback_data: `waitlist_${safeTier}` }]] },
+            `${firstName}, ${WAITLIST_OFFER[safeTier as 't1' | 't2' | 't3'] || 'этот тариф сейчас закрыт.'}\n\n${WAITLIST_ANKETA_ASK}`,
+            anketaButton(safeTier),
           );
           await trackEvent({
             event_type: 'bot_start',

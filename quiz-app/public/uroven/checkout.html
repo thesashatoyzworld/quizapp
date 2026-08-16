@@ -131,6 +131,9 @@ h1 {
   var SALES = { t1: 'sale', t2: 'waitlist', t3: 'waitlist' };
   var WAITLIST_NOTE = { t1: '', t2: 'набор в сентябре, 20 мест', t3: '5 мест' };
   var BOT = 'https://t.me/testtoyzbot';
+  // Лист ожидания ведёт на анкету: нужны телефон и инстаграм, одного
+  // клика в боте мало. Копия ссылки из src/lib/sales.ts.
+  var ANKETA = 'https://world.thesashatoyz.com/anketa/dwy';
 
   var ORDER = ['t1', 't2', 't3'];
   var TIERS = {
@@ -235,11 +238,12 @@ h1 {
   }
 
   document.getElementById('pay').addEventListener('click', function () {
-    // Тариф закрыт — вместо оплаты записываем в лист ожидания через бота.
+    // Тариф закрыт — вместо оплаты уводим на анкету листа ожидания.
     if (SALES[tier] !== 'sale') {
       trackCheckout('waitlist');
-      var wl = BOT + '?start=waitlist_' + tier;
-      if (tg && tg.openTelegramLink) tg.openTelegramLink(wl);
+      var wl = ANKETA + '?kind=' + tier + '&from=checkout';
+      // Это обычная веб-страница, openTelegramLink её не откроет.
+      if (tg && tg.openLink) tg.openLink(wl);
       else window.location.href = wl;
       return;
     }
