@@ -18,6 +18,9 @@ const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
 // С холодного трафика из шапки профиля на этом отваливалось большинство.
 // Личность не верифицируем — Саша всё равно читает каждую анкету глазами.
 
+/** Метка проверочного скрипта: такие анкеты пишем, но Саше не показываем. */
+const VERIFY_SOURCE = 'verify-script';
+
 /** Режем длину: поля свободные, а таблица не должна пухнуть от вставленной простыни. */
 const CAP = 2000;
 function cap(v: unknown): string {
@@ -128,6 +131,9 @@ export async function POST(req: NextRequest) {
     // Уведомление уходит ПОСЛЕ ответа клиенту: на мобилке в Instagram WebView
     // ожидание Telegram роняло форму по таймауту.
     after(async () => {
+      // Прогон verify-dwy.mjs бьёт по живому эндпоинту (в том числе на превью,
+      // где токен боевой) — Саше от него прилетал десяток тестовых анкет.
+      if (lead.source === VERIFY_SOURCE) return;
       if (!BOT_TOKEN || !ADMIN_CHAT_ID) {
         console.error('[dwy-lead] BOT_TOKEN / ADMIN_CHAT_ID не заданы — уведомление не ушло');
         return;
