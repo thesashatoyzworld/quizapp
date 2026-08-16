@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   WHO_OPTIONS, HAS_PRODUCT_OPTIONS, LEVELS,
-  INCOME_OPTIONS, HOURS_OPTIONS, DWY_MODES, isDwyKind, type DwyField,
+  INCOME_OPTIONS, HOURS_OPTIONS, DWY_MODES, DWY_FIELDS, isDwyKind, type DwyField,
 } from '@/content/dwy';
 
 // Telegram Login Widget убран намеренно: в мобильном браузере он не видит
@@ -66,6 +66,9 @@ function DwyInner() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  // Остальные вопросы раскрывает тот, кто хочет, чтобы Саша посмотрел его
+  // до открытия набора. У менторства скрывать нечего — там видно всё.
+  const [expanded, setExpanded] = useState(false);
 
   // Какие поля обязательны — решает режим. У менторства это девять вопросов,
   // у листа ожидания только имя и контакт: человек просит напомнить о наборе,
@@ -77,6 +80,110 @@ function DwyInner() {
   const need = (f: DwyField) => mode.required.includes(f);
   const ready = contact.trim().length >= 3
     && mode.required.every((f) => values[f].trim().length > 0);
+
+  const hidden = DWY_FIELDS.filter((f) => !mode.visible.includes(f));
+
+  // Пометку «необязательно» ставим только тому, что видно сразу: внутри
+  // раскрытого блока необязательно вообще всё, и одиннадцать одинаковых
+  // пометок там только шумят.
+  function renderField(f: DwyField) {
+    const optional = mode.visible.includes(f) && !need(f);
+    switch (f) {
+      case 'name':
+        return (
+          <Field key={f} label="Как вас зовут" optional={optional}>
+            <input className="dwy-input" value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+        );
+      case 'contact':
+        return (
+          <Field key={f} label="Ваш телеграм" optional={optional}>
+            <input className="dwy-input" placeholder="@username"
+              autoCapitalize="none" autoCorrect="off" spellCheck={false}
+              value={contact} onChange={(e) => setContact(e.target.value)} />
+            <p className="dwy-hint">Туда я напишу. Нет юзернейма — оставьте почту.</p>
+          </Field>
+        );
+      // Телефон и инстаграм не обязательны нигде: юзернейм правда пишут
+      // с опечатками, но номер на холодном трафике отдают неохотно —
+      // на обязательном поле теряем больше, чем страхуем.
+      case 'phone':
+        return (
+          <Field key={f} label="Ваш телефон" optional={optional}>
+            <input className="dwy-input" type="tel" inputMode="tel"
+              placeholder="+7 999 111-22-33" autoComplete="tel"
+              value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <p className="dwy-hint">Запасной канал, если в телеграме не дойдёт.</p>
+          </Field>
+        );
+      case 'instagram':
+        return (
+          <Field key={f} label="Ваш инстаграм" optional={optional}>
+            <input className="dwy-input" placeholder="@nickname"
+              autoCapitalize="none" autoCorrect="off" spellCheck={false}
+              value={instagram} onChange={(e) => setInstagram(e.target.value)} />
+            <p className="dwy-hint">Посмотрю ваш блог до того, как отвечу.</p>
+          </Field>
+        );
+      case 'who':
+        return (
+          <Field key={f} label="Кто вы" optional={optional}>
+            <Chips options={WHO_OPTIONS} value={who} onChange={setWho} />
+          </Field>
+        );
+      case 'hasProduct':
+        return (
+          <Field key={f} label="Есть ли у вас услуга или продукт" optional={optional}>
+            <Chips options={HAS_PRODUCT_OPTIONS} value={hasProduct} onChange={setHasProduct} />
+            {(hasProduct === 'да' || hasProduct === 'в процессе') && (
+              <input className="dwy-input" placeholder="Какой?"
+                value={product} onChange={(e) => setProduct(e.target.value)} />
+            )}
+          </Field>
+        );
+      case 'level':
+        return (
+          <Field key={f} label="На каком вы уровне" optional={optional}>
+            <div className="dwy-levels">
+              {LEVELS.map((l, i) => (
+                <button key={l} type="button"
+                  className={`dwy-level ${level === i + 1 ? 'dwy-level-on' : ''}`}
+                  onClick={() => setLevel(i + 1)}>
+                  <span className="dwy-level-n">{i + 1}</span>
+                  <span>{l}</span>
+                </button>
+              ))}
+            </div>
+          </Field>
+        );
+      case 'tried':
+        return (
+          <Field key={f} label="Что уже пробовали с контентом и чем закончилось" optional={optional}>
+            <textarea className="dwy-area" rows={4}
+              value={tried} onChange={(e) => setTried(e.target.value)} />
+          </Field>
+        );
+      case 'want':
+        return (
+          <Field key={f} label="Что хотите получить через 3 месяца" optional={optional}>
+            <textarea className="dwy-area" rows={4}
+              value={want} onChange={(e) => setWant(e.target.value)} />
+          </Field>
+        );
+      case 'income':
+        return (
+          <Field key={f} label="Сколько зарабатываете сейчас" optional={optional}>
+            <Chips options={INCOME_OPTIONS} value={income} onChange={setIncome} />
+          </Field>
+        );
+      case 'hours':
+        return (
+          <Field key={f} label="Сколько часов в неделю готовы вкладывать" optional={optional}>
+            <Chips options={HOURS_OPTIONS} value={hours} onChange={setHours} />
+          </Field>
+        );
+    }
+  }
 
   async function submit() {
     if (!ready || sending) return;
@@ -127,84 +234,22 @@ function DwyInner() {
           </section>
 
           <form className="dwy-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-            {mode.formNote && <p className="dwy-note">{mode.formNote}</p>}
+            {mode.visible.map(renderField)}
 
-            <Field label="Как вас зовут" optional={!need('name')}>
-              <input className="dwy-input" value={name} onChange={(e) => setName(e.target.value)} />
-            </Field>
+            {expanded && hidden.map(renderField)}
 
-            <Field label="Ваш телеграм" optional={!need('contact')}>
-              <input className="dwy-input" placeholder="@username"
-                autoCapitalize="none" autoCorrect="off" spellCheck={false}
-                value={contact} onChange={(e) => setContact(e.target.value)} />
-              <p className="dwy-hint">Туда я напишу. Нет юзернейма — оставьте почту.</p>
-            </Field>
-
-            {/* Телефон и инстаграм не обязательны нигде: юзернейм правда пишут
-                с опечатками, но номер на холодном трафике отдают неохотно —
-                на обязательном поле теряем больше, чем страхуем. */}
-            <Field label="Ваш телефон" optional={!need('phone')}>
-              <input className="dwy-input" type="tel" inputMode="tel"
-                placeholder="+7 999 111-22-33"
-                autoComplete="tel"
-                value={phone} onChange={(e) => setPhone(e.target.value)} />
-              <p className="dwy-hint">Запасной канал, если в телеграме не дойдёт.</p>
-            </Field>
-
-            <Field label="Ваш инстаграм" optional={!need('instagram')}>
-              <input className="dwy-input" placeholder="@nickname"
-                autoCapitalize="none" autoCorrect="off" spellCheck={false}
-                value={instagram} onChange={(e) => setInstagram(e.target.value)} />
-              <p className="dwy-hint">Посмотрю ваш блог до того, как отвечу.</p>
-            </Field>
-
-            <Field label="Кто вы" optional={!need('who')}>
-              <Chips options={WHO_OPTIONS} value={who} onChange={setWho} />
-            </Field>
-
-            <Field label="Есть ли у вас услуга или продукт" optional={!need('hasProduct')}>
-              <Chips options={HAS_PRODUCT_OPTIONS} value={hasProduct} onChange={setHasProduct} />
-              {(hasProduct === 'да' || hasProduct === 'в процессе') && (
-                <input className="dwy-input" placeholder="Какой?"
-                  value={product} onChange={(e) => setProduct(e.target.value)} />
-              )}
-            </Field>
-
-            <Field label="На каком вы уровне" optional={!need('level')}>
-              <div className="dwy-levels">
-                {LEVELS.map((l, i) => (
-                  <button key={l} type="button"
-                    className={`dwy-level ${level === i + 1 ? 'dwy-level-on' : ''}`}
-                    onClick={() => setLevel(i + 1)}>
-                    <span className="dwy-level-n">{i + 1}</span>
-                    <span>{l}</span>
-                  </button>
-                ))}
-              </div>
-            </Field>
-
-            <Field label="Что уже пробовали с контентом и чем закончилось" optional={!need('tried')}>
-              <textarea className="dwy-area" rows={4}
-                value={tried} onChange={(e) => setTried(e.target.value)} />
-            </Field>
-
-            <Field label="Что хотите получить через 3 месяца" optional={!need('want')}>
-              <textarea className="dwy-area" rows={4}
-                value={want} onChange={(e) => setWant(e.target.value)} />
-            </Field>
-
-            <Field label="Сколько зарабатываете сейчас" optional={!need('income')}>
-              <Chips options={INCOME_OPTIONS} value={income} onChange={setIncome} />
-            </Field>
-
-            <Field label="Сколько часов в неделю готовы вкладывать" optional={!need('hours')}>
-              <Chips options={HOURS_OPTIONS} value={hours} onChange={setHours} />
-            </Field>
+            {/* Ссылка стоит НАД кнопкой: раскрытые вопросы появляются выше неё,
+                и кнопка всегда остаётся последним, что видит человек. */}
+            {!expanded && hidden.length > 0 && mode.moreLabel && (
+              <button type="button" className="dwy-more" onClick={() => setExpanded(true)}>
+                {mode.moreLabel}
+              </button>
+            )}
 
             {error && <p className="dwy-err">{error}</p>}
 
             <button className="dwy-submit" type="submit" disabled={!ready || sending}>
-              {sending ? 'Отправляю…' : 'Отправить анкету'}
+              {sending ? 'Отправляю…' : mode.submitLabel}
             </button>
           </form>
         </>
@@ -243,11 +288,16 @@ function DwyInner() {
           font-weight: 400; font-size: 12.5px; color: var(--mut);
           margin-left: 8px; white-space: nowrap;
         }
-        .dwy-note {
-          font-size: 14.5px; line-height: 1.45; color: var(--mut);
-          background: #f7f2ee; border-radius: 10px;
-          padding: 12px 14px; margin: 0 0 26px;
+        /* Ссылка, а не вторая кнопка: рядом с «Записаться» она не должна
+           спорить за внимание — записаться можно и без неё. */
+        .dwy-more {
+          display: block; width: 100%; text-align: left; cursor: pointer;
+          font-family: inherit; font-size: 14.5px; line-height: 1.45;
+          color: var(--acc); background: none; border: none;
+          border-bottom: 1px dashed currentColor; padding: 0 0 2px;
+          margin: 4px 0 22px; align-self: flex-start;
         }
+        .dwy-more:active { opacity: .6; }
         .dwy-chips { display: flex; flex-wrap: wrap; gap: 8px; }
         .dwy-chip {
           cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 500;
