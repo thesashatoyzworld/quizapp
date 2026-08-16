@@ -13,6 +13,8 @@
 // миграции на общей базе опасны (см. lessons_prisma-db-push-shared-database).
 // ─────────────────────────────────────────────────────────────
 
+import { useEffect } from 'react';
+
 /** Раздел кабинета — он же значение metadata.section. */
 export type Section =
   | 'kurs' | 'razbory' | 'sozvony' | 'lichnoe' | 'prompty' | 'potok' | 'formula' | 'workshops';
@@ -75,4 +77,20 @@ export function trackVideo(
     telegram_id: telegramId,
     metadata: { kind, slug, percent: Math.round(percent), seconds: Math.round(seconds) },
   });
+}
+
+/**
+ * Слушает вехи досмотра, которые мост шлёт из iframe материала.
+ * Разделу остаётся только позвать хук: telegram id знает страница, не статья.
+ */
+export function useVideoProgress(kind: MaterialKind, telegramId: number | null): void {
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      const d = e.data as { kvideo?: { slug?: string; percent?: number; seconds?: number } };
+      if (!d || typeof d !== 'object' || !d.kvideo || !d.kvideo.slug) return;
+      trackVideo(kind, d.kvideo.slug, d.kvideo.percent ?? 0, d.kvideo.seconds ?? 0, telegramId);
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [kind, telegramId]);
 }

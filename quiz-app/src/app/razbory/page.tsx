@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
+import { trackSection, trackMaterial, useVideoProgress } from '@/lib/cabinet-track';
 
 // Раздел «Разборы» — записи и конспекты разборов реальных созвонов учеников.
 // Доступ: активный «Новый уровень контента» тарифа 2 или 3. Проверка живёт на
@@ -83,13 +84,16 @@ function RazboryInner() {
         setTier(data.tier || 0);
         if (!data.identified) setState('guest');
         else if (!data.allowed) setState('locked');
-        else { setItems(data.items || []); setState('ok'); }
+        else { setItems(data.items || []); setState('ok'); trackSection('razbory', id); }
       } catch {
         if (!stop) setState('guest');
       }
     })();
     return () => { stop = true; };
   }, []);
+
+  // Досмотр записи: мост внутри конспекта шлёт вехи наверх.
+  useVideoProgress('razbory', tgId);
 
   // Пришли по ссылке из бота - открываем материал, как только список загрузился.
   useEffect(() => {
@@ -104,6 +108,7 @@ function RazboryInner() {
 
   async function openRazbor(card: Card) {
     setOpening(card.slug);
+    trackMaterial('razbory', card.slug, card.title, tgId);
     try {
       const qs = new URLSearchParams({ slug: card.slug });
       if (tgId) qs.set('telegramId', String(tgId));

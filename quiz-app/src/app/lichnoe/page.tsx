@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
+import { trackSection, trackMaterial, useVideoProgress } from '@/lib/cabinet-track';
 
 // Раздел «Личное» — записи персональных созвонов с конспектами.
 // Доступ строго по Telegram id: человек видит только свои материалы. Проверка
@@ -68,7 +69,7 @@ function LichnoeInner() {
         const data = await res.json();
         if (stop) return;
         if (!data.identified) setState('guest');
-        else { setItems(data.items || []); setState('ok'); }
+        else { setItems(data.items || []); setState('ok'); trackSection('lichnoe', id); }
       } catch {
         if (!stop) setState('guest');
       }
@@ -76,8 +77,12 @@ function LichnoeInner() {
     return () => { stop = true; };
   }, []);
 
+  // Досмотр записи: мост внутри конспекта шлёт вехи наверх.
+  useVideoProgress('lichnoe', tgId);
+
   async function openMaterial(card: Card) {
     setOpening(card.slug);
+    trackMaterial('lichnoe', card.slug, card.title, tgId);
     try {
       const qs = new URLSearchParams({ slug: card.slug });
       if (tgId) qs.set('telegramId', String(tgId));

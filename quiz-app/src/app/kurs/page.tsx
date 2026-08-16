@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
+import { trackSection, trackMaterial, trackVideo } from '@/lib/cabinet-track';
 
 // Раздел «Новый уровень контента» — основной курс: десять частей, у каждой
 // видеозапись и статья с картинками и интерактивами.
@@ -85,7 +86,12 @@ function KursInner() {
         if (stop) return;
         if (!data.identified) setState('guest');
         else if (!data.allowed) setState('locked');
-        else { setItems(data.items || []); setDone(data.done || []); setState('ok'); }
+        else {
+          setItems(data.items || []);
+          setDone(data.done || []);
+          setState('ok');
+          trackSection('kurs', id);
+        }
       } catch {
         if (!stop) setState('guest');
       }
@@ -97,8 +103,18 @@ function KursInner() {
   // вернись к списку.
   useEffect(() => {
     function onMessage(e: MessageEvent) {
-      const d = e.data as { kurs?: string; slug?: string };
-      if (!d || typeof d !== 'object' || !d.kurs) return;
+      const d = e.data as {
+        kurs?: string;
+        slug?: string;
+        kvideo?: { kind: string; slug: string; percent: number; seconds: number };
+      };
+      if (!d || typeof d !== 'object') return;
+      // Веха досмотра от плеера внутри статьи.
+      if (d.kvideo && d.kvideo.slug) {
+        trackVideo('kurs', d.kvideo.slug, d.kvideo.percent, d.kvideo.seconds, tgId);
+        return;
+      }
+      if (!d.kurs) return;
       if (d.kurs === 'done' && d.slug) {
         const slug = d.slug;
         setDone((prev) => (prev.includes(slug) ? prev : [...prev, slug]));
@@ -138,6 +154,7 @@ function KursInner() {
   async function openLesson(card: Card) {
     if (!card.ready) return;
     setOpening(card.slug);
+    trackMaterial('kurs', card.slug, card.title, tgId);
     try {
       const qs = new URLSearchParams({ slug: card.slug });
       if (tgId) qs.set('telegramId', String(tgId));

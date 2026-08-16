@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
+import { trackSection, trackMaterial } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
 
 // Раздел «Поток спроса» — раздача из двух файлов: методичка ученику и правила,
@@ -65,7 +66,7 @@ function PotokInner() {
         if (stop) return;
         if (!data.identified) setState('guest');
         else if (!data.allowed) setState('locked');
-        else { setItems(data.items || []); setState('ok'); }
+        else { setItems(data.items || []); setState('ok'); trackSection('potok', id); }
       } catch {
         if (!stop) setState('guest');
       }
@@ -160,7 +161,8 @@ function PotokInner() {
           </div>
 
           {zip && (
-            <a className="pt-zip" href={href({ file: 'zip' })}>
+            <a className="pt-zip" href={href({ file: 'zip' })}
+              onClick={() => trackMaterial('potok', 'zip', 'Поток спроса — архив', tgId)}>
               <span className="pt-zip-k">Скачать всё одним архивом</span>
               <span className="pt-zip-n">{Math.round(zip.bytes / 1024)} КБ · оба файла</span>
             </a>
@@ -176,9 +178,13 @@ function PotokInner() {
               </div>
               <p className="pt-file-note">{f.note}</p>
               <div className="pt-file-actions">
-                <a className="pt-dl" href={href({ file: f.key })}>Скачать</a>
+                <a className="pt-dl" href={href({ file: f.key })}
+                  onClick={() => trackMaterial('potok', f.key, f.label, tgId)}>Скачать</a>
                 {f.key === 'html' && (
-                  <button className="pt-view" onClick={() => setViewer(true)}>Смотреть здесь</button>
+                  <button className="pt-view"
+                    onClick={() => { setViewer(true); trackMaterial('potok', 'html-view', f.label, tgId); }}>
+                    Смотреть здесь
+                  </button>
                 )}
               </div>
             </div>
