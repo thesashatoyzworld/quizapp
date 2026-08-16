@@ -293,15 +293,23 @@ model DwyLead {
   telegramId String?  @map("telegram_id")
   username   String?
   firstName  String?  @map("first_name")
-  who        String
-  hasProduct String   @map("has_product")
+  // Всё, кроме имени и контакта, необязательно: у листа ожидания обязательны
+  // только они. Что именно требовать в каждом потоке — решает DWY_MODES,
+  // а не база.
+  who        String?
+  hasProduct String?  @map("has_product")
   product    String?
-  level      Int
-  tried      String
-  want       String
-  income     String
-  hours      String
+  level      Int?
+  tried      String?
+  want       String?
+  income     String?
+  hours      String?
   contact    String?
+  phone      String?
+  instagram  String?
+  // mentor — менторство, t2/t3 — лист ожидания тарифа «Нового уровня контента».
+  // Анкета одна на оба потока, отличаем по этой колонке.
+  kind       String?
   source     String?
   createdAt  DateTime @default(now()) @map("created_at")
 

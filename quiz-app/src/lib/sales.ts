@@ -24,14 +24,23 @@ export const SALES: Record<Tier, SaleMode> = {
 
 export const BOT = 'https://t.me/testtoyzbot';
 
+/** Анкета живёт в quiz-app; домен тот же, что у чекаута. */
+export const ANKETA = 'https://world.thesashatoyz.com/anketa/dwy';
+
 export const isOnSale = (tier: string): boolean => SALES[tier as Tier] === 'sale';
 
-/** Ссылка записи. Тариф едет в метке, чтобы знать, кого звать на открытии. */
-export const waitlistLink = (tier: string): string => `${BOT}?start=waitlist_${tier}`;
+/**
+ * Ссылка записи ведёт на анкету, а не в бота: из бота приходил только username,
+ * а достучаться потом получалось не всегда. Тариф едет в `kind` — по нему видно,
+ * кто ждёт набора, а кто пришёл на менторство. Обязательны там только имя
+ * и контакт, остальное человек заполняет по желанию.
+ */
+export const waitlistLink = (tier: string, from = 'uroven'): string =>
+  `${ANKETA}?kind=${tier}&from=${from}`;
 
-/** Что бот отвечает на запись. */
-export const WAITLIST_REPLY =
-  'Записал. Когда открою набор, ты узнаешь первым — напишу сюда до того, как это увидит канал.';
+/** Чем бот встречает того, кто пришёл по старой ссылке или кнопке записи. */
+export const WAITLIST_ANKETA_ASK =
+  'Запишу — оставь имя и телеграм в анкете, чтобы я знал, кому писать. Займёт полминуты, остальные вопросы по желанию.';
 
 /** Что бот отвечает, если человек пришёл по старой ссылке на закрытый тариф. */
 export const WAITLIST_OFFER: Record<Tier, string> = {

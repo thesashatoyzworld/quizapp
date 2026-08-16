@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { buildDwyMessage, normalizeTelegramUsername, type DwyLeadInput } from '@/lib/dwy-message';
+import {
+  buildDwyMessage, normalizeTelegramUsername, normalizePhone,
+  normalizeInstagram, type DwyLeadInput, type DwyPrior,
+} from '@/lib/dwy-message';
+import { isDwyKind, DWY_MODES } from '@/content/dwy';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -13,32 +17,40 @@ const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
 // сессию из приложения и гонит человека на oauth.telegram.org вводить номер.
 // С холодного трафика из шапки профиля на этом отваливалось большинство.
 // Личность не верифицируем — Саша всё равно читает каждую анкету глазами.
-const REQUIRED = ['name', 'contact', 'who', 'hasProduct', 'level', 'tried', 'want', 'income', 'hours'] as const;
 
 /** Режем длину: поля свободные, а таблица не должна пухнуть от вставленной простыни. */
 const CAP = 2000;
 function cap(v: unknown): string {
-  return String(v).trim().slice(0, CAP);
+  return String(v ?? '').trim().slice(0, CAP);
+}
+
+/** Пустое поле — это null, а не пустая строка: в базе их потом не различить. */
+function optional(v: unknown): string | null {
+  const s = cap(v);
+  return s || null;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { answers, source } = body ?? {};
+    const { answers, source, kind: rawKind } = body ?? {};
+
+    // Неизвестный режим не роняем в 400: анкета всё равно ценна, просто
+    // считаем её менторством — как было до листов ожидания.
+    const kind = isDwyKind(rawKind) ? rawKind : 'mentor';
+    const mode = DWY_MODES[kind];
 
     if (!answers || typeof answers !== 'object') {
       return NextResponse.json({ error: 'bad payload' }, { status: 400 });
     }
 
-    for (const field of REQUIRED) {
-      if (answers[field] === undefined || answers[field] === null || String(answers[field]).trim() === '') {
+    // Что обязательно — решает режим. У менторства это девять вопросов,
+    // у листа ожидания только имя и контакт: человек просит напомнить
+    // о наборе, а не проходит отбор.
+    for (const field of mode.required) {
+      if (!cap(answers[field])) {
         return NextResponse.json({ error: `missing field: ${field}` }, { status: 400 });
       }
-    }
-
-    const level = Number(answers.level);
-    if (!Number.isInteger(level) || level < 1 || level > 6) {
-      return NextResponse.json({ error: 'bad level' }, { status: 400 });
     }
 
     const contact = cap(answers.contact);
@@ -46,20 +58,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'bad contact' }, { status: 400 });
     }
 
+    // Уровень проверяем, только если он вообще пришёл: в листе ожидания
+    // его могли не трогать.
+    const rawLevel = cap(answers.level);
+    let level: number | null = null;
+    if (rawLevel) {
+      const n = Number(rawLevel);
+      if (!Number.isInteger(n) || n < 1 || n > 6) {
+        return NextResponse.json({ error: 'bad level' }, { status: 400 });
+      }
+      level = n;
+    }
+
+    // Телефон и инстаграм необязательны нигде. Кривой ввод не отбиваем:
+    // потерять лид из-за формата хуже, чем показать Саше строку как есть.
+    const phone = optional(answers.phone);
+    const instagram = optional(answers.instagram);
+
     const lead: DwyLeadInput = {
       name: cap(answers.name),
       contact,
       username: normalizeTelegramUsername(contact),
-      who: cap(answers.who),
-      hasProduct: cap(answers.hasProduct),
-      product: answers.product ? cap(answers.product) : null,
+      phone: phone ? normalizePhone(phone) : null,
+      instagram,
+      instagramHandle: instagram ? normalizeInstagram(instagram) : null,
+      kind,
+      who: optional(answers.who),
+      hasProduct: optional(answers.hasProduct),
+      product: optional(answers.product),
       level,
-      tried: cap(answers.tried),
-      want: cap(answers.want),
-      income: cap(answers.income),
-      hours: cap(answers.hours),
+      tried: optional(answers.tried),
+      want: optional(answers.want),
+      income: optional(answers.income),
+      hours: optional(answers.hours),
       source: typeof source === 'string' && source ? source.slice(0, 64) : 'direct',
     };
+
+    // Потоки сходятся в одну таблицу, поэтому один и тот же человек может
+    // прийти дважды — сначала в лист ожидания, потом на менторство. Ищем
+    // прошлую анкету, чтобы Саша видел это сразу, а не встречал знакомого
+    // как незнакомца. Ошибка поиска не должна мешать приёму лида.
+    const prior = await findPrior(lead).catch((e) => {
+      console.error('[dwy-lead] prior lookup failed', e);
+      return null;
+    });
 
     // Лид пишем первым. Он не должен теряться, что бы ни случилось с Telegram.
     await prisma.dwyLead.create({
@@ -76,6 +118,9 @@ export async function POST(req: NextRequest) {
         income: lead.income,
         hours: lead.hours,
         contact: lead.contact,
+        phone: lead.phone,
+        instagram: lead.instagramHandle ? `@${lead.instagramHandle}` : lead.instagram,
+        kind: lead.kind,
         source: lead.source,
       },
     });
@@ -95,7 +140,7 @@ export async function POST(req: NextRequest) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: ADMIN_CHAT_ID,
-            text: buildDwyMessage(lead),
+            text: buildDwyMessage(lead, prior),
             parse_mode: 'HTML',
             link_preview_options: { is_disabled: true },
           }),
@@ -115,4 +160,27 @@ export async function POST(req: NextRequest) {
     console.error('[dwy-lead] handler error', e);
     return NextResponse.json({ error: 'internal error' }, { status: 500 });
   }
+}
+
+/**
+ * Прошлая анкета того же человека. Узнаём по юзернейму, телефону или
+ * по контакту слово-в-слово — этого хватает, точную склейку личностей
+ * тут не строим.
+ */
+async function findPrior(lead: DwyLeadInput): Promise<DwyPrior | null> {
+  const or = [
+    lead.username ? { username: lead.username } : null,
+    lead.phone ? { phone: lead.phone } : null,
+    { contact: lead.contact },
+  ].filter((v): v is NonNullable<typeof v> => v !== null);
+
+  const found = await prisma.dwyLead.findFirst({
+    where: { OR: or },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true, kind: true },
+  });
+  if (!found) return null;
+
+  const days = Math.max(0, Math.floor((Date.now() - found.createdAt.getTime()) / 86_400_000));
+  return { days, kind: found.kind };
 }

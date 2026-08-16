@@ -3,8 +3,8 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  DWY_TITLE, DWY_ARGUMENT, WHO_OPTIONS, HAS_PRODUCT_OPTIONS, LEVELS,
-  INCOME_OPTIONS, HOURS_OPTIONS, DWY_THANKS,
+  WHO_OPTIONS, HAS_PRODUCT_OPTIONS, LEVELS,
+  INCOME_OPTIONS, HOURS_OPTIONS, DWY_MODES, isDwyKind, type DwyField,
 } from '@/content/dwy';
 
 // Telegram Login Widget убран намеренно: в мобильном браузере он не видит
@@ -12,10 +12,15 @@ import {
 // Трафик идёт из шапки профиля в Instagram — на таком трении отваливается
 // большинство. Контакт человек вписывает руками.
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, optional, children }: {
+  label: string; optional?: boolean; children: React.ReactNode;
+}) {
   return (
     <div className="dwy-field">
-      <label className="dwy-label">{label}</label>
+      <label className="dwy-label">
+        {label}
+        {optional && <span className="dwy-opt">необязательно</span>}
+      </label>
       {children}
     </div>
   );
@@ -40,9 +45,16 @@ function Chips({ options, value, onChange }: {
 function DwyInner() {
   const params = useSearchParams();
   const source = params.get('from') || 'direct';
+  // Одна страница на два потока: без параметра — менторство, ?kind=t2|t3 —
+  // лист ожидания закрытого тарифа. Вопросы те же, отличаются шапка и метка.
+  const rawKind = params.get('kind');
+  const kind = isDwyKind(rawKind) ? rawKind : 'mentor';
+  const mode = DWY_MODES[kind];
 
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
+  const [phone, setPhone] = useState('');
+  const [instagram, setInstagram] = useState('');
   const [who, setWho] = useState('');
   const [hasProduct, setHasProduct] = useState('');
   const [product, setProduct] = useState('');
@@ -55,8 +67,16 @@ function DwyInner() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
 
-  const ready = !!name.trim() && contact.trim().length >= 3 && !!who && !!hasProduct
-    && level > 0 && !!tried.trim() && !!want.trim() && !!income && !!hours;
+  // Какие поля обязательны — решает режим. У менторства это девять вопросов,
+  // у листа ожидания только имя и контакт: человек просит напомнить о наборе,
+  // а не проходит отбор, и стена из девяти вопросов его просто разворачивает.
+  const values: Record<DwyField, string> = {
+    name, contact, phone, instagram, who, hasProduct,
+    level: level ? String(level) : '', tried, want, income, hours,
+  };
+  const need = (f: DwyField) => mode.required.includes(f);
+  const ready = contact.trim().length >= 3
+    && mode.required.every((f) => values[f].trim().length > 0);
 
   async function submit() {
     if (!ready || sending) return;
@@ -68,7 +88,11 @@ function DwyInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source,
-          answers: { name, contact, who, hasProduct, product, level, tried, want, income, hours },
+          kind,
+          answers: {
+            name, contact, phone, instagram,
+            who, hasProduct, product, level, tried, want, income, hours,
+          },
         }),
       });
       if (!res.ok) {
@@ -91,34 +115,54 @@ function DwyInner() {
 
       {sent ? (
         <section className="dwy-done">
-          {DWY_THANKS.map((line, i) => (
+          {mode.thanks.map((line, i) => (
             <p key={i} className={i === 0 ? 'dwy-done-h' : 'dwy-done-p'}>{line}</p>
           ))}
         </section>
       ) : (
         <>
           <section className="dwy-intro">
-            <h1 className="dwy-h1">{DWY_TITLE}</h1>
-            {DWY_ARGUMENT.map((line, i) => <p key={i} className="dwy-arg">{line}</p>)}
+            <h1 className="dwy-h1">{mode.title}</h1>
+            {mode.argument.map((line, i) => <p key={i} className="dwy-arg">{line}</p>)}
           </section>
 
           <form className="dwy-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-            <Field label="Как вас зовут">
+            {mode.formNote && <p className="dwy-note">{mode.formNote}</p>}
+
+            <Field label="Как вас зовут" optional={!need('name')}>
               <input className="dwy-input" value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
 
-            <Field label="Ваш телеграм">
+            <Field label="Ваш телеграм" optional={!need('contact')}>
               <input className="dwy-input" placeholder="@username"
                 autoCapitalize="none" autoCorrect="off" spellCheck={false}
                 value={contact} onChange={(e) => setContact(e.target.value)} />
               <p className="dwy-hint">Туда я напишу. Нет юзернейма — оставьте почту.</p>
             </Field>
 
-            <Field label="Кто вы">
+            {/* Телефон и инстаграм не обязательны нигде: юзернейм правда пишут
+                с опечатками, но номер на холодном трафике отдают неохотно —
+                на обязательном поле теряем больше, чем страхуем. */}
+            <Field label="Ваш телефон" optional={!need('phone')}>
+              <input className="dwy-input" type="tel" inputMode="tel"
+                placeholder="+7 999 111-22-33"
+                autoComplete="tel"
+                value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <p className="dwy-hint">Запасной канал, если в телеграме не дойдёт.</p>
+            </Field>
+
+            <Field label="Ваш инстаграм" optional={!need('instagram')}>
+              <input className="dwy-input" placeholder="@nickname"
+                autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                value={instagram} onChange={(e) => setInstagram(e.target.value)} />
+              <p className="dwy-hint">Посмотрю ваш блог до того, как отвечу.</p>
+            </Field>
+
+            <Field label="Кто вы" optional={!need('who')}>
               <Chips options={WHO_OPTIONS} value={who} onChange={setWho} />
             </Field>
 
-            <Field label="Есть ли у вас услуга или продукт">
+            <Field label="Есть ли у вас услуга или продукт" optional={!need('hasProduct')}>
               <Chips options={HAS_PRODUCT_OPTIONS} value={hasProduct} onChange={setHasProduct} />
               {(hasProduct === 'да' || hasProduct === 'в процессе') && (
                 <input className="dwy-input" placeholder="Какой?"
@@ -126,7 +170,7 @@ function DwyInner() {
               )}
             </Field>
 
-            <Field label="На каком вы уровне">
+            <Field label="На каком вы уровне" optional={!need('level')}>
               <div className="dwy-levels">
                 {LEVELS.map((l, i) => (
                   <button key={l} type="button"
@@ -139,21 +183,21 @@ function DwyInner() {
               </div>
             </Field>
 
-            <Field label="Что уже пробовали с контентом и чем закончилось">
+            <Field label="Что уже пробовали с контентом и чем закончилось" optional={!need('tried')}>
               <textarea className="dwy-area" rows={4}
                 value={tried} onChange={(e) => setTried(e.target.value)} />
             </Field>
 
-            <Field label="Что хотите получить через 3 месяца">
+            <Field label="Что хотите получить через 3 месяца" optional={!need('want')}>
               <textarea className="dwy-area" rows={4}
                 value={want} onChange={(e) => setWant(e.target.value)} />
             </Field>
 
-            <Field label="Сколько зарабатываете сейчас">
+            <Field label="Сколько зарабатываете сейчас" optional={!need('income')}>
               <Chips options={INCOME_OPTIONS} value={income} onChange={setIncome} />
             </Field>
 
-            <Field label="Сколько часов в неделю готовы вкладывать">
+            <Field label="Сколько часов в неделю готовы вкладывать" optional={!need('hours')}>
               <Chips options={HOURS_OPTIONS} value={hours} onChange={setHours} />
             </Field>
 
@@ -193,6 +237,17 @@ function DwyInner() {
         .dwy-arg:first-of-type { font-size: 20px; font-weight: 600; }
         .dwy-field { margin-bottom: 26px; }
         .dwy-label { display: block; font-weight: 700; font-size: 15.5px; margin-bottom: 10px; }
+        /* Пометка живёт в строке вопроса и не должна с ним спорить:
+           её задача — снять напряжение, а не привлечь внимание. */
+        .dwy-opt {
+          font-weight: 400; font-size: 12.5px; color: var(--mut);
+          margin-left: 8px; white-space: nowrap;
+        }
+        .dwy-note {
+          font-size: 14.5px; line-height: 1.45; color: var(--mut);
+          background: #f7f2ee; border-radius: 10px;
+          padding: 12px 14px; margin: 0 0 26px;
+        }
         .dwy-chips { display: flex; flex-wrap: wrap; gap: 8px; }
         .dwy-chip {
           cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 500;
