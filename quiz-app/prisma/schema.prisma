@@ -369,3 +369,121 @@ model IntakeAnswer {
   @@index([intakeId, step])
   @@map("intake_answers")
 }
+
+// ═══════════════════════════════════════
+// МАРШРУТНЫЕ КАРТЫ КЛИЕНТОВ
+// ═══════════════════════════════════════
+// Где клиент менторства находится, куда идёт и что мешает. Пока смотрит только
+// Саша через /admin/roadmaps; поле visibility на дочерних записях заложено под
+// будущий клиентский вид в кабинете (internal | shared).
+//
+// ⚠ Таблицы заводятся скриптом scripts/roadmap-create-tables.mjs.
+// `prisma db push` на этой базе запрещён — она общая с другими приложениями.
+
+model Roadmap {
+  id          String  @id @default(uuid())
+  slug        String  @unique // папка клиента в GSD-BRAND: azamat-gimaev
+  clientName  String  @map("client_name")
+  telegramId  BigInt? @map("telegram_id")
+  username    String?
+  tier        String? // uroven-t3, uroven-t2
+
+  /** сколько занёс и сколько из этого уже отбил своими продажами */
+  paidAmount Int? @map("paid_amount")
+  returned   Int  @default(0)
+
+  startedAt   DateTime? @map("started_at")
+  accessUntil DateTime? @map("access_until")
+
+  /** куда идём вообще и цель текущего периода */
+  goal       String?
+  periodGoal String? @map("period_goal")
+
+  archived    Boolean   @default(false)
+  lastTouchAt DateTime? @map("last_touch_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  metrics RoadmapMetric[]
+  steps   RoadmapStep[]
+  tasks   RoadmapTask[]
+  notes   RoadmapNote[]
+
+  @@map("roadmaps")
+}
+
+model RoadmapMetric {
+  id        String  @id @default(uuid())
+  roadmapId String  @map("roadmap_id")
+  roadmap   Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+
+  key          String // leads, calls, sales, revenue
+  label        String
+  startValue   String? @map("start_value")
+  currentValue String? @map("current_value")
+  unit         String?
+  position     Int     @default(0)
+  visibility   String  @default("internal")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([roadmapId, key])
+  @@map("roadmap_metrics")
+}
+
+model RoadmapStep {
+  id        String  @id @default(uuid())
+  roadmapId String  @map("roadmap_id")
+  roadmap   Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+
+  position Int
+  title    String
+  status   String  @default("todo") // done | partial | blocked | todo
+  /** чем подтверждается: дата, цифра, ссылка */
+  evidence String?
+
+  visibility String   @default("internal")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([roadmapId, position])
+  @@map("roadmap_steps")
+}
+
+model RoadmapTask {
+  id        String  @id @default(uuid())
+  roadmapId String  @map("roadmap_id")
+  roadmap   Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+
+  position Int     @default(0)
+  title    String
+  /** зачем эта задача: аргумент, который проговариваем на созвоне */
+  why      String?
+  owner    String  @default("client") // client | sasha
+  status   String  @default("todo") // todo | doing | done | dropped
+  dueOn    DateTime? @db.Date @map("due_on")
+  doneAt   DateTime? @map("done_at")
+
+  visibility String   @default("internal")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([roadmapId, status])
+  @@map("roadmap_tasks")
+}
+
+model RoadmapNote {
+  id        String  @id @default(uuid())
+  roadmapId String  @map("roadmap_id")
+  roadmap   Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+
+  kind       String    @default("insight") // blocker | risk | decision | insight | touch
+  body       String
+  /** откуда: созвон 10.08, группа, личка, разбор */
+  source     String?
+  happenedOn DateTime? @db.Date @map("happened_on")
+
+  visibility String   @default("internal")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([roadmapId, kind])
+  @@map("roadmap_notes")
+}
