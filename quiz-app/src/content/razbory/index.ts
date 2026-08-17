@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { PRODAYUSHCHIY_SOZVON_2026_08_02 } from './prodayushchiy-sozvon-2026-08-02';
+import { RAZBOR_SOZVONA_DASHA_2026_08_17 } from './razbor-sozvona-dasha-2026-08-17';
 
 /** Минимальный тариф «Нового уровня контента», с которого открыты разборы. */
 export const RAZBORY_MIN_TIER = 2;
@@ -33,6 +34,16 @@ export interface Razbor {
 }
 
 export const RAZBORY: Razbor[] = [
+  {
+    slug: 'razbor-sozvona-dasha-2026-08-17',
+    title: 'Как продать, никого не толкая',
+    subtitle: 'Саша разбирает свой созвон: переписка, полтора часа диалога и вопрос, которым закрылась сделка',
+    date: '2026-08-17',
+    duration: '96 мин',
+    tags: ['продающий созвон', 'работа с возражениями', 'переписка до созвона'],
+    kinescopeId: 'rnCb8CFkNPM9xJXAjsVaVv',
+    html: RAZBOR_SOZVONA_DASHA_2026_08_17,
+  },
   {
     slug: 'prodayushchiy-sozvon-2026-08-02',
     title: 'Продающий созвон: где посыпалась продажа',
