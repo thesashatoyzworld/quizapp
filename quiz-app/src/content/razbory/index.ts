@@ -41,7 +41,7 @@ export const RAZBORY: Razbor[] = [
     date: '2026-08-17',
     duration: '96 мин',
     tags: ['продающий созвон', 'работа с возражениями', 'переписка до созвона'],
-    kinescopeId: '',
+    kinescopeId: 'rnCb8CFkNPM9xJXAjsVaVv',
     html: RAZBOR_SOZVONA_DASHA_2026_08_17,
   },
   {
