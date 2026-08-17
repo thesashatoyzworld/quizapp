@@ -1,0 +1,331 @@
+'use client';
+
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import styles from '../roadmap.module.css';
+
+// Редактор одной карты. Всё правится на месте: клик по статусу ступени,
+// галочка на задаче, цифра в панели. Сохранение сразу, без кнопки «применить».
+
+interface Metric { id: string; key: string; label: string; startValue: string; currentValue: string; unit: string }
+interface Step { id: string; position: number; title: string; status: string; evidence: string }
+interface Task { id: string; title: string; why: string; owner: string; status: string; dueOn: string }
+interface Note { id: string; kind: string; body: string; source: string; happenedOn: string }
+
+export interface BoardData {
+  id: string;
+  goal: string;
+  periodGoal: string;
+  returned: number;
+  metrics: Metric[];
+  steps: Step[];
+  tasks: Task[];
+  notes: Note[];
+}
+
+const STEP_CYCLE = ['todo', 'partial', 'done', 'blocked'] as const;
+const STEP_LABEL: Record<string, string> = { done: 'пройден', partial: 'частично', blocked: 'стоим здесь', todo: 'впереди' };
+const KIND_LABEL: Record<string, string> = { blocker: 'блокер', risk: 'риск', decision: 'решение', insight: 'наблюдение', touch: 'касание' };
+const KIND_CLASS: Record<string, string> = {
+  blocker: styles.kindBlocker, risk: styles.kindRisk, decision: styles.kindDecision,
+  insight: styles.kindInsight, touch: styles.kindTouch,
+};
+
+export default function RoadmapBoard({ data }: { data: BoardData }) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  // Локальные копии: правка видна сразу, ответ сервера догоняет.
+  const [goal, setGoal] = useState(data.goal);
+  const [periodGoal, setPeriodGoal] = useState(data.periodGoal);
+  const [metrics, setMetrics] = useState(data.metrics);
+  const [steps, setSteps] = useState(data.steps);
+  const [tasks, setTasks] = useState(data.tasks);
+  const [notes, setNotes] = useState(data.notes);
+
+  const [newTask, setNewTask] = useState({ title: '', why: '', owner: 'client', dueOn: '' });
+  const [newNote, setNewNote] = useState({ kind: 'insight', body: '', source: '' });
+
+  async function send(entity: string, op: string, payload: Record<string, unknown>) {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/admin/roadmap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity, op, roadmapId: data.id, ...payload }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'не сохранилось');
+      startTransition(() => router.refresh());
+      return json as { ok: true; id?: string };
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'не сохранилось');
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const openTasks = tasks.filter((t) => t.status !== 'done' && t.status !== 'dropped');
+  const doneTasks = tasks.filter((t) => t.status === 'done');
+
+  return (
+    <>
+      <div className={styles.section}>
+        <div className={styles.sectionHead}>
+          <span className={styles.h2}>КУДА ИДЁМ</span>
+          <span className={styles.saveState}>
+            {error ? <span style={{ color: '#ff5d73' }}>{error}</span> : saving ? 'сохраняю…' : 'сохраняется само'}
+          </span>
+        </div>
+        <textarea
+          className={styles.goal}
+          rows={2}
+          value={goal}
+          placeholder="цель работы целиком"
+          onChange={(e) => setGoal(e.target.value)}
+          onBlur={() => goal !== data.goal && send('roadmap', 'update', { id: data.id, data: { goal } })}
+        />
+        <div style={{ height: 8 }} />
+        <textarea
+          className={styles.goal}
+          rows={2}
+          value={periodGoal}
+          placeholder="цель ближайших двух недель"
+          onChange={(e) => setPeriodGoal(e.target.value)}
+          onBlur={() => periodGoal !== data.periodGoal && send('roadmap', 'update', { id: data.id, data: { periodGoal } })}
+        />
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionHead}>
+          <span className={styles.h2}>ПАНЕЛЬ</span>
+          <span className={styles.hint}>сверху было на старте, снизу сейчас</span>
+        </div>
+        <div className={styles.metrics}>
+          {metrics.map((m) => (
+            <div key={m.id} className={styles.metric}>
+              <div className={styles.metricLabel}>{m.label}</div>
+              <div className={styles.metricVals}>
+                <input
+                  className={styles.metricInput}
+                  value={m.currentValue}
+                  onChange={(e) => setMetrics((prev) => prev.map((x) => x.id === m.id ? { ...x, currentValue: e.target.value } : x))}
+                  onBlur={(e) => send('metric', 'update', { id: m.id, data: { currentValue: e.target.value } })}
+                />
+                {m.unit && <span className={styles.metricArrow}>{m.unit}</span>}
+              </div>
+              {m.startValue !== '' && (
+                <div style={{ marginTop: 6 }}>
+                  <span className={styles.metricStart}>было {m.startValue}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionHead}>
+          <span className={styles.h2}>ЛЕСТНИЦА</span>
+          <span className={styles.hint}>клик по точке меняет статус</span>
+        </div>
+        <div className={styles.steps}>
+          {steps.map((s) => (
+            <div key={s.id} className={styles.step}>
+              <button
+                className={styles.stepBtn}
+                title={STEP_LABEL[s.status]}
+                onClick={() => {
+                  const next = STEP_CYCLE[(STEP_CYCLE.indexOf(s.status as typeof STEP_CYCLE[number]) + 1) % STEP_CYCLE.length];
+                  setSteps((prev) => prev.map((x) => x.id === s.id ? { ...x, status: next } : x));
+                  send('step', 'update', { id: s.id, data: { status: next } });
+                }}
+              >
+                <span className={styles.stepNum}>{s.position}</span>
+                <span className={`${styles.dot} ${styles[s.status] ?? styles.todo}`} />
+              </button>
+              <div className={styles.stepBody}>
+                <div className={styles.stepName}>{s.title}</div>
+                <input
+                  className={styles.stepEvidence}
+                  style={{ background: 'none', border: 'none', outline: 'none', width: '100%' }}
+                  value={s.evidence}
+                  placeholder="чем подтверждается"
+                  onChange={(e) => setSteps((prev) => prev.map((x) => x.id === s.id ? { ...x, evidence: e.target.value } : x))}
+                  onBlur={(e) => send('step', 'update', { id: s.id, data: { evidence: e.target.value } })}
+                />
+              </div>
+              {s.status === 'blocked' && <span className={styles.stepHere}>ЗДЕСЬ</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionHead}>
+          <span className={styles.h2}>ЗАДАЧИ</span>
+          <span className={styles.hint}>{openTasks.length} открыто · {doneTasks.length} закрыто</span>
+        </div>
+
+        <div className={styles.tasks}>
+          {[...openTasks, ...doneTasks].map((t) => {
+            const done = t.status === 'done';
+            const overdue = !done && t.dueOn && t.dueOn < today;
+            return (
+              <div key={t.id} className={`${styles.task} ${done ? styles.taskDone : ''}`}>
+                <input
+                  type="checkbox"
+                  className={styles.check}
+                  checked={done}
+                  onChange={(e) => {
+                    const status = e.target.checked ? 'done' : 'todo';
+                    setTasks((prev) => prev.map((x) => x.id === t.id ? { ...x, status } : x));
+                    send('task', 'update', { id: t.id, data: { status } });
+                  }}
+                />
+                <div className={styles.taskBody}>
+                  <div className={`${styles.taskTitle} ${done ? styles.taskDoneTitle : ''}`}>{t.title}</div>
+                  {t.why && <div className={styles.taskWhy}>{t.why}</div>}
+                </div>
+                <div className={styles.taskMeta}>
+                  {t.dueOn && <span className={overdue ? styles.overdue : ''}>{t.dueOn.slice(8, 10)}.{t.dueOn.slice(5, 7)}</span>}
+                  <button
+                    className={styles.owner}
+                    title="кому передать"
+                    onClick={() => {
+                      const owner = t.owner === 'client' ? 'sasha' : 'client';
+                      setTasks((prev) => prev.map((x) => x.id === t.id ? { ...x, owner } : x));
+                      send('task', 'update', { id: t.id, data: { owner } });
+                    }}
+                  >
+                    {t.owner === 'sasha' ? 'я' : 'он'}
+                  </button>
+                  <button
+                    className={styles.del}
+                    title="удалить"
+                    onClick={() => {
+                      setTasks((prev) => prev.filter((x) => x.id !== t.id));
+                      send('task', 'delete', { id: t.id });
+                    }}
+                  >×</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className={styles.add}>
+          <input
+            className={styles.input}
+            placeholder="новая задача"
+            value={newTask.title}
+            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+          />
+          <input
+            className={styles.input}
+            placeholder="зачем она"
+            value={newTask.why}
+            onChange={(e) => setNewTask({ ...newTask, why: e.target.value })}
+          />
+          <input
+            className={styles.select}
+            type="date"
+            value={newTask.dueOn}
+            onChange={(e) => setNewTask({ ...newTask, dueOn: e.target.value })}
+          />
+          <select
+            className={styles.select}
+            value={newTask.owner}
+            onChange={(e) => setNewTask({ ...newTask, owner: e.target.value })}
+          >
+            <option value="client">за клиентом</option>
+            <option value="sasha">за мной</option>
+          </select>
+          <button
+            className={styles.btn}
+            disabled={!newTask.title.trim() || saving}
+            onClick={async () => {
+              const res = await send('task', 'create', { data: newTask });
+              if (res?.id) {
+                setTasks((prev) => [...prev, { ...newTask, id: res.id!, status: 'todo' }]);
+                setNewTask({ title: '', why: '', owner: 'client', dueOn: '' });
+              }
+            }}
+          >добавить</button>
+        </div>
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionHead}>
+          <span className={styles.h2}>ЗАМЕТКИ</span>
+          <span className={styles.hint}>блокеры, риски, решения, наблюдения</span>
+        </div>
+
+        <div className={styles.notes}>
+          {notes.map((n) => (
+            <div key={n.id} className={styles.note}>
+              <span className={`${styles.noteKind} ${KIND_CLASS[n.kind] ?? styles.kindInsight}`}>
+                {KIND_LABEL[n.kind] ?? n.kind}
+              </span>
+              <div className={styles.noteBody}>
+                {n.body}
+                {(n.source || n.happenedOn) && (
+                  <div className={styles.noteSrc}>
+                    {[n.source, n.happenedOn ? `${n.happenedOn.slice(8, 10)}.${n.happenedOn.slice(5, 7)}` : ''].filter(Boolean).join(' · ')}
+                  </div>
+                )}
+              </div>
+              <button
+                className={styles.del}
+                onClick={() => {
+                  setNotes((prev) => prev.filter((x) => x.id !== n.id));
+                  send('note', 'delete', { id: n.id });
+                }}
+              >×</button>
+            </div>
+          ))}
+        </div>
+
+        <div className={styles.add}>
+          <select
+            className={styles.select}
+            value={newNote.kind}
+            onChange={(e) => setNewNote({ ...newNote, kind: e.target.value })}
+          >
+            {Object.entries(KIND_LABEL).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </select>
+          <input
+            className={styles.input}
+            placeholder="что заметили"
+            value={newNote.body}
+            onChange={(e) => setNewNote({ ...newNote, body: e.target.value })}
+          />
+          <input
+            className={styles.input}
+            style={{ maxWidth: 180, minWidth: 120 }}
+            placeholder="откуда"
+            value={newNote.source}
+            onChange={(e) => setNewNote({ ...newNote, source: e.target.value })}
+          />
+          <button
+            className={styles.btn}
+            disabled={!newNote.body.trim() || saving}
+            onClick={async () => {
+              const payload = { ...newNote, happenedOn: today };
+              const res = await send('note', 'create', { data: payload });
+              if (res?.id) {
+                setNotes((prev) => [{ ...payload, id: res.id! }, ...prev]);
+                setNewNote({ kind: 'insight', body: '', source: '' });
+              }
+            }}
+          >добавить</button>
+        </div>
+      </div>
+    </>
+  );
+}
