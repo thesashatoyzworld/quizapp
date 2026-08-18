@@ -7,16 +7,20 @@ import styles from '../roadmap.module.css';
 // Редактор одной карты. Всё правится на месте: клик по статусу ступени,
 // галочка на задаче, цифра в панели. Сохранение сразу, без кнопки «применить».
 
-interface Metric { id: string; key: string; label: string; startValue: string; currentValue: string; unit: string }
-interface Step { id: string; position: number; title: string; status: string; evidence: string }
-interface Task { id: string; title: string; why: string; owner: string; status: string; dueOn: string }
-interface Note { id: string; kind: string; body: string; source: string; happenedOn: string }
+interface Metric { id: string; key: string; label: string; startValue: string; currentValue: string; unit: string; visibility: string }
+interface Step { id: string; position: number; title: string; status: string; evidence: string; visibility: string }
+interface Task { id: string; title: string; why: string; owner: string; status: string; dueOn: string; visibility: string }
+interface Note { id: string; kind: string; body: string; source: string; happenedOn: string; visibility: string }
 
 export interface BoardData {
   id: string;
+  slug: string;
   goal: string;
   periodGoal: string;
   returned: number;
+  clientVisible: boolean;
+  clientIntro: string;
+  hasTelegram: boolean;
   metrics: Metric[];
   steps: Step[];
   tasks: Task[];
@@ -40,6 +44,8 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
   // Локальные копии: правка видна сразу, ответ сервера догоняет.
   const [goal, setGoal] = useState(data.goal);
   const [periodGoal, setPeriodGoal] = useState(data.periodGoal);
+  const [clientVisible, setClientVisible] = useState(data.clientVisible);
+  const [clientIntro, setClientIntro] = useState(data.clientIntro);
   const [metrics, setMetrics] = useState(data.metrics);
   const [steps, setSteps] = useState(data.steps);
   const [tasks, setTasks] = useState(data.tasks);
@@ -69,12 +75,93 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
     }
   }
 
+  // Глазок на строке: видит ли её клиент в кабинете. Внутреннее по умолчанию,
+  // открываем поштучно или кнопкой «открыть базовый набор».
+  function EyeBtn({ visibility, onFlip }: { visibility: string; onFlip: (next: string) => void }) {
+    const on = visibility === 'shared';
+    return (
+      <button
+        className={`${styles.eye} ${on ? styles.eyeOn : ''}`}
+        title={on ? 'клиент это видит' : 'только я'}
+        onClick={() => onFlip(on ? 'internal' : 'shared')}
+      >{on ? '◉' : '○'}</button>
+    );
+  }
+
+  const sharedCount = steps.filter((s) => s.visibility === 'shared').length
+    + metrics.filter((m) => m.visibility === 'shared').length
+    + tasks.filter((t) => t.visibility === 'shared').length
+    + notes.filter((n) => n.visibility === 'shared').length;
+
+  async function shareDefaults() {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/admin/roadmap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity: 'roadmap', op: 'share-defaults', roadmapId: data.id }),
+      });
+      if (!res.ok) throw new Error('не открылось');
+      setSteps((prev) => prev.map((x) => ({ ...x, visibility: 'shared' })));
+      setMetrics((prev) => prev.map((x) => ({ ...x, visibility: 'shared' })));
+      setTasks((prev) => prev.map((x) => (x.owner === 'client' ? { ...x, visibility: 'shared' } : x)));
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'не открылось');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const today = new Date().toISOString().slice(0, 10);
   const openTasks = tasks.filter((t) => t.status !== 'done' && t.status !== 'dropped');
   const doneTasks = tasks.filter((t) => t.status === 'done');
 
   return (
     <>
+      <div className={styles.share}>
+        <div className={styles.shareRow}>
+          <label className={styles.shareToggle}>
+            <input
+              type="checkbox"
+              checked={clientVisible}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setClientVisible(next);
+                send('roadmap', 'update', { id: data.id, data: { clientVisible: next } });
+              }}
+            />
+            Карта открыта клиенту
+          </label>
+          <span className={`${styles.shareState} ${clientVisible ? styles.shareStateOn : ''}`}>
+            {clientVisible ? `видит ${sharedCount} строк` : 'в кабинете её нет'}
+          </span>
+          <button className={styles.btn} disabled={saving} onClick={shareDefaults}>
+            открыть базовый набор
+          </button>
+          <a
+            className={styles.shareLink}
+            href={`/admin/roadmaps/${data.slug}/preview`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >посмотреть его глазами ↗</a>
+        </div>
+        <textarea
+          className={styles.shareIntro}
+          rows={2}
+          value={clientIntro}
+          placeholder="строка сверху карты: зачем она и что с ней делать"
+          onChange={(e) => setClientIntro(e.target.value)}
+          onBlur={() => clientIntro !== data.clientIntro && send('roadmap', 'update', { id: data.id, data: { clientIntro } })}
+        />
+        {!data.hasTelegram && (
+          <div className={styles.shareWarn}>
+            У карты не проставлен telegram id — клиент её не откроет: кабинет опознаёт только по нему.
+          </div>
+        )}
+      </div>
+
       <div className={styles.section}>
         <div className={styles.sectionHead}>
           <span className={styles.h2}>КУДА ИДЁМ</span>
@@ -109,7 +196,16 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
         <div className={styles.metrics}>
           {metrics.map((m) => (
             <div key={m.id} className={styles.metric}>
-              <div className={styles.metricLabel}>{m.label}</div>
+              <div className={styles.metricLabel}>
+                {m.label}
+                <EyeBtn
+                  visibility={m.visibility}
+                  onFlip={(next) => {
+                    setMetrics((prev) => prev.map((x) => x.id === m.id ? { ...x, visibility: next } : x));
+                    send('metric', 'update', { id: m.id, roadmapId: data.id, data: { visibility: next } });
+                  }}
+                />
+              </div>
               <div className={styles.metricVals}>
                 <input
                   className={styles.metricInput}
@@ -161,6 +257,13 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
                 />
               </div>
               {s.status === 'blocked' && <span className={styles.stepHere}>ЗДЕСЬ</span>}
+              <EyeBtn
+                visibility={s.visibility}
+                onFlip={(next) => {
+                  setSteps((prev) => prev.map((x) => x.id === s.id ? { ...x, visibility: next } : x));
+                  send('step', 'update', { id: s.id, roadmapId: data.id, data: { visibility: next } });
+                }}
+              />
             </div>
           ))}
         </div>
@@ -205,6 +308,13 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
                   >
                     {t.owner === 'sasha' ? 'я' : 'он'}
                   </button>
+                  <EyeBtn
+                    visibility={t.visibility}
+                    onFlip={(next) => {
+                      setTasks((prev) => prev.map((x) => x.id === t.id ? { ...x, visibility: next } : x));
+                      send('task', 'update', { id: t.id, roadmapId: data.id, data: { visibility: next } });
+                    }}
+                  />
                   <button
                     className={styles.del}
                     title="удалить"
@@ -250,9 +360,10 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
             className={styles.btn}
             disabled={!newTask.title.trim() || saving}
             onClick={async () => {
-              const res = await send('task', 'create', { data: newTask });
+              const visibility = clientVisible && newTask.owner === 'client' ? 'shared' : 'internal';
+              const res = await send('task', 'create', { data: { ...newTask, visibility } });
               if (res?.id) {
-                setTasks((prev) => [...prev, { ...newTask, id: res.id!, status: 'todo' }]);
+                setTasks((prev) => [...prev, { ...newTask, id: res.id!, status: 'todo', visibility }]);
                 setNewTask({ title: '', why: '', owner: 'client', dueOn: '' });
               }
             }}
@@ -280,6 +391,13 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
                   </div>
                 )}
               </div>
+              <EyeBtn
+                visibility={n.visibility}
+                onFlip={(next) => {
+                  setNotes((prev) => prev.map((x) => x.id === n.id ? { ...x, visibility: next } : x));
+                  send('note', 'update', { id: n.id, roadmapId: data.id, data: { visibility: next } });
+                }}
+              />
               <button
                 className={styles.del}
                 onClick={() => {
@@ -319,7 +437,7 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
               const payload = { ...newNote, happenedOn: today };
               const res = await send('note', 'create', { data: payload });
               if (res?.id) {
-                setNotes((prev) => [{ ...payload, id: res.id! }, ...prev]);
+                setNotes((prev) => [{ ...payload, id: res.id!, visibility: 'internal' }, ...prev]);
                 setNewNote({ kind: 'insight', body: '', source: '' });
               }
             }}

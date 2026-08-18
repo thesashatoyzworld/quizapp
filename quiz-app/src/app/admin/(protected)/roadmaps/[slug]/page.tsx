@@ -37,9 +37,15 @@ export default async function RoadmapPage({ params }: { params: Promise<{ slug: 
   // BigInt и Date в клиентский компонент не уезжают: отдаём примитивы.
   const board = {
     id: r.id,
+    slug: r.slug,
     goal: r.goal ?? '',
     periodGoal: r.periodGoal ?? '',
     returned: r.returned,
+    clientVisible: r.clientVisible,
+    clientIntro: r.clientIntro ?? '',
+    // Без привязанного телеграма клиент свою карту не откроет: кабинет
+    // опознаёт человека только по id.
+    hasTelegram: r.telegramId != null,
     metrics: r.metrics.map((m) => ({
       id: m.id,
       key: m.key,
@@ -47,6 +53,7 @@ export default async function RoadmapPage({ params }: { params: Promise<{ slug: 
       startValue: m.startValue ?? '',
       currentValue: m.currentValue ?? '',
       unit: m.unit ?? '',
+      visibility: m.visibility,
     })),
     steps: r.steps.map((s) => ({
       id: s.id,
@@ -54,6 +61,7 @@ export default async function RoadmapPage({ params }: { params: Promise<{ slug: 
       title: s.title,
       status: s.status,
       evidence: s.evidence ?? '',
+      visibility: s.visibility,
     })),
     tasks: r.tasks.map((t) => ({
       id: t.id,
@@ -62,6 +70,7 @@ export default async function RoadmapPage({ params }: { params: Promise<{ slug: 
       owner: t.owner,
       status: t.status,
       dueOn: t.dueOn ? t.dueOn.toISOString().slice(0, 10) : '',
+      visibility: t.visibility,
     })),
     notes: r.notes.map((n) => ({
       id: n.id,
@@ -69,6 +78,7 @@ export default async function RoadmapPage({ params }: { params: Promise<{ slug: 
       body: n.body,
       source: n.source ?? '',
       happenedOn: n.happenedOn ? n.happenedOn.toISOString().slice(0, 10) : '',
+      visibility: n.visibility,
     })),
   };
 

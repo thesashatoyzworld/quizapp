@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getActiveAccessByTelegram } from '@/lib/access';
 import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { forTelegram } from '@/content/lichnoe';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
@@ -64,10 +65,16 @@ export async function GET(request: NextRequest) {
     // запертый раздел выглядел бы как «мне что-то не додали».
     const hasPersonal = telegramId != null && forTelegram(telegramId).length > 0;
 
+    // Раздел «Карта» — по тому же правилу: рисуем только тем, чья карта
+    // существует и открыта Сашей. Пустая карта хуже отсутствующей.
+    const hasRoadmap = telegramId != null && (await prisma.roadmap.count({
+      where: { telegramId: BigInt(telegramId), clientVisible: true, archived: false },
+    })) > 0;
+
     // identified — знаем ЛИ мы, кто это (по Telegram или сессии). Кабинет так
     // отличает «вошёл, но без покупок» (показать разделы под замком) от «не вошёл»
     // (показать кнопку входа).
-    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, hasPersonal, pending: false, token: null });
+    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, hasPersonal, hasRoadmap, pending: false, token: null });
   } catch (error) {
     console.error('[Cabinet] rooms error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

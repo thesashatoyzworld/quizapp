@@ -44,9 +44,24 @@ export interface Section {
    * ни открытым, ни под замком.
    */
   personal?: boolean;
+  /**
+   * Раздел с маршрутной картой: показывается только тем, чья карта открыта
+   * Сашей (rooms-эндпоинт отдаёт hasRoadmap). Остальным его в кабинете нет.
+   */
+  roadmap?: boolean;
 }
 
 export const SECTIONS: Section[] = [
+  {
+    key: 'karta',
+    role: null,
+    roadmap: true,
+    title: 'Карта',
+    subtitle: 'Где ты сейчас и что делаем дальше',
+    materials: [
+      { kind: 'article', title: 'Твоя маршрутная карта', url: '/karta', note: 'Цель периода, пройденный путь и шаги на эту неделю. Отмечай сделанное — я вижу.' },
+    ],
+  },
   {
     key: 'lichnoe',
     role: null,
