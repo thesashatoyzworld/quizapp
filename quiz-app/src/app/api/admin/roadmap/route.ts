@@ -65,13 +65,14 @@ export async function POST(request: NextRequest) {
 
   // Открыть клиенту базовый набор: путь, цифры и его собственные задачи.
   // Заметки и задачи Саши остаются внутренними — там диагнозы, которые
-  // человеку в лицо не показывают.
+  // человеку в лицо не показывают. Метрика возврата тоже: «вернул 0 из 150 000»
+  // это разговор для созвона, а не строчка в его кабинете.
   if (op === 'share-defaults') {
     if (!body.roadmapId) return NextResponse.json({ error: 'Missing roadmapId' }, { status: 400 });
     const where = { roadmapId: body.roadmapId as string };
     const [steps, metrics, tasks] = await Promise.all([
       prisma.roadmapStep.updateMany({ where, data: { visibility: 'shared' } }),
-      prisma.roadmapMetric.updateMany({ where, data: { visibility: 'shared' } }),
+      prisma.roadmapMetric.updateMany({ where: { ...where, key: { not: 'revenue' } }, data: { visibility: 'shared' } }),
       prisma.roadmapTask.updateMany({ where: { ...where, owner: 'client' }, data: { visibility: 'shared' } }),
     ]);
     return NextResponse.json({ ok: true, shared: steps.count + metrics.count + tasks.count });
