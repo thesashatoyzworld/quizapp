@@ -37,6 +37,7 @@ export default async function RoadmapPage({ params }: { params: Promise<{ slug: 
   // BigInt и Date в клиентский компонент не уезжают: отдаём примитивы.
   const board = {
     id: r.id,
+    slug: r.slug,
     goal: r.goal ?? '',
     periodGoal: r.periodGoal ?? '',
     returned: r.returned,

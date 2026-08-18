@@ -14,6 +14,7 @@ interface Note { id: string; kind: string; body: string; source: string; happene
 
 export interface BoardData {
   id: string;
+  slug: string;
   goal: string;
   periodGoal: string;
   returned: number;
@@ -139,9 +140,12 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
           <button className={styles.btn} disabled={saving} onClick={shareDefaults}>
             открыть базовый набор
           </button>
-          <a className={styles.shareLink} href="/karta" target="_blank" rel="noopener noreferrer">
-            как это выглядит ↗
-          </a>
+          <a
+            className={styles.shareLink}
+            href={`/admin/roadmaps/${data.slug}/preview`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >посмотреть его глазами ↗</a>
         </div>
         <textarea
           className={styles.shareIntro}
