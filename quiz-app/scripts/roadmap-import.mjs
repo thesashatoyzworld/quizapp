@@ -7,6 +7,10 @@
 // Повторный запуск не плодит дубли: карта ищется по slug, метрики и ступени
 // сверяются по ключу и позиции, задачи и заметки по тексту.
 //
+// clientIntro из json едет в roadmaps.client_intro — вступительная строка над
+// картой в кабинете. Замок client_visible отсюда не трогаем: решение показать
+// карту человеку принимается кнопкой в админке, а не заливкой файла.
+//
 // Запуск: node scripts/roadmap-import.mjs azamat-gimaev
 //         GSD_BRAND_PATH=... node scripts/roadmap-import.mjs azamat-gimaev
 import { config } from 'dotenv';
@@ -48,21 +52,21 @@ if (roadmapId) {
   await db.query(
     `UPDATE roadmaps SET client_name=$2, telegram_id=$3, username=$4, tier=$5,
        paid_amount=$6, returned=$7, started_at=$8, access_until=$9,
-       goal=$10, period_goal=$11, updated_at=now()
+       goal=$10, period_goal=$11, client_intro=COALESCE($12, client_intro), updated_at=now()
      WHERE id=$1`,
     [roadmapId, card.clientName, card.telegramId || null, card.username || null, card.tier || null,
      card.paidAmount ?? null, card.returned ?? 0, date(card.startedAt), date(card.accessUntil),
-     card.goal || null, card.periodGoal || null]
+     card.goal || null, card.periodGoal || null, card.clientIntro || null]
   );
 } else {
   roadmapId = randomUUID();
   await db.query(
     `INSERT INTO roadmaps (id, slug, client_name, telegram_id, username, tier,
-       paid_amount, returned, started_at, access_until, goal, period_goal, last_touch_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, now())`,
+       paid_amount, returned, started_at, access_until, goal, period_goal, client_intro, last_touch_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13, now())`,
     [roadmapId, card.slug, card.clientName, card.telegramId || null, card.username || null,
      card.tier || null, card.paidAmount ?? null, card.returned ?? 0, date(card.startedAt),
-     date(card.accessUntil), card.goal || null, card.periodGoal || null]
+     date(card.accessUntil), card.goal || null, card.periodGoal || null, card.clientIntro || null]
   );
 }
 
