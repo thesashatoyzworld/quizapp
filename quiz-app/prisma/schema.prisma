@@ -333,6 +333,8 @@ model Intake {
   /** как Саша назвал человека, когда выдавал ссылку вслепую */
   label       String?
   status      String    @default("invited") // invited | in_progress | done
+  /** какой набор вопросов: t2 — маршрут по материалам, t3 — досье к созвону 1-1 */
+  track       String    @default("t3")
   currentStep Int       @default(0) @map("current_step")
   inviteToken String?   @unique @map("invite_token") // персональная ссылка для тех, кто не в боте
   invitedAt   DateTime  @default(now()) @map("invited_at")
@@ -373,9 +375,10 @@ model IntakeAnswer {
 // ═══════════════════════════════════════
 // МАРШРУТНЫЕ КАРТЫ КЛИЕНТОВ
 // ═══════════════════════════════════════
-// Где клиент менторства находится, куда идёт и что мешает. Пока смотрит только
-// Саша через /admin/roadmaps; поле visibility на дочерних записях заложено под
-// будущий клиентский вид в кабинете (internal | shared).
+// Где клиент менторства находится, куда идёт и что мешает. Саша правит карту
+// через /admin/roadmaps, клиент смотрит свою в кабинете (/karta) — но только
+// если карта помечена clientVisible, и только те строки, у которых
+// visibility = shared. Всё остальное (диагнозы, риски, задачи Саши) internal.
 //
 // ⚠ Таблицы заводятся скриптом scripts/roadmap-create-tables.mjs.
 // `prisma db push` на этой базе запрещён — она общая с другими приложениями.
@@ -398,6 +401,11 @@ model Roadmap {
   /** куда идём вообще и цель текущего периода */
   goal       String?
   periodGoal String? @map("period_goal")
+
+  /** карта открыта клиенту в кабинете (/karta). Внутри он видит только строки с visibility=shared */
+  clientVisible Boolean @default(false) @map("client_visible")
+  /** строка сверху клиентского вида: зачем эта карта и как ей пользоваться */
+  clientIntro   String? @map("client_intro")
 
   archived    Boolean   @default(false)
   lastTouchAt DateTime? @map("last_touch_at")
