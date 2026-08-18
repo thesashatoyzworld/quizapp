@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import RoadmapView, { ROADMAP_VIEW_CSS, type RoadmapCard } from '@/components/RoadmapView';
+import { currentStepPosition } from '@/lib/roadmap';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +60,7 @@ export default async function RoadmapPreviewPage({
     intro: r.clientIntro ?? '',
     goal: r.goal ?? '',
     periodGoal: r.periodGoal ?? '',
-    currentStep: steps.find((s) => s.status !== 'done')?.position ?? null,
+    currentStep: currentStepPosition(steps),
     metrics: metrics.map((m) => ({
       key: m.key,
       label: m.label,

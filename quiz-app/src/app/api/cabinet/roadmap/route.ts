@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { prisma } from '@/lib/prisma';
+import { currentStepPosition } from '@/lib/roadmap';
 
 export const runtime = 'nodejs';
 
@@ -63,9 +64,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, identified: true, hasRoadmap: false, card: null });
     }
 
-    // Ступень, на которой человек стоит: первая незакрытая. Если закрыты все —
-    // подсвечивать нечего, карта пройдена.
-    const currentStep = roadmap.steps.find((s) => s.status !== 'done')?.position ?? null;
+    const currentStep = currentStepPosition(roadmap.steps);
 
     return NextResponse.json({
       success: true,
