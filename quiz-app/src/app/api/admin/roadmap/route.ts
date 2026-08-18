@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
 type Entity = 'roadmap' | 'metric' | 'step' | 'task' | 'note';
 
 const FIELDS: Record<Entity, string[]> = {
-  roadmap: ['clientName', 'tier', 'paidAmount', 'returned', 'goal', 'periodGoal', 'accessUntil', 'lastTouchAt', 'archived'],
+  roadmap: ['clientName', 'tier', 'paidAmount', 'returned', 'goal', 'periodGoal', 'accessUntil', 'lastTouchAt', 'archived', 'clientVisible', 'clientIntro'],
   metric: ['label', 'startValue', 'currentValue', 'unit', 'position', 'visibility'],
   step: ['title', 'status', 'evidence', 'position', 'visibility'],
   task: ['title', 'why', 'owner', 'status', 'dueOn', 'position', 'visibility'],
@@ -16,6 +16,7 @@ const FIELDS: Record<Entity, string[]> = {
 };
 
 const INT_FIELDS = new Set(['paidAmount', 'returned', 'position']);
+const BOOL_FIELDS = new Set(['archived', 'clientVisible']);
 const DATE_FIELDS = new Set(['accessUntil', 'lastTouchAt', 'dueOn', 'happenedOn']);
 
 function pick(entity: Entity, data: Record<string, unknown>) {
@@ -23,6 +24,10 @@ function pick(entity: Entity, data: Record<string, unknown>) {
   for (const key of FIELDS[entity]) {
     if (!(key in data)) continue;
     const raw = data[key];
+    if (BOOL_FIELDS.has(key)) {
+      out[key] = raw === true || raw === 'true';
+      continue;
+    }
     if (raw === '' || raw === null) {
       out[key] = null;
       continue;
@@ -56,7 +61,21 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const entity = body.entity as Entity;
-  const op = body.op as 'create' | 'update' | 'delete';
+  const op = body.op as 'create' | 'update' | 'delete' | 'share-defaults';
+
+  // Открыть клиенту базовый набор: путь, цифры и его собственные задачи.
+  // Заметки и задачи Саши остаются внутренними — там диагнозы, которые
+  // человеку в лицо не показывают.
+  if (op === 'share-defaults') {
+    if (!body.roadmapId) return NextResponse.json({ error: 'Missing roadmapId' }, { status: 400 });
+    const where = { roadmapId: body.roadmapId as string };
+    const [steps, metrics, tasks] = await Promise.all([
+      prisma.roadmapStep.updateMany({ where, data: { visibility: 'shared' } }),
+      prisma.roadmapMetric.updateMany({ where, data: { visibility: 'shared' } }),
+      prisma.roadmapTask.updateMany({ where: { ...where, owner: 'client' }, data: { visibility: 'shared' } }),
+    ]);
+    return NextResponse.json({ ok: true, shared: steps.count + metrics.count + tasks.count });
+  }
 
   if (!FIELDS[entity]) return NextResponse.json({ error: 'Unknown entity' }, { status: 400 });
   if (!['create', 'update', 'delete'].includes(op)) {
