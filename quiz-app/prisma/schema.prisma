@@ -461,6 +461,8 @@ model RoadmapTask {
   roadmapId String  @map("roadmap_id")
   roadmap   Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
 
+  /** устойчивый ключ из roadmap.json: переписанное название не плодит вторую задачу */
+  key      String?
   position Int     @default(0)
   title    String
   /** зачем эта задача: аргумент, который проговариваем на созвоне */
@@ -469,6 +471,10 @@ model RoadmapTask {
   status   String  @default("todo") // todo | doing | done | dropped
   dueOn    DateTime? @db.Date @map("due_on")
   doneAt   DateTime? @map("done_at")
+
+  /** материал к задаче: воркшоп, разбор, запись созвона — чтобы не искать самому */
+  linkUrl   String? @map("link_url")
+  linkLabel String? @map("link_label")
 
   visibility String   @default("internal")
   createdAt  DateTime @default(now()) @map("created_at")

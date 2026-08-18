@@ -11,7 +11,7 @@ const FIELDS: Record<Entity, string[]> = {
   roadmap: ['clientName', 'tier', 'paidAmount', 'returned', 'goal', 'periodGoal', 'accessUntil', 'lastTouchAt', 'archived', 'clientVisible', 'clientIntro'],
   metric: ['label', 'startValue', 'currentValue', 'unit', 'position', 'visibility'],
   step: ['title', 'status', 'evidence', 'position', 'visibility'],
-  task: ['title', 'why', 'owner', 'status', 'dueOn', 'position', 'visibility'],
+  task: ['title', 'why', 'owner', 'status', 'dueOn', 'position', 'visibility', 'linkUrl', 'linkLabel'],
   note: ['kind', 'body', 'source', 'happenedOn', 'visibility'],
 };
 

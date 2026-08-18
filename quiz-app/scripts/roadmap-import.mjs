@@ -106,29 +106,44 @@ for (const s of card.steps || []) {
 let newTasks = 0;
 let closedTasks = 0;
 for (const [i, t] of (card.tasks || []).entries()) {
-  const hit = await db.query(
-    'SELECT id FROM roadmap_tasks WHERE roadmap_id=$1 AND title=$2',
-    [roadmapId, t.title]
-  );
+  // Ключ переживает переписанное название. Без ключа падаем на сверку по
+  // тексту — так работали старые карты.
+  let hit = t.key
+    ? await db.query('SELECT id FROM roadmap_tasks WHERE roadmap_id=$1 AND key=$2', [roadmapId, t.key])
+    : { rows: [] };
+  if (!hit.rows[0]) {
+    // Карта, залитая до ключей: находим по тексту и проставляем ключ на месте,
+    // иначе первый же импорт с ключами продублировал бы всю карту.
+    hit = await db.query(
+      'SELECT id FROM roadmap_tasks WHERE roadmap_id=$1 AND title=$2 AND key IS NULL',
+      [roadmapId, t.title]
+    );
+    if (hit.rows[0] && t.key) {
+      await db.query('UPDATE roadmap_tasks SET key=$2 WHERE id=$1', [hit.rows[0].id, t.key]);
+    }
+  }
   if (hit.rows[0]) {
     // Статус живёт в админке и в кабинете клиента, поэтому json может только
     // закрыть задачу (done/dropped), но не открыть заново уже закрытую —
     // иначе отметка человека потерялась бы при следующем импорте.
     const closes = t.status === 'done' || t.status === 'dropped';
     await db.query(
-      `UPDATE roadmap_tasks SET why=$2, owner=$3, due_on=$4, position=$5,
+      `UPDATE roadmap_tasks SET title=$10, why=$2, owner=$3, due_on=$4, position=$5,
+         link_url=$8, link_label=$9,
          status = CASE WHEN $6::boolean AND status = 'todo' THEN $7 ELSE status END,
          done_at = CASE WHEN $6::boolean AND status = 'todo' AND $7 = 'done' THEN now() ELSE done_at END,
          updated_at = now()
        WHERE id=$1`,
-      [hit.rows[0].id, t.why || null, t.owner || 'client', t.dueOn || null, i, closes, t.status || 'todo']
+      [hit.rows[0].id, t.why || null, t.owner || 'client', t.dueOn || null, i, closes,
+       t.status || 'todo', t.linkUrl || null, t.linkLabel || null, t.title]
     );
     if (closes) closedTasks++;
   } else {
     await db.query(
-      `INSERT INTO roadmap_tasks (id, roadmap_id, position, title, why, owner, status, due_on)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [randomUUID(), roadmapId, i, t.title, t.why || null, t.owner || 'client', t.status || 'todo', t.dueOn || null]
+      `INSERT INTO roadmap_tasks (id, roadmap_id, key, position, title, why, owner, status, due_on, link_url, link_label)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [randomUUID(), roadmapId, t.key || null, i, t.title, t.why || null, t.owner || 'client',
+       t.status || 'todo', t.dueOn || null, t.linkUrl || null, t.linkLabel || null]
     );
     newTasks++;
   }

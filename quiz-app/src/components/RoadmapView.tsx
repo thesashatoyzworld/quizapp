@@ -6,7 +6,11 @@
 
 export interface RoadmapMetricView { key: string; label: string; startValue: string; currentValue: string; unit: string }
 export interface RoadmapStepView { position: number; title: string; status: string; evidence: string }
-export interface RoadmapTaskView { id: string; title: string; why: string; owner: string; status: string; dueOn: string }
+export interface RoadmapTaskView {
+  id: string; title: string; why: string; owner: string; status: string; dueOn: string;
+  /** материал к задаче: воркшоп, разбор, запись созвона */
+  linkUrl?: string; linkLabel?: string;
+}
 export interface RoadmapNoteView { kind: string; body: string; happenedOn: string }
 
 export interface RoadmapCard {
@@ -120,6 +124,11 @@ export default function RoadmapView({
                 <span className="km-task-body">
                   <span className="km-task-title">{t.title}</span>
                   {t.why && <span className="km-task-why">{t.why}</span>}
+                  {t.linkUrl && (
+                    <a className="km-task-link" href={t.linkUrl} target="_blank" rel="noopener noreferrer">
+                      {t.linkLabel || 'Открыть материал'} →
+                    </a>
+                  )}
                   {t.dueOn && <span className="km-task-due">до {t.dueOn}</span>}
                 </span>
               </li>
@@ -138,6 +147,11 @@ export default function RoadmapView({
                 <span className="km-task-body">
                   <span className="km-task-title">{t.title}</span>
                   {t.why && <span className="km-task-why">{t.why}</span>}
+                  {t.linkUrl && (
+                    <a className="km-task-link" href={t.linkUrl} target="_blank" rel="noopener noreferrer">
+                      {t.linkLabel || 'Открыть материал'} →
+                    </a>
+                  )}
                 </span>
               </li>
             ))}
@@ -258,6 +272,13 @@ export const ROADMAP_VIEW_CSS = `
   .km-task-done .km-task-title { color: var(--km-muted); text-decoration: line-through; }
   .km-task-why { font-size: 12.5px; color: var(--km-muted); line-height: 1.4; }
   .km-task-due { font-size: 11.5px; font-weight: 700; color: var(--km-accent); }
+  .km-task-link {
+    align-self: flex-start; margin-top: 3px; text-decoration: none;
+    font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 12.5px;
+    color: var(--km-accent); background: var(--km-accent-soft);
+    padding: 5px 11px; border-radius: 999px;
+  }
+  .km-task-link:hover { filter: brightness(0.96); }
   .km-task-sasha .km-check { border-style: dashed; }
 
   .km-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }

@@ -97,6 +97,8 @@ export async function GET(request: NextRequest) {
           owner: t.owner,
           status: t.status,
           dueOn: ru(t.dueOn),
+          linkUrl: t.linkUrl || '',
+          linkLabel: t.linkLabel || '',
         })),
         notes: roadmap.notes.map((n) => ({
           kind: n.kind,

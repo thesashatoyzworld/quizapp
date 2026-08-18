@@ -80,6 +80,8 @@ export default async function RoadmapPreviewPage({
       owner: t.owner,
       status: t.status,
       dueOn: ru(t.dueOn),
+      linkUrl: t.linkUrl ?? '',
+      linkLabel: t.linkLabel ?? '',
     })),
     notes: notes.map((n) => ({
       kind: n.kind,
