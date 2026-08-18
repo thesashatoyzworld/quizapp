@@ -44,6 +44,8 @@ function DostupInner() {
   const [tiers, setTiers] = useState<Record<string, number>>({});
   // Есть ли у человека личные материалы. Раздел «Личное» без них не рисуем совсем.
   const [hasPersonal, setHasPersonal] = useState(false);
+  // Открыта ли человеку его маршрутная карта. Раздел «Карта» без неё не рисуем.
+  const [hasRoadmap, setHasRoadmap] = useState(false);
   // Telegram id of the viewer — forwarded to gated cross-domain materials
   // (kabinet.thesashatoyz.com workshops) so their soft-gate can identify the user.
   const [tgId, setTgId] = useState<number | null>(null);
@@ -76,6 +78,7 @@ function DostupInner() {
           setBrowserSession(!tgId); // нет initData id → вошёл через браузер
           setTiers(data.tiers || {});
           setHasPersonal(!!data.hasPersonal);
+          setHasRoadmap(!!data.hasRoadmap);
           setUnlocked(data.unlockedRoles || []);
         } else {
           // Не опознан (браузер без сессии) → показываем вход через Telegram.
@@ -139,7 +142,7 @@ function DostupInner() {
 
       {/* Показываем ВСЕ разделы. Открытые (бесплатные + купленные) — с материалами.
           Закрытые платные — под замком с кнопкой на лендинг: «это есть, но закрыто». */}
-      {unlocked && SECTIONS.filter((s) => !s.personal || hasPersonal).map((s) => (
+      {unlocked && SECTIONS.filter((s) => (!s.personal || hasPersonal) && (!s.roadmap || hasRoadmap)).map((s) => (
         has(s.role) ? (
         <section className="kb-card kb-open" key={s.key}>
           <div className="kb-head">
