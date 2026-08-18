@@ -100,16 +100,26 @@ for (const s of card.steps || []) {
 
 // ── задачи и заметки: сверяем по тексту ────────
 let newTasks = 0;
+let closedTasks = 0;
 for (const [i, t] of (card.tasks || []).entries()) {
   const hit = await db.query(
     'SELECT id FROM roadmap_tasks WHERE roadmap_id=$1 AND title=$2',
     [roadmapId, t.title]
   );
   if (hit.rows[0]) {
+    // Статус живёт в админке и в кабинете клиента, поэтому json может только
+    // закрыть задачу (done/dropped), но не открыть заново уже закрытую —
+    // иначе отметка человека потерялась бы при следующем импорте.
+    const closes = t.status === 'done' || t.status === 'dropped';
     await db.query(
-      'UPDATE roadmap_tasks SET why=$2, owner=$3, due_on=$4, position=$5, updated_at=now() WHERE id=$1',
-      [hit.rows[0].id, t.why || null, t.owner || 'client', t.dueOn || null, i]
+      `UPDATE roadmap_tasks SET why=$2, owner=$3, due_on=$4, position=$5,
+         status = CASE WHEN $6::boolean AND status = 'todo' THEN $7 ELSE status END,
+         done_at = CASE WHEN $6::boolean AND status = 'todo' AND $7 = 'done' THEN now() ELSE done_at END,
+         updated_at = now()
+       WHERE id=$1`,
+      [hit.rows[0].id, t.why || null, t.owner || 'client', t.dueOn || null, i, closes, t.status || 'todo']
     );
+    if (closes) closedTasks++;
   } else {
     await db.query(
       `INSERT INTO roadmap_tasks (id, roadmap_id, position, title, why, owner, status, due_on)
@@ -146,7 +156,7 @@ const counts = await db.query(
 
 console.log(`карта ${card.clientName} (${card.slug}) залита`);
 console.table(counts.rows);
-console.log(`новых задач: ${newTasks}, новых заметок: ${newNotes}`);
+console.log(`новых задач: ${newTasks}, закрыто по json: ${closedTasks}, новых заметок: ${newNotes}`);
 console.log(`смотреть: /admin/roadmaps/${card.slug}`);
 
 await db.end();
