@@ -129,7 +129,8 @@ export default function RoadmapView({
                       {t.linkLabel || 'Открыть материал'} →
                     </a>
                   )}
-                  {t.dueOn && <span className="km-task-due">до {t.dueOn}</span>}
+                  {/* у закрытой задачи срок только мозолит глаза */}
+                  {t.dueOn && t.status !== 'done' && <span className="km-task-due">до {t.dueOn}</span>}
                 </span>
               </li>
             ))}
