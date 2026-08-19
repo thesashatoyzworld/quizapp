@@ -62,17 +62,27 @@ export default function RoadmapView({
         <section className="km-card">
           <div className="km-label">Было · стало</div>
           <div className="km-metrics">
-            {card.metrics.map((m) => (
-              <div className="km-metric" key={m.key}>
-                <div className="km-metric-label">{m.label}</div>
-                <div className="km-metric-row">
-                  <span className="km-metric-was">{m.startValue || '—'}</span>
-                  <span className="km-metric-arr">→</span>
-                  <span className="km-metric-now">{m.currentValue || '—'}</span>
-                  {m.unit && <span className="km-metric-unit">{m.unit}</span>}
+            {card.metrics.map((m) => {
+              // Пока цифра не сдвинулась, «200-300 → 200-300» с зачёркнутым
+              // началом читается как ошибка вёрстки. На свежей карте так со
+              // всеми метриками сразу, поэтому показываем одно значение.
+              const moved = Boolean(m.startValue) && m.startValue !== m.currentValue;
+              return (
+                <div className="km-metric" key={m.key}>
+                  <div className="km-metric-label">{m.label}</div>
+                  <div className="km-metric-row">
+                    {moved && (
+                      <>
+                        <span className="km-metric-was">{m.startValue}</span>
+                        <span className="km-metric-arr">→</span>
+                      </>
+                    )}
+                    <span className="km-metric-now">{m.currentValue || m.startValue || '—'}</span>
+                    {m.unit && <span className="km-metric-unit">{m.unit}</span>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
