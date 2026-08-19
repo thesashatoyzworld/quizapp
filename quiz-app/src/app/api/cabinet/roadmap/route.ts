@@ -60,7 +60,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (!roadmap) {
+    // Карта включена, но ни одной открытой строки — человек увидел бы пустой
+    // экран из вступления и целей и решил бы, что раздел сломан. Показываем
+    // честное «карта готовится», пока внутри ничего для него нет.
+    const rowsForClient = roadmap
+      ? roadmap.metrics.length + roadmap.steps.length + roadmap.tasks.length + roadmap.notes.length
+      : 0;
+
+    if (!roadmap || rowsForClient === 0) {
       return NextResponse.json({ success: true, identified: true, hasRoadmap: false, card: null });
     }
 

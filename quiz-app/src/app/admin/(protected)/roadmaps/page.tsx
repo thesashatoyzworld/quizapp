@@ -21,7 +21,24 @@ function daysLeft(until: Date | null) {
   return Math.ceil((until.getTime() - Date.now()) / 86_400_000);
 }
 
+/** Сколько строк карты клиент видит в кабинете, по картам разом. */
+async function sharedByRoadmap(): Promise<Map<string, number>> {
+  const where = { visibility: 'shared' };
+  const [steps, metrics, tasks, notes] = await Promise.all([
+    prisma.roadmapStep.groupBy({ by: ['roadmapId'], where, _count: { _all: true } }),
+    prisma.roadmapMetric.groupBy({ by: ['roadmapId'], where, _count: { _all: true } }),
+    prisma.roadmapTask.groupBy({ by: ['roadmapId'], where, _count: { _all: true } }),
+    prisma.roadmapNote.groupBy({ by: ['roadmapId'], where, _count: { _all: true } }),
+  ]);
+  const out = new Map<string, number>();
+  for (const row of [...steps, ...metrics, ...tasks, ...notes]) {
+    out.set(row.roadmapId, (out.get(row.roadmapId) ?? 0) + row._count._all);
+  }
+  return out;
+}
+
 export default async function RoadmapsPage() {
+  const shared = await sharedByRoadmap();
   const roadmaps = await prisma.roadmap.findMany({
     where: { archived: false },
     orderBy: { clientName: 'asc' },
@@ -36,7 +53,7 @@ export default async function RoadmapsPage() {
     <div className={styles.page}>
       <h1 className={styles.h1}>МАРШРУТНЫЕ КАРТЫ</h1>
       <p className={styles.sub}>
-        где каждый стоит, куда идёт и за кем сейчас ход. правки сохраняются сразу, клиенты этого пока не видят
+        где каждый стоит, куда идёт и за кем сейчас ход. правки сохраняются сразу; что из этого видит клиент — строкой под именем
       </p>
 
       {roadmaps.length === 0 && (
@@ -53,6 +70,7 @@ export default async function RoadmapsPage() {
             ?? null;
           const next = r.tasks[0] ?? null;
           const left = daysLeft(r.accessUntil);
+          const rows = shared.get(r.id) ?? 0;
           const money = r.paidAmount
             ? `${r.returned.toLocaleString('ru-RU')} из ${r.paidAmount.toLocaleString('ru-RU')} ₽`
             : '—';
@@ -62,6 +80,18 @@ export default async function RoadmapsPage() {
               <div className={styles.cardHead}>
                 <span className={styles.name}>{r.clientName}</span>
                 <span className={styles.tier}>{r.tier ?? ''}</span>
+              </div>
+
+              {/* Видно ли карту человеку — отдельная строка, а не мелкая подпись:
+                  открытая карта без единой открытой строки это пустой экран у клиента. */}
+              <div className={styles.visLine}>
+                {!r.clientVisible && <span className={styles.visOff}>у клиента её нет</span>}
+                {r.clientVisible && rows > 0 && (
+                  <span className={styles.visOn}>клиент видит {rows} строк</span>
+                )}
+                {r.clientVisible && rows === 0 && (
+                  <span className={styles.visEmpty}>открыта, но клиент видит пустой экран</span>
+                )}
               </div>
 
               <div className={styles.stepLine}>
