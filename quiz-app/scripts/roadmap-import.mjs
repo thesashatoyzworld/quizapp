@@ -11,6 +11,10 @@
 // картой в кабинете. Замок client_visible отсюда не трогаем: решение показать
 // карту человеку принимается кнопкой в админке, а не заливкой файла.
 //
+// А вот видимость строк учитываем: если карта клиенту уже открыта, новые
+// ступени, цифры (кроме возврата) и его собственные задачи создаются сразу
+// видимыми. Иначе дозалитая задача есть в админке и её нет у человека.
+//
 // Запуск: node scripts/roadmap-import.mjs azamat-gimaev
 //         GSD_BRAND_PATH=... node scripts/roadmap-import.mjs azamat-gimaev
 import { config } from 'dotenv';
@@ -44,9 +48,14 @@ await db.connect();
 
 const date = (v) => (v ? new Date(v) : null);
 
+// Карта уже открыта клиенту? Тогда новые строки базового набора едут видимыми.
+let cardIsOpen = false;
+const vis = (inDefaults) => (cardIsOpen && inDefaults ? 'shared' : 'internal');
+
 // ── карта ──────────────────────────────────────
-const existing = await db.query('SELECT id FROM roadmaps WHERE slug = $1', [card.slug]);
+const existing = await db.query('SELECT id, client_visible FROM roadmaps WHERE slug = $1', [card.slug]);
 let roadmapId = existing.rows[0]?.id;
+cardIsOpen = existing.rows[0]?.client_visible === true;
 
 if (roadmapId) {
   await db.query(
@@ -73,13 +82,14 @@ if (roadmapId) {
 // ── метрики: ключ уникален в пределах карты ────
 for (const [i, m] of (card.metrics || []).entries()) {
   await db.query(
-    `INSERT INTO roadmap_metrics (id, roadmap_id, key, label, start_value, current_value, unit, position)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    `INSERT INTO roadmap_metrics (id, roadmap_id, key, label, start_value, current_value, unit, position, visibility)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
      ON CONFLICT (roadmap_id, key) DO UPDATE SET
        label=EXCLUDED.label, start_value=EXCLUDED.start_value,
        current_value=EXCLUDED.current_value, unit=EXCLUDED.unit,
        position=EXCLUDED.position, updated_at=now()`,
-    [randomUUID(), roadmapId, m.key, m.label, m.startValue ?? null, m.currentValue ?? null, m.unit || null, i]
+    [randomUUID(), roadmapId, m.key, m.label, m.startValue ?? null, m.currentValue ?? null, m.unit || null, i,
+     vis(m.key !== 'revenue')]
   );
 }
 
@@ -96,8 +106,9 @@ for (const s of card.steps || []) {
     );
   } else {
     await db.query(
-      'INSERT INTO roadmap_steps (id, roadmap_id, position, title, status, evidence) VALUES ($1,$2,$3,$4,$5,$6)',
-      [randomUUID(), roadmapId, s.position, s.title, s.status, s.evidence || null]
+      `INSERT INTO roadmap_steps (id, roadmap_id, position, title, status, evidence, visibility)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [randomUUID(), roadmapId, s.position, s.title, s.status, s.evidence || null, vis(true)]
     );
   }
 }
@@ -140,10 +151,11 @@ for (const [i, t] of (card.tasks || []).entries()) {
     if (closes) closedTasks++;
   } else {
     await db.query(
-      `INSERT INTO roadmap_tasks (id, roadmap_id, key, position, title, why, owner, status, due_on, link_url, link_label)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      `INSERT INTO roadmap_tasks (id, roadmap_id, key, position, title, why, owner, status, due_on, link_url, link_label, visibility)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [randomUUID(), roadmapId, t.key || null, i, t.title, t.why || null, t.owner || 'client',
-       t.status || 'todo', t.dueOn || null, t.linkUrl || null, t.linkLabel || null]
+       t.status || 'todo', t.dueOn || null, t.linkUrl || null, t.linkLabel || null,
+       vis((t.owner || 'client') === 'client')]
     );
     newTasks++;
   }
@@ -173,9 +185,28 @@ const counts = await db.query(
   [roadmapId]
 );
 
+// Что из залитого реально видит человек. Открытая карта с нулём видимых строк
+// это пустой экран в кабинете, о таком надо знать сразу после заливки.
+const seen = await db.query(
+  `SELECT
+     (SELECT count(*) FROM roadmap_metrics WHERE roadmap_id=$1 AND visibility='shared')
+   + (SELECT count(*) FROM roadmap_steps   WHERE roadmap_id=$1 AND visibility='shared')
+   + (SELECT count(*) FROM roadmap_tasks   WHERE roadmap_id=$1 AND visibility='shared')
+   + (SELECT count(*) FROM roadmap_notes   WHERE roadmap_id=$1 AND visibility='shared') AS shared`,
+  [roadmapId]
+);
+const sharedRows = Number(seen.rows[0].shared);
+
 console.log(`карта ${card.clientName} (${card.slug}) залита`);
 console.table(counts.rows);
 console.log(`новых задач: ${newTasks}, закрыто по json: ${closedTasks}, новых заметок: ${newNotes}`);
+if (!cardIsOpen) {
+  console.log('карта клиенту закрыта — включается тумблером в админке');
+} else if (sharedRows === 0) {
+  console.log('⚠ карта открыта, но клиент видит 0 строк: жми «открыть базовый набор» в админке');
+} else {
+  console.log(`карта открыта клиенту, он видит ${sharedRows} строк`);
+}
 console.log(`смотреть: /admin/roadmaps/${card.slug}`);
 
 await db.end();
