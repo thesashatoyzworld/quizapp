@@ -14,7 +14,6 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 import pg from 'pg';
 import { INTAKE_QUESTIONS } from '../src/content/intake-tarif3';
-import { T2_QUESTIONS } from '../src/content/intake-tarif2';
 
 const id = process.argv[2];
 if (!id) {
@@ -29,7 +28,10 @@ if (!intake) { console.error(`анкеты ${id} нет`); process.exit(1); }
 const { rows } = await c.query(`SELECT * FROM intake_answers WHERE intake_id=$1 ORDER BY step, created_at`, [id]);
 await c.end();
 
-const QUESTIONS = intake.track === 't2' ? T2_QUESTIONS : INTAKE_QUESTIONS;
+// Только менторские вопросы: набор t2 живёт в intake-tarif2.ts, который пока
+// не в репозитории, а сборка проверяет типы и в scripts. Для анкеты t2 номера
+// шагов останутся без текста вопроса, содержимое ответов от этого не страдает.
+const QUESTIONS = INTAKE_QUESTIONS;
 const who = intake.username ? '@' + intake.username : intake.first_name;
 const fmt = (d: Date) => d.toISOString().slice(0, 16).replace('T', ' ');
 const out: string[] = [];
