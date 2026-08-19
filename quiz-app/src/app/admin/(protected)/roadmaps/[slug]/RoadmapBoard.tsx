@@ -66,7 +66,7 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'не сохранилось');
       startTransition(() => router.refresh());
-      return json as { ok: true; id?: string };
+      return json as { ok: true; id?: string; autoShared?: number };
     } catch (e) {
       setError(e instanceof Error ? e.message : 'не сохранилось');
       return null;
@@ -93,6 +93,14 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
     + tasks.filter((t) => t.visibility === 'shared').length
     + notes.filter((n) => n.visibility === 'shared').length;
 
+  // Те же правила, что и на сервере: путь целиком, цифры кроме возврата,
+  // задачи клиента. Держим локальную копию в согласии с базой.
+  function markDefaultsLocally() {
+    setSteps((prev) => prev.map((x) => ({ ...x, visibility: 'shared' })));
+    setMetrics((prev) => prev.map((x) => (x.key === 'revenue' ? x : { ...x, visibility: 'shared' })));
+    setTasks((prev) => prev.map((x) => (x.owner === 'client' ? { ...x, visibility: 'shared' } : x)));
+  }
+
   async function shareDefaults() {
     setSaving(true);
     setError('');
@@ -103,9 +111,7 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
         body: JSON.stringify({ entity: 'roadmap', op: 'share-defaults', roadmapId: data.id }),
       });
       if (!res.ok) throw new Error('не открылось');
-      setSteps((prev) => prev.map((x) => ({ ...x, visibility: 'shared' })));
-      setMetrics((prev) => prev.map((x) => ({ ...x, visibility: 'shared' })));
-      setTasks((prev) => prev.map((x) => (x.owner === 'client' ? { ...x, visibility: 'shared' } : x)));
+      markDefaultsLocally();
       startTransition(() => router.refresh());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'не открылось');
@@ -126,10 +132,13 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
             <input
               type="checkbox"
               checked={clientVisible}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const next = e.target.checked;
                 setClientVisible(next);
-                send('roadmap', 'update', { id: data.id, data: { clientVisible: next } });
+                const json = await send('roadmap', 'update', { id: data.id, data: { clientVisible: next } });
+                // Сервер сам открывает базовый набор, если внутри всё было
+                // внутренним: включённая карта не должна приезжать пустой.
+                if (json?.autoShared) markDefaultsLocally();
               }}
             />
             Карта открыта клиенту
@@ -158,6 +167,12 @@ export default function RoadmapBoard({ data }: { data: BoardData }) {
         {!data.hasTelegram && (
           <div className={styles.shareWarn}>
             У карты не проставлен telegram id — клиент её не откроет: кабинет опознаёт только по нему.
+          </div>
+        )}
+        {clientVisible && sharedCount === 0 && (
+          <div className={styles.shareWarn}>
+            Карта открыта, но ни одна строка не помечена глазком — человек увидит пустой экран
+            из вступления и целей. Жми «открыть базовый набор».
           </div>
         )}
       </div>
