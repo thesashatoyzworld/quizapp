@@ -55,6 +55,40 @@ function model(entity: Entity) {
   }
 }
 
+// Базовый набор: путь, цифры и собственные задачи клиента. Заметки и задачи
+// Саши остаются внутренними — там диагнозы, которые человеку в лицо не
+// показывают. Метрика возврата тоже: «вернул 0 из 150 000» это разговор для
+// созвона, а не строчка в его кабинете.
+function inDefaults(entity: Entity, row: { key?: unknown; owner?: unknown }): boolean {
+  if (entity === 'step') return true;
+  if (entity === 'metric') return row.key !== 'revenue';
+  if (entity === 'task') return row.owner === 'client';
+  return false;
+}
+
+/** Открыть клиенту базовый набор. Возвращает число открытых строк. */
+async function shareDefaults(roadmapId: string): Promise<number> {
+  const where = { roadmapId };
+  const [steps, metrics, tasks] = await Promise.all([
+    prisma.roadmapStep.updateMany({ where, data: { visibility: 'shared' } }),
+    prisma.roadmapMetric.updateMany({ where: { ...where, key: { not: 'revenue' } }, data: { visibility: 'shared' } }),
+    prisma.roadmapTask.updateMany({ where: { ...where, owner: 'client' }, data: { visibility: 'shared' } }),
+  ]);
+  return steps.count + metrics.count + tasks.count;
+}
+
+/** Сколько строк карты клиент реально видит в кабинете. */
+async function sharedRows(roadmapId: string): Promise<number> {
+  const where = { roadmapId, visibility: 'shared' };
+  const [steps, metrics, tasks, notes] = await Promise.all([
+    prisma.roadmapStep.count({ where }),
+    prisma.roadmapMetric.count({ where }),
+    prisma.roadmapTask.count({ where }),
+    prisma.roadmapNote.count({ where }),
+  ]);
+  return steps + metrics + tasks + notes;
+}
+
 export async function POST(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -63,19 +97,10 @@ export async function POST(request: NextRequest) {
   const entity = body.entity as Entity;
   const op = body.op as 'create' | 'update' | 'delete' | 'share-defaults';
 
-  // Открыть клиенту базовый набор: путь, цифры и его собственные задачи.
-  // Заметки и задачи Саши остаются внутренними — там диагнозы, которые
-  // человеку в лицо не показывают. Метрика возврата тоже: «вернул 0 из 150 000»
-  // это разговор для созвона, а не строчка в его кабинете.
   if (op === 'share-defaults') {
     if (!body.roadmapId) return NextResponse.json({ error: 'Missing roadmapId' }, { status: 400 });
-    const where = { roadmapId: body.roadmapId as string };
-    const [steps, metrics, tasks] = await Promise.all([
-      prisma.roadmapStep.updateMany({ where, data: { visibility: 'shared' } }),
-      prisma.roadmapMetric.updateMany({ where: { ...where, key: { not: 'revenue' } }, data: { visibility: 'shared' } }),
-      prisma.roadmapTask.updateMany({ where: { ...where, owner: 'client' }, data: { visibility: 'shared' } }),
-    ]);
-    return NextResponse.json({ ok: true, shared: steps.count + metrics.count + tasks.count });
+    const shared = await shareDefaults(body.roadmapId as string);
+    return NextResponse.json({ ok: true, shared });
   }
 
   if (!FIELDS[entity]) return NextResponse.json({ error: 'Unknown entity' }, { status: 400 });
@@ -97,6 +122,20 @@ export async function POST(request: NextRequest) {
     if (op === 'create') {
       if (entity === 'roadmap') return NextResponse.json({ error: 'Roadmaps come from the import script' }, { status: 400 });
       if (!body.roadmapId) return NextResponse.json({ error: 'Missing roadmapId' }, { status: 400 });
+
+      // Новая строка в уже открытой карте по умолчанию едет клиенту, если
+      // попадает в базовый набор. Иначе карта тихо расходится с кабинетом:
+      // в админке шаг есть, у человека его нет.
+      // key метрики в белый список правок не входит, поэтому смотрим и в сырое тело.
+      const row = { ...(body.data as Record<string, unknown>), ...data };
+      if (!data.visibility && inDefaults(entity, row)) {
+        const open = await prisma.roadmap.findUnique({
+          where: { id: body.roadmapId as string },
+          select: { clientVisible: true },
+        });
+        if (open?.clientVisible) data.visibility = 'shared';
+      }
+
       // @ts-expect-error union of delegates, all have create
       const created = await model(entity).create({ data: { ...data, roadmapId: body.roadmapId } });
       return NextResponse.json({ ok: true, id: created.id });
@@ -112,13 +151,23 @@ export async function POST(request: NextRequest) {
     // @ts-expect-error union of delegates, all have update
     await model(entity).update({ where: { id: body.id }, data });
 
+    // Открыли карту клиенту, а внутри всё внутреннее — человек увидит пустой
+    // экран из вступления и целей. Так было у Азамата: карта включена 18.08,
+    // базовый набор не открыт, «страница не листается». Открываем сами.
+    let autoShared = 0;
+    if (entity === 'roadmap' && data.clientVisible === true) {
+      if ((await sharedRows(body.id as string)) === 0) {
+        autoShared = await shareDefaults(body.id as string);
+      }
+    }
+
     // Любая правка карты это касание: держим дату свежей без ручного ввода.
     const roadmapId = entity === 'roadmap' ? body.id : body.roadmapId;
     if (roadmapId && !('lastTouchAt' in data)) {
       await prisma.roadmap.update({ where: { id: roadmapId }, data: { lastTouchAt: new Date() } });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, autoShared });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'unknown';
     console.error('roadmap write failed:', message);
