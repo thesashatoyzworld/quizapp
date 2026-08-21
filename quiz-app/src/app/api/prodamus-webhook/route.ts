@@ -5,8 +5,10 @@ import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { grantAccess } from '@/lib/access';
 import { ensureIntake, sendPreamble } from '@/lib/intake';
+import { sendWelcomeT2 } from '@/lib/onboarding';
 import { sendBotMessage } from '@/lib/telegram';
 import { INTAKE_INVITE, INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
+import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -339,6 +341,39 @@ async function notifyAdminUroven(productName: string, amount: number, contact: s
 
 // Оплата дошла до Продамуса, но не завершилась (карта отклонена / рассрочка не
 // одобрена / отмена / таймаут). Шлём админу сразу — это горячий лид на дожим.
+// Пришла сумма меньше каталожной. Причина почти всегда безобидная (у человека
+// открылась закэшированная страница со старой ценой), но тем же путём проходит и
+// подмена цены в форме руками. Доступ не выдаём молча — решает Саша.
+async function notifyAdminUnderpaid(
+  productName: string, expected: number, paid: number,
+  contact: string, orderId: string,
+) {
+  if (!BOT_TOKEN) return;
+  const adminChatId = await getAdminChatId();
+  if (!adminChatId) return;
+
+  const text = [
+    '⚠️ Недоплата — доступ НЕ выдан',
+    '',
+    productName,
+    `Оплачено: ${paid.toLocaleString('ru-RU')} ₽ из ${expected.toLocaleString('ru-RU')} ₽`,
+    `Не хватает: ${(expected - paid).toLocaleString('ru-RU')} ₽`,
+    `Контакт: ${contact}`,
+    `Order: ${orderId}`,
+    '',
+    'Деньги у тебя. Решаешь ты: выдать доступ вручную или попросить дослать разницу.',
+  ].join('\n');
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: adminChatId, text }),
+    });
+  } catch (error) {
+    console.error('Failed to notify admin about underpayment:', error);
+  }
+}
+
 async function notifyAdminPaymentFailed(
   status: string, statusDesc: string, productName: string,
   amount: string, email: string, phone: string, orderId: string,
@@ -534,11 +569,47 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true });
       }
       const products = body.products as Record<string, Record<string, string>> | undefined;
-      const amount = parseInt(String(products?.['0']?.price ?? product.price), 10) || product.price;
+      // Что реально списано. sum — итог позиции, price — цена за единицу; берём sum.
+      const paidRaw = products?.['0']?.sum ?? products?.['0']?.price;
+      const amount = parseInt(String(paidRaw ?? product.price), 10) || product.price;
       const parts = (orderId as string).split('_'); // ['uroven', tier, tgId|'web', ...]
       const third = parts[2] || '';
       const isWeb = third === 'web';
       const tgUserId = !isWeb && /^\d+$/.test(third) ? parseInt(third, 10) : null;
+
+      // ── Гейт по сумме ───────────────────────────────────────────────
+      // Цену платёжной формы собирает браузер, поэтому она НЕ источник правды:
+      // 20.08 у покупателя открылась закэшированная страница с ценой до 8 августа
+      // и Тариф 1 ушёл за 3 450 вместо 5 450. Тем же путём проходит и подмена
+      // цены руками. Источник правды — CATALOG; недоплата доступ не открывает.
+      // Только разовые товары: у подписок сумму диктует карточка Продамуса, а не
+      // браузер, и она законно расходится с каталогом — на старой карточке т2
+      // (2987944) десять человек продолжают платить 7 500 вместо 10 000, и их
+      // продления гейт обязан пропускать.
+      if (product.type === 'one_time' && paidRaw !== undefined && amount < product.price) {
+        const email = (body.customer_email || body.email || '') as string;
+        const phone = (body.customer_phone || body.phone || '') as string;
+        const contact = tgUserId
+          ? `TG user ${tgUserId}`
+          : [email, phone].filter(Boolean).join(' · ') || 'нет контакта';
+
+        await prisma.event.create({
+          data: {
+            type: 'underpaid',
+            source: 'thesasha',
+            productSlug: product.slug,
+            telegramId: tgUserId ? BigInt(tgUserId) : null,
+            metadata: {
+              expected: product.price, paid: amount,
+              email, phone, orderId: String(orderId), granted: false,
+            },
+          },
+        }).catch((e) => console.error('[Supabase] underpaid event insert failed:', e));
+
+        await notifyAdminUnderpaid(product.name, product.price, amount, contact, orderId as string);
+        console.warn(`[Prodamus Webhook] underpaid: ${orderId} paid ${amount} of ${product.price}, access withheld`);
+        return NextResponse.json({ success: true });
+      }
 
       await prisma.product.upsert({
         where: { slug: product.slug },
@@ -553,13 +624,16 @@ export async function POST(request: NextRequest) {
           grantAccess({ product, telegramId: tgUserId, source: orderId as string })
             .catch((e) => console.error('[Access] uroven telegram grant failed:', e)),
         ]);
-        if (BOT_TOKEN) {
+        // Тариф 2 встречает своим пакетом: где что лежит, группа, следом интервью.
+        const welcomed = product.slug === T2_PRODUCT_SLUG ? await sendWelcomeT2(tgUserId) : false;
+
+        if (!welcomed && BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: tgUserId,
-              text: `готово ⚡\n\nоплата принята: <b>${product.name}</b>.\n\nдва воркшопа уже в кабинете: «Продающий контент» и «Формула вирусного контента». с них и начинай.\nсам курс (6 уровней) откроется 7 августа.`,
+              text: `готово ⚡\n\nоплата принята: <b>${product.name}</b>.\n\nвсе материалы в кабинете, жми кнопку ниже.`,
               parse_mode: 'HTML',
               reply_markup: { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
             }),
