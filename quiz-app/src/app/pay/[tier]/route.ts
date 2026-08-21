@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { isOnSale, waitlistLink } from '@/lib/sales';
+import { CATALOG } from '@/lib/catalog';
 
 const FORM = 'https://thesashatoyz.payform.ru';
 const BOT = 'https://t.me/testtoyzbot';
@@ -30,8 +31,10 @@ const NOTIFY = 'https://quizapp-ivory-delta.vercel.app/api/prodamus-webhook';
 // 2356023 списывает 10 000 сразу и каждые 30 дней. Та же карточка обслуживает
 // «Синхронизацию» — цена и период совпадают, а кто именно купил, видно
 // по нашему order_id, не по подписке.
+// Цена разового т1 берётся из каталога, а не дублируется здесь: именно
+// расхождение копий цены и дало оплату 3 450 вместо 5 450 (20.08).
 const TIERS: Record<string, { name: string; price: number; sub?: string }> = {
-  t1: { name: 'Тариф 1 (делаешь сам)', price: 5450 },
+  t1: { name: 'Тариф 1 (делаешь сам)', price: CATALOG.uroven_t1.price },
   t2: { name: 'Тариф 2 (сам + монетизация)', price: 10000, sub: '2356023' },
   t3: { name: 'Тариф 3 (делаем вместе)', price: 50000, sub: '2989937' },
 };
@@ -61,10 +64,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.redirect(waitlistLink(tier), 302);
   }
 
+  // Кнопки лендинга внутри Telegram передают сюда id покупателя (?u=<tgId>):
+  // тогда order_id опознаётся вебхуком как телеграмный и доступ выдаётся прямо
+  // на аккаунт, без промежуточного токена. Цену при этом задаёт сервер, а не
+  // страница — закэшированный лендинг больше не может продать по старой цене.
+  const uid = (request.nextUrl.searchParams.get('u') || '').replace(/\D/g, '').slice(0, 15);
+  const byTelegram = uid.length >= 3;
+
   // base36 без «_», иначе ломается разбор order_id по «_web_»
   const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  const orderId = `uroven_${tier}_web_${token}`;
-  const bind = `${BOT}?start=paid_${token}`;
+  const orderId = byTelegram ? `uroven_${tier}_${uid}` : `uroven_${tier}_web_${token}`;
+  const bind = byTelegram ? `${BOT}?start=uroven_${tier}` : `${BOT}?start=paid_${token}`;
   const name = `Новый уровень контента — ${t.name}`;
 
   const fields: Record<string, string> = {
@@ -94,8 +104,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       event_type: 'checkout_open',
       utm_source: src ? `uroven_${src}` : 'uroven_paylink',
       metadata: {
-        tag: 'uroven', tier, price: t.price, method: 'paylink',
+        tag: 'uroven', tier, price: t.price,
+        method: byTelegram ? 'paylink_tg' : 'paylink',
         order_id: orderId, src: src || null,
+        tg: byTelegram ? Number(uid) : undefined,
         // Личная ссылка на закрытый тариф — чтобы в статистике набора её было видно отдельно.
         personal: personal || undefined,
       },
