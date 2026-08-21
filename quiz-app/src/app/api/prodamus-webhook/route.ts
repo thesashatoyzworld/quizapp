@@ -360,8 +360,7 @@ async function notifyAdminUnderpaid(
     `Order: ${orderId}`,
     '',
     'Деньги у тебя. Решаешь ты: выдать доступ вручную или попросить дослать разницу.',
-  ].join('
-');
+  ].join('\n');
   try {
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
