@@ -120,7 +120,6 @@ h1 {
   if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
   var uid = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : null;
 
-  var FORM = 'https://thesashatoyz.payform.ru';
   var origin = window.location.origin;
 
   // incl = только то, что добавляет сам тариф. Состав предыдущих подставляется
@@ -188,39 +187,13 @@ h1 {
     btns[i].addEventListener('click', function () { tier = this.getAttribute('data-tier'); render(); });
   }
 
-  function payFields() {
-    var t = TIERS[tier];
-    var orderId = 'uroven_' + tier + '_' + uid;
-    // Доступ привязан к Telegram (оплата из бота). Кабинет — только через Telegram.
-    var paidContent = 'Оплата принята: «Новый уровень контента» (' + t.name + '). '
-      + 'Доступ привязан к твоему Telegram — открой кабинет через бота @testtoyzbot. '
-      + 'Внутри сразу весь курс и два воркшопа: «Продающий Контент» и «Формула Вирусного Контента».';
-    var f = {
-      'do': 'pay',
-      'order_id': orderId,
-      'paid_content': paidContent,
-      'urlNotification': origin + '/api/prodamus-webhook',
-      'urlSuccess': 'https://t.me/testtoyzbot'
-    };
-    if (t.sub) {
-      // Подписка (рекуррент): сумма и период берутся из карточки подписки в Продамусе.
-      f['subscription'] = t.sub;
-    } else {
-      // Разовый (Тариф 1): товар с ценой.
-      f['products[0][name]'] = 'Новый уровень контента — ' + t.name;
-      f['products[0][price]'] = t.price;
-      f['products[0][quantity]'] = 1;
-    }
-    return f;
-  }
-
-  // GET-URL для Продамуса: ключи с литеральными [] (Продамус требует их дословно),
-  // значения — encodeURIComponent. Так paid_content с кириллицей приходит читаемым.
-  function buildPayUrl() {
-    var fields = payFields();
-    var parts = [];
-    for (var k in fields) parts.push(k + '=' + encodeURIComponent(fields[k]));
-    return FORM + '?' + parts.join('&');
+  // Ссылку для Продамуса собирает сервер (/pay/<tier>): цену туда подставляет
+  // каталог, а не этот файл. Раньше форма собиралась здесь, и цена уезжала та,
+  // что лежала в закэшированной копии страницы — 20.08 так прошла оплата
+  // Тарифа 1 за 3 450 вместо 5 450. u=<tgId> сохраняет привязку доступа
+  // к Telegram; цифра ниже на экране — только витрина.
+  function payLink() {
+    return origin + '/pay/' + tier + (uid ? '?u=' + uid : '');
   }
 
   // Ловим ПОПЫТКУ оплаты (даже если она потом сорвётся в WebView) — иначе
@@ -258,28 +231,15 @@ h1 {
       return;
     }
     if (tg && tg.openLink) {
-      // Внутри Telegram-мини-аппа top-level form.submit на внешний домен блокируется
-      // Telegram WebView — оплата не открывается. Открываем Продамус официальным API.
+      // Внутри Telegram-мини-аппа переход на внешний домен блокируется WebView,
+      // поэтому открываем официальным API. Ссылка своя, редирект на Продамус
+      // отдаёт сервер.
       trackCheckout('tg_openlink');
-      tg.openLink(buildPayUrl());
+      tg.openLink(payLink());
       return;
     }
-    // Обычный браузер — POST-форма (paid_content с кириллицей приходит читаемым)
     trackCheckout('browser_form');
-    var fields = payFields();
-    var form = document.createElement('form');
-    form.method = 'POST';
-    form.action = FORM;
-    form.acceptCharset = 'UTF-8';
-    for (var k in fields) {
-      var inp = document.createElement('input');
-      inp.type = 'hidden';
-      inp.name = k;
-      inp.value = fields[k];
-      form.appendChild(inp);
-    }
-    document.body.appendChild(form);
-    form.submit();
+    window.location.href = payLink();
   });
 
   if (!uid) {
