@@ -30,6 +30,23 @@ export const ANKETA = 'https://world.thesashatoyz.com/anketa/dwy';
 export const isOnSale = (tier: string): boolean => SALES[tier as Tier] === 'sale';
 
 /**
+ * Личный ключ: открывает закрытый тариф тому, кому Саша даёт ссылку сам.
+ *
+ * Живёт в двух видах — `?k=svoi` у веб-ссылки `/pay/<tier>` и хвост `_svoi`
+ * у ссылки в бота `?start=uroven_<tier>_svoi`. Это не про безопасность:
+ * цена та же, а ключ нужен, чтобы ссылка из личной переписки не разошлась
+ * по постам мимо набора.
+ *
+ * ⚠️ Копия ключа лежит инлайном в public/uroven/checkout.html — статике
+ * импортировать неоткуда.
+ */
+export const PERSONAL_KEY = 'svoi';
+
+/** Открыт ли тариф этому человеку: по режиму продаж или по личному ключу. */
+export const canBuy = (tier: string, personal = false): boolean =>
+  isOnSale(tier) || personal;
+
+/**
  * Ссылка записи ведёт на анкету, а не в бота: из бота приходил только username,
  * а достучаться потом получалось не всегда. Тариф едет в `kind` — по нему видно,
  * кто ждёт набора, а кто пришёл на менторство. Обязательны там только имя

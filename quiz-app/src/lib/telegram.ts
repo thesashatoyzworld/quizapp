@@ -143,24 +143,48 @@ export async function downloadTelegramFile(filePath: string): Promise<ArrayBuffe
   return res.arrayBuffer();
 }
 
-export async function notifyAdmin(text: string) {
-  if (!BOT_TOKEN) return;
+/**
+ * Уведомление Саше.
+ *
+ * Раньше ответ Телеграма не читался вовсе, а `fetch` не бросает на 400 и 429:
+ * любая ошибка исчезала бесследно. В логах пусто, у Саши пусто, а человеку бот
+ * бодро писал «анкета собрана» — так однажды потерялось уведомление о Косте.
+ * Теперь разбираем ответ и повторяем: на 429 Телеграм сам говорит, сколько ждать.
+ */
+export async function notifyAdmin(text: string): Promise<boolean> {
+  if (!BOT_TOKEN) return false;
 
   const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
+  if (!adminChatId) {
+    console.error('[notifyAdmin] некому писать: ADMIN_CHAT_ID не задан');
+    return false;
+  }
 
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: adminChatId,
-        text,
-        parse_mode: 'HTML',
-      }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin:', error);
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: adminChatId, text, parse_mode: 'HTML' }),
+      });
+      const data = await res.json();
+      if (data.ok === true) return true;
+
+      const retryAfter: number | undefined = data?.parameters?.retry_after;
+      console.error(
+        `[notifyAdmin] попытка ${attempt}: telegram отказал ${data.error_code} ${data.description}`,
+      );
+
+      // 429 — ждём столько, сколько просят. Остальные ошибки повтор не лечит.
+      if (data.error_code !== 429) return false;
+      if (attempt < 3) await new Promise((r) => setTimeout(r, (retryAfter || 1) * 1000));
+    } catch (error) {
+      console.error(`[notifyAdmin] попытка ${attempt} упала:`, error);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 1000));
+    }
   }
+
+  return false;
 }

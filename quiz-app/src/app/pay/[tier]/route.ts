@@ -19,7 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
-import { isOnSale, waitlistLink } from '@/lib/sales';
+import { canBuy, PERSONAL_KEY, waitlistLink } from '@/lib/sales';
 import { CATALOG } from '@/lib/catalog';
 
 const FORM = 'https://thesashatoyz.payform.ru';
@@ -39,9 +39,6 @@ const TIERS: Record<string, { name: string; price: number; sub?: string }> = {
   t3: { name: 'Тариф 3 (делаем вместе)', price: 50000, sub: '2989937' },
 };
 
-/** Личный ключ, открывающий закрытый тариф: /pay/t2?k=svoi */
-const PERSONAL_KEY = 'svoi';
-
 export async function GET(request: NextRequest, { params }: { params: Promise<{ tier: string }> }) {
   const { tier: raw } = await params;
   const tier = TIERS[raw] ? raw : 't1';
@@ -51,7 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   // Набор на тариф закрыт: ссылка не ведёт в тупик, а записывает в лист ожидания.
   // Старые ссылки из постов и переписок продолжают работать — просто иначе.
-  if (!isOnSale(tier) && !personal) {
+  if (!canBuy(tier, personal)) {
     const src = (request.nextUrl.searchParams.get('src') || '')
       .toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32);
     try {

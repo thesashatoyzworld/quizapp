@@ -5,8 +5,10 @@ import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { grantAccess } from '@/lib/access';
 import { ensureIntake, sendPreamble } from '@/lib/intake';
+import { sendWelcomeT2 } from '@/lib/onboarding';
 import { sendBotMessage } from '@/lib/telegram';
 import { INTAKE_INVITE, INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
+import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -622,13 +624,16 @@ export async function POST(request: NextRequest) {
           grantAccess({ product, telegramId: tgUserId, source: orderId as string })
             .catch((e) => console.error('[Access] uroven telegram grant failed:', e)),
         ]);
-        if (BOT_TOKEN) {
+        // Тариф 2 встречает своим пакетом: где что лежит, группа, следом интервью.
+        const welcomed = product.slug === T2_PRODUCT_SLUG ? await sendWelcomeT2(tgUserId) : false;
+
+        if (!welcomed && BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: tgUserId,
-              text: `готово ⚡\n\nоплата принята: <b>${product.name}</b>.\n\nдва воркшопа уже в кабинете: «Продающий контент» и «Формула вирусного контента». с них и начинай.\nсам курс (6 уровней) откроется 7 августа.`,
+              text: `готово ⚡\n\nоплата принята: <b>${product.name}</b>.\n\nвсе материалы в кабинете, жми кнопку ниже.`,
               parse_mode: 'HTML',
               reply_markup: { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
             }),

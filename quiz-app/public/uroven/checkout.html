@@ -155,6 +155,15 @@ h1 {
   }
   var tier = qsTier();
 
+  // Личный ключ ?k=svoi: открывает закрытый тариф тому, кому Саша дал ссылку
+  // сам. Копия константы из src/lib/sales.ts, тут статика и импорта нет.
+  // Ключ не про безопасность (цена та же), а про то, чтобы ссылка из личной
+  // переписки не разошлась по постам мимо набора.
+  var PERSONAL_KEY = 'svoi';
+  var personal = /[?&]k=([a-z0-9-]+)/.exec(window.location.search);
+  personal = !!(personal && personal[1] === PERSONAL_KEY);
+  function canBuy(t) { return SALES[t] === 'sale' || personal; }
+
   function render() {
     var t = TIERS[tier];
     document.getElementById('tierName').textContent = t.name;
@@ -174,7 +183,8 @@ h1 {
     for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-tier') === tier);
 
     // Набор на тариф закрыт: кнопка ведёт в лист ожидания, а не в оплату.
-    var closed = SALES[tier] !== 'sale';
+    // По личной ссылке тариф открыт, даже если для всех остальных закрыт.
+    var closed = !canBuy(tier);
     document.getElementById('pay').textContent = closed ? 'Записаться в лист ожидания' : 'Оформить доступ';
     var dl = document.querySelector('.deadline');
     if (dl) dl.innerHTML = closed
@@ -193,7 +203,11 @@ h1 {
   // Тарифа 1 за 3 450 вместо 5 450. u=<tgId> сохраняет привязку доступа
   // к Telegram; цифра ниже на экране — только витрина.
   function payLink() {
-    return origin + '/pay/' + tier + (uid ? '?u=' + uid : '');
+    var q = [];
+    if (uid) q.push('u=' + uid);
+    // Ключ едет дальше на сервер: /pay/<tier> гейтит закрытый тариф так же.
+    if (personal) q.push('k=' + PERSONAL_KEY);
+    return origin + '/pay/' + tier + (q.length ? '?' + q.join('&') : '');
   }
 
   // Ловим ПОПЫТКУ оплаты (даже если она потом сорвётся в WebView) — иначе
@@ -204,7 +218,7 @@ h1 {
         event_type: 'checkout_open',
         user_id: uid || undefined,
         utm_source: 'uroven_' + tier,
-        metadata: { tier: tier, order_id: 'uroven_' + tier + '_' + uid, method: method, page: 'checkout' }
+        metadata: { tier: tier, order_id: 'uroven_' + tier + '_' + uid, method: method, page: 'checkout', personal: personal }
       });
       if (navigator.sendBeacon) {
         if (navigator.sendBeacon('/api/track-event', new Blob([payload], { type: 'application/json' }))) return;
@@ -215,7 +229,7 @@ h1 {
 
   document.getElementById('pay').addEventListener('click', function () {
     // Тариф закрыт — вместо оплаты уводим на анкету листа ожидания.
-    if (SALES[tier] !== 'sale') {
+    if (!canBuy(tier)) {
       trackCheckout('waitlist');
       var wl = ANKETA + '?kind=' + tier + '&from=checkout';
       // Это обычная веб-страница, openTelegramLink её не откроет.
@@ -226,8 +240,9 @@ h1 {
     if (!uid) {
       trackCheckout('bounce_bot');
       // Вне бота — уводим в бота, чтобы доступ привязался к Telegram
-      if (tg && tg.openTelegramLink) tg.openTelegramLink('https://t.me/testtoyzbot?start=uroven_' + tier);
-      else window.location.href = 'https://t.me/testtoyzbot?start=uroven_' + tier;
+      var back = 'https://t.me/testtoyzbot?start=uroven_' + tier + (personal ? '_' + PERSONAL_KEY : '');
+      if (tg && tg.openTelegramLink) tg.openTelegramLink(back);
+      else window.location.href = back;
       return;
     }
     if (tg && tg.openLink) {

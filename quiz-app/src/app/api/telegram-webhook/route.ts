@@ -5,7 +5,7 @@ import { notifyAdmin, sendBotMessage } from '@/lib/telegram';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
-import { isOnSale, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
+import { canBuy, isOnSale, PERSONAL_KEY, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { handleKbQuestion } from '@/lib/kb/ask';
 import {
@@ -20,7 +20,7 @@ import {
   ensureIntake,
   getIntake,
   handleIntakeMessage,
-  hasTarif3Access,
+  resolveTrack,
   pauseIntake,
   sendCurrentQuestion,
   sendPreamble,
@@ -28,7 +28,9 @@ import {
   syncUsername,
   transcribePending,
 } from '@/lib/intake';
+import { sendWelcomeT2 } from '@/lib/onboarding';
 import { INTAKE_TEXTS } from '@/content/intake-tarif3';
+import { trackContent } from '@/content/intake-tracks';
 
 // Держим функцию открытой дольше дефолтных 10с: kazino-флоу ждёт ~7с между
 // сообщением про канал и статьёй. 60с нужны анкете: расшифровка голосового
@@ -502,7 +504,9 @@ export async function POST(request: NextRequest) {
 
       await syncUsername(tgId, update.message.from.username, update.message.from.first_name);
 
-      if (!(await hasTarif3Access(tgId))) {
+      // Набор вопросов зависит от тарифа: t3 — досье к созвону, t2 — маршрут.
+      const track = await resolveTrack(tgId);
+      if (!track) {
         await sendMessage(chatId, INTAKE_TEXTS.noAccess);
         return NextResponse.json({ ok: true });
       }
@@ -511,15 +515,17 @@ export async function POST(request: NextRequest) {
         tgId,
         update.message.from.username || null,
         update.message.from.first_name || null,
+        undefined,
+        track,
       );
 
       if (intake.status === 'done') {
-        await sendMessage(chatId, INTAKE_TEXTS.alreadyDone);
+        await sendMessage(chatId, trackContent(intake.track).texts.alreadyDone);
       } else if (intake.status === 'in_progress') {
-        await sendMessage(chatId, INTAKE_TEXTS.resume);
+        await sendMessage(chatId, trackContent(intake.track).texts.resume);
         await sendCurrentQuestion(intake, chatId);
       } else {
-        await sendPreamble(chatId);
+        await sendPreamble(chatId, intake.track);
       }
 
       return NextResponse.json({ ok: true });
@@ -606,18 +612,25 @@ export async function POST(request: NextRequest) {
 
         if (byToken) {
           if (byToken.status === 'done') {
-            await sendMessage(chatId, INTAKE_TEXTS.alreadyDone);
+            await sendMessage(chatId, trackContent(byToken.track).texts.alreadyDone);
           } else if (byToken.status === 'in_progress') {
-            await sendMessage(chatId, INTAKE_TEXTS.resume);
+            await sendMessage(chatId, trackContent(byToken.track).texts.resume);
             await sendCurrentQuestion(byToken, chatId);
           } else {
-            await sendPreamble(chatId);
+            await sendPreamble(chatId, byToken.track);
           }
         } else {
           // Токена нет: пускаем, только если доступ есть в базе.
-          if (await hasTarif3Access(tgId)) {
-            await ensureIntake(tgId, username || null, update.message.from?.first_name || null);
-            await sendPreamble(chatId);
+          const track = await resolveTrack(tgId);
+          if (track) {
+            const intake = await ensureIntake(
+              tgId,
+              username || null,
+              update.message.from?.first_name || null,
+              undefined,
+              track,
+            );
+            await sendPreamble(chatId, intake.track);
           } else {
             await sendMessage(chatId, INTAKE_TEXTS.noAccess);
           }
@@ -692,11 +705,18 @@ export async function POST(request: NextRequest) {
             data: { telegramId: BigInt(chatId), metadata: { ...meta, token, consumed: true, boundTelegramId: chatId } },
           });
 
-          await sendMessage(
-            chatId,
-            `готово ⚡\n\nоплата подтверждена, доступ к <b>${product.name}</b> открыт. материалы — в кабинете, жми кнопку ниже.`,
-            { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] }
-          );
+          // Тариф 2 встречает своим пакетом: где что лежит, группа, следом интервью.
+          // Остальные продукты — прежним коротким сообщением про кабинет.
+          const welcomed =
+            product.slug === 'uroven-t2' ? await sendWelcomeT2(chatId) : false;
+
+          if (!welcomed) {
+            await sendMessage(
+              chatId,
+              `готово ⚡\n\nоплата подтверждена, доступ к <b>${product.name}</b> открыт. материалы — в кабинете, жми кнопку ниже.`,
+              { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] }
+            );
+          }
 
           await notifyAdmin(
             `✅ <b>Доступ выдан по коду</b> (оплата картой)\n\n${product.name}\n👤 ${fullName || '—'}\n💬 ${username ? '@' + username : 'без username'}\n🆔 <code>${chatId}</code>\nToken: <code>${token}</code>`
@@ -995,9 +1015,14 @@ export async function POST(request: NextRequest) {
         // Метка: только буквы/цифры/дефис, до 32 символов. Пустая → нет метки.
         const src = (hasTier ? parts.slice(1) : parts).join('-').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || null;
 
+        // Личная ссылка на закрытый тариф: uroven_t2_svoi. Тот же ключ, что
+        // у веб-ссылки /pay/t2?k=svoi — Саша даёт её в переписке одному человеку.
+        // Меткой она и остаётся: в аналитике такие оплаты видно как uroven_svoi.
+        const personal = src === PERSONAL_KEY;
+
         // Человек пришёл по старой ссылке на тариф, набор которого закрыт.
         // Не молчим и не открываем чекаут — объясняем и предлагаем лист ожидания.
-        if (!isOnSale(safeTier)) {
+        if (!canBuy(safeTier, personal)) {
           await sendMessage(
             chatId,
             `${firstName}, ${WAITLIST_OFFER[safeTier as 't1' | 't2' | 't3'] || 'этот тариф сейчас закрыт.'}\n\n${WAITLIST_ANKETA_ASK}`,
@@ -1014,9 +1039,20 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ ok: true });
         }
 
-        const checkoutUrl = `${WEBAPP_URL}/uroven/checkout.html?tier=${safeTier}${src ? `&src=${src}` : ''}`;
+        // Ключ едет в чекаут: там своя копия режима продаж, без него мини-апп
+        // покажет закрытому тарифу кнопку листа ожидания вместо оплаты.
+        const checkoutUrl =
+          `${WEBAPP_URL}/uroven/checkout.html?tier=${safeTier}` +
+          `${src ? `&src=${src}` : ''}${personal ? `&k=${PERSONAL_KEY}` : ''}`;
 
-        await sendMessage(chatId, `${firstName}, открываю «Новый уровень контента» ⚡`, {
+        // По личной ссылке человек знает, что набор закрыт: на сайте написано
+        // именно так. Одной строкой снимаем вопрос, почему кнопка всё-таки есть.
+        const intro =
+          personal && !isOnSale(safeTier)
+            ? `${firstName}, набор на этот тариф закрыт, тебе открываю лично ⚡`
+            : `${firstName}, открываю «Новый уровень контента» ⚡`;
+
+        await sendMessage(chatId, intro, {
           inline_keyboard: [[{ text: '⚡ Оформить доступ', web_app: { url: checkoutUrl } }]],
         });
 

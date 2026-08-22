@@ -1,7 +1,10 @@
-// Анкета тарифа 3: бот собирает досье в личке до первого созвона 1-1.
+// Анкета: бот собирает вводные в личке. Два трека, механика одна.
+//   t3 — досье до первого созвона 1-1 на менторстве, 11 вопросов;
+//   t2 — вводные под маршрут по материалам на месяц, 6 вопросов.
 //
 // Вся логика живёт здесь, вебхук только зовёт функции: route.ts уже 874 строки.
-// Тексты вопросов — в src/content/intake-tarif3.ts.
+// Тексты вопросов — в src/content/intake-tarif{2,3}.ts, раскладка по трекам
+// в src/content/intake-tracks.ts.
 
 import { prisma } from '@/lib/prisma';
 import { sendBotMessage, notifyAdmin } from '@/lib/telegram';
@@ -13,9 +16,10 @@ import {
   INTAKE_TOTAL,
   INTAKE_PRODUCT_SLUG,
   INTAKE_ROLE,
-  INTAKE_INVITE,
   INTAKE_EXTRA_INTRO,
 } from '@/content/intake-tarif3';
+import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
+import { trackContent, type IntakeTrack } from '@/content/intake-tracks';
 import { scheduleIntakeReminder } from '@/lib/qstash';
 import { randomBytes } from 'crypto';
 
@@ -38,6 +42,8 @@ type IntakeRow = {
   firstName: string | null;
   label?: string | null;
   status: string;
+  /** t2 | t3, см. content/intake-tracks.ts. У анкет до появления треков — t3. */
+  track?: string | null;
   currentStep: number;
   inviteToken: string | null;
 };
@@ -46,18 +52,32 @@ type IntakeRow = {
 // Доступ
 // ─────────────────────────────────────────────
 
-/** Активный тариф 3. Гейт для /anketa и для приглашения из вебхука оплаты. */
+/** Активный тариф 3. Гейт для приглашения из вебхука оплаты. */
 export async function hasTarif3Access(telegramId: number | bigint): Promise<boolean> {
-  const access = await prisma.productAccess.findFirst({
+  return (await resolveTrack(telegramId)) === 't3';
+}
+
+/**
+ * Какой набор вопросов положен человеку по его доступам. Тариф 3 старше:
+ * у кого он есть, тот идёт на менторскую анкету, даже если рядом висит t2
+ * (так вышло у тех, кто доплачивал с тарифа на тариф).
+ * null = анкета ему вообще не полагается.
+ */
+export async function resolveTrack(telegramId: number | bigint): Promise<IntakeTrack | null> {
+  const rows = await prisma.productAccess.findMany({
     where: {
       telegramId: BigInt(telegramId),
       role: INTAKE_ROLE,
-      productSlug: INTAKE_PRODUCT_SLUG,
+      productSlug: { in: [INTAKE_PRODUCT_SLUG, T2_PRODUCT_SLUG] },
       status: 'active',
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     },
+    select: { productSlug: true },
   });
-  return Boolean(access);
+
+  if (rows.some((r) => r.productSlug === INTAKE_PRODUCT_SLUG)) return 't3';
+  if (rows.some((r) => r.productSlug === T2_PRODUCT_SLUG)) return 't2';
+  return null;
 }
 
 /**
@@ -140,6 +160,7 @@ export async function ensureIntake(
   username?: string | null,
   firstName?: string | null,
   inviteToken?: string,
+  track?: IntakeTrack,
 ): Promise<IntakeRow> {
   const tg = BigInt(telegramId);
   const existing = await prisma.intake.findUnique({ where: { telegramId: tg } });
@@ -151,6 +172,7 @@ export async function ensureIntake(
       username: username || null,
       firstName: firstName || null,
       status: 'invited',
+      ...(track ? { track } : {}),
       ...(inviteToken ? { inviteToken } : {}),
     },
   });
@@ -173,22 +195,23 @@ function questionKeyboard() {
   };
 }
 
-/** Преамбула с тремя просьбами и кнопкой «погнали». */
-export async function sendPreamble(chatId: number): Promise<void> {
-  await sendBotMessage(chatId, INTAKE_PREAMBLE, {
+/** Преамбула с просьбами и кнопкой «погнали». */
+export async function sendPreamble(chatId: number, track?: string | null): Promise<void> {
+  await sendBotMessage(chatId, trackContent(track).preamble, {
     inline_keyboard: [[{ text: INTAKE_TEXTS.startButton, callback_data: INTAKE_CB.start }]],
   });
 }
 
 export async function sendCurrentQuestion(intake: IntakeRow, chatId: number): Promise<void> {
+  const content = trackContent(intake.track);
   const step = intake.currentStep;
-  if (step >= INTAKE_TOTAL) {
+  if (step >= content.total) {
     await finishIntake(intake, chatId);
     return;
   }
 
-  const q = INTAKE_QUESTIONS[step];
-  const text = `${INTAKE_TEXTS.counter(step)}\n\n*${q.title}*\n\n${q.body}`;
+  const q = content.questions[step];
+  const text = `${content.texts.counter(step)}\n\n*${q.title}*\n\n${q.body}`;
   await sendBotMessage(chatId, text, questionKeyboard());
 }
 
@@ -236,7 +259,7 @@ export async function skipStep(intake: IntakeRow, chatId: number): Promise<void>
 async function moveToNextStep(intake: IntakeRow, chatId: number): Promise<void> {
   const next = intake.currentStep + 1;
 
-  if (next >= INTAKE_TOTAL) {
+  if (next >= trackContent(intake.track).total) {
     const done = await prisma.intake.update({
       where: { id: intake.id },
       data: { currentStep: next },
@@ -263,7 +286,7 @@ async function finishIntake(intake: IntakeRow, chatId: number): Promise<void> {
     data: { status: 'done', completedAt: new Date() },
   });
 
-  await sendBotMessage(chatId, INTAKE_TEXTS.finished);
+  await sendBotMessage(chatId, trackContent(intake.track).texts.finished);
   await notifyIntakeDone(intake.id);
 }
 
@@ -447,22 +470,22 @@ export async function adminSendInvite(arg: string): Promise<string> {
   if (!target) return `не нашёл ${arg} в базе. дай telegram_id числом или используй /anketa_link`;
 
   const tg = Number(target.telegramId);
-  const hasAccess = await hasTarif3Access(tg);
+  const track = await resolveTrack(tg);
 
-  const intake = await ensureIntake(tg, target.username, target.firstName);
+  const intake = await ensureIntake(tg, target.username, target.firstName, undefined, track ?? undefined);
   if (intake.status === 'done') return `у ${arg} анкета уже собрана`;
   if (intake.status === 'in_progress') return `${arg} уже проходит, сейчас на вопросе ${intake.currentStep + 1}`;
 
-  const sent = await sendBotMessage(tg, INTAKE_INVITE);
+  const sent = await sendBotMessage(tg, trackContent(intake.track).invite);
   if (!sent.ok) {
     const link = await adminCreateLink(arg);
     return `бот не смог написать ${arg} (не начинал диалог или заблокировал).\n\n${link}`;
   }
 
-  await sendPreamble(tg);
+  await sendPreamble(tg, intake.track);
 
-  const warn = hasAccess ? '' : '\n\n⚠ активного тарифа 3 в базе у него нет, приглашение всё равно ушло';
-  return `приглашение отправлено ${arg}${warn}`;
+  const warn = track ? '' : '\n\n⚠ активного тарифа в базе у него нет, приглашение всё равно ушло';
+  return `приглашение отправлено ${arg} (анкета ${trackContent(intake.track).total} вопросов)${warn}`;
 }
 
 /**
@@ -542,7 +565,7 @@ export async function adminList(): Promise<string> {
     const who = i.username ? '@' + i.username
       : i.firstName || i.label || (i.telegramId !== null ? String(i.telegramId) : 'без имени');
     if (i.status === 'done') return `✅ ${who} — собрана`;
-    if (i.status === 'in_progress') return `⏳ ${who} — вопрос ${i.currentStep + 1} из ${INTAKE_TOTAL}`;
+    if (i.status === 'in_progress') return `⏳ ${who} — вопрос ${i.currentStep + 1} из ${trackContent(i.track).total}`;
     if (i.telegramId === null) return `🔗 ${who} — ссылка выдана, ещё не открывал`;
     return `📨 ${who} — приглашён, не начал`;
   });
@@ -571,11 +594,19 @@ async function notifyIntakeDone(intakeId: string): Promise<void> {
     : intake.firstName || intake.label || String(intake.telegramId ?? 'без имени');
   const base = (process.env.NEXT_PUBLIC_CABINET_URL || 'https://world.thesashatoyz.com').replace(/\/$/, '');
 
+  // Тариф 2 ждёт маршрутную карту, тариф 3 — созвон. Разное следующее действие,
+  // поэтому оно и написано прямо в уведомлении.
+  const isRoute = trackContent(intake.track).productSlug === T2_PRODUCT_SLUG;
+  const next = isRoute
+    ? '\n\nдальше: собрать маршрутную карту по материалам'
+    : '';
+
   await notifyAdmin(
-    `📋 <b>Анкета собрана</b>\n\n` +
+    `📋 <b>Анкета собрана</b> (${isRoute ? 'тариф 2' : 'менторство'})\n\n` +
       `👤 ${who}\n` +
       `🎙 голосовых: ${voices}${minutes ? ` (~${minutes} мин)` : ''}\n` +
       `⏭ пропущено вопросов: ${skipped}\n\n` +
-      `<a href="${base}/admin/anketa/${intake.id}">открыть досье</a>`,
+      `<a href="${base}/admin/anketa/${intake.id}">открыть досье</a>` +
+      next,
   );
 }
