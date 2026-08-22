@@ -71,7 +71,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // base36 без «_», иначе ломается разбор order_id по «_web_»
   const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const orderId = byTelegram ? `uroven_${tier}_${uid}` : `uroven_${tier}_web_${token}`;
-  const bind = byTelegram ? `${BOT}?start=uroven_${tier}` : `${BOT}?start=paid_${token}`;
+  // Куда Продамус вернёт человека после оплаты. Оплата с привязкой к Telegram
+  // уже выдана вебхуком по её order_id, поэтому возвращаем в кабинет, а не на
+  // ссылку тарифа: та снова открывала чекаут, а на закрытом тарифе встречала
+  // оплатившего человека листом ожидания.
+  const bind = byTelegram ? `${BOT}?start=kabinet` : `${BOT}?start=paid_${token}`;
   const name = `Новый уровень контента — ${t.name}`;
 
   const fields: Record<string, string> = {
