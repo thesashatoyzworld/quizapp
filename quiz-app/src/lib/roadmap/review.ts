@@ -12,9 +12,27 @@ import { openForClient } from './store';
 
 const CABINET = (process.env.NEXT_PUBLIC_CABINET_URL || 'https://world.thesashatoyz.com').replace(/\/$/, '');
 
-/** Телеграм режет сообщение на 4096 байтах, режем сами и честно говорим об этом. */
-function clip(text: string, limit = 3900): string {
-  return text.length <= limit ? text : `${text.slice(0, limit)}\n\n[…обрезано, целиком в админке]`;
+/**
+ * Телеграм не берёт сообщение длиннее 4096 символов, а карта в них не влезает.
+ * Режем по границам элементов, а не по символам: обрубленная на полуслове
+ * задача читается хуже, чем лишнее сообщение.
+ */
+function chunk(header: string, items: string[], limit = 3800): string[] {
+  const out: string[] = [];
+  let current = header;
+
+  for (const item of items) {
+    const next = current ? `${current}\n${item}` : item;
+    if (next.length > limit && current) {
+      out.push(current);
+      current = item;
+    } else {
+      current = next;
+    }
+  }
+  if (current) out.push(current);
+
+  return out;
 }
 
 function esc(s: string): string {
@@ -50,8 +68,7 @@ export async function previewMessages(roadmapId: string): Promise<string[]> {
 
   const who = roadmap.username ? `@${roadmap.username}` : roadmap.clientName;
 
-  const first = [
-    `🗺 <b>Черновик карты</b> · ${esc(who)}`,
+  const first = chunk(`🗺 <b>Черновик карты</b> · ${esc(who)}`, [
     '',
     `<b>Куда идём:</b> ${esc(roadmap.goal || '')}`,
     '',
@@ -62,7 +79,7 @@ export async function previewMessages(roadmapId: string): Promise<string[]> {
     '',
     '<b>Цифры на старте</b>',
     ...roadmap.metrics.map((m) => `• ${esc(m.label)}: ${esc(m.startValue || '')}`),
-  ].join('\n');
+  ]);
 
   // Задачи группируются по дате: она же граница недели.
   const byWeek = new Map<string, typeof roadmap.tasks>();
@@ -83,16 +100,19 @@ export async function previewMessages(roadmapId: string): Promise<string[]> {
     }
     weeks.push('');
   }
-  const second = `📋 <b>Задачи</b> · ${esc(who)}\n\n${weeks.join('\n')}`;
+  const second = chunk(`📋 <b>Задачи</b> · ${esc(who)}\n`, weeks);
 
-  const third = [
-    `🔒 <b>Внутренние заметки</b> · ${esc(who)}`,
-    '<i>человек их не видит</i>',
-    '',
-    ...roadmap.notes.map((note) => `${KIND_MARK[note.kind] || '•'} ${esc(note.body)}\n<i>${esc(note.source || '')}</i>`),
-  ].join('\n\n');
+  // Личная строка для человека идёт отдельно от внутренних заметок: её Саша
+  // читает как текст сообщения, а не как заметку про клиента.
+  const handoff = roadmap.notes.find((n) => n.kind === 'handoff');
+  const inner = roadmap.notes.filter((n) => n.kind !== 'handoff');
 
-  return [clip(first), clip(second), clip(third)];
+  const third = chunk(
+    `✉️ <b>Что уйдёт человеку вместе со ссылкой</b>\n\n<i>${esc(handoff?.body || 'нет')}</i>\n\n🔒 <b>Внутренние заметки</b> (человек их не видит)\n`,
+    inner.map((note) => `\n${KIND_MARK[note.kind] || '•'} ${esc(note.body)}\n<i>${esc(note.source || '')}</i>`),
+  );
+
+  return [...first, ...second, ...third];
 }
 
 /** Кнопки под последним сообщением предпросмотра. */
