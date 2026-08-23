@@ -20,7 +20,7 @@ import {
 } from '@/content/intake-tarif3';
 import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
 import { trackContent, type IntakeTrack } from '@/content/intake-tracks';
-import { scheduleIntakeReminder } from '@/lib/qstash';
+import { scheduleIntakeReminder, scheduleRoadmapBuild } from '@/lib/qstash';
 import { randomBytes } from 'crypto';
 
 export const INTAKE_CB = {
@@ -597,8 +597,13 @@ async function notifyIntakeDone(intakeId: string): Promise<void> {
   // Тариф 2 ждёт маршрутную карту, тариф 3 — созвон. Разное следующее действие,
   // поэтому оно и написано прямо в уведомлении.
   const isRoute = trackContent(intake.track).productSlug === T2_PRODUCT_SLUG;
+
+  // Тарифу 2 карта собирается сама: ставим задачу и обещаем черновик.
+  // Обращение к модели идёт минуты, поэтому отдельной задачей, а не здесь же.
+  if (isRoute) await scheduleRoadmapBuild(intake.id);
+
   const next = isRoute
-    ? '\n\nдальше: собрать маршрутную карту по материалам'
+    ? '\n\nсобираю маршрутную карту, пришлю черновик на проверку'
     : '';
 
   await notifyAdmin(

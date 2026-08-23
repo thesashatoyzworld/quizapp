@@ -37,6 +37,7 @@ export interface DraftTask {
 
 export interface Draft {
   goal: string;
+  mainTakeaway: string;
   periodGoal: string;
   clientIntro: string;
   level: { number: number; title: string; evidence: string };
@@ -49,9 +50,14 @@ export interface Draft {
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['goal', 'periodGoal', 'clientIntro', 'level', 'metrics', 'steps', 'tasks', 'notes'],
+  required: ['goal', 'mainTakeaway', 'periodGoal', 'clientIntro', 'level', 'metrics', 'steps', 'tasks', 'notes'],
   properties: {
     goal: { type: 'string', description: 'куда человек идёт вообще, его целью и его словами' },
+    mainTakeaway: {
+      type: 'string',
+      description:
+        'одна мысль для сообщения человеку: главное, что видно из его анкеты и с чего начинается маршрут. Три-четыре строки, на «ты», без вступлений',
+    },
     periodGoal: { type: 'string', description: 'что должно измениться за месяц доступа' },
     clientIntro: { type: 'string', description: 'две-три строки над картой в кабинете' },
     level: {
@@ -145,6 +151,7 @@ export interface RoadmapTask {
 
 export interface RoadmapDraft {
   goal: string;
+  mainTakeaway: string;
   periodGoal: string;
   clientIntro: string;
   metrics: { key: string; label: string; startValue: string; currentValue: string }[];
@@ -228,6 +235,7 @@ export function assemble(draft: Draft, source: RoadmapSource, startedAt: Date): 
 
   return {
     goal: draft.goal,
+    mainTakeaway: draft.mainTakeaway,
     periodGoal: draft.periodGoal,
     clientIntro: draft.clientIntro,
     metrics: draft.metrics.map((m) => ({ ...m, currentValue: m.startValue })),

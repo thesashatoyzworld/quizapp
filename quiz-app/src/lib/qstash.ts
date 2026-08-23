@@ -25,6 +25,31 @@ export async function scheduleIntakeReminder(intakeId: string, delaySec = 24 * 6
   }
 }
 
+/**
+ * Сборка маршрутной карты после закрытой анкеты тарифа 2.
+ *
+ * Отдельной задачей, а не прямо в вебхуке: обращение к модели занимает
+ * пару минут, а вебхук Telegram столько ждать не может. Небольшая задержка
+ * на случай, если человек дошлёт что-то следом за последним ответом.
+ */
+export async function scheduleRoadmapBuild(intakeId: string, delaySec = 120) {
+  if (!WEBAPP_URL) {
+    console.error('[QStash] WEBAPP_URL not set, cannot schedule roadmap build');
+    return;
+  }
+
+  try {
+    await qstash.publishJSON({
+      url: `${WEBAPP_URL}/api/roadmap-generate`,
+      body: { intakeId },
+      delay: delaySec,
+      retries: 1,
+    });
+  } catch (error) {
+    console.error(`[QStash] Failed to schedule roadmap build for ${intakeId}:`, error);
+  }
+}
+
 export async function scheduleFollowUp(
   userId: number,
   resultId: string,
