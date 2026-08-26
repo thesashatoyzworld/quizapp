@@ -30,7 +30,7 @@
 
 ---
 
-### Task 1: Модуль расшифровки с провайдерами
+### Task 1: Модуль расшифровки с провайдерами ✅ сделано 26.08
 
 **Files:**
 - Create: `src/lib/transcribe/index.ts`
@@ -45,7 +45,7 @@
   `@/lib/transcribe`. `src/lib/whisper.ts` сохраняет экспорты `transcribeTgVoice(fileId: string): Promise<string>`
   и `TG_FILE_LIMIT_BYTES: number`, вызывающие не меняются.
 
-- [ ] **Step 1: Написать проверочный скрипт**
+- [x] **Step 1: Написать проверочный скрипт**
 
 Создать `scripts/transcribe-test.mts`:
 
@@ -75,12 +75,12 @@ async function main() {
 main().catch((e) => { console.error(e); process.exit(1); });
 ```
 
-- [ ] **Step 2: Запустить и убедиться, что падает**
+- [x] **Step 2: Запустить и убедиться, что падает**
 
 Run: `npx tsx scripts/transcribe-test.mts "C:/Users/OTVAJE/Documents/ClaudeCode/Projects/GSD-BRAND/clients/mikhail-korobitsyn/intake/voices/step3.oga"`
 Expected: FAIL, `Cannot find module '../src/lib/transcribe'`
 
-- [ ] **Step 3: Написать провайдер ElevenLabs**
+- [x] **Step 3: Написать провайдер ElevenLabs**
 
 Создать `src/lib/transcribe/elevenlabs.ts`:
 
@@ -109,7 +109,7 @@ export async function transcribeElevenLabs(buffer: Buffer, fileName: string): Pr
 }
 ```
 
-- [ ] **Step 4: Перенести код OpenAI в провайдер**
+- [x] **Step 4: Перенести код OpenAI в провайдер**
 
 Создать `src/lib/transcribe/openai.ts`, забрав тело нынешнего `transcribeTgVoice` из
 `src/lib/whisper.ts` начиная с формы и до разбора ответа:
@@ -139,7 +139,7 @@ export async function transcribeOpenAI(buffer: Buffer, fileName: string): Promis
 }
 ```
 
-- [ ] **Step 5: Написать выбор провайдера**
+- [x] **Step 5: Написать выбор провайдера**
 
 Создать `src/lib/transcribe/index.ts`:
 
@@ -163,7 +163,7 @@ export async function transcribeAudio(buffer: Buffer, fileName: string): Promise
 }
 ```
 
-- [ ] **Step 6: Обрезать whisper.ts до телеграм-части**
+- [x] **Step 6: Обрезать whisper.ts до телеграм-части**
 
 `src/lib/whisper.ts` оставляет только загрузку файла из Telegram и зовёт модуль:
 
@@ -182,7 +182,7 @@ export async function transcribeTgVoice(fileId: string): Promise<string> {
 }
 ```
 
-- [ ] **Step 7: Положить ключ и прогнать**
+- [x] **Step 7: Положить ключ и прогнать**
 
 ```bash
 # ключ из Projects/agent-hub/zoom-drainer/.env
@@ -196,17 +196,17 @@ Expected: PASS. Файл на 26 секунд, в тексте должно бы
 ничего пока не заходит нигде ни в ютубе ни в тик токе». Дословного совпадения не ждём,
 смысл должен совпасть.
 
-- [ ] **Step 8: Прогнать длинный файл**
+- [x] **Step 8: Прогнать длинный файл**
 
 Run: `npx tsx scripts/transcribe-test.mts "C:/Users/OTVAJE/Documents/ClaudeCode/Projects/GSD-BRAND/clients/mikhail-korobitsyn/intake/voices/step10.oga"`
 Expected: PASS, 3.5 минуты аудио, текст про «шута-проводника» и талант.
 
-- [ ] **Step 9: Проверить сборку**
+- [x] **Step 9: Проверить сборку**
 
 Run: `npm run build`
 Expected: PASS без ошибок типов.
 
-- [ ] **Step 10: Положить ключ в прод и закоммитить**
+- [x] **Step 10: Положить ключ в прод и закоммитить**
 
 ```bash
 vercel env add ELEVENLABS_API_KEY production
@@ -217,7 +217,7 @@ git commit -m "transcribe: one module, two providers, ElevenLabs by default"
 
 ---
 
-### Task 2: Сбой расшифровки перестаёт быть тихим
+### Task 2: Сбой расшифровки перестаёт быть тихим ✅ сделано 26.08
 
 **Files:**
 - Create: `scripts/intake-transcript-status-migrate.mjs`
@@ -231,7 +231,7 @@ git commit -m "transcribe: one module, two providers, ElevenLabs by default"
 - Produces: `fillMissingTranscripts(intakeId: string): Promise<{ filled: number; failed: number }>`
   экспортируется из `src/lib/roadmap/source.ts` и зовётся внутри `buildSource`.
 
-- [ ] **Step 1: Завести колонку скриптом**
+- [x] **Step 1: Завести колонку скриптом**
 
 Создать `scripts/intake-transcript-status-migrate.mjs`:
 
@@ -256,12 +256,12 @@ console.log(rows.length ? 'transcript_status на месте' : 'колонки 
 await client.end();
 ```
 
-- [ ] **Step 2: Запустить миграцию**
+- [x] **Step 2: Запустить миграцию**
 
 Run: `node scripts/intake-transcript-status-migrate.mjs`
 Expected: `transcript_status на месте`
 
-- [ ] **Step 3: Дописать поле в схему Prisma**
+- [x] **Step 3: Дописать поле в схему Prisma**
 
 В `prisma/schema.prisma`, модель `IntakeAnswer`, рядом с `transcript`:
 
@@ -272,7 +272,7 @@ Expected: `transcript_status на месте`
 Run: `npx prisma generate`
 Expected: клиент пересобран без ошибок.
 
-- [ ] **Step 4: Написать уведомление Саше при сбое**
+- [x] **Step 4: Написать уведомление Саше при сбое**
 
 В `src/lib/intake.ts` заменить `transcribePending`:
 
@@ -339,7 +339,7 @@ async function warnAdminOnce(intakeId: string): Promise<void> {
 
 Импорт `getAdminChatId` из `@/lib/notion` (так же, как в `src/lib/roadmap/review.ts`).
 
-- [ ] **Step 5: Написать добор перед сборкой**
+- [x] **Step 5: Написать добор перед сборкой**
 
 В `src/lib/roadmap/source.ts` добавить экспорт и вызвать его первой строкой `buildSource`:
 
@@ -385,7 +385,7 @@ export async function fillMissingTranscripts(intakeId: string): Promise<{ filled
 
 Импорт `transcribeTgVoice` из `@/lib/whisper`.
 
-- [ ] **Step 6: Написать проверочный скрипт**
+- [x] **Step 6: Написать проверочный скрипт**
 
 Создать `scripts/intake-transcripts-check.mts`:
 
@@ -423,7 +423,7 @@ async function main() {
 main().catch((e) => { console.error(e); process.exit(1); });
 ```
 
-- [ ] **Step 7: Прогнать на тестовой анкете**
+- [x] **Step 7: Прогнать на тестовой анкете**
 
 ```bash
 npx tsx scripts/intake-transcripts-check.mts probe_999000004
@@ -435,7 +435,7 @@ Expected: у Михаила все девять с непустым тексто
 пользователя `probe_999000004`, прогнать с `--fill`, увидеть `{ filled: 1, failed: 0 }`.
 **Живых людей не трогать.**
 
-- [ ] **Step 8: Проверить сборку и закоммитить**
+- [x] **Step 8: Проверить сборку и закоммитить**
 
 ```bash
 npm run build
@@ -445,7 +445,7 @@ git commit -m "intake: a failed transcription now says so, and the build retries
 
 ---
 
-### Task 3: Шесть веток вместо одной лестницы
+### Task 3: Шесть веток вместо одной лестницы ⬅️ СЛЕДУЮЩАЯ
 
 **Files:**
 - Create: `src/lib/roadmap/branches.ts`
@@ -1677,6 +1677,42 @@ git commit -m "roadmap: remember the rules Sasha already said"
 ```
 
 ---
+
+## Что разошлось с планом (по ходу работы)
+
+**Task 1.** Scribe вставляет в текст пометки аудио-событий: «[вдох]»,
+«[прочищает горло]». Для анкеты это мусор, модель прочитала бы их как содержание
+ответа. Добавлены `tag_audio_events: false` и `diarize: false`.
+
+**Task 1.** Тип `Buffer` в плане неверный: `downloadTelegramFile` отдаёт
+`ArrayBuffer`. Заведён `src/lib/transcribe/audio.ts` с типом `Audio` и
+конвертером `toBlobPart`: Blob в типах Node не берёт `Uint8Array<ArrayBufferLike>`
+напрямую.
+
+**Task 2.** Пустые расшифровки оказались не только у Михаила: у Ани все шесть,
+у Лекомцева одиннадцать из двенадцати. Их карты собрались только потому, что
+раньше расшифровка ложилась **парным текстовым ответом** рядом с голосовым, а не
+в поле `transcript`.
+
+Из-за этого добор получил проверку `hasPairedText`: голосовое, у которого в том
+же шаге есть текстовый ответ в пределах пяти минут, пропускается. Иначе модель
+прочитала бы каждый такой ответ дважды. На анкете Лекомцева это 11 пропусков и
+ноль лишних трат. `fillMissingTranscripts` возвращает `{ filled, failed, skipped }`,
+а не `{ filled, failed }`, как было в плане.
+
+**Task 2.** Миграция заодно проставила `transcript_status = 'ok'` тридцати шести
+прошлым ответам, у которых текст уже был: иначе колонка врала бы про них.
+
+## Проверено живьём 26.08
+
+- Расшифровка ElevenLabs на трёх голосовых Михаила: 26 секунд считаются за 3,
+  3.5 минуты за 11. Качество выше локального whisper («про политику» вместо
+  «параполитику», «с матюгом» вместо «с мутюгом»).
+- Запасной провайдер OpenAI падает с внятной ошибкой про кредиты.
+- Добор: занулил расшифровку у восьмого ответа Михаила, вернулась сама
+  (было 184 символа, стало 204).
+- Уведомление о сбое дошло Саше в бота, вторым разом не продублировалось:
+  в `events` ровно одна отметка `intake_transcribe_warned`.
 
 ## Порядок и зависимости
 
