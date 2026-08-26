@@ -525,7 +525,7 @@ export async function POST(request: NextRequest) {
         await sendMessage(chatId, trackContent(intake.track).texts.resume);
         await sendCurrentQuestion(intake, chatId);
       } else {
-        await sendPreamble(chatId, intake.track);
+        await sendPreamble(chatId, intake);
       }
 
       return NextResponse.json({ ok: true });
@@ -617,7 +617,7 @@ export async function POST(request: NextRequest) {
             await sendMessage(chatId, trackContent(byToken.track).texts.resume);
             await sendCurrentQuestion(byToken, chatId);
           } else {
-            await sendPreamble(chatId, byToken.track);
+            await sendPreamble(chatId, byToken);
           }
         } else {
           // Токена нет: пускаем, только если доступ есть в базе.
@@ -630,7 +630,7 @@ export async function POST(request: NextRequest) {
               undefined,
               track,
             );
-            await sendPreamble(chatId, intake.track);
+            await sendPreamble(chatId, intake);
           } else {
             await sendMessage(chatId, INTAKE_TEXTS.noAccess);
           }

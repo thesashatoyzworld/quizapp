@@ -2,6 +2,10 @@
 //   t3 — досье до первого созвона 1-1 на менторстве, 11 вопросов;
 //   t2 — вводные под маршрут по материалам на месяц, 6 вопросов.
 //
+// Поверх треков есть личная анкета: когда Саша уже созвонился с человеком,
+// переспрашивать то, что прозвучало на созвоне, глупо. Тогда в строке анкеты
+// лежат свои вопросы (custom_questions), и трек остаётся только для реплик бота.
+//
 // Вся логика живёт здесь, вебхук только зовёт функции: route.ts уже 874 строки.
 // Тексты вопросов — в src/content/intake-tarif{2,3}.ts, раскладка по трекам
 // в src/content/intake-tracks.ts.
@@ -20,6 +24,7 @@ import {
 } from '@/content/intake-tarif3';
 import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
 import { trackContent, type IntakeTrack } from '@/content/intake-tracks';
+import type { IntakeQuestion } from '@/content/intake-tarif3';
 import { scheduleIntakeReminder } from '@/lib/qstash';
 import { randomBytes } from 'crypto';
 
@@ -44,9 +49,61 @@ type IntakeRow = {
   status: string;
   /** t2 | t3, см. content/intake-tracks.ts. У анкет до появления треков — t3. */
   track?: string | null;
+  /** Личные вопросы под этого человека. Пусто = вопросы трека. */
+  customQuestions?: unknown;
   currentStep: number;
   inviteToken: string | null;
 };
+
+// ─────────────────────────────────────────────
+// Личная анкета
+// ─────────────────────────────────────────────
+
+/** Что лежит в custom_questions: свои вопросы и, по желанию, своя преамбула. */
+export interface CustomIntake {
+  preamble?: string;
+  questions: IntakeQuestion[];
+}
+
+/**
+ * Разбор личных вопросов из базы. Строку туда кладёт скрипт, а не человек
+ * руками, но анкета на середине ломаться не должна: кривой json = вопросы трека.
+ */
+export function parseCustomIntake(raw: unknown): CustomIntake | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const list = (raw as { questions?: unknown }).questions;
+  if (!Array.isArray(list) || list.length === 0) return null;
+
+  const questions: IntakeQuestion[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== 'object') return null;
+    const { title, body } = item as { title?: unknown; body?: unknown };
+    if (typeof title !== 'string' || typeof body !== 'string' || !title || !body) return null;
+    questions.push({ title, body });
+  }
+
+  const preamble = (raw as { preamble?: unknown }).preamble;
+  return { questions, preamble: typeof preamble === 'string' && preamble ? preamble : undefined };
+}
+
+/** Вопросы этой анкеты: личные, если они есть, иначе вопросы трека. */
+export function intakeQuestions(intake: Pick<IntakeRow, 'track' | 'customQuestions'>): IntakeQuestion[] {
+  return parseCustomIntake(intake.customQuestions)?.questions ?? trackContent(intake.track).questions;
+}
+
+/** Сколько всего вопросов в этой анкете. */
+export function intakeTotal(intake: Pick<IntakeRow, 'track' | 'customQuestions'>): number {
+  return intakeQuestions(intake).length;
+}
+
+/**
+ * Преамбула обещает количество вопросов, и у личной анкеты оно другое.
+ * Число в текстах треков стоит как {n}, подставляем перед отправкой.
+ */
+export function withCount(text: string, total: number): string {
+  return text.replaceAll('{n}', String(total));
+}
 
 // ─────────────────────────────────────────────
 // Доступ
@@ -196,22 +253,29 @@ function questionKeyboard() {
 }
 
 /** Преамбула с просьбами и кнопкой «погнали». */
-export async function sendPreamble(chatId: number, track?: string | null): Promise<void> {
-  await sendBotMessage(chatId, trackContent(track).preamble, {
+export async function sendPreamble(
+  chatId: number,
+  intake?: Pick<IntakeRow, 'track' | 'customQuestions'> | null,
+): Promise<void> {
+  const custom = parseCustomIntake(intake?.customQuestions);
+  const total = custom?.questions.length ?? trackContent(intake?.track).total;
+  const text = custom?.preamble ?? trackContent(intake?.track).preamble;
+
+  await sendBotMessage(chatId, withCount(text, total), {
     inline_keyboard: [[{ text: INTAKE_TEXTS.startButton, callback_data: INTAKE_CB.start }]],
   });
 }
 
 export async function sendCurrentQuestion(intake: IntakeRow, chatId: number): Promise<void> {
-  const content = trackContent(intake.track);
+  const questions = intakeQuestions(intake);
   const step = intake.currentStep;
-  if (step >= content.total) {
+  if (step >= questions.length) {
     await finishIntake(intake, chatId);
     return;
   }
 
-  const q = content.questions[step];
-  const text = `${content.texts.counter(step)}\n\n*${q.title}*\n\n${q.body}`;
+  const q = questions[step];
+  const text = `вопрос ${step + 1} из ${questions.length}\n\n*${q.title}*\n\n${q.body}`;
   await sendBotMessage(chatId, text, questionKeyboard());
 }
 
@@ -259,7 +323,7 @@ export async function skipStep(intake: IntakeRow, chatId: number): Promise<void>
 async function moveToNextStep(intake: IntakeRow, chatId: number): Promise<void> {
   const next = intake.currentStep + 1;
 
-  if (next >= trackContent(intake.track).total) {
+  if (next >= intakeTotal(intake)) {
     const done = await prisma.intake.update({
       where: { id: intake.id },
       data: { currentStep: next },
@@ -476,16 +540,16 @@ export async function adminSendInvite(arg: string): Promise<string> {
   if (intake.status === 'done') return `у ${arg} анкета уже собрана`;
   if (intake.status === 'in_progress') return `${arg} уже проходит, сейчас на вопросе ${intake.currentStep + 1}`;
 
-  const sent = await sendBotMessage(tg, trackContent(intake.track).invite);
+  const sent = await sendBotMessage(tg, withCount(trackContent(intake.track).invite, intakeTotal(intake)));
   if (!sent.ok) {
     const link = await adminCreateLink(arg);
     return `бот не смог написать ${arg} (не начинал диалог или заблокировал).\n\n${link}`;
   }
 
-  await sendPreamble(tg, intake.track);
+  await sendPreamble(tg, intake);
 
   const warn = track ? '' : '\n\n⚠ активного тарифа в базе у него нет, приглашение всё равно ушло';
-  return `приглашение отправлено ${arg} (анкета ${trackContent(intake.track).total} вопросов)${warn}`;
+  return `приглашение отправлено ${arg} (анкета ${intakeTotal(intake)} вопросов)${warn}`;
 }
 
 /**
@@ -565,7 +629,7 @@ export async function adminList(): Promise<string> {
     const who = i.username ? '@' + i.username
       : i.firstName || i.label || (i.telegramId !== null ? String(i.telegramId) : 'без имени');
     if (i.status === 'done') return `✅ ${who} — собрана`;
-    if (i.status === 'in_progress') return `⏳ ${who} — вопрос ${i.currentStep + 1} из ${trackContent(i.track).total}`;
+    if (i.status === 'in_progress') return `⏳ ${who} — вопрос ${i.currentStep + 1} из ${intakeTotal(i)}`;
     if (i.telegramId === null) return `🔗 ${who} — ссылка выдана, ещё не открывал`;
     return `📨 ${who} — приглашён, не начал`;
   });

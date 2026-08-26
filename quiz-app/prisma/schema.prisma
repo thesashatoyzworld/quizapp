@@ -336,6 +336,11 @@ model Intake {
   /** какой набор вопросов: t2 — маршрут по материалам, t3 — досье к созвону 1-1 */
   track       String    @default("t3")
   currentStep Int       @default(0) @map("current_step")
+  /**
+   * Личная анкета: вопросы, написанные под конкретного человека после созвона.
+   * Формат {"preamble"?: string, "questions": [{"title","body"}]}. Пусто = вопросы трека.
+   */
+  customQuestions Json?  @map("custom_questions")
   inviteToken String?   @unique @map("invite_token") // персональная ссылка для тех, кто не в боте
   invitedAt   DateTime  @default(now()) @map("invited_at")
   startedAt   DateTime? @map("started_at")
