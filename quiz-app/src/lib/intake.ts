@@ -9,6 +9,8 @@
 import { prisma } from '@/lib/prisma';
 import { sendBotMessage, notifyAdmin } from '@/lib/telegram';
 import { transcribeTgVoice, TG_FILE_LIMIT_BYTES } from '@/lib/whisper';
+import { currentProvider } from '@/lib/transcribe';
+import { getAdminChatId } from '@/lib/notion';
 import {
   INTAKE_PREAMBLE,
   INTAKE_QUESTIONS,
@@ -426,6 +428,10 @@ async function saveAnswer(
 /**
  * Расшифровка голосового. Запускается в after() после ответа Telegram.
  * Упала — ответ не теряется: остаётся fileId, Саша послушает сам.
+ *
+ * Молчать о сбое нельзя: 25.08.2026 у Михаила Коробицына сорвались все девять
+ * голосовых (кончились кредиты OpenAI), и узнали об этом только через день,
+ * когда карта собралась из пустоты.
  */
 export async function transcribePending(answerId: string, chatId: number): Promise<void> {
   const answer = await prisma.intakeAnswer.findUnique({ where: { id: answerId } });
@@ -433,11 +439,61 @@ export async function transcribePending(answerId: string, chatId: number): Promi
 
   try {
     const text = await transcribeTgVoice(answer.fileId);
-    await prisma.intakeAnswer.update({ where: { id: answerId }, data: { transcript: text } });
+    await prisma.intakeAnswer.update({
+      where: { id: answerId },
+      data: { transcript: text, transcriptStatus: 'ok' },
+    });
   } catch (error) {
-    console.error('intake: whisper failed', answerId, error);
+    console.error('intake: transcription failed', answerId, error);
+    await prisma.intakeAnswer.update({
+      where: { id: answerId },
+      data: { transcriptStatus: 'failed' },
+    });
     await sendBotMessage(chatId, INTAKE_TEXTS.voiceFailed);
+    await warnAdminOnce(answer.intakeId);
   }
+}
+
+/**
+ * Одно сообщение Саше на анкету, а не на каждый сорвавшийся ответ: иначе на
+ * девяти голосовых он получит девять одинаковых сообщений и перестанет читать.
+ */
+async function warnAdminOnce(intakeId: string): Promise<void> {
+  const admin = await getAdminChatId();
+  if (!admin) return;
+
+  const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const already = await prisma.event.findFirst({
+    where: {
+      type: 'intake_transcribe_warned',
+      createdAt: { gt: hourAgo },
+      metadata: { path: ['intakeId'], equals: intakeId },
+    },
+    select: { id: true },
+  });
+  if (already) return;
+
+  const intake = await prisma.intake.findUnique({
+    where: { id: intakeId },
+    select: { username: true, firstName: true, label: true, telegramId: true },
+  });
+  const failed = await prisma.intakeAnswer.count({
+    where: { intakeId, transcriptStatus: 'failed' },
+  });
+  const who = intake?.username
+    ? '@' + intake.username
+    : intake?.firstName || intake?.label || String(intake?.telegramId ?? 'без имени');
+
+  await sendBotMessage(
+    Number(admin),
+    `⚠️ расшифровка не идёт\n\nу ${who} ${failed} голосовых без текста, анкета придёт неполной.\n\nпроверь ключ и TRANSCRIBE_PROVIDER: сейчас ${currentProvider()}`,
+  );
+
+  await prisma.event
+    .create({
+      data: { type: 'intake_transcribe_warned', source: 'thesasha', metadata: { intakeId } },
+    })
+    .catch((e) => console.error('[intake] отметку о предупреждении записать не смог:', e));
 }
 
 // ─────────────────────────────────────────────

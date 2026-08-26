@@ -8,6 +8,7 @@ import { prisma } from '@/lib/prisma';
 import { trackContent } from '@/content/intake-tracks';
 import { renderMap, visibleTo, type MapEntry } from '@/lib/kb/map';
 import { tiersForTelegram } from '@/lib/kb/tier';
+import { transcribeTgVoice } from '@/lib/whisper';
 
 const WEBAPP = (process.env.NEXT_PUBLIC_CABINET_URL || 'https://world.thesashatoyz.com').replace(/\/$/, '');
 const WORKSHOPS_HOST = 'https://kabinet.thesashatoyz.com';
@@ -62,10 +63,77 @@ function answerText(answers: { kind: string; rawText: string | null; transcript:
 }
 
 /**
+ * Добор расшифровок перед сборкой.
+ *
+ * Бот мог не справиться в момент ответа: кончились кредиты, моргнула сеть.
+ * Тогда карта собралась бы из пустоты, что и случилось у Михаила Коробицына
+ * 26.08.2026. Вторая попытка стоит секунды, а пустая карта стоит доверия.
+ */
+export async function fillMissingTranscripts(
+  intakeId: string,
+): Promise<{ filled: number; failed: number; skipped: number }> {
+  const pending = await prisma.intakeAnswer.findMany({
+    where: { intakeId, kind: 'voice', transcript: null, fileId: { not: null }, skipped: false },
+    orderBy: { step: 'asc' },
+    take: 20,
+    select: { id: true, fileId: true, step: true, createdAt: true },
+  });
+
+  // У анкет до 25.08.2026 расшифровка лежит не в самом голосовом, а парным
+  // текстовым ответом следом (так у Ани и у Лекомцева). Такие не добираем:
+  // ответ удвоится, и модель прочитает его дважды.
+  const texts = await prisma.intakeAnswer.findMany({
+    where: { intakeId, kind: 'text' },
+    select: { step: true, createdAt: true },
+  });
+  const hasPairedText = (step: number, at: Date) =>
+    texts.some(
+      (t) =>
+        t.step === step &&
+        t.createdAt.getTime() >= at.getTime() &&
+        t.createdAt.getTime() - at.getTime() < 5 * 60 * 1000,
+    );
+
+  let filled = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const answer of pending) {
+    if (hasPairedText(answer.step, answer.createdAt)) {
+      skipped += 1;
+      continue;
+    }
+
+    try {
+      const text = await transcribeTgVoice(answer.fileId as string);
+      await prisma.intakeAnswer.update({
+        where: { id: answer.id },
+        data: { transcript: text, transcriptStatus: 'ok' },
+      });
+      filled += 1;
+    } catch (error) {
+      console.error('roadmap: retry transcription failed', answer.id, error);
+      await prisma.intakeAnswer.update({
+        where: { id: answer.id },
+        data: { transcriptStatus: 'failed' },
+      });
+      failed += 1;
+    }
+  }
+
+  return { filled, failed, skipped };
+}
+
+/**
  * Анкета текстом. Формат тот же, в котором анкеты читались глазами:
  * заголовок вопроса, сам вопрос курсивом, ниже ответ.
  */
 export async function buildSource(intakeId: string): Promise<RoadmapSource> {
+  const retried = await fillMissingTranscripts(intakeId);
+  if (retried.filled) console.log(`roadmap: добрал ${retried.filled} расшифровок`);
+  if (retried.skipped) console.log(`roadmap: ${retried.skipped} голосовых пропустил, расшифровка лежит парным текстом`);
+  if (retried.failed) console.warn(`roadmap: ${retried.failed} голосовых остались без расшифровки`);
+
   const intake = await prisma.intake.findUnique({
     where: { id: intakeId },
     include: { answers: { orderBy: { createdAt: 'asc' } } },
