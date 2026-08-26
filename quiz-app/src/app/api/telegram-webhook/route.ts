@@ -696,9 +696,18 @@ export async function POST(request: NextRequest) {
           }
 
           // Привязываем выданный картой доступ к этому Telegram (source = <prefix>_web_<token>).
-          // Если по какой-то причине его нет (старый платёж) — выдаём заново, идемпотентно.
           await bindAccessToTelegram(source, chatId, user.id);
-          await grantAccess({ product, telegramId: chatId, userId: user.id, source });
+
+          // Срок выдаём ТОЛЬКО на первом редиме. grantAccess для подписки продлевает
+          // от max(текущий срок, сейчас), поэтому каждый повторный /start paid_<token>
+          // дарил бы ещё месяц за ту же оплату (так у части т2 накопилось 2-6 месяцев).
+          // Исключение — доступа нет вовсе (старый платёж, ручная чистка): тогда выдаём.
+          const alreadyHasAccess = await prisma.productAccess.findFirst({
+            where: { telegramId: BigInt(chatId), productSlug: product.slug },
+          });
+          if (!meta.consumed || !alreadyHasAccess) {
+            await grantAccess({ product, telegramId: chatId, userId: user.id, source });
+          }
 
           await prisma.event.update({
             where: { id: ev.id },
