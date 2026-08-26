@@ -374,6 +374,44 @@ async function notifyAdminUnderpaid(
   }
 }
 
+// Успешный платёж, чей order_id мы не разобрали: счёт выставлен руками из
+// кабинета Продамуса, оплачена чужая карточка подписки, или автосписание пришло
+// без order_num. Деньги пришли, доступ не выдан — и до 26.08.2026 об этом никто
+// не узнавал, пока человек сам не написал.
+async function notifyAdminUnknownPayment(
+  productName: string, amount: string, email: string, phone: string,
+  orderId: string, init: string,
+) {
+  if (!BOT_TOKEN) return;
+  const adminChatId = await getAdminChatId();
+  if (!adminChatId) return;
+
+  let name = productName;
+  try { name = decodeURIComponent(productName); } catch { /* keep as-is */ }
+  name = name.replace(/&quot;/g, '"');
+  const contact = [email, phone].filter(Boolean).join(' · ') || 'нет контакта';
+  const text = [
+    '❓ Платёж прошёл, а чей — система не поняла',
+    '',
+    name || 'товар не указан',
+    amount ? `${Number(amount).toLocaleString('ru-RU')} ₽` : '',
+    `Контакт: ${contact}`,
+    `Order: ${orderId || 'пустой'}${init ? ` · ${init}` : ''}`,
+    '',
+    'Доступ НЕ выдан: order_id не наш. Если это оплата тарифа — выдай ссылкой',
+    'node scripts/grant-gift-link.mjs <username> uroven-t2',
+  ].filter((l) => l !== '').join('\n');
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: adminChatId, text }),
+    });
+  } catch (error) {
+    console.error('Failed to notify admin about unknown payment:', error);
+  }
+}
+
 async function notifyAdminPaymentFailed(
   status: string, statusDesc: string, productName: string,
   amount: string, email: string, phone: string, orderId: string,
@@ -444,11 +482,17 @@ export async function POST(request: NextRequest) {
     // Strip "Sign: " prefix if present in header value
     if (signature.startsWith('Sign: ')) signature = signature.slice(6);
 
-    // ── ВРЕМЕННАЯ ДИАГНОСТИКА (убрать после теста) ──
-    // Пишем каждый заход вебхука в БД ДО проверки подписи, чтобы из базы понять:
-    // дошёл ли вебхук (демо-режим?), какая подпись пришла, сходится ли наша.
+    // ── ЛОГ ВХОДЯЩИХ ВЕБХУКОВ (постоянный, не диагностика) ──
+    // Пишем каждый заход ДО проверки подписи. Это единственное место, где видно
+    // платежи, которые система не опознала: счёт, выставленный руками в кабинете
+    // Продамуса, приходит с ПУСТЫМ order_num, и разбор по нему не срабатывает.
+    // Из этого лога вытащены 24 таких платежа за июль-август 2026 — от 6 550
+    // за доплату тарифа до 150 000 за менторство. Не удалять.
     try {
       const dbgPlain = JSON.stringify(sortDeep(body));
+      const logSub = (body.subscription || {}) as Record<string, unknown>;
+      const logProds = body.products as Record<string, Record<string, string>> | undefined;
+      const logFirst = logProds?.['0'] || (Array.isArray(logProds) ? logProds[0] : undefined);
       await prisma.event.create({
         data: {
           type: 'wh_debug', source: 'thesasha',
@@ -458,7 +502,17 @@ export async function POST(request: NextRequest) {
             order: (body.order_num || body.order_id || null) as string | null,
             tryPlain: hmacHex(dbgPlain),
             tryPhp: hmacHex(dbgPlain.replace(/\//g, '\\/')),
-            sample: dbgPlain.slice(0, 700),
+            // Разобранные поля: платёж читается из базы без разбора payload.
+            init: (body.payment_init ?? null) as string | null,
+            email: (body.customer_email ?? null) as string | null,
+            phone: (body.customer_phone ?? null) as string | null,
+            sum: (logFirst?.sum ?? logFirst?.price ?? body.sum ?? null) as string | null,
+            product: (logFirst?.name ?? null) as string | null,
+            // id подписки: по нему автосписание можно связать с человеком даже
+            // тогда, когда order_num пуст.
+            subId: (logSub.id ?? logSub.subscription_id ?? null) as string | null,
+            subProfile: (logSub.profile_id ?? null) as string | null,
+            sample: dbgPlain.slice(0, 4000),
           },
         },
       });
@@ -777,7 +831,21 @@ export async function POST(request: NextRequest) {
       }
 
       if (!tgUserId) {
+        // Сюда падает всё, чей order_id мы не разобрали. Раньше здесь стоял
+        // тихий return, и деньги пропадали из виду: счета, выставленные руками
+        // в кабинете Продамуса, приходят с пустым order_num. Так молча прошли
+        // 24 платежа за июль-август 2026, включая доплаты тарифа 2.
         console.error('No tg_user_id in order_id:', orderId);
+        const unkProds = body.products as Record<string, Record<string, string>> | undefined;
+        const unkFirst = unkProds?.['0'] || (Array.isArray(unkProds) ? unkProds[0] : undefined);
+        await notifyAdminUnknownPayment(
+          String(unkFirst?.name ?? ''),
+          String(unkFirst?.sum ?? unkFirst?.price ?? body.sum ?? ''),
+          String(body.customer_email ?? ''),
+          String(body.customer_phone ?? ''),
+          String(orderId || ''),
+          String(body.payment_init ?? ''),
+        ).catch((e) => console.error('notifyAdminUnknownPayment failed', e));
         return NextResponse.json({ success: true });
       }
 
