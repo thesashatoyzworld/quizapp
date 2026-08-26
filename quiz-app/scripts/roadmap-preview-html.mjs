@@ -79,7 +79,7 @@ ${body}
   })
   .join('\n\n');
 
-const html = `<title>Карта ${esc(map.client_name)}</title>
+const html = `<title>Карта · ${esc(map.client_name)}</title>
 <style>
   :root {
     --ground: #10141a; --ground-2: #191f27; --paper: #efe7d3; --paper-2: #e6dcc3;
@@ -132,7 +132,7 @@ const html = `<title>Карта ${esc(map.client_name)}</title>
 </style>
 
 <div class="context">
-  <div class="eyebrow">Предпросмотр · глазами ${esc(map.client_name)}</div>
+  <div class="eyebrow">Предпросмотр · вид клиента</div>
   <div class="lede">
     Ровно то, что он увидит в кабинете, если карту открыть.
     <b>Сейчас карта закрыта</b> — этот файл её не открывает, только показывает.
