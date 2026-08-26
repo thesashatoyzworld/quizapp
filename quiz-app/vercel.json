@@ -3,6 +3,10 @@
     {
       "path": "/api/cron-funnel-report",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron-access-expiry",
+      "schedule": "0 6 * * *"
     }
   ]
 }
