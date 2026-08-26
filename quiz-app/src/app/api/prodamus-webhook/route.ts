@@ -4,7 +4,7 @@ import { trackEvent, markFollowUpPaid, getAdminChatId, getUserInfo } from '@/lib
 import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { grantAccess } from '@/lib/access';
-import { ensureIntake, sendPreamble } from '@/lib/intake';
+import { ensureIntake, sendPreamble, intakeTotal, withCount } from '@/lib/intake';
 import { sendWelcomeT2 } from '@/lib/onboarding';
 import { sendBotMessage } from '@/lib/telegram';
 import { INTAKE_INVITE, INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
@@ -697,9 +697,9 @@ export async function POST(request: NextRequest) {
         // Момент максимальной мотивации, человек только что заплатил.
         if (product.slug === INTAKE_PRODUCT_SLUG) {
           try {
-            await ensureIntake(tgUserId);
-            await sendBotMessage(tgUserId, INTAKE_INVITE);
-            await sendPreamble(tgUserId);
+            const intake = await ensureIntake(tgUserId);
+            await sendBotMessage(tgUserId, withCount(INTAKE_INVITE, intakeTotal(intake)));
+            await sendPreamble(tgUserId, intake);
           } catch (e) {
             console.error('[Prodamus Webhook] intake invite failed:', e);
           }

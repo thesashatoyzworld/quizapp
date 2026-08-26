@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { INTAKE_TOTAL } from '@/content/intake-tarif3';
+import { intakeTotal } from '@/lib/intake';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +36,7 @@ export default async function IntakeListPage() {
             : i.firstName || i.label || (i.telegramId !== null ? String(i.telegramId) : 'без имени');
           const label =
             i.status === 'done' ? 'собрана'
-            : i.status === 'in_progress' ? `вопрос ${Math.min(i.currentStep + 1, INTAKE_TOTAL)} из ${INTAKE_TOTAL}`
+            : i.status === 'in_progress' ? `вопрос ${Math.min(i.currentStep + 1, intakeTotal(i))} из ${intakeTotal(i)}`
             : i.telegramId === null ? 'ссылка выдана, не открывал'
             : 'приглашён, не начал';
           const color =
