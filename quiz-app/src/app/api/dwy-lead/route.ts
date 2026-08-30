@@ -6,6 +6,7 @@ import {
   normalizeInstagram, type DwyLeadInput, type DwyPrior,
 } from '@/lib/dwy-message';
 import { isDwyKind, DWY_MODES } from '@/content/dwy';
+import { matchFormFilled } from '@/lib/ig-leads';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -126,6 +127,17 @@ export async function POST(req: NextRequest) {
         kind: lead.kind,
         source: lead.source,
       },
+    });
+
+    // Человек мог прийти из инстаграмной воронки — там ему сразу проставится
+    // «анкета, не писать», чтобы ассистент не пошёл писать тому, кто уже
+    // оставил заявку. Молча: на приём анкеты это влиять не должно.
+    after(async () => {
+      try {
+        await matchFormFilled();
+      } catch (e) {
+        console.error('[dwy-lead] отметка в разделе Инстаграм не прошла', e);
+      }
     });
 
     // Уведомление уходит ПОСЛЕ ответа клиенту: на мобилке в Instagram WebView

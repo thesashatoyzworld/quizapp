@@ -1,4 +1,4 @@
-import { getIgLeads, getIgAutomationOptions, getLastSyncAt } from '@/lib/ig-leads';
+import { getIgLeads, getIgAutomationOptions, getLastSyncAt, matchFormFilled } from '@/lib/ig-leads';
 import IgNav from './IgNav';
 import IgLeadsClient from './IgLeadsClient';
 
@@ -13,6 +13,10 @@ export default async function InstagramLeadsPage({
   let leads, automations, lastSyncAt;
 
   try {
+    // Дешёвая сверка с анкетами на каждом заходе: один запрос, зато статусы
+    // всегда свежие, даже если полная сверка с ChatPlace ещё не запускалась.
+    await matchFormFilled().catch((e) => console.error('[Instagram leads] сверка с анкетами:', e));
+
     [leads, automations, lastSyncAt] = await Promise.all([
       getIgLeads({ automationId: funnel && funnel !== 'all' ? funnel : undefined }),
       getIgAutomationOptions(),
