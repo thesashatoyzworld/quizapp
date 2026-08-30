@@ -150,9 +150,9 @@ export default function IgLeadsClient({
           background: 'var(--bg-primary)', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: 6, padding: '6px 10px', fontSize: '0.82rem', maxWidth: 340,
         }}>
-          <option value="all" style={{ color: '#111' }}>все воронки</option>
+          <option value="all">все воронки</option>
           {automations.map((a) => (
-            <option key={a.id} value={a.id} style={{ color: '#111' }}>
+            <option key={a.id} value={a.id}>
               {a.keyword ? `«${a.keyword}»` : a.name} ({a.count})
             </option>
           ))}
@@ -251,7 +251,7 @@ export default function IgLeadsClient({
                         background: 'var(--bg-primary)', color: LABEL[l.status].color,
                         border: `1px solid ${LABEL[l.status].color}55`, borderRadius: 6, padding: '5px 8px', fontSize: '0.8rem', cursor: 'pointer',
                       }}>
-                        {STATUS.map((s) => (<option key={s.value} value={s.value} style={{ color: '#111' }}>{s.label}</option>))}
+                        {STATUS.map((s) => (<option key={s.value} value={s.value}>{s.label}</option>))}
                       </select>
                     </td>
                     <td style={td}>

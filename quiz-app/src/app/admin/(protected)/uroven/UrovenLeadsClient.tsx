@@ -142,7 +142,7 @@ export default function UrovenLeadsClient({ leads: initial }: { leads: UrovenLea
                         background: 'var(--bg-primary)', color: LABEL[l.status].color,
                         border: `1px solid ${LABEL[l.status].color}55`, borderRadius: 6, padding: '5px 8px', fontSize: '0.8rem', cursor: 'pointer',
                       }}>
-                        {STATUS.map((s) => (<option key={s.value} value={s.value} style={{ color: '#111' }}>{s.label}</option>))}
+                        {STATUS.map((s) => (<option key={s.value} value={s.value}>{s.label}</option>))}
                       </select>
                     </td>
                     <td style={td}>
