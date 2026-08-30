@@ -506,3 +506,44 @@ model RoadmapNote {
   @@index([roadmapId, kind])
   @@map("roadmap_notes")
 }
+
+// ═══════════════════════════════════════
+// INSTAGRAM — ЛЮДИ ИЗ ВОРОНОК CHATPLACE
+// ═══════════════════════════════════════
+//
+// Кто зашёл в автоматизацию @thesashatoyz (кодовое слово в директ или коммент).
+// Сами люди живут в ChatPlace, у нас — их слепок плюс то, чего ChatPlace не
+// хранит: ручной статус и заметка ассистента. Ключ — (clientId, automationId):
+// один человек может пройти несколько воронок, и по каждой у него свой статус.
+// Слепок обновляет синхронизация, статус и заметку она не трогает.
+
+model IgLead {
+  id       String @id @default(uuid())
+  clientId String @map("client_id") // id клиента в ChatPlace
+  username String?
+  name     String?
+
+  automationId   String  @map("automation_id")
+  automationName String? @map("automation_name")
+  keyword        String? // кодовое слово, по которому человек вошёл
+
+  firstSeenAt DateTime @map("first_seen_at")
+  lastEventAt DateTime @map("last_event_at")
+
+  chatId      String? @map("chat_id")
+  chatStatus  String? @map("chat_status")  // active | stopped | unsubscribe
+  chatHandler String? @map("chat_handler") // open (ведёт оператор) | closed (ведёт бот)
+
+  status    String  @default("new") // new | written | replied | bought | rejected
+  note      String?
+  updatedBy String? @map("updated_by")
+
+  syncedAt  DateTime @default(now()) @map("synced_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([clientId, automationId])
+  @@index([automationId])
+  @@index([status])
+  @@map("ig_lead")
+}

@@ -1,8 +1,40 @@
 import { prisma } from '@/lib/prisma';
-import type { IgKeywordData, IgReplyData, IgLogData, IgStats } from '../admin/(protected)/instagram/autoreply/page';
-import IgDashboardShell from './IgDashboardShell';
+import InstagramClient from './InstagramClient';
 
-export default async function IgDashboardPage() {
+export type IgKeywordData = {
+  id: number;
+  keyword: string;
+  replyText: string;
+  active: boolean;
+  createdAt: string;
+  replyCount: number;
+};
+
+export type IgReplyData = {
+  id: number;
+  commentId: string;
+  igUsername: string | null;
+  commentText: string | null;
+  replySent: boolean;
+  error: string | null;
+  createdAt: string;
+  keyword: { keyword: string };
+};
+
+export type IgLogData = {
+  id: number;
+  payload: string;
+  createdAt: string;
+};
+
+export type IgStats = {
+  totalReplies: number;
+  successReplies: number;
+  successRate: number;
+  activeKeywords: number;
+};
+
+export default async function InstagramPage() {
   let keywordsRaw, repliesRaw, logsRaw, totalReplies, successReplies, activeKeywords;
 
   try {
@@ -22,14 +54,16 @@ export default async function IgDashboardPage() {
       prisma.igKeyword.count({ where: { active: true } }),
     ]);
   } catch (e) {
-    console.error('[IG Dashboard] DB error:', e);
+    console.error('[Instagram page] DB error:', e);
     return (
-      <div style={{ padding: '40px', color: '#ff4444', fontFamily: 'system-ui' }}>
-        Database connection error. Please try again later.
+      <div>
+        <h1 style={{ color: 'var(--text-primary)' }}>Instagram Auto-Reply</h1>
+        <p style={{ color: '#ff4444' }}>Database error: {String(e)}</p>
       </div>
     );
   }
 
+  // Count replies per keyword
   const replyCountMap = new Map<number, number>();
   for (const r of repliesRaw) {
     replyCountMap.set(r.keywordId, (replyCountMap.get(r.keywordId) || 0) + 1);
@@ -69,11 +103,22 @@ export default async function IgDashboardPage() {
   };
 
   return (
-    <IgDashboardShell
-      initialKeywords={keywords}
-      initialReplies={replies}
-      initialLogs={logs}
-      initialStats={stats}
-    />
+    <div>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+          Instagram Auto-Reply
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+          Keyword-based comment detection and automatic replies for @thesashatoyz
+        </p>
+      </div>
+
+      <InstagramClient
+        initialKeywords={keywords}
+        initialReplies={replies}
+        initialLogs={logs}
+        initialStats={stats}
+      />
+    </div>
   );
 }
