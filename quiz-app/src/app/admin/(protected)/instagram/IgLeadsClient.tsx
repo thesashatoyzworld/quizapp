@@ -209,9 +209,9 @@ export default function IgLeadsClient({
               <th style={{ ...th, width: 26 }}></th>
               <th style={th}>Аккаунт</th>
               <th style={th}>Имя</th>
-              <th style={th}>Кодовое слово</th>
+              <th style={th}>Слово</th>
               <th style={th}>Диалог</th>
-              <th style={th}>Последняя активность</th>
+              <th style={th}>Активность</th>
               <th style={th}>Статус</th>
               <th style={th}>Заметка</th>
             </tr>
