@@ -1,5 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import type { LeadStatusValue } from '@/lib/leads';
+
+// К общим статусам лидов добавлен свой: человек уже оставил анкету, писать ему
+// из холодной переписки не надо.
+export type IgStatusValue = LeadStatusValue | 'filled';
 import {
   sleep,
   listAutomations,
@@ -12,6 +16,8 @@ import {
 // Лиды Instagram: люди, зашедшие в воронки ChatPlace по кодовому слову.
 // Слепок человека приходит из ChatPlace, статус и заметку ведём у себя —
 // синхронизация их не перетирает.
+
+export type IgFormKind = 'mentor' | 't2' | 't3';
 
 export type IgLead = {
   id: string;
@@ -26,7 +32,11 @@ export type IgLead = {
   chatId: string | null;
   chatStatus: string | null;
   chatHandler: string | null;
-  status: LeadStatusValue;
+  formKind: string | null;
+  formName: string | null;
+  formFilledAt: string | null;
+  formMatchedBy: string | null;
+  status: IgStatusValue;
   note: string | null;
   updatedBy: string | null;
   updatedAt: string | null;
@@ -134,6 +144,42 @@ async function writeBatch(rows: Snapshot[]): Promise<void> {
   );
 }
 
+// Кто из людей в воронке уже оставил анкету на менторство или встал в лист
+// ожидания. Анкета спрашивает и инстаграм, и телеграм, поэтому сверяем ник по
+// обоим полям. Статус трогаем только там, где ассистент ещё ничего не ставил
+// руками (updated_by пуст) — его решение важнее автоматики, а сам факт анкеты
+// всё равно виден по колонке.
+export async function matchFormFilled(): Promise<number> {
+  return prisma.$executeRawUnsafe(`
+    WITH forms AS (
+      SELECT DISTINCT ON (acc)
+        acc, kind, first_name, created_at, matched_by
+      FROM (
+        SELECT
+          NULLIF(lower(regexp_replace(regexp_replace(coalesce(instagram, ''), '^.*instagram\.com/', ''), '[@/ ]', '', 'g')), '') AS acc,
+          kind, first_name, created_at, 'instagram' AS matched_by
+        FROM dwy_leads
+        UNION ALL
+        SELECT NULLIF(lower(coalesce(username, '')), ''), kind, first_name, created_at, 'telegram'
+        FROM dwy_leads
+      ) x
+      WHERE acc IS NOT NULL
+      ORDER BY acc, created_at DESC
+    )
+    UPDATE ig_lead l
+    SET form_kind       = f.kind,
+        form_name       = f.first_name,
+        form_filled_at  = f.created_at,
+        form_matched_by = f.matched_by,
+        status          = CASE WHEN l.updated_by IS NULL THEN 'filled' ELSE l.status END,
+        updated_at      = now()
+    FROM forms f
+    WHERE lower(l.username) = f.acc
+      AND (l.form_filled_at IS DISTINCT FROM f.created_at OR l.form_kind IS DISTINCT FROM f.kind
+           OR (l.updated_by IS NULL AND l.status <> 'filled'))
+  `);
+}
+
 export async function syncIgLeads(opts: { full?: boolean } = {}): Promise<SyncResult> {
   const known = await prisma.igLead.count();
   const full = opts.full === true;
@@ -230,6 +276,8 @@ export async function syncIgLeads(opts: { full?: boolean } = {}): Promise<SyncRe
     }
   }
 
+  await matchFormFilled();
+
   // Сколько из увиденных оказались новыми — считаем по приросту таблицы:
   // это надёжнее, чем гадать по времени создания записи.
   const created = Math.max(0, (await prisma.igLead.count()) - known);
@@ -259,7 +307,11 @@ export async function getIgLeads(opts: { automationId?: string } = {}): Promise<
     chatId: r.chatId,
     chatStatus: r.chatStatus,
     chatHandler: r.chatHandler,
-    status: r.status as LeadStatusValue,
+    formKind: r.formKind,
+    formName: r.formName,
+    formFilledAt: r.formFilledAt ? r.formFilledAt.toISOString() : null,
+    formMatchedBy: r.formMatchedBy,
+    status: r.status as IgStatusValue,
     note: r.note,
     updatedBy: r.updatedBy,
     updatedAt: r.updatedAt.toISOString(),

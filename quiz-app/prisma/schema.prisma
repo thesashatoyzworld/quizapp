@@ -534,7 +534,15 @@ model IgLead {
   chatStatus  String? @map("chat_status")  // active | stopped | unsubscribe
   chatHandler String? @map("chat_handler") // open (ведёт оператор) | closed (ведёт бот)
 
-  status    String  @default("new") // new | written | replied | bought | rejected
+  // Человек уже оставил анкету на менторство или встал в лист ожидания —
+  // тогда писать ему из холодной переписки не надо. Сопоставляем по нику:
+  // в анкете есть и инстаграм, и телеграм.
+  formKind      String?   @map("form_kind")       // mentor | t2 | t3
+  formName      String?   @map("form_name")       // как человек назвался в анкете
+  formFilledAt  DateTime? @map("form_filled_at")
+  formMatchedBy String?   @map("form_matched_by") // instagram | telegram
+
+  status    String  @default("new") // new | written | replied | bought | rejected | filled
   note      String?
   updatedBy String? @map("updated_by")
 
@@ -545,5 +553,6 @@ model IgLead {
   @@unique([clientId, automationId])
   @@index([automationId])
   @@index([status])
+  @@index([formKind])
   @@map("ig_lead")
 }
