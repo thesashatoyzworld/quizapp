@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { IgKeywordData, IgReplyData, IgLogData, IgStats } from '../admin/(protected)/instagram/page';
+import type { IgKeywordData, IgReplyData, IgLogData, IgStats } from '../admin/(protected)/instagram/autoreply/page';
 
 interface ScanLog {
   type: 'info' | 'match' | 'success' | 'error';

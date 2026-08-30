@@ -130,11 +130,21 @@ type ClientsPage = {
 };
 
 // Все, кто заходил в автоматизацию. Страницы по 100, с потолком, чтобы
-// случайно не выкачивать десятки тысяч в один заход.
-export async function listAutomationClients(automationId: string, maxPages = 30): Promise<CpClient[]> {
+// случайно не выкачивать десятки тысяч в один заход. startDate (Y-m-d)
+// ограничивает выборку свежими — для инкрементальной синхронизации.
+export async function listAutomationClients(
+  automationId: string,
+  maxPages = 30,
+  startDate?: string
+): Promise<CpClient[]> {
   const out: CpClient[] = [];
   for (let page = 1; page <= maxPages; page++) {
-    const res = await call<ClientsPage>('automations_clients', { automationId, page, limit: 100 });
+    const res = await call<ClientsPage>('automations_clients', {
+      automationId,
+      page,
+      limit: 100,
+      ...(startDate ? { startDate } : {}),
+    });
     out.push(...(res.items || []));
     if (!res.pagination || page >= res.pagination.lastPage) break;
   }
