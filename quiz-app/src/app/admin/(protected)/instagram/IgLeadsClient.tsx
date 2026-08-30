@@ -31,6 +31,14 @@ const CHAT_STATE: Record<string, { label: string; color: string }> = {
 // дёргает ChatPlace по всем воронкам.
 const STALE_MS = 10 * 60 * 1000;
 
+function plural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
 function fmt(iso: string): string {
   return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
@@ -152,7 +160,13 @@ export default function IgLeadsClient({
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
         <select
           value={funnel}
-          onChange={(e) => router.push(e.target.value === 'all' ? '/admin/instagram' : `/admin/instagram?funnel=${e.target.value}`)}
+          onChange={(e) => {
+            // Фильтр статуса не переносим на другую воронку: иначе выбираешь
+            // воронку на сорок человек, а видишь двоих — тех, кто попал под
+            // прошлый фильтр.
+            setFilter('all');
+            router.push(e.target.value === 'all' ? '/admin/instagram' : `/admin/instagram?funnel=${e.target.value}`);
+          }}
           style={{
           background: 'var(--bg-primary)', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: 6, padding: '6px 10px', fontSize: '0.82rem', maxWidth: 340,
@@ -187,7 +201,9 @@ export default function IgLeadsClient({
 
         <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem' }}>
           {syncNote || (lastSyncAt ? `последняя сверка ${fmt(lastSyncAt)}` : 'ещё ни разу не тянули')}
-          {total > leads.length && ` · показаны свежие ${leads.length} из ${total}`}
+          {total > leads.length
+            ? ` · показаны свежие ${leads.length} из ${total}`
+            : ` · в этой выборке ${total} ${plural(total, 'человек', 'человека', 'человек')}`}
         </span>
       </div>
 
