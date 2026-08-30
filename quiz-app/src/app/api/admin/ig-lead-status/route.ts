@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
 
-const ALLOWED_STATUS = ['new', 'written', 'replied', 'bought', 'rejected'];
+const ALLOWED_STATUS = ['new', 'written', 'replied', 'bought', 'rejected', 'filled'];
 
 // Ассистент/оператор ставит статус лида из Instagram. Ключ — пара
 // (клиент ChatPlace + автоматизация): один человек мог зайти в несколько

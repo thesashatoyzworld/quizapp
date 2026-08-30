@@ -2,17 +2,24 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { IgLead, IgAutomationOption, IgMessage } from '@/lib/ig-leads';
-import type { LeadStatusValue } from '@/lib/leads';
+import type { IgLead, IgAutomationOption, IgMessage, IgStatusValue } from '@/lib/ig-leads';
 
-const STATUS: { value: LeadStatusValue; label: string; color: string }[] = [
+const STATUS: { value: IgStatusValue; label: string; color: string }[] = [
   { value: 'new', label: 'новый', color: '#8a94a6' },
+  { value: 'filled', label: 'анкета, не писать', color: '#b085f5' },
   { value: 'written', label: 'написали', color: '#00f0ff' },
   { value: 'replied', label: 'ответил', color: '#ffd166' },
   { value: 'bought', label: 'купил', color: '#06d6a0' },
   { value: 'rejected', label: 'слился', color: '#ef476f' },
 ];
-const LABEL = Object.fromEntries(STATUS.map((s) => [s.value, s])) as Record<LeadStatusValue, (typeof STATUS)[number]>;
+const LABEL = Object.fromEntries(STATUS.map((s) => [s.value, s])) as Record<IgStatusValue, (typeof STATUS)[number]>;
+
+// Как называется поток, из которого пришла анкета.
+const FORM_KIND: Record<string, string> = {
+  mentor: 'менторство',
+  t2: 'лист ожидания, тариф 2',
+  t3: 'лист ожидания, тариф 3',
+};
 
 const CHAT_STATE: Record<string, { label: string; color: string }> = {
   active: { label: 'диалог живой', color: '#06d6a0' },
@@ -41,7 +48,7 @@ export default function IgLeadsClient({
 }) {
   const router = useRouter();
   const [leads, setLeads] = useState(initial);
-  const [filter, setFilter] = useState<LeadStatusValue | 'all'>('all');
+  const [filter, setFilter] = useState<IgStatusValue | 'all'>('all');
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [threads, setThreads] = useState<Record<string, IgMessage[] | 'loading' | 'error'>>({});
@@ -98,7 +105,7 @@ export default function IgLeadsClient({
     }
   }
 
-  async function save(l: IgLead, patch: { status?: LeadStatusValue; note?: string }) {
+  async function save(l: IgLead, patch: { status?: IgStatusValue; note?: string }) {
     setSaving((s) => ({ ...s, [l.id]: true }));
     setLeads((ls) => ls.map((x) => (x.id === l.id ? { ...x, ...patch } : x)));
     try {
@@ -139,7 +146,7 @@ export default function IgLeadsClient({
         ЛЮДИ ИЗ ИНСТАГРАМА
       </h1>
       <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: 16 }}>
-        Кто написал кодовое слово в директ или комментарий и попал в воронку @thesashatoyz. Жми на строку — раскроется переписка. Ставь статус: Саша и ассистент видят одно и то же.
+        Кто написал кодовое слово в директ или комментарий и попал в воронку @thesashatoyz. Жми на строку — раскроется переписка. Ставь статус: Саша и ассистент видят одно и то же. Кто уже оставил анкету на менторство или встал в лист ожидания, помечается сам — таким писать не надо.
       </p>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
@@ -237,7 +244,20 @@ export default function IgLeadsClient({
                         <span style={{ color: 'var(--text-muted)' }}>без юзернейма</span>
                       )}
                     </td>
-                    <td style={{ ...td, color: 'var(--text-secondary)', maxWidth: 220 }}>{l.name || '—'}</td>
+                    <td style={{ ...td, color: 'var(--text-secondary)', maxWidth: 220 }}>
+                      {l.name || '—'}
+                      {l.formKind && (
+                        <div
+                          title={`${FORM_KIND[l.formKind] || l.formKind}${l.formName ? `, ${l.formName}` : ''}${
+                            l.formFilledAt ? ` · ${fmt(l.formFilledAt)}` : ''
+                          } · нашли по ${l.formMatchedBy === 'telegram' ? 'телеграму' : 'инстаграму'}`}
+                          style={{ color: '#b085f5', fontSize: '0.72rem', marginTop: 2 }}
+                        >
+                          анкета: {FORM_KIND[l.formKind] || l.formKind}
+                          {l.formFilledAt ? ` · ${fmt(l.formFilledAt)}` : ''}
+                        </div>
+                      )}
+                    </td>
                     <td style={{ ...td, color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                       {l.keyword ? `«${l.keyword}»` : l.automationName || '—'}
                     </td>
@@ -247,7 +267,7 @@ export default function IgLeadsClient({
                     </td>
                     <td style={{ ...td, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{fmt(l.lastEventAt)}</td>
                     <td style={td}>
-                      <select value={l.status} onChange={(e) => save(l, { status: e.target.value as LeadStatusValue })} style={{
+                      <select value={l.status} onChange={(e) => save(l, { status: e.target.value as IgStatusValue })} style={{
                         background: 'var(--bg-primary)', color: LABEL[l.status].color,
                         border: `1px solid ${LABEL[l.status].color}55`, borderRadius: 6, padding: '5px 8px', fontSize: '0.8rem', cursor: 'pointer',
                       }}>
