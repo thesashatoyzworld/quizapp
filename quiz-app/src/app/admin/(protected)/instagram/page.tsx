@@ -4,12 +4,17 @@ import IgLeadsClient from './IgLeadsClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function InstagramLeadsPage() {
+export default async function InstagramLeadsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ funnel?: string }>;
+}) {
+  const { funnel } = await searchParams;
   let leads, automations, lastSyncAt;
 
   try {
     [leads, automations, lastSyncAt] = await Promise.all([
-      getIgLeads(),
+      getIgLeads({ automationId: funnel && funnel !== 'all' ? funnel : undefined }),
       getIgAutomationOptions(),
       getLastSyncAt(),
     ]);
@@ -28,7 +33,7 @@ export default async function InstagramLeadsPage() {
   return (
     <div style={{ maxWidth: 1180 }}>
       <IgNav active="/admin/instagram" />
-      <IgLeadsClient leads={leads} automations={automations} lastSyncAt={lastSyncAt} />
+      <IgLeadsClient leads={leads} automations={automations} lastSyncAt={lastSyncAt} funnel={funnel || 'all'} />
     </div>
   );
 }

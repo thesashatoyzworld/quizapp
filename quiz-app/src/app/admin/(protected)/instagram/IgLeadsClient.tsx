@@ -32,15 +32,16 @@ export default function IgLeadsClient({
   leads: initial,
   automations,
   lastSyncAt,
+  funnel,
 }: {
   leads: IgLead[];
   automations: IgAutomationOption[];
   lastSyncAt: string | null;
+  funnel: string;
 }) {
   const router = useRouter();
   const [leads, setLeads] = useState(initial);
   const [filter, setFilter] = useState<LeadStatusValue | 'all'>('all');
-  const [funnel, setFunnel] = useState<string>('all');
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [threads, setThreads] = useState<Record<string, IgMessage[] | 'loading' | 'error'>>({});
@@ -56,18 +57,23 @@ export default function IgLeadsClient({
     const stale = !lastSyncAt || Date.now() - new Date(lastSyncAt).getTime() > STALE_MS;
     if (!stale) return;
     autoSynced.current = true;
-    void sync(!lastSyncAt);
+    void sync();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastSyncAt]);
 
-  const byFunnel = funnel === 'all' ? leads : leads.filter((l) => l.automationId === funnel);
-  const shown = filter === 'all' ? byFunnel : byFunnel.filter((l) => l.status === filter);
+  // Воронку фильтрует сервер (людей тысячи), статус — уже здесь.
+  const shown = filter === 'all' ? leads : leads.filter((l) => l.status === filter);
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: byFunnel.length };
-    for (const s of STATUS) c[s.value] = byFunnel.filter((l) => l.status === s.value).length;
+    const c: Record<string, number> = { all: leads.length };
+    for (const s of STATUS) c[s.value] = leads.filter((l) => l.status === s.value).length;
     return c;
-  }, [byFunnel]);
+  }, [leads]);
+
+  const total = useMemo(
+    () => (funnel === 'all' ? automations.reduce((n, a) => n + a.count, 0) : automations.find((a) => a.id === funnel)?.count ?? leads.length),
+    [automations, funnel, leads.length]
+  );
 
   async function sync(full = false) {
     setSyncing(true);
@@ -79,7 +85,11 @@ export default function IgLeadsClient({
         setSyncNote(`Не получилось: ${data.error || res.status}`);
         return;
       }
-      setSyncNote(`Новых ${data.created}, обновлено ${data.updated}, воронок ${data.automations}`);
+      const failed: string[] = data.failed || [];
+      setSyncNote(
+        `Новых ${data.created}, обновлено ${data.updated}, воронок ${data.automations}` +
+          (failed.length ? ` · не отдались: ${failed.join(', ')}` : '')
+      );
       router.refresh();
     } catch (e) {
       setSyncNote(`Не получилось: ${e instanceof Error ? e.message : String(e)}`);
@@ -133,11 +143,14 @@ export default function IgLeadsClient({
       </p>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
-        <select value={funnel} onChange={(e) => setFunnel(e.target.value)} style={{
+        <select
+          value={funnel}
+          onChange={(e) => router.push(e.target.value === 'all' ? '/admin/instagram' : `/admin/instagram?funnel=${e.target.value}`)}
+          style={{
           background: 'var(--bg-primary)', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: 6, padding: '6px 10px', fontSize: '0.82rem', maxWidth: 340,
         }}>
-          <option value="all" style={{ color: '#111' }}>все воронки ({leads.length})</option>
+          <option value="all" style={{ color: '#111' }}>все воронки</option>
           {automations.map((a) => (
             <option key={a.id} value={a.id} style={{ color: '#111' }}>
               {a.keyword ? `«${a.keyword}»` : a.name} ({a.count})
@@ -153,8 +166,21 @@ export default function IgLeadsClient({
           {syncing ? 'тяну…' : 'обновить'}
         </button>
 
+        <button
+          onClick={() => { if (confirm('Выкачать всех за всё время? Это несколько тысяч человек и минута-две ожидания.')) void sync(true); }}
+          disabled={syncing}
+          style={{
+            padding: '6px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)',
+            background: 'transparent', color: 'var(--text-secondary)', fontSize: '0.82rem',
+            cursor: syncing ? 'default' : 'pointer', opacity: syncing ? 0.5 : 1,
+          }}
+        >
+          за всё время
+        </button>
+
         <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem' }}>
           {syncNote || (lastSyncAt ? `последняя сверка ${fmt(lastSyncAt)}` : 'ещё ни разу не тянули')}
+          {total > leads.length && ` · показаны свежие ${leads.length} из ${total}`}
         </span>
       </div>
 

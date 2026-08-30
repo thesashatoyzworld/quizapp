@@ -13,7 +13,24 @@ let rpcId = 0;
 
 export class ChatPlaceError extends Error {}
 
-async function call<T>(tool: string, args: Record<string, unknown> = {}): Promise<T> {
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// ChatPlace отдаёт 500, когда запросы идут подряд без передышки — на длинной
+// выкачке это ловится регулярно. Помогает не столько повтор, сколько пауза
+// перед ним, поэтому она растёт: секунда, три, семь.
+async function call<T>(tool: string, args: Record<string, unknown> = {}, attempt = 1): Promise<T> {
+  const MAX_ATTEMPTS = 4;
+  try {
+    return await callOnce<T>(tool, args);
+  } catch (e) {
+    const retriable = e instanceof ChatPlaceError && /HTTP 5\d\d/.test(e.message);
+    if (!retriable || attempt >= MAX_ATTEMPTS) throw e;
+    await sleep(attempt * attempt * 800);
+    return call<T>(tool, args, attempt + 1);
+  }
+}
+
+async function callOnce<T>(tool: string, args: Record<string, unknown>): Promise<T> {
   const key = process.env.CHATPLACE_API_KEY;
   if (!key) throw new ChatPlaceError('CHATPLACE_API_KEY не задан');
 
@@ -147,6 +164,7 @@ export async function listAutomationClients(
     });
     out.push(...(res.items || []));
     if (!res.pagination || page >= res.pagination.lastPage) break;
+    await sleep(150); // не долбить ChatPlace страницами подряд
   }
   return out;
 }
@@ -167,6 +185,7 @@ export async function listChats(maxPages = 20): Promise<CpChat[]> {
     out.push(...(res.items || []));
     if (!res.hasNextItems || !res.lastItemId) break;
     cursor = { lastItemId: res.lastItemId, lastItemTimestamp: Number(res.lastItemTimestamp) };
+    await sleep(150);
   }
   return out;
 }
