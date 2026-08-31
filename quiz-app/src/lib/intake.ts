@@ -672,5 +672,6 @@ async function notifyIntakeDone(intakeId: string): Promise<void> {
       `⏭ пропущено вопросов: ${skipped}\n\n` +
       `<a href="${base}/admin/anketa/${intake.id}">открыть досье</a>` +
       next,
+    { alsoWork: true, disableLinkPreview: true },
   );
 }

@@ -6,13 +6,11 @@ import {
   normalizeInstagram, type DwyLeadInput, type DwyPrior,
 } from '@/lib/dwy-message';
 import { isDwyKind, DWY_MODES } from '@/content/dwy';
+import { notifyAdmin } from '@/lib/telegram';
 import { matchFormFilled } from '@/lib/ig-leads';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
-
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
 
 // Telegram-логина здесь нет намеренно: виджет в мобильном браузере не видит
 // сессию из приложения и гонит человека на oauth.telegram.org вводить номер.
@@ -146,31 +144,11 @@ export async function POST(req: NextRequest) {
       // Прогон verify-dwy.mjs бьёт по живому эндпоинту (в том числе на превью,
       // где токен боевой) — Саше от него прилетал десяток тестовых анкет.
       if (lead.source === VERIFY_SOURCE) return;
-      if (!BOT_TOKEN || !ADMIN_CHAT_ID) {
-        console.error('[dwy-lead] BOT_TOKEN / ADMIN_CHAT_ID не заданы — уведомление не ушло');
-        return;
-      }
-      try {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 10000);
-        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: ADMIN_CHAT_ID,
-            text: buildDwyMessage(lead, prior),
-            parse_mode: 'HTML',
-            link_preview_options: { is_disabled: true },
-          }),
-          signal: ctrl.signal,
-        });
-        clearTimeout(timer);
-        if (!res.ok) {
-          console.error('[dwy-lead] sendMessage failed', res.status, await res.text().catch(() => ''));
-        }
-      } catch (e) {
-        console.error('[dwy-lead] sendMessage threw', e);
-      }
+      const sent = await notifyAdmin(buildDwyMessage(lead, prior), {
+        alsoWork: true,
+        disableLinkPreview: true,
+      });
+      if (!sent) console.error('[dwy-lead] уведомление не ушло ни одному получателю');
     });
 
     return NextResponse.json({ ok: true });

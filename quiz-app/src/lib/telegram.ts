@@ -144,14 +144,90 @@ export async function downloadTelegramFile(filePath: string): Promise<ArrayBuffe
 }
 
 /**
- * Уведомление Саше.
+ * Кому дублируем важное. Рабочий аккаунт @sashatoyzwork Саша читает отдельно
+ * от личного, поэтому туда уходят только заявки и деньги: анкеты, DWY-лиды,
+ * оплаты, выдача доступа. Технический шум (ошибки рассылок, лид-магниты,
+ * waitlist) остаётся на личном аккаунте.
+ */
+const WORK_CHAT_ID = (process.env.ADMIN_CHAT_ID_WORK || '').trim();
+
+export type NotifyAdminOptions = {
+  /** Продублировать на рабочий аккаунт. Ставим только на заявки и оплаты. */
+  alsoWork?: boolean;
+  /** Убрать превью ссылок: в анкетах и лидах ссылка на досье раздувает сообщение. */
+  disableLinkPreview?: boolean;
+  /**
+   * null = слать текст как есть. Нужно там, где в сообщение попадает название
+   * товара из Продамуса: амперсанд или угловая скобка в нём роняют HTML-разбор,
+   * и Телеграм отвечает 400 вместо доставки.
+   */
+  parseMode?: 'HTML' | null;
+};
+
+/**
+ * Одна отправка с повторами.
  *
  * Раньше ответ Телеграма не читался вовсе, а `fetch` не бросает на 400 и 429:
  * любая ошибка исчезала бесследно. В логах пусто, у Саши пусто, а человеку бот
  * бодро писал «анкета собрана» — так однажды потерялось уведомление о Косте.
  * Теперь разбираем ответ и повторяем: на 429 Телеграм сам говорит, сколько ждать.
  */
-export async function notifyAdmin(text: string): Promise<boolean> {
+async function sendToAdmin(
+  chatId: string,
+  text: string,
+  options: NotifyAdminOptions,
+): Promise<boolean> {
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      // Телеграм иногда просто не отвечает — без таймаута вызов висит до конца
+      // лимита функции и уведомление не уходит вовсе.
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 10000);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          ...(options.parseMode === null ? {} : { parse_mode: options.parseMode || 'HTML' }),
+          ...(options.disableLinkPreview ? { link_preview_options: { is_disabled: true } } : {}),
+        }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      const data = await res.json();
+      if (data.ok === true) return true;
+
+      const retryAfter: number | undefined = data?.parameters?.retry_after;
+      console.error(
+        `[notifyAdmin] ${chatId} попытка ${attempt}: telegram отказал ${data.error_code} ${data.description}`,
+      );
+
+      // 429 — ждём столько, сколько просят. Остальные ошибки повтор не лечит.
+      if (data.error_code !== 429) return false;
+      if (attempt < 3) await new Promise((r) => setTimeout(r, (retryAfter || 1) * 1000));
+    } catch (error) {
+      console.error(`[notifyAdmin] ${chatId} попытка ${attempt} упала:`, error);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Уведомление Саше. С `alsoWork` уходит ещё и на рабочий аккаунт.
+ *
+ * Получатели независимы: молчание рабочего аккаунта не должно скрывать то,
+ * что личный своё сообщение получил, поэтому true возвращаем, если дошло
+ * хотя бы до одного, а по каждому отказу пишем в лог.
+ */
+export async function notifyAdmin(
+  text: string,
+  options: NotifyAdminOptions = {},
+): Promise<boolean> {
   if (!BOT_TOKEN) return false;
 
   const adminChatId = await getAdminChatId();
@@ -160,31 +236,14 @@ export async function notifyAdmin(text: string): Promise<boolean> {
     return false;
   }
 
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: adminChatId, text, parse_mode: 'HTML' }),
-      });
-      const data = await res.json();
-      if (data.ok === true) return true;
-
-      const retryAfter: number | undefined = data?.parameters?.retry_after;
-      console.error(
-        `[notifyAdmin] попытка ${attempt}: telegram отказал ${data.error_code} ${data.description}`,
-      );
-
-      // 429 — ждём столько, сколько просят. Остальные ошибки повтор не лечит.
-      if (data.error_code !== 429) return false;
-      if (attempt < 3) await new Promise((r) => setTimeout(r, (retryAfter || 1) * 1000));
-    } catch (error) {
-      console.error(`[notifyAdmin] попытка ${attempt} упала:`, error);
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 1000));
-    }
+  const recipients = [adminChatId];
+  if (options.alsoWork && WORK_CHAT_ID && WORK_CHAT_ID !== adminChatId) {
+    recipients.push(WORK_CHAT_ID);
   }
 
-  return false;
+  const results = await Promise.all(
+    recipients.map((chatId) => sendToAdmin(chatId, text, options)),
+  );
+
+  return results.some(Boolean);
 }
