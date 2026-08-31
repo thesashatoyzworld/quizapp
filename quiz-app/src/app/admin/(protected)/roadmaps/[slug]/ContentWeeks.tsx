@@ -41,14 +41,21 @@ export default async function ContentWeeks({ slug }: { slug: string }) {
   }
 
   const handle = posts[0].handle;
+  const sync = await prisma.igSync.findUnique({ where: { handle } });
+  const coveredFrom = sync?.coveredFrom ?? null;
 
-  const weeks: { key: string; total: number; onRoute: number }[] = [];
+  const weeks: { key: string; total: number; onRoute: number; known: boolean }[] = [];
   for (let i = 0; i < WEEKS; i++) {
     const d = new Date(since);
     d.setUTCDate(d.getUTCDate() + 7 * i);
     const key = d.toISOString().slice(0, 10);
+    const weekEnd = new Date(d);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
     const inWeek = posts.filter((p) => weekStart(p.postedAt).toISOString().slice(0, 10) === key);
-    weeks.push({ key, total: inWeek.length, onRoute: inWeek.filter((p) => p.onRoute).length });
+    // Неделя целиком раньше того, докуда мы смотрели, — это не «ничего не
+    // выложил», а «мы туда не заглядывали».
+    const known = coveredFrom ? weekEnd > coveredFrom : inWeek.length > 0;
+    weeks.push({ key, total: inWeek.length, onRoute: inWeek.filter((p) => p.onRoute).length, known });
   }
 
   const lastKey = [...weeks].reverse().find((w) => w.total > 0)?.key ?? weeks[weeks.length - 1].key;
@@ -69,15 +76,24 @@ export default async function ContentWeeks({ slug }: { slug: string }) {
         {weeks.map((w) => (
           <div key={w.key} className={w.total ? styles.weekTile : styles.weekTileEmpty}>
             <span className={styles.weekTileLabel}>{label(w.key)}</span>
-            <span className={styles.weekTileTotal}>{w.total || '—'}</span>
-            {w.total > 0 && (
-              <span className={w.onRoute ? styles.weekTileOn : styles.weekTileOff}>{w.onRoute} по маршруту</span>
+            <span className={styles.weekTileTotal}>{w.known ? w.total : '?'}</span>
+            {w.known ? (
+              w.total > 0 && (
+                <span className={w.onRoute ? styles.weekTileOn : styles.weekTileOff}>{w.onRoute} по маршруту</span>
+              )
+            ) : (
+              <span className={styles.weekTileOff}>не смотрели</span>
             )}
           </div>
         ))}
       </div>
 
-      <div className={styles.lastWeekTitle}>последняя неделя с выходами · {label(lastKey)}</div>
+      <div className={styles.lastWeekTitle}>
+        последняя неделя с выходами · {label(lastKey)}
+        {coveredFrom && (
+          <> · лента собрана с {coveredFrom.toISOString().slice(8, 10)}.{coveredFrom.toISOString().slice(5, 7)}</>
+        )}
+      </div>
       <ul className={styles.contentList}>
         {shown.map((p) => (
           <li key={p.id} className={styles.contentItem}>

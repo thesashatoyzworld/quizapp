@@ -1,4 +1,4 @@
-// Заводит таблицу ig_posts руками.
+// Заводит таблицы ig_posts и ig_syncs руками.
 //
 // НЕ `prisma db push`: база общая с другими проектами, push сносит чужие
 // таблицы, которых нет в этой схеме.
@@ -43,7 +43,19 @@ await db.query(`
 await db.query('CREATE INDEX IF NOT EXISTS ig_posts_handle_posted_at_idx ON ig_posts (handle, posted_at);');
 await db.query('CREATE INDEX IF NOT EXISTS ig_posts_slug_posted_at_idx ON ig_posts (slug, posted_at);');
 
-const { rows } = await db.query('SELECT count(*)::int AS n FROM ig_posts');
-console.log(`ig_posts готова, записей: ${rows[0].n}`);
+// Докуда мы вообще смотрели. Без этого пустая неделя читается как «человек
+// ничего не выложил», хотя на деле мы просто не тянули тот период.
+await db.query(`
+  CREATE TABLE IF NOT EXISTS ig_syncs (
+    handle       TEXT PRIMARY KEY,
+    covered_from TIMESTAMP(3) NOT NULL,
+    last_run_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+const posts = await db.query('SELECT count(*)::int AS n FROM ig_posts');
+const syncs = await db.query('SELECT count(*)::int AS n FROM ig_syncs');
+console.log(`ig_posts готова, записей: ${posts.rows[0].n}`);
+console.log(`ig_syncs готова, записей: ${syncs.rows[0].n}`);
 
 await db.end();

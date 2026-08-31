@@ -31,6 +31,13 @@ if (!fs.existsSync(file)) {
 const data = JSON.parse(fs.readFileSync(file, 'utf8'));
 const slug = process.argv[3] || data.slug || null;
 
+// Докуда смотрели: границу запроса пишет pull.mjs в feed.json. Без неё пустая
+// неделя в админке читается как «человек не выкладывал», хотя мы туда не лезли.
+const feedFile = path.join(path.dirname(file), 'feed.json');
+const coveredFrom = fs.existsSync(feedFile)
+  ? JSON.parse(fs.readFileSync(feedFile, 'utf8')).since
+  : null;
+
 const db = new pg.Client({
   connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -65,11 +72,23 @@ for (const p of data.posts) {
   saved++;
 }
 
+if (coveredFrom) {
+  await db.query(
+    `INSERT INTO ig_syncs (handle, covered_from, last_run_at)
+     VALUES ($1, $2, now())
+     ON CONFLICT (handle) DO UPDATE SET
+       covered_from = LEAST(ig_syncs.covered_from, EXCLUDED.covered_from),
+       last_run_at = now()`,
+    [handle, new Date(coveredFrom)]
+  );
+}
+
 const { rows } = await db.query(
   `SELECT count(*)::int AS n, min(posted_at)::date AS c, max(posted_at)::date AS d FROM ig_posts WHERE handle=$1`,
   [handle]
 );
 console.log(`@${handle}: залито ${saved}, всего в базе ${rows[0].n} (${rows[0].c} — ${rows[0].d})`);
+if (coveredFrom) console.log(`смотрели ленту с ${coveredFrom}`);
 console.log('смотреть: /admin/content');
 
 await db.end();

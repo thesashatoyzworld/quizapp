@@ -609,3 +609,13 @@ model IgPost {
   @@index([slug, postedAt])
   @@map("ig_posts")
 }
+
+// Докуда конвейер смотрел ленту. Пустая неделя без этой отметки читается
+// как «клиент ничего не выложил», хотя мы просто не тянули тот период.
+model IgSync {
+  handle      String   @id
+  coveredFrom DateTime @map("covered_from")
+  lastRunAt   DateTime @default(now()) @map("last_run_at")
+
+  @@map("ig_syncs")
+}

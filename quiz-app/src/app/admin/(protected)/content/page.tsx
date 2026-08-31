@@ -30,10 +30,15 @@ export default async function ContentPage() {
   const since = weekStart(new Date());
   since.setUTCDate(since.getUTCDate() - 7 * (WEEKS - 1));
 
-  const [posts, roadmaps] = await Promise.all([
+  const [posts, roadmaps, syncs] = await Promise.all([
     prisma.igPost.findMany({ where: { postedAt: { gte: since } }, orderBy: { postedAt: 'desc' } }),
     prisma.roadmap.findMany({ where: { archived: false }, select: { slug: true, clientName: true } }),
+    prisma.igSync.findMany(),
   ]);
+
+  // Докуда конвейер смотрел каждую ленту: без этого пустая клетка врёт,
+  // будто человек ничего не выложил.
+  const coveredFrom = new Map(syncs.map((s) => [s.handle, s.coveredFrom]));
 
   const nameBySlug = new Map(roadmaps.map((r) => [r.slug, r.clientName]));
 
@@ -100,7 +105,17 @@ export default async function ContentPage() {
                     </td>
                     {weeks.map((w) => {
                       const cell = row.get(w);
-                      if (!cell) return <td key={w} className={styles.cellEmpty}>—</td>;
+                      const weekEnd = new Date(w + 'T00:00:00Z');
+                      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+                      const from = coveredFrom.get(h);
+                      const known = from ? weekEnd > from : Boolean(cell);
+                      if (!cell) {
+                        return (
+                          <td key={w} className={styles.cellEmpty}>
+                            {known ? '0' : <span title="ленту за эту неделю не собирали">не смотрели</span>}
+                          </td>
+                        );
+                      }
                       return (
                         <td key={w} className={styles.cell}>
                           <span className={styles.total}>{cell.total}</span>
