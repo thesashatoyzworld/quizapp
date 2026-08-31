@@ -255,7 +255,7 @@ export default function IgLeadsClient({
         <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem' }}>
           {syncNote || (lastSyncAt ? `последняя сверка ${fmt(lastSyncAt)}` : 'ещё ни разу не тянули')}
           {query
-            ? ` · нашли ${leads.length} ${plural(leads.length, 'человека', 'человек', 'человек')} по «${query}»`
+            ? ` · нашли ${leads.length} ${plural(leads.length, 'человека', 'человека', 'человек')} по «${query}»`
             : total > leads.length
               ? ` · показаны свежие ${leads.length} из ${total}`
               : ` · в этой выборке ${total} ${plural(total, 'человек', 'человека', 'человек')}`}
