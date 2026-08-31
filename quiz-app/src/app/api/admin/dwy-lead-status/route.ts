@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
-import { isLeadStatus } from '@/lib/zayavki';
+import { isLeadStatus } from '@/content/lead-status';
 
 // Саша или ассистент ведёт заявку с сайта: статус и заметка. Ключ — id самой
 // заявки, а не человека: один и тот же человек мог прийти дважды (сначала лист

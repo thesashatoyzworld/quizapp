@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   LEAD_STATUSES, STATUS_LABEL, STATUS_COLOR, type LeadStatus,
-} from '@/lib/zayavki';
+} from '@/content/lead-status';
 
 export type LeadRowDto = {
   id: number;

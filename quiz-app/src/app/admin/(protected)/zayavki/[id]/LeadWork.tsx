@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LEAD_STATUSES, STATUS_LABEL, STATUS_COLOR, type LeadStatus } from '@/lib/zayavki';
+import { LEAD_STATUSES, STATUS_LABEL, STATUS_COLOR, type LeadStatus } from '@/content/lead-status';
 
 /** Панель работы с заявкой: статус и заметка. Сохраняется сразу, без кнопки «ок». */
 export default function LeadWork({

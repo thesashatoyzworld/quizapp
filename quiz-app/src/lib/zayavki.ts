@@ -8,33 +8,11 @@
 import { prisma } from '@/lib/prisma';
 import { normalizeInstagram } from '@/lib/dwy-message';
 import { LEVELS, DWY_MODES, isDwyKind } from '@/content/dwy';
+import { LEAD_STATUSES, isLeadStatus, type LeadStatus } from '@/content/lead-status';
 
-/** Стадии работы с заявкой. Порядок = порядок движения по воронке. */
-export const LEAD_STATUSES = ['new', 'written', 'replied', 'call', 'client', 'rejected'] as const;
-export type LeadStatus = (typeof LEAD_STATUSES)[number];
-
-export const STATUS_LABEL: Record<LeadStatus, string> = {
-  new: 'новая',
-  written: 'написал',
-  replied: 'ответил',
-  call: 'созвон',
-  client: 'клиент',
-  rejected: 'отказ',
-};
-
-/** Цвет статуса. Один словарь на список и на карточку, чтобы не разъезжались. */
-export const STATUS_COLOR: Record<LeadStatus, string> = {
-  new: '#00f0ff',
-  written: '#ffd166',
-  replied: '#c792ea',
-  call: '#7ee787',
-  client: '#3fb950',
-  rejected: '#8b949e',
-};
-
-export function isLeadStatus(v: unknown): v is LeadStatus {
-  return typeof v === 'string' && (LEAD_STATUSES as readonly string[]).includes(v);
-}
+export {
+  LEAD_STATUSES, STATUS_LABEL, STATUS_COLOR, isLeadStatus, type LeadStatus,
+} from '@/content/lead-status';
 
 /** Как называется поток: «Анкета на менторство», «Лист ожидания - тариф 2». */
 export function kindLabel(kind: string | null): string {
