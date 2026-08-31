@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import styles from '../roadmap.module.css';
 import RoadmapBoard from './RoadmapBoard';
+import ContentWeeks from './ContentWeeks';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,6 +109,8 @@ export default async function RoadmapPage({ params }: { params: Promise<{ slug: 
       </div>
 
       <RoadmapBoard data={board} />
+
+      <ContentWeeks slug={r.slug} />
     </div>
   );
 }
