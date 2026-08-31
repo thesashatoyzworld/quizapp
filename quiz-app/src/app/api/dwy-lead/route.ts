@@ -6,7 +6,8 @@ import {
   normalizeInstagram, type DwyLeadInput, type DwyPrior,
 } from '@/lib/dwy-message';
 import { isDwyKind, DWY_MODES } from '@/content/dwy';
-import { notifyAdmin } from '@/lib/telegram';
+import { notifyAdminDetailed } from '@/lib/telegram';
+import { leadKeyboard } from '@/lib/lead-keyboard';
 import { matchFormFilled } from '@/lib/ig-leads';
 
 export const runtime = 'nodejs';
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Лид пишем первым. Он не должен теряться, что бы ни случилось с Telegram.
-    await prisma.dwyLead.create({
+    const saved = await prisma.dwyLead.create({
       data: {
         telegramId: null,
         username: lead.username,
@@ -144,11 +145,25 @@ export async function POST(req: NextRequest) {
       // Прогон verify-dwy.mjs бьёт по живому эндпоинту (в том числе на превью,
       // где токен боевой) — Саше от него прилетал десяток тестовых анкет.
       if (lead.source === VERIFY_SOURCE) return;
-      const sent = await notifyAdmin(buildDwyMessage(lead, prior), {
+
+      // Кнопки статуса прямо под уведомлением: написал человеку — тапнул
+      // «написал», и это же состояние встало в разделе «Заявки».
+      const refs = await notifyAdminDetailed(buildDwyMessage(lead, prior), {
         alsoWork: true,
         disableLinkPreview: true,
+        replyMarkup: leadKeyboard(saved.id, 'new'),
       });
-      if (!sent) console.error('[dwy-lead] уведомление не ушло ни одному получателю');
+
+      if (refs.length === 0) {
+        console.error('[dwy-lead] уведомление не ушло ни одному получателю');
+        return;
+      }
+
+      // Запоминаем, куда легло сообщение: нажатие на одном аккаунте должно
+      // перерисовать кнопки и на втором.
+      await prisma.dwyLead
+        .update({ where: { id: saved.id }, data: { notifyRefs: refs } })
+        .catch((e) => console.error('[dwy-lead] не записал notifyRefs', e));
     });
 
     return NextResponse.json({ ok: true });

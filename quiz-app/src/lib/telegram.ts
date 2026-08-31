@@ -162,7 +162,12 @@ export type NotifyAdminOptions = {
    * и Телеграм отвечает 400 вместо доставки.
    */
   parseMode?: 'HTML' | null;
+  /** Кнопки под сообщением. Нажатия ловит telegram-webhook по префиксу в callback_data. */
+  replyMarkup?: object;
 };
+
+/** Куда ушло уведомление: по этой паре потом правим кнопки в уже отправленном сообщении. */
+export type NotifyRef = { chatId: string; messageId: number };
 
 /**
  * Одна отправка с повторами.
@@ -176,7 +181,7 @@ async function sendToAdmin(
   chatId: string,
   text: string,
   options: NotifyAdminOptions,
-): Promise<boolean> {
+): Promise<number | null> {
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -193,12 +198,13 @@ async function sendToAdmin(
           text,
           ...(options.parseMode === null ? {} : { parse_mode: options.parseMode || 'HTML' }),
           ...(options.disableLinkPreview ? { link_preview_options: { is_disabled: true } } : {}),
+          ...(options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
         }),
         signal: ctrl.signal,
       });
       clearTimeout(timer);
       const data = await res.json();
-      if (data.ok === true) return true;
+      if (data.ok === true) return data.result?.message_id ?? 0;
 
       const retryAfter: number | undefined = data?.parameters?.retry_after;
       console.error(
@@ -206,7 +212,7 @@ async function sendToAdmin(
       );
 
       // 429 — ждём столько, сколько просят. Остальные ошибки повтор не лечит.
-      if (data.error_code !== 429) return false;
+      if (data.error_code !== 429) return null;
       if (attempt < 3) await new Promise((r) => setTimeout(r, (retryAfter || 1) * 1000));
     } catch (error) {
       console.error(`[notifyAdmin] ${chatId} попытка ${attempt} упала:`, error);
@@ -214,26 +220,30 @@ async function sendToAdmin(
     }
   }
 
-  return false;
+  return null;
 }
 
 /**
  * Уведомление Саше. С `alsoWork` уходит ещё и на рабочий аккаунт.
  *
+ * Возвращает, куда именно легло сообщение. Это нужно кнопкам под заявкой:
+ * нажали на личном аккаунте — перерисовать надо и на рабочем, а для этого
+ * нужны оба message_id.
+ *
  * Получатели независимы: молчание рабочего аккаунта не должно скрывать то,
- * что личный своё сообщение получил, поэтому true возвращаем, если дошло
- * хотя бы до одного, а по каждому отказу пишем в лог.
+ * что личный своё сообщение получил, поэтому по каждому отказу пишем в лог,
+ * а результат отдаём по тем, кому дошло.
  */
-export async function notifyAdmin(
+export async function notifyAdminDetailed(
   text: string,
   options: NotifyAdminOptions = {},
-): Promise<boolean> {
-  if (!BOT_TOKEN) return false;
+): Promise<NotifyRef[]> {
+  if (!BOT_TOKEN) return [];
 
   const adminChatId = await getAdminChatId();
   if (!adminChatId) {
     console.error('[notifyAdmin] некому писать: ADMIN_CHAT_ID не задан');
-    return false;
+    return [];
   }
 
   const recipients = [adminChatId];
@@ -242,8 +252,43 @@ export async function notifyAdmin(
   }
 
   const results = await Promise.all(
-    recipients.map((chatId) => sendToAdmin(chatId, text, options)),
+    recipients.map(async (chatId) => {
+      const messageId = await sendToAdmin(chatId, text, options);
+      return messageId === null ? null : { chatId, messageId };
+    }),
   );
 
-  return results.some(Boolean);
+  return results.filter((r): r is NotifyRef => r !== null);
+}
+
+/** То же самое, когда важен только факт доставки. */
+export async function notifyAdmin(
+  text: string,
+  options: NotifyAdminOptions = {},
+): Promise<boolean> {
+  const refs = await notifyAdminDetailed(text, options);
+  return refs.length > 0;
+}
+
+/** Перерисовать кнопки в уже отправленном уведомлении. */
+export async function editAdminMarkup(ref: NotifyRef, replyMarkup: object): Promise<void> {
+  if (!BOT_TOKEN) return;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageReplyMarkup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: ref.chatId,
+        message_id: ref.messageId,
+        reply_markup: replyMarkup,
+      }),
+    });
+    const data = await res.json();
+    // «message is not modified» — обычное дело: тот же статус нажали дважды.
+    if (data.ok !== true && !String(data.description || '').includes('not modified')) {
+      console.error('[editAdminMarkup] telegram отказал', data.error_code, data.description);
+    }
+  } catch (error) {
+    console.error('[editAdminMarkup] упало:', error);
+  }
 }
