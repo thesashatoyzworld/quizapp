@@ -48,11 +48,13 @@ export default function IgLeadsClient({
   automations,
   lastSyncAt,
   funnel,
+  query,
 }: {
   leads: IgLead[];
   automations: IgAutomationOption[];
   lastSyncAt: string | null;
   funnel: string;
+  query: string;
 }) {
   const router = useRouter();
   const [leads, setLeads] = useState(initial);
@@ -60,6 +62,7 @@ export default function IgLeadsClient({
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [threads, setThreads] = useState<Record<string, IgMessage[] | 'loading' | 'error'>>({});
+  const [q, setQ] = useState(query);
   const [syncing, setSyncing] = useState(false);
   const [syncNote, setSyncNote] = useState<string | null>(null);
   const autoSynced = useRef(false);
@@ -165,7 +168,11 @@ export default function IgLeadsClient({
             // воронку на сорок человек, а видишь двоих — тех, кто попал под
             // прошлый фильтр.
             setFilter('all');
-            router.push(e.target.value === 'all' ? '/admin/instagram' : `/admin/instagram?funnel=${e.target.value}`);
+            const params = new URLSearchParams();
+            if (e.target.value !== 'all') params.set('funnel', e.target.value);
+            if (query) params.set('q', query);
+            const qs = params.toString();
+            router.push(qs ? `/admin/instagram?${qs}` : '/admin/instagram');
           }}
           style={{
           background: 'var(--bg-primary)', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.12)',
@@ -178,6 +185,52 @@ export default function IgLeadsClient({
             </option>
           ))}
         </select>
+
+        {/* Ищем в базе, а не в отданной пятисотке: человек, писавший весной,
+            в свежую страницу не попадает. */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const params = new URLSearchParams();
+            if (funnel && funnel !== 'all') params.set('funnel', funnel);
+            if (q.trim()) params.set('q', q.trim());
+            const qs = params.toString();
+            router.push(qs ? `/admin/instagram?${qs}` : '/admin/instagram');
+          }}
+          style={{ display: 'flex', gap: 6 }}
+        >
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="ник или имя"
+            style={{
+              background: 'var(--bg-primary)', color: 'var(--text-secondary)',
+              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6,
+              padding: '6px 10px', fontSize: '0.82rem', width: 200,
+            }}
+          />
+          <button type="submit" style={{
+            padding: '6px 14px', borderRadius: 6, border: '1px solid rgba(0,240,255,0.4)',
+            background: 'rgba(0,240,255,0.08)', color: 'var(--neon-cyan)', fontSize: '0.82rem', cursor: 'pointer',
+          }}>
+            искать
+          </button>
+          {query && (
+            <button
+              type="button"
+              onClick={() => {
+                setQ('');
+                router.push(funnel && funnel !== 'all' ? `/admin/instagram?funnel=${funnel}` : '/admin/instagram');
+              }}
+              style={{
+                padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)',
+                background: 'transparent', color: 'var(--text-secondary)', fontSize: '0.82rem', cursor: 'pointer',
+              }}
+            >
+              сбросить
+            </button>
+          )}
+        </form>
 
         <button onClick={() => sync()} disabled={syncing} style={{
           padding: '6px 14px', borderRadius: 6, border: '1px solid rgba(0,240,255,0.4)',
@@ -201,9 +254,11 @@ export default function IgLeadsClient({
 
         <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem' }}>
           {syncNote || (lastSyncAt ? `последняя сверка ${fmt(lastSyncAt)}` : 'ещё ни разу не тянули')}
-          {total > leads.length
-            ? ` · показаны свежие ${leads.length} из ${total}`
-            : ` · в этой выборке ${total} ${plural(total, 'человек', 'человека', 'человек')}`}
+          {query
+            ? ` · нашли ${leads.length} ${plural(leads.length, 'человека', 'человек', 'человек')} по «${query}»`
+            : total > leads.length
+              ? ` · показаны свежие ${leads.length} из ${total}`
+              : ` · в этой выборке ${total} ${plural(total, 'человек', 'человека', 'человек')}`}
         </span>
       </div>
 
@@ -326,7 +381,9 @@ export default function IgLeadsClient({
             })}
             {shown.length === 0 && (
               <tr><td colSpan={8} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)', padding: 28 }}>
-                {leads.length === 0 ? 'Пока пусто — нажми «обновить»' : 'Пусто в этом фильтре'}
+                {query && leads.length === 0
+                  ? `По «${query}» никого. Возможно, человек ещё не выкачан — нажми «за всё время»`
+                  : leads.length === 0 ? 'Пока пусто — нажми «обновить»' : 'Пусто в этом фильтре'}
               </td></tr>
             )}
           </tbody>

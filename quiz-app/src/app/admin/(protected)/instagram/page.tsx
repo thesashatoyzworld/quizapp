@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic';
 export default async function InstagramLeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ funnel?: string }>;
+  searchParams: Promise<{ funnel?: string; q?: string }>;
 }) {
-  const { funnel } = await searchParams;
+  const { funnel, q } = await searchParams;
   let leads, automations, lastSyncAt;
 
   try {
@@ -18,7 +18,7 @@ export default async function InstagramLeadsPage({
     await matchFormFilled().catch((e) => console.error('[Instagram leads] сверка с анкетами:', e));
 
     [leads, automations, lastSyncAt] = await Promise.all([
-      getIgLeads({ automationId: funnel && funnel !== 'all' ? funnel : undefined }),
+      getIgLeads({ automationId: funnel && funnel !== 'all' ? funnel : undefined, q }),
       getIgAutomationOptions(),
       getLastSyncAt(),
     ]);
@@ -37,7 +37,13 @@ export default async function InstagramLeadsPage({
   return (
     <div style={{ maxWidth: 1180 }}>
       <IgNav active="/admin/instagram" />
-      <IgLeadsClient leads={leads} automations={automations} lastSyncAt={lastSyncAt} funnel={funnel || 'all'} />
+      <IgLeadsClient
+        leads={leads}
+        automations={automations}
+        lastSyncAt={lastSyncAt}
+        funnel={funnel || 'all'}
+        query={q || ''}
+      />
     </div>
   );
 }

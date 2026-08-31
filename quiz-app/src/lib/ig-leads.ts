@@ -288,9 +288,31 @@ export async function syncIgLeads(opts: { full?: boolean } = {}): Promise<SyncRe
 // выбрали. Фильтр по статусу и поиск дальше делает уже сама страница.
 export const IG_PAGE_SIZE = 500;
 
-export async function getIgLeads(opts: { automationId?: string } = {}): Promise<IgLead[]> {
+/**
+ * Люди из воронок.
+ *
+ * `q` ищет по нику и имени и делает это в базе, а не в уже отданной странице:
+ * на экран приходит 500 свежих из четырёх тысяч, и человек, писавший в июне,
+ * в этой пятисотке не лежит.
+ */
+export async function getIgLeads(
+  opts: { automationId?: string; q?: string } = {},
+): Promise<IgLead[]> {
+  const q = (opts.q || '').trim().replace(/^@/, '');
+
   const rows = await prisma.igLead.findMany({
-    where: opts.automationId ? { automationId: opts.automationId } : undefined,
+    where: {
+      ...(opts.automationId ? { automationId: opts.automationId } : {}),
+      ...(q
+        ? {
+            OR: [
+              { username: { contains: q, mode: 'insensitive' as const } },
+              { name: { contains: q, mode: 'insensitive' as const } },
+              { formName: { contains: q, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { lastEventAt: 'desc' },
     take: IG_PAGE_SIZE,
   });
