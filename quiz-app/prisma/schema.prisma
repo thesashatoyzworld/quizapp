@@ -321,6 +321,13 @@ model DwyLead {
   updatedBy String?   @map("updated_by")
   updatedAt DateTime? @map("updated_at")
 
+  /**
+   * Куда бот отправил уведомление об этой заявке: [{ chatId, messageId }].
+   * Нажатие кнопки в одном чате перерисовывает кнопки во всех — иначе на личном
+   * и на рабочем аккаунте под одной заявкой висели бы разные статусы.
+   */
+  notifyRefs Json? @map("notify_refs")
+
   @@index([status])
   @@index([createdAt(sort: Desc)])
   @@map("dwy_leads")

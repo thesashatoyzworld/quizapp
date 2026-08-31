@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
 import { isLeadStatus } from '@/content/lead-status';
+import { editAdminMarkup, type NotifyRef } from '@/lib/telegram';
+import { leadKeyboard } from '@/lib/lead-keyboard';
 
 // Саша или ассистент ведёт заявку с сайта: статус и заметка. Ключ — id самой
 // заявки, а не человека: один и тот же человек мог прийти дважды (сначала лист
@@ -29,6 +31,14 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     },
   });
+
+  // Статус поменяли в кабинете — перерисуем кнопки под уведомлением в боте,
+  // иначе там останется прежняя галочка и два места будут спорить друг с другом.
+  if (status !== undefined && Array.isArray(row.notifyRefs)) {
+    const refs = row.notifyRefs as unknown as NotifyRef[];
+    const markup = leadKeyboard(row.id, status);
+    await Promise.all(refs.map((ref) => editAdminMarkup(ref, markup)));
+  }
 
   return NextResponse.json({
     ok: true,

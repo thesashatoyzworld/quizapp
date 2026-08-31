@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { trackEvent } from '@/lib/notion';
-import { notifyAdmin, sendBotMessage } from '@/lib/telegram';
+import { notifyAdmin, sendBotMessage, editAdminMarkup, type NotifyRef } from '@/lib/telegram';
+import { leadKeyboard, parseLeadCallback } from '@/lib/lead-keyboard';
+import { STATUS_LABEL, type LeadStatus } from '@/content/lead-status';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
@@ -246,6 +248,61 @@ async function sendSubscriptionGate(chatId: number, slug: string, lm: LeadMagnet
  * бот админом сидит в клиентских группах, и без этой проверки он принимал
  * сообщения оттуда за ответы на вопросы анкеты и отвечал прямо в группу.
  */
+/** Кому вообще можно менять статус заявки кнопкой: только личный и рабочий аккаунт Саши. */
+function isAdminChat(chatId: number | string): boolean {
+  const id = String(chatId);
+  return [process.env.ADMIN_CHAT_ID, process.env.ADMIN_CHAT_ID_WORK]
+    .map((v) => (v || '').trim())
+    .filter(Boolean)
+    .includes(id);
+}
+
+/**
+ * Нажали кнопку статуса под заявкой.
+ *
+ * Статус пишем в ту же колонку, что правится в кабинете, — раздел «Заявки» и бот
+ * показывают одно и то же. Кнопки перерисовываем во всех чатах, куда уходило
+ * уведомление: на личном и рабочем аккаунте под одной заявкой не должно висеть
+ * два разных состояния.
+ */
+async function handleLeadStatusButton(
+  cb: NonNullable<TelegramUpdate['callback_query']>,
+  leadId: number,
+  status: LeadStatus,
+) {
+  const chatId = cb.message?.chat.id;
+  if (chatId === undefined || !isAdminChat(chatId)) {
+    await answerCallbackQuery(cb.id);
+    return;
+  }
+
+  const who = cb.from.username ? '@' + cb.from.username : `tg:${cb.from.id}`;
+
+  let lead;
+  try {
+    lead = await prisma.dwyLead.update({
+      where: { id: leadId },
+      data: { status, updatedBy: who, updatedAt: new Date() },
+    });
+  } catch (error) {
+    console.error('[lead-button] не записал статус', error);
+    await answerCallbackQuery(cb.id, 'Не сохранилось, попробуй ещё раз');
+    return;
+  }
+
+  await answerCallbackQuery(cb.id, `Статус: ${STATUS_LABEL[status]}`);
+
+  // Куда уходило уведомление. Старые заявки этого не помнят — тогда правим
+  // хотя бы то сообщение, по которому нажали.
+  const stored = Array.isArray(lead.notifyRefs) ? (lead.notifyRefs as unknown as NotifyRef[]) : [];
+  const refs = stored.length
+    ? stored
+    : [{ chatId: String(chatId), messageId: cb.message!.message_id }];
+
+  const markup = leadKeyboard(leadId, status);
+  await Promise.all(refs.map((ref) => editAdminMarkup(ref, markup)));
+}
+
 function isPrivateChat(chat: { id: number; type?: string }, fromId?: number): boolean {
   if (chat.type) return chat.type === 'private';
   return fromId !== undefined && chat.id === fromId;
@@ -265,6 +322,13 @@ export async function POST(request: NextRequest) {
     if (update.callback_query) {
       const cb = update.callback_query;
       const data = cb.data || '';
+
+      // Кнопки статуса под уведомлением о заявке с сайта.
+      const leadHit = parseLeadCallback(data);
+      if (leadHit) {
+        await handleLeadStatusButton(cb, leadHit.leadId, leadHit.status);
+        return NextResponse.json({ ok: true });
+      }
 
       // Кнопки анкеты тарифа 3
       if (data.startsWith('intake:') && cb.message) {
