@@ -313,6 +313,16 @@ model DwyLead {
   source     String?
   createdAt  DateTime @default(now()) @map("created_at")
 
+  // Работа с заявкой. Отдельная таблица статусов (lead_status) сюда не подходит:
+  // она ключуется по telegram_id, а в анкете с сайта его нет ни у кого — человек
+  // приходит из шапки профиля, без Telegram-логина.
+  status    String    @default("new") // new | written | replied | call | client | rejected
+  note      String?
+  updatedBy String?   @map("updated_by")
+  updatedAt DateTime? @map("updated_at")
+
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
   @@map("dwy_leads")
 }
 
