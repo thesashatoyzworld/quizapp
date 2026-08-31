@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { href: '/admin/payments', label: 'Оплаты' },
   { href: '/admin/broadcasts', label: 'Рассылки' },
   { href: '/admin/instagram', label: 'Инстаграм' },
+  { href: '/admin/content', label: 'Контент' },
   { href: '/admin/euvgen', label: 'EuvgenGlob' },
   { href: '/admin/sync', label: 'SYNC' },
 ];
