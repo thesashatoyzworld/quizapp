@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { trackEvent, markFollowUpPaid, getAdminChatId, getUserInfo } from '@/lib/notion';
+import { trackEvent, markFollowUpPaid, getUserInfo } from '@/lib/notion';
 import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { grantAccess } from '@/lib/access';
 import { ensureIntake, sendPreamble, intakeTotal, withCount } from '@/lib/intake';
 import { sendWelcomeT2 } from '@/lib/onboarding';
-import { sendBotMessage } from '@/lib/telegram';
+import { sendBotMessage, notifyAdmin } from '@/lib/telegram';
 import { INTAKE_INVITE, INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
 import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
 
@@ -155,28 +155,9 @@ async function sendMaterialsToUser(tgUserId: number) {
   }
 }
 
-async function notifyAdmin(tgUserId: number, resultId: string) {
-  if (!BOT_TOKEN) return;
-
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
+async function notifyAdminMasterclass(tgUserId: number, resultId: string) {
   const text = `Оплата 3,450 руб от user ${tgUserId} (результат: ${resultId})`;
-
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: adminChatId,
-        text,
-        parse_mode: 'HTML',
-      }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true });
 }
 
 async function sendMidSequenceThankYou(tgUserId: number) {
@@ -228,27 +209,8 @@ async function sendConnectorsConfirmation(tgUserId: number, tierLabel: string) {
 }
 
 async function notifyAdminConnectors(tgUserId: number, tierLabel: string, amount: number, resultId: string) {
-  if (!BOT_TOKEN) return;
-
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   const text = `Коннекторы: оплата ${amount.toLocaleString('ru-RU')} руб (${tierLabel}) от user ${tgUserId} (результат: ${resultId})`;
-
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: adminChatId,
-        text,
-        parse_mode: 'HTML',
-      }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about connectors payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true });
 }
 
 // МК «Разрешение быстрых денег»: подтверждение оплаты + кнопка кабинета (доступ-роль).
@@ -281,62 +243,20 @@ async function sendMkDengiConfirmation(tgUserId: number) {
 }
 
 async function notifyAdminMkDengi(tgUserId: number, amount: number, orderId: string) {
-  if (!BOT_TOKEN) return;
-
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   const text = `💰 Оплата МК «Разрешение быстрых денег»\n\n${amount.toLocaleString('ru-RU')} ₽ от user ${tgUserId}\nOrder: ${orderId}`;
-
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about MK Dengi payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 // Оплата МК с веб-лендинга — без Telegram-привязки. Уведомляем Сашу с контактом.
 async function notifyAdminMkDengiWeb(amount: number, email: string, phone: string, orderId: string) {
-  if (!BOT_TOKEN) return;
-
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   const contact = [email, phone].filter(Boolean).join(' / ') || 'контакт не передан';
   const text = `💰 Оплата МК «Разрешение быстрых денег» (с лендинга)\n\n${amount.toLocaleString('ru-RU')} ₽\nКонтакт: ${contact}\nOrder: ${orderId}\n\n⚠️ Без Telegram-привязки — доступ выдай вручную.`;
-
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about MK Dengi web payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 async function notifyAdminUroven(productName: string, amount: number, contact: string, orderId: string) {
-  if (!BOT_TOKEN) return;
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   const text = `💳 Оплата «Новый уровень контента»\n\n${productName}\n${amount.toLocaleString('ru-RU')} ₽\nКонтакт: ${contact}\nOrder: ${orderId}`;
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about Uroven payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 // Оплата дошла до Продамуса, но не завершилась (карта отклонена / рассрочка не
@@ -348,10 +268,6 @@ async function notifyAdminUnderpaid(
   productName: string, expected: number, paid: number,
   contact: string, orderId: string,
 ) {
-  if (!BOT_TOKEN) return;
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   const text = [
     '⚠️ Недоплата — доступ НЕ выдан',
     '',
@@ -363,15 +279,7 @@ async function notifyAdminUnderpaid(
     '',
     'Деньги у тебя. Решаешь ты: выдать доступ вручную или попросить дослать разницу.',
   ].join('\n');
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about underpayment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 // Успешный платёж, чей order_id мы не разобрали: счёт выставлен руками из
@@ -382,10 +290,6 @@ async function notifyAdminUnknownPayment(
   productName: string, amount: string, email: string, phone: string,
   orderId: string, init: string,
 ) {
-  if (!BOT_TOKEN) return;
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   let name = productName;
   try { name = decodeURIComponent(productName); } catch { /* keep as-is */ }
   name = name.replace(/&quot;/g, '"');
@@ -401,25 +305,13 @@ async function notifyAdminUnknownPayment(
     'Доступ НЕ выдан: order_id не наш. Если это оплата тарифа — выдай ссылкой',
     'node scripts/grant-gift-link.mjs <username> uroven-t2',
   ].filter((l) => l !== '').join('\n');
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about unknown payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 async function notifyAdminPaymentFailed(
   status: string, statusDesc: string, productName: string,
   amount: string, email: string, phone: string, orderId: string,
 ) {
-  if (!BOT_TOKEN) return;
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   let name = productName;
   try { name = decodeURIComponent(productName); } catch { /* keep as-is */ }
   const contact = [email, phone].filter(Boolean).join(' · ') || 'нет контакта';
@@ -430,39 +322,11 @@ async function notifyAdminPaymentFailed(
     + `Контакт: ${contact}\n`
     + `Order: ${orderId || '—'}\n\n`
     + `⚡ Дошёл до оплаты, сорвалось — можно дожать по горячим следам.`;
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about failed payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 async function notifyAdminError(errorMessage: string) {
-  if (!BOT_TOKEN) return;
-
-  try {
-    const adminChatId = await getAdminChatId();
-    if (!adminChatId) return;
-
-    const text = `⚠️ Ошибка webhook: ${errorMessage}`;
-
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: adminChatId,
-        text,
-        parse_mode: 'HTML',
-      }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about error:', error);
-  }
+  await notifyAdmin(`⚠️ Ошибка webhook: ${errorMessage}`);
 }
 
 export async function POST(request: NextRequest) {
@@ -768,17 +632,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Always notify admin
-      if (BOT_TOKEN) {
-        const adminChatId = await getAdminChatId();
-        if (adminChatId) {
-          const src = tgUserId ? `TG Mini App (user ${tgUserId})` : 'Сайт';
-          const text = `Оплата МК Синхронизация!\n\n${productName} — ${amount} руб\nИсточник: ${src}\nКонтакт: ${contact}\nOrder: ${orderId}`;
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: adminChatId, text }),
-          });
-        }
+      {
+        const src = tgUserId ? `TG Mini App (user ${tgUserId})` : 'Сайт';
+        const text = `Оплата МК Синхронизация!\n\n${productName} — ${amount} руб\nИсточник: ${src}\nКонтакт: ${contact}\nOrder: ${orderId}`;
+        await notifyAdmin(text, { alsoWork: true, parseMode: null });
       }
 
       // Record purchase in Supabase
@@ -853,7 +710,7 @@ export async function POST(request: NextRequest) {
 
       await Promise.all([
         sendMaterialsToUser(tgUserId),
-        notifyAdmin(tgUserId, resultId),
+        notifyAdminMasterclass(tgUserId, resultId),
         trackEvent({
           event_type: 'payment_success',
           user_id: tgUserId,

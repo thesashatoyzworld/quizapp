@@ -728,7 +728,8 @@ export async function POST(request: NextRequest) {
           }
 
           await notifyAdmin(
-            `✅ <b>Доступ выдан по коду</b> (оплата картой)\n\n${product.name}\n👤 ${fullName || '—'}\n💬 ${username ? '@' + username : 'без username'}\n🆔 <code>${chatId}</code>\nToken: <code>${token}</code>`
+            `✅ <b>Доступ выдан по коду</b> (оплата картой)\n\n${product.name}\n👤 ${fullName || '—'}\n💬 ${username ? '@' + username : 'без username'}\n🆔 <code>${chatId}</code>\nToken: <code>${token}</code>`,
+            { alsoWork: true },
           );
         } catch (err) {
           console.error('paid redeem error:', err);
