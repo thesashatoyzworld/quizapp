@@ -6,6 +6,7 @@
 // выдуманная ссылка невозможна в принципе.
 
 import Anthropic from '@anthropic-ai/sdk';
+import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import type { MapEntry } from '@/lib/kb/map';
 import { SYSTEM, buildUserPrompt } from './prompt';
 import { materialUrl, type RoadmapSource } from './source';
@@ -291,6 +292,8 @@ export async function generateRoadmap(source: RoadmapSource, startedAt: Date, ac
       messages: [{ role: 'user', content: user }],
     })
     .finalMessage();
+
+  await recordAnthropicUsage(MODEL, message.usage);
 
   const block = message.content.find((b) => b.type === 'tool_use' && b.name === 'roadmap');
   if (!block || block.type !== 'tool_use') {
