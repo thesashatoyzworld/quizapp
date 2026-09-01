@@ -193,3 +193,10 @@ export async function listChats(maxPages = 20): Promise<CpChat[]> {
 export function listChatMessages(chatId: string, limit = 40): Promise<CpMessage[]> {
   return call<CpMessage[]>('chats_messages', { chatId, limit, page: 1 });
 }
+
+// Список чатов ника не отдаёт, а карточка чата отдаёт. Нужно, когда человек
+// написал сам, минуя кодовое слово: в ig_lead его нет, и найти его можно
+// только перебрав свежие чаты.
+export function getChat(chatId: string): Promise<CpChat & { username: string | null }> {
+  return call<CpChat & { username: string | null }>('chats_get', { chatId });
+}

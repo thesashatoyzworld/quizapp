@@ -1,0 +1,149 @@
+import Anthropic from '@anthropic-ai/sdk';
+import { SALES_KB } from '@/content/sales-kb';
+import { findThread, renderThread, type SalesThread } from './lead';
+
+// Помощник в продажах: смотрит живую переписку и предлагает, что написать
+// дальше. Не отправляет сам — решение и отправка остаются за человеком.
+
+const anthropic = new Anthropic();
+
+export type SalesVariant = { text: string; why: string };
+export type SalesAnswer = {
+  found: boolean;
+  who: string;
+  waiting: string | null;
+  variants: SalesVariant[];
+  callSasha: string | null;
+  thread: SalesThread | null;
+};
+
+const SYSTEM = `Ты помогаешь вести переписки в инстаграм-директе за Сашу.
+
+С тобой разговаривает ассистент. Всё, что ты пишешь, он прочитает, при желании
+поправит и отправит человеку от лица Саши. Поэтому давай готовый текст
+сообщения, а не советы о том, что стоило бы написать.
+
+Ниже вся база: как Саша говорит, что продаёт, по каким ценам, какие приёмы
+использует и что кому отправляет. Отвечай только по ней.
+
+ГЛАВНОЕ ПРАВИЛО: не выдумывай. Цифры, схемы оплаты, ссылки и обещания бери
+только из базы. Не нашёл — так и скажи и позови Сашу.
+
+Дай ДВА-ТРИ разных варианта следующего сообщения, а не один. Варианты должны
+отличаться ходом, а не словами: например, один бьёт в противоречие, другой
+отправляет кейс, третий задаёт вопрос про ситуацию. К каждому одной строкой
+объясни, почему он и на какой похожий случай опирается.
+
+Как писать сами сообщения:
+- строчные буквы, короткие строки, мысль на строку, точки в конце не ставятся
+- один вопрос в сообщении, не два
+- вопрос всегда про то, что человек сам написал
+- никакого канцелярита и «доброго времени суток»
+- мат допустим, но редко и по делу
+
+Чего не делать:
+- называть цену тому, кто ничего не смотрел
+- дожимать: если человек упёрся, правильный ход это короткая фраза без обиды
+- первым заговаривать про возврат денег
+- предлагать схему оплаты, которой нет в базе
+- придумывать за Сашу голосовые
+
+Если разговор дошёл до цены менторства, до созвона, до страха «наставник
+пропадёт», до «я не смогу как в кейсе», до бесплатного разбора, до возврата
+денег или до дохода от 500 тысяч — заполни callSasha и объясни, почему здесь
+нужен Саша. Варианты всё равно дай: ассистенту есть что написать до передачи.`;
+
+const SCHEMA = {
+  type: 'object',
+  properties: {
+    // Количество вариантов задано в системном промпте: схема принимает
+    // minItems только 0 или 1, ограничение «два-три» через неё не выразить.
+    variants: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          text: { type: 'string', description: 'готовое сообщение целиком' },
+          why: { type: 'string', description: 'одной строкой: почему так и на какой случай опирается' },
+        },
+        required: ['text', 'why'],
+        additionalProperties: false,
+      },
+    },
+    callSasha: {
+      type: ['string', 'null'],
+      description: 'если нужен Саша — почему; иначе null',
+    },
+  },
+  required: ['variants', 'callSasha'],
+  additionalProperties: false,
+} as const;
+
+function waitingFor(thread: SalesThread): string | null {
+  const last = thread.messages[thread.messages.length - 1];
+  if (!last || last.side !== 'client') return null;
+  const hours = Math.round((Date.now() - last.createdAt * 1000) / 3_600_000);
+  if (hours < 1) return 'меньше часа';
+  if (hours < 24) return `${hours} ч`;
+  return `${Math.round(hours / 24)} дн`;
+}
+
+/** Ник человека → что ему написать дальше. */
+export async function suggestReply(handle: string): Promise<SalesAnswer> {
+  const thread = await findThread(handle);
+  if (!thread) {
+    return {
+      found: false,
+      who: handle,
+      waiting: null,
+      variants: [],
+      callSasha: null,
+      thread: null,
+    };
+  }
+
+  const { lead, messages } = thread;
+  const about = [
+    lead.handle ? `ник: @${lead.handle}` : null,
+    lead.name ? `имя в инстаграме: ${lead.name}` : null,
+    lead.keyword ? `пришёл по кодовому слову: ${lead.keyword}` : null,
+    lead.automationName ? `воронка: ${lead.automationName}` : null,
+    lead.formKind ? `ВНИМАНИЕ: уже оставил анкету (${lead.formKind}), из холодной ему не пишем` : null,
+    lead.note ? `заметка ассистента: ${lead.note}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const res = await anthropic.messages.create({
+    model: 'claude-sonnet-5',
+    max_tokens: 2000,
+    system: [
+      // База не меняется от запроса к запросу — держим её первой и кэшируем,
+      // тогда повторные вопросы стоят копейки.
+      { type: 'text' as const, text: SYSTEM },
+      { type: 'text' as const, text: SALES_KB, cache_control: { type: 'ephemeral' as const } },
+    ],
+    messages: [
+      {
+        role: 'user',
+        content: `Человек:\n${about || 'ничего не известно, кроме ника'}\n\nПереписка:\n${renderThread(messages)}\n\nЧто написать дальше?`,
+      },
+    ],
+    output_config: { format: { type: 'json_schema', schema: SCHEMA } },
+  });
+
+  const block = res.content.find((b) => b.type === 'text');
+  const parsed =
+    block && block.type === 'text'
+      ? (JSON.parse(block.text) as { variants: SalesVariant[]; callSasha: string | null })
+      : { variants: [], callSasha: null };
+
+  return {
+    found: true,
+    who: lead.handle ? `@${lead.handle}` : lead.name || handle,
+    waiting: waitingFor(thread),
+    variants: parsed.variants,
+    callSasha: parsed.callSasha,
+    thread,
+  };
+}
