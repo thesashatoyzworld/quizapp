@@ -5,6 +5,7 @@
 // знаний: не хватило текста — возвращает признак «ответа нет».
 
 import Anthropic from '@anthropic-ai/sdk';
+import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { materialText, renderMap, textAround, type MapEntry } from './map';
 
 const MODEL = process.env.KB_MODEL || 'claude-haiku-4-5';
@@ -52,7 +53,8 @@ export interface KbUsage {
 
 export const ZERO_USAGE: KbUsage = { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 };
 
-function addUsage(a: KbUsage, m: Anthropic.Message): KbUsage {
+async function addUsage(a: KbUsage, m: Anthropic.Message): Promise<KbUsage> {
+  await recordAnthropicUsage(MODEL, m.usage);
   return {
     input: a.input + m.usage.input_tokens,
     cacheRead: a.cacheRead + (m.usage.cache_read_input_tokens ?? 0),
@@ -190,7 +192,7 @@ export async function selectEntry(
     messages: [{ role: 'user', content: question }],
   });
 
-  const usage = addUsage(ZERO_USAGE, message);
+  const usage = await addUsage(ZERO_USAGE, message);
   const picked = firstJson<{ found: boolean; id: string; block: string }>(message);
   if (!picked?.found || !picked.id) return { entry: null, block: null, usage };
 
@@ -238,7 +240,7 @@ export async function answerFrom(
       ],
     });
 
-    usage = addUsage(usage, message);
+    usage = await addUsage(usage, message);
     const parsed = firstJson<{ found: boolean; answer: string; block: string }>(message);
     if (parsed?.found && parsed.answer.trim()) {
       return {

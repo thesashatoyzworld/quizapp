@@ -58,6 +58,8 @@ export const METRIC_LABEL: Record<string, string> = {
   characters: 'символы',
   input_tokens: 'входные токены',
   output_tokens: 'выходные токены',
+  cache_read_tokens: 'токены из кэша',
+  cache_write_tokens: 'запись в кэш',
 };
 
 /** Человеческий вид значения метрики: байты в гигабайтах, секунды в минутах. */
