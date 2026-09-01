@@ -17,10 +17,8 @@ const NAV_LINKS = [
   { href: '/admin/payments', label: 'Оплаты' },
   { href: '/admin/rashody', label: 'Расходы' },
   { href: '/admin/broadcasts', label: 'Рассылки' },
-  { href: '/admin/instagram', label: 'Инстаграм' },
+  { href: '/admin/instagram', label: 'Instagram' },
   { href: '/admin/content', label: 'Контент' },
-  { href: '/admin/euvgen', label: 'EuvgenGlob' },
-  { href: '/admin/sync', label: 'SYNC' },
 ];
 
 export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
