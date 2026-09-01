@@ -39,6 +39,23 @@ const TIERS: Record<string, { name: string; price: number; sub?: string }> = {
   t3: { name: 'Тариф 3 (делаем вместе)', price: 50000, sub: '2989937' },
 };
 
+// Кто зашёл в тариф 2 по 7 500, тот и продлевается по 7 500: цену задним числом
+// человеку не поднимаем. Ссылка при этом одна на всех — карточку подписки
+// выбирает сервер по telegram_id, а не отдельная ссылка со старой ценой.
+// Список поимённый, потому что вывести его из данных нельзя: оплаты шли мимо
+// системы (крипта, перевод, счёт руками), и в purchases их попросту нет.
+// Ирина, Анна и Михаил сюда НЕ входят — они добрали т1 до десяти тысяч.
+const LEGACY_T2_SUB = '2987944'; // старая карточка Продамуса, 7 500/мес
+const LEGACY_T2_PRICE = 7500;
+const LEGACY_T2: Record<string, string> = {
+  '125013977': 'dmk1982',
+  '737814065': 'Netpregrad',
+  '826748516': 'keepcalmanddoyoga8',
+  '406295413': 'unforgettable_inna',
+  '364601750': 'jeckas_telko',
+  '171377516': 'Zohanty',
+};
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ tier: string }> }) {
   const { tier: raw } = await params;
   const tier = TIERS[raw] ? raw : 't1';
@@ -68,6 +85,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const uid = (request.nextUrl.searchParams.get('u') || '').replace(/\D/g, '').slice(0, 15);
   const byTelegram = uid.length >= 3;
 
+  // Старая цена тарифа 2 — только по узнанному Telegram: без него мы не знаем,
+  // кто пришёл, и продаём по текущей цене.
+  const legacyT2 = tier === 't2' && byTelegram && !!LEGACY_T2[uid];
+
   // base36 без «_», иначе ломается разбор order_id по «_web_»
   const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const orderId = byTelegram ? `uroven_${tier}_${uid}` : `uroven_${tier}_web_${token}`;
@@ -88,7 +109,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     urlNotification: NOTIFY,
     urlSuccess: bind,
   };
-  if (t.sub) {
+  if (legacyT2) {
+    fields.subscription = LEGACY_T2_SUB;
+  } else if (t.sub) {
     fields.subscription = t.sub;
   } else {
     fields['products[0][name]'] = name;
@@ -105,7 +128,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       event_type: 'checkout_open',
       utm_source: src ? `uroven_${src}` : 'uroven_paylink',
       metadata: {
-        tag: 'uroven', tier, price: t.price,
+        tag: 'uroven', tier, price: legacyT2 ? LEGACY_T2_PRICE : t.price,
+        legacy: legacyT2 ? LEGACY_T2[uid] : undefined,
         method: byTelegram ? 'paylink_tg' : 'paylink',
         order_id: orderId, src: src || null,
         tg: byTelegram ? Number(uid) : undefined,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { forTelegram, findForTelegram, toCard } from '@/content/lichnoe';
+import { playerSrc, videoBridge } from '@/lib/cabinet-video';
 
 export const runtime = 'nodejs';
 
@@ -21,7 +22,7 @@ function videoBlock(kinescopeId: string): string {
     return '<div class="rz-video rz-video-soon">Запись созвона появится здесь</div>';
   }
   return (
-    '<div class="rz-video"><iframe src="https://kinescope.io/embed/' + kinescopeId + '" ' +
+    '<div class="rz-video"><iframe src="' + playerSrc(kinescopeId) + '" ' +
     'allow="autoplay; fullscreen; picture-in-picture; encrypted-media;" allowfullscreen ' +
     'frameborder="0" title="Запись созвона"></iframe></div>'
   );
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
       }
       const html = material.html
         .replace('<!--VIDEO_SLOT-->', videoBlock(material.kinescopeId))
-        .replace('</head>', VIDEO_CSS + '</head>');
+        .replace('</head>', VIDEO_CSS + videoBridge('lichnoe', material.slug) + '</head>');
       return NextResponse.json({ success: true, identified: true, html });
     }
 

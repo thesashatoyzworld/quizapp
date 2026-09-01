@@ -13,6 +13,8 @@ import { LICHNOE_LICHNYY_SOZVON_2026_08_05 } from './lichnyy-sozvon-2026-08-05';
 
 import { LICHNOE_LICHNYY_SOZVON_KONSTANTIN_2026_08_05 } from './lichnyy-sozvon-konstantin-2026-08-05';
 
+import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_08_28 } from './lichnyy-sozvon-evgeniya-2026-08-28';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -33,6 +35,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-evgeniya-2026-08-28',
+    // Саша видит свои же созвоны: это его записи, он их и вёл.
+    telegramIds: [934091008, 788334680],
+    title: "Личный созвон 28 августа",
+    subtitle: "Оффер на созвон, база тех, кто уже касался, и кейсы через ситуацию",
+    date: '2026-08-28',
+    duration: "93 мин",
+    tags: ["оффер", "база", "кейсы", "контент"],
+    kinescopeId: 'k3R8boFcRxMWUgc6ZP7wPq',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_08_28,
+  },
   {
     slug: 'lichnyy-sozvon-konstantin-2026-08-05',
     // Саша (788334680) видит свои же созвоны: это его записи, он их и вёл.

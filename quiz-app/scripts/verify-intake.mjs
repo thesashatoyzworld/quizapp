@@ -197,6 +197,46 @@ check('15. по ссылке анкета стартует без тарифа �
 await db.query(`DELETE FROM intakes WHERE label = 'probe-blind' OR telegram_id = $1`, [TG_BLIND]);
 await db.query('DELETE FROM users WHERE telegram_id = $1', [TG_BLIND]);
 
+// ── Личная анкета: свои вопросы вместо вопросов трека ──
+// Саша пишет их после созвона, чтобы не переспрашивать то, что уже прозвучало.
+// Главное, что тут проверяется: длина анкеты берётся из личного набора,
+// иначе человек упрётся в одиннадцатый вопрос, которого у него нет.
+
+const TG_CUSTOM = 999000004;
+const customFrom = { id: TG_CUSTOM, first_name: 'Личная', username: 'probe_custom' };
+const customToken = 'probecustomtoken';
+
+await db.query(`DELETE FROM intakes WHERE invite_token = $1 OR telegram_id = $2`, [customToken, TG_CUSTOM]);
+await db.query('DELETE FROM users WHERE telegram_id = $1', [TG_CUSTOM]);
+
+const personal = {
+  preamble: 'личная преамбула, вопросов тут {n}',
+  questions: [
+    { title: 'первый', body: 'первый личный вопрос' },
+    { title: 'второй', body: 'второй личный вопрос' },
+    { title: 'третий', body: 'третий личный вопрос' },
+  ],
+};
+await db.query(
+  `INSERT INTO intakes (id, label, status, current_step, invite_token, custom_questions, invited_at, created_at, updated_at)
+   VALUES (gen_random_uuid(), 'probe-custom', 'invited', 0, $1, $2, now(), now(), now())`,
+  [customToken, JSON.stringify(personal)],
+);
+
+await send({ message: { chat: { id: TG_CUSTOM }, from: customFrom, text: `/start intake_${customToken}` } });
+await press(TG_CUSTOM, 'intake:start');
+let custom = (await db.query('SELECT * FROM intakes WHERE invite_token = $1', [customToken])).rows[0];
+check('16. личная анкета стартует', custom.status === 'in_progress', custom.status);
+
+// Три пропуска: на трековом наборе анкета бы осталась открытой до одиннадцатого.
+for (let i = 0; i < 3; i++) await press(TG_CUSTOM, 'intake:skip');
+custom = (await db.query('SELECT * FROM intakes WHERE invite_token = $1', [customToken])).rows[0];
+check('17. личная анкета закрылась на своём последнем вопросе',
+  custom.status === 'done' && custom.current_step === 3, `${custom.status}, шаг ${custom.current_step}`);
+
+await db.query(`DELETE FROM intakes WHERE invite_token = $1`, [customToken]);
+await db.query('DELETE FROM users WHERE telegram_id = $1', [TG_CUSTOM]);
+
 // Уборка
 await db.query('DELETE FROM intakes WHERE telegram_id = ANY($1)', [[TG_WITH_ACCESS, TG_NO_ACCESS]]);
 await db.query('DELETE FROM product_access WHERE source = $1', ['verify-intake-script']);

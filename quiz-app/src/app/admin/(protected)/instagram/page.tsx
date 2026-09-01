@@ -1,123 +1,48 @@
-import { prisma } from '@/lib/prisma';
-import InstagramClient from './InstagramClient';
+import { getIgLeads, getIgAutomationOptions, getLastSyncAt, matchFormFilled } from '@/lib/ig-leads';
+import IgNav from './IgNav';
+import IgLeadsClient from './IgLeadsClient';
 
-export type IgKeywordData = {
-  id: number;
-  keyword: string;
-  replyText: string;
-  active: boolean;
-  createdAt: string;
-  replyCount: number;
-};
+export const dynamic = 'force-dynamic';
 
-export type IgReplyData = {
-  id: number;
-  commentId: string;
-  igUsername: string | null;
-  commentText: string | null;
-  replySent: boolean;
-  error: string | null;
-  createdAt: string;
-  keyword: { keyword: string };
-};
-
-export type IgLogData = {
-  id: number;
-  payload: string;
-  createdAt: string;
-};
-
-export type IgStats = {
-  totalReplies: number;
-  successReplies: number;
-  successRate: number;
-  activeKeywords: number;
-};
-
-export default async function InstagramPage() {
-  let keywordsRaw, repliesRaw, logsRaw, totalReplies, successReplies, activeKeywords;
+export default async function InstagramLeadsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ funnel?: string; q?: string }>;
+}) {
+  const { funnel, q } = await searchParams;
+  let leads, automations, lastSyncAt;
 
   try {
-    [keywordsRaw, repliesRaw, logsRaw, totalReplies, successReplies, activeKeywords] = await Promise.all([
-      prisma.igKeyword.findMany({ orderBy: { createdAt: 'desc' } }),
-      prisma.igReply.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-        include: { keyword: { select: { keyword: true } } },
-      }),
-      prisma.igWebhookLog.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 30,
-      }),
-      prisma.igReply.count(),
-      prisma.igReply.count({ where: { replySent: true } }),
-      prisma.igKeyword.count({ where: { active: true } }),
+    // Дешёвая сверка с анкетами на каждом заходе: один запрос, зато статусы
+    // всегда свежие, даже если полная сверка с ChatPlace ещё не запускалась.
+    await matchFormFilled().catch((e) => console.error('[Instagram leads] сверка с анкетами:', e));
+
+    [leads, automations, lastSyncAt] = await Promise.all([
+      getIgLeads({ automationId: funnel && funnel !== 'all' ? funnel : undefined, q }),
+      getIgAutomationOptions(),
+      getLastSyncAt(),
     ]);
   } catch (e) {
-    console.error('[Instagram page] DB error:', e);
+    console.error('[Instagram leads] DB error:', e);
     return (
       <div>
-        <h1 style={{ color: 'var(--text-primary)' }}>Instagram Auto-Reply</h1>
-        <p style={{ color: '#ff4444' }}>Database error: {String(e)}</p>
+        <IgNav active="/admin/instagram" />
+        <p style={{ color: '#ff4444' }}>
+          Таблица лидов недоступна: {String(e)}. Создать её: <code>node scripts/ig-leads-create-tables.mjs</code>
+        </p>
       </div>
     );
   }
 
-  // Count replies per keyword
-  const replyCountMap = new Map<number, number>();
-  for (const r of repliesRaw) {
-    replyCountMap.set(r.keywordId, (replyCountMap.get(r.keywordId) || 0) + 1);
-  }
-
-  const keywords: IgKeywordData[] = keywordsRaw.map(kw => ({
-    id: kw.id,
-    keyword: kw.keyword,
-    replyText: kw.replyText,
-    active: kw.active,
-    createdAt: kw.createdAt.toISOString(),
-    replyCount: replyCountMap.get(kw.id) || 0,
-  }));
-
-  const replies: IgReplyData[] = repliesRaw.map(r => ({
-    id: r.id,
-    commentId: r.commentId,
-    igUsername: r.igUsername,
-    commentText: r.commentText,
-    replySent: r.replySent,
-    error: r.error,
-    createdAt: r.createdAt.toISOString(),
-    keyword: r.keyword,
-  }));
-
-  const logs: IgLogData[] = logsRaw.map(l => ({
-    id: l.id,
-    payload: l.payload,
-    createdAt: l.createdAt.toISOString(),
-  }));
-
-  const stats: IgStats = {
-    totalReplies,
-    successReplies,
-    successRate: totalReplies > 0 ? Math.round((successReplies / totalReplies) * 100) : 0,
-    activeKeywords,
-  };
-
   return (
-    <div>
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
-          Instagram Auto-Reply
-        </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-          Keyword-based comment detection and automatic replies for @thesashatoyz
-        </p>
-      </div>
-
-      <InstagramClient
-        initialKeywords={keywords}
-        initialReplies={replies}
-        initialLogs={logs}
-        initialStats={stats}
+    <div style={{ maxWidth: 1180 }}>
+      <IgNav active="/admin/instagram" />
+      <IgLeadsClient
+        leads={leads}
+        automations={automations}
+        lastSyncAt={lastSyncAt}
+        funnel={funnel || 'all'}
+        query={q || ''}
       />
     </div>
   );

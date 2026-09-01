@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import type { IgKeywordData, IgReplyData, IgLogData, IgStats } from '../admin/(protected)/instagram/page';
+import type { IgKeywordData, IgReplyData, IgLogData, IgStats } from '../admin/(protected)/instagram/autoreply/page';
 import IgDashboardShell from './IgDashboardShell';
 
 export default async function IgDashboardPage() {

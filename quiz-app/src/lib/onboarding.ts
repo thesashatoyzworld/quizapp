@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { sendBotMessage } from '@/lib/telegram';
 import { welcomeText, WELCOME_BUTTON } from '@/content/onboarding-t2';
 import { trackContent } from '@/content/intake-tracks';
-import { ensureIntake, sendPreamble, getIntake } from '@/lib/intake';
+import { ensureIntake, sendPreamble, getIntake, intakeTotal, withCount } from '@/lib/intake';
 
 const CABINET_URL =
   (process.env.NEXT_PUBLIC_CABINET_URL || 'https://world.thesashatoyz.com').replace(/\/$/, '') +
@@ -68,8 +68,8 @@ async function startIntakeT2(telegramId: number): Promise<void> {
     if (existing && existing.status !== 'invited') return;
 
     const intake = await ensureIntake(telegramId, undefined, undefined, undefined, 't2');
-    await sendBotMessage(telegramId, trackContent(intake.track).invite);
-    await sendPreamble(telegramId, intake.track);
+    await sendBotMessage(telegramId, withCount(trackContent(intake.track).invite, intakeTotal(intake)));
+    await sendPreamble(telegramId, intake);
   } catch (e) {
     console.error('[onboarding] интервью не запустилось', telegramId, e);
   }

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
+import { trackSection, trackMaterial, useVideoProgress } from '@/lib/cabinet-track';
 
 // Раздел «Групповые созвоны» — записи регулярных групповых встреч с конспектами.
 // Доступ: активный «Новый уровень контента» тарифа 2 или 3. Проверка живёт на
@@ -84,13 +85,16 @@ function SozvonyInner() {
         setTier(data.tier || 0);
         if (!data.identified) setState('guest');
         else if (!data.allowed) setState('locked');
-        else { setItems(data.items || []); setState('ok'); }
+        else { setItems(data.items || []); setState('ok'); trackSection('sozvony', id); }
       } catch {
         if (!stop) setState('guest');
       }
     })();
     return () => { stop = true; };
   }, []);
+
+  // Досмотр записи: мост внутри конспекта шлёт вехи наверх.
+  useVideoProgress('sozvony', tgId);
 
   // Пришли по ссылке из бота - открываем материал, как только список загрузился.
   useEffect(() => {
@@ -105,6 +109,7 @@ function SozvonyInner() {
 
   async function openSozvon(card: Card) {
     setOpening(card.slug);
+    trackMaterial('sozvony', card.slug, card.title, tgId);
     try {
       const qs = new URLSearchParams({ slug: card.slug });
       if (tgId) qs.set('telegramId', String(tgId));

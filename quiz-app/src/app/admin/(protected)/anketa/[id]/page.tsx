@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { INTAKE_QUESTIONS, INTAKE_TOTAL } from '@/content/intake-tarif3';
-import { EXTRA_STEP } from '@/lib/intake';
+import { EXTRA_STEP, intakeQuestions } from '@/lib/intake';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +44,9 @@ export default async function IntakeDossierPage({ params }: { params: Promise<{ 
 
   const who = intake.username ? '@' + intake.username
     : intake.firstName || intake.label || (intake.telegramId !== null ? String(intake.telegramId) : 'ссылка не открыта');
+  // Вопросы берём из самой анкеты: у t2 свой набор, у личных анкет свой,
+  // а раньше досье любой из них рисовало заголовками тарифа 3.
+  const questions = intakeQuestions(intake);
   const voices = intake.answers.filter((a) => a.kind === 'voice');
   const totalMin = Math.round(voices.reduce((s, a) => s + (a.durationSec || 0), 0) / 60);
   const extras = intake.answers.filter((a) => a.step === EXTRA_STEP);
@@ -66,14 +68,14 @@ export default async function IntakeDossierPage({ params }: { params: Promise<{ 
       </p>
 
       <div style={{ display: 'grid', gap: 14 }}>
-        {INTAKE_QUESTIONS.map((q, step) => {
+        {questions.map((q, step) => {
           const answers = intake.answers.filter((a) => a.step === step);
           const skipped = answers.some((a) => a.skipped);
 
           return (
             <section key={step} style={card}>
               <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', letterSpacing: '0.08em' }}>
-                {step + 1} / {INTAKE_TOTAL}
+                {step + 1} / {questions.length}
               </div>
               <h2 style={{ color: 'var(--text-primary)', fontSize: '1rem', margin: '4px 0 6px' }}>{q.title}</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: 12, lineHeight: 1.5 }}>

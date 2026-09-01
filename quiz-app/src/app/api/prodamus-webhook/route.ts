@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { trackEvent, markFollowUpPaid, getAdminChatId, getUserInfo } from '@/lib/notion';
+import { trackEvent, markFollowUpPaid, getUserInfo } from '@/lib/notion';
 import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { grantAccess } from '@/lib/access';
-import { ensureIntake, sendPreamble } from '@/lib/intake';
+import { ensureIntake, sendPreamble, intakeTotal, withCount } from '@/lib/intake';
 import { sendWelcomeT2 } from '@/lib/onboarding';
-import { sendBotMessage } from '@/lib/telegram';
+import { sendBotMessage, notifyAdmin } from '@/lib/telegram';
 import { INTAKE_INVITE, INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
 import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
 
@@ -155,28 +155,9 @@ async function sendMaterialsToUser(tgUserId: number) {
   }
 }
 
-async function notifyAdmin(tgUserId: number, resultId: string) {
-  if (!BOT_TOKEN) return;
-
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
+async function notifyAdminMasterclass(tgUserId: number, resultId: string) {
   const text = `Оплата 3,450 руб от user ${tgUserId} (результат: ${resultId})`;
-
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: adminChatId,
-        text,
-        parse_mode: 'HTML',
-      }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true });
 }
 
 async function sendMidSequenceThankYou(tgUserId: number) {
@@ -228,27 +209,8 @@ async function sendConnectorsConfirmation(tgUserId: number, tierLabel: string) {
 }
 
 async function notifyAdminConnectors(tgUserId: number, tierLabel: string, amount: number, resultId: string) {
-  if (!BOT_TOKEN) return;
-
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   const text = `Коннекторы: оплата ${amount.toLocaleString('ru-RU')} руб (${tierLabel}) от user ${tgUserId} (результат: ${resultId})`;
-
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: adminChatId,
-        text,
-        parse_mode: 'HTML',
-      }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about connectors payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true });
 }
 
 // МК «Разрешение быстрых денег»: подтверждение оплаты + кнопка кабинета (доступ-роль).
@@ -281,62 +243,20 @@ async function sendMkDengiConfirmation(tgUserId: number) {
 }
 
 async function notifyAdminMkDengi(tgUserId: number, amount: number, orderId: string) {
-  if (!BOT_TOKEN) return;
-
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   const text = `💰 Оплата МК «Разрешение быстрых денег»\n\n${amount.toLocaleString('ru-RU')} ₽ от user ${tgUserId}\nOrder: ${orderId}`;
-
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about MK Dengi payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 // Оплата МК с веб-лендинга — без Telegram-привязки. Уведомляем Сашу с контактом.
 async function notifyAdminMkDengiWeb(amount: number, email: string, phone: string, orderId: string) {
-  if (!BOT_TOKEN) return;
-
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   const contact = [email, phone].filter(Boolean).join(' / ') || 'контакт не передан';
   const text = `💰 Оплата МК «Разрешение быстрых денег» (с лендинга)\n\n${amount.toLocaleString('ru-RU')} ₽\nКонтакт: ${contact}\nOrder: ${orderId}\n\n⚠️ Без Telegram-привязки — доступ выдай вручную.`;
-
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about MK Dengi web payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 async function notifyAdminUroven(productName: string, amount: number, contact: string, orderId: string) {
-  if (!BOT_TOKEN) return;
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   const text = `💳 Оплата «Новый уровень контента»\n\n${productName}\n${amount.toLocaleString('ru-RU')} ₽\nКонтакт: ${contact}\nOrder: ${orderId}`;
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about Uroven payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 // Оплата дошла до Продамуса, но не завершилась (карта отклонена / рассрочка не
@@ -348,10 +268,6 @@ async function notifyAdminUnderpaid(
   productName: string, expected: number, paid: number,
   contact: string, orderId: string,
 ) {
-  if (!BOT_TOKEN) return;
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   const text = [
     '⚠️ Недоплата — доступ НЕ выдан',
     '',
@@ -363,25 +279,39 @@ async function notifyAdminUnderpaid(
     '',
     'Деньги у тебя. Решаешь ты: выдать доступ вручную или попросить дослать разницу.',
   ].join('\n');
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about underpayment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
+}
+
+// Успешный платёж, чей order_id мы не разобрали: счёт выставлен руками из
+// кабинета Продамуса, оплачена чужая карточка подписки, или автосписание пришло
+// без order_num. Деньги пришли, доступ не выдан — и до 26.08.2026 об этом никто
+// не узнавал, пока человек сам не написал.
+async function notifyAdminUnknownPayment(
+  productName: string, amount: string, email: string, phone: string,
+  orderId: string, init: string,
+) {
+  let name = productName;
+  try { name = decodeURIComponent(productName); } catch { /* keep as-is */ }
+  name = name.replace(/&quot;/g, '"');
+  const contact = [email, phone].filter(Boolean).join(' · ') || 'нет контакта';
+  const text = [
+    '❓ Платёж прошёл, а чей — система не поняла',
+    '',
+    name || 'товар не указан',
+    amount ? `${Number(amount).toLocaleString('ru-RU')} ₽` : '',
+    `Контакт: ${contact}`,
+    `Order: ${orderId || 'пустой'}${init ? ` · ${init}` : ''}`,
+    '',
+    'Доступ НЕ выдан: order_id не наш. Если это оплата тарифа — выдай ссылкой',
+    'node scripts/grant-gift-link.mjs <username> uroven-t2',
+  ].filter((l) => l !== '').join('\n');
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 async function notifyAdminPaymentFailed(
   status: string, statusDesc: string, productName: string,
   amount: string, email: string, phone: string, orderId: string,
 ) {
-  if (!BOT_TOKEN) return;
-  const adminChatId = await getAdminChatId();
-  if (!adminChatId) return;
-
   let name = productName;
   try { name = decodeURIComponent(productName); } catch { /* keep as-is */ }
   const contact = [email, phone].filter(Boolean).join(' · ') || 'нет контакта';
@@ -392,39 +322,11 @@ async function notifyAdminPaymentFailed(
     + `Контакт: ${contact}\n`
     + `Order: ${orderId || '—'}\n\n`
     + `⚡ Дошёл до оплаты, сорвалось — можно дожать по горячим следам.`;
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChatId, text }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about failed payment:', error);
-  }
+  await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
 async function notifyAdminError(errorMessage: string) {
-  if (!BOT_TOKEN) return;
-
-  try {
-    const adminChatId = await getAdminChatId();
-    if (!adminChatId) return;
-
-    const text = `⚠️ Ошибка webhook: ${errorMessage}`;
-
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: adminChatId,
-        text,
-        parse_mode: 'HTML',
-      }),
-    });
-  } catch (error) {
-    console.error('Failed to notify admin about error:', error);
-  }
+  await notifyAdmin(`⚠️ Ошибка webhook: ${errorMessage}`);
 }
 
 export async function POST(request: NextRequest) {
@@ -444,11 +346,17 @@ export async function POST(request: NextRequest) {
     // Strip "Sign: " prefix if present in header value
     if (signature.startsWith('Sign: ')) signature = signature.slice(6);
 
-    // ── ВРЕМЕННАЯ ДИАГНОСТИКА (убрать после теста) ──
-    // Пишем каждый заход вебхука в БД ДО проверки подписи, чтобы из базы понять:
-    // дошёл ли вебхук (демо-режим?), какая подпись пришла, сходится ли наша.
+    // ── ЛОГ ВХОДЯЩИХ ВЕБХУКОВ (постоянный, не диагностика) ──
+    // Пишем каждый заход ДО проверки подписи. Это единственное место, где видно
+    // платежи, которые система не опознала: счёт, выставленный руками в кабинете
+    // Продамуса, приходит с ПУСТЫМ order_num, и разбор по нему не срабатывает.
+    // Из этого лога вытащены 24 таких платежа за июль-август 2026 — от 6 550
+    // за доплату тарифа до 150 000 за менторство. Не удалять.
     try {
       const dbgPlain = JSON.stringify(sortDeep(body));
+      const logSub = (body.subscription || {}) as Record<string, unknown>;
+      const logProds = body.products as Record<string, Record<string, string>> | undefined;
+      const logFirst = logProds?.['0'] || (Array.isArray(logProds) ? logProds[0] : undefined);
       await prisma.event.create({
         data: {
           type: 'wh_debug', source: 'thesasha',
@@ -458,7 +366,17 @@ export async function POST(request: NextRequest) {
             order: (body.order_num || body.order_id || null) as string | null,
             tryPlain: hmacHex(dbgPlain),
             tryPhp: hmacHex(dbgPlain.replace(/\//g, '\\/')),
-            sample: dbgPlain.slice(0, 700),
+            // Разобранные поля: платёж читается из базы без разбора payload.
+            init: (body.payment_init ?? null) as string | null,
+            email: (body.customer_email ?? null) as string | null,
+            phone: (body.customer_phone ?? null) as string | null,
+            sum: (logFirst?.sum ?? logFirst?.price ?? body.sum ?? null) as string | null,
+            product: (logFirst?.name ?? null) as string | null,
+            // id подписки: по нему автосписание можно связать с человеком даже
+            // тогда, когда order_num пуст.
+            subId: (logSub.id ?? logSub.subscription_id ?? null) as string | null,
+            subProfile: (logSub.profile_id ?? null) as string | null,
+            sample: dbgPlain.slice(0, 4000),
           },
         },
       });
@@ -643,9 +561,9 @@ export async function POST(request: NextRequest) {
         // Момент максимальной мотивации, человек только что заплатил.
         if (product.slug === INTAKE_PRODUCT_SLUG) {
           try {
-            await ensureIntake(tgUserId);
-            await sendBotMessage(tgUserId, INTAKE_INVITE);
-            await sendPreamble(tgUserId);
+            const intake = await ensureIntake(tgUserId);
+            await sendBotMessage(tgUserId, withCount(INTAKE_INVITE, intakeTotal(intake)));
+            await sendPreamble(tgUserId, intake);
           } catch (e) {
             console.error('[Prodamus Webhook] intake invite failed:', e);
           }
@@ -714,17 +632,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Always notify admin
-      if (BOT_TOKEN) {
-        const adminChatId = await getAdminChatId();
-        if (adminChatId) {
-          const src = tgUserId ? `TG Mini App (user ${tgUserId})` : 'Сайт';
-          const text = `Оплата МК Синхронизация!\n\n${productName} — ${amount} руб\nИсточник: ${src}\nКонтакт: ${contact}\nOrder: ${orderId}`;
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: adminChatId, text }),
-          });
-        }
+      {
+        const src = tgUserId ? `TG Mini App (user ${tgUserId})` : 'Сайт';
+        const text = `Оплата МК Синхронизация!\n\n${productName} — ${amount} руб\nИсточник: ${src}\nКонтакт: ${contact}\nOrder: ${orderId}`;
+        await notifyAdmin(text, { alsoWork: true, parseMode: null });
       }
 
       // Record purchase in Supabase
@@ -777,7 +688,21 @@ export async function POST(request: NextRequest) {
       }
 
       if (!tgUserId) {
+        // Сюда падает всё, чей order_id мы не разобрали. Раньше здесь стоял
+        // тихий return, и деньги пропадали из виду: счета, выставленные руками
+        // в кабинете Продамуса, приходят с пустым order_num. Так молча прошли
+        // 24 платежа за июль-август 2026, включая доплаты тарифа 2.
         console.error('No tg_user_id in order_id:', orderId);
+        const unkProds = body.products as Record<string, Record<string, string>> | undefined;
+        const unkFirst = unkProds?.['0'] || (Array.isArray(unkProds) ? unkProds[0] : undefined);
+        await notifyAdminUnknownPayment(
+          String(unkFirst?.name ?? ''),
+          String(unkFirst?.sum ?? unkFirst?.price ?? body.sum ?? ''),
+          String(body.customer_email ?? ''),
+          String(body.customer_phone ?? ''),
+          String(orderId || ''),
+          String(body.payment_init ?? ''),
+        ).catch((e) => console.error('notifyAdminUnknownPayment failed', e));
         return NextResponse.json({ success: true });
       }
 
@@ -785,7 +710,7 @@ export async function POST(request: NextRequest) {
 
       await Promise.all([
         sendMaterialsToUser(tgUserId),
-        notifyAdmin(tgUserId, resultId),
+        notifyAdminMasterclass(tgUserId, resultId),
         trackEvent({
           event_type: 'payment_success',
           user_id: tgUserId,

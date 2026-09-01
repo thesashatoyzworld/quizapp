@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { SECTIONS } from '@/content/rooms';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import OpenInBrowser from '@/components/OpenInBrowser';
+import { trackCabinetOpen } from '@/lib/cabinet-track';
 
 // Официальная кнопка «Войти через Telegram» (Login Widget). Рендерится только
 // в браузере (в Mini App не нужна — там опознаём по initData). Требует, чтобы
@@ -80,6 +81,7 @@ function DostupInner() {
           setHasPersonal(!!data.hasPersonal);
           setHasRoadmap(!!data.hasRoadmap);
           setUnlocked(data.unlockedRoles || []);
+          trackCabinetOpen(tgId ?? data.telegramId ?? null);
         } else {
           // Не опознан (браузер без сессии) → показываем вход через Telegram.
           setNeedTg(true);
