@@ -1,0 +1,227 @@
+/* Расходы на сервисы. Тема общая для админки:
+   тёмный фон, циановый акцент, Orbitron на заголовках. */
+
+.page {
+  max-width: 1100px;
+}
+
+.h1 {
+  font-family: var(--font-display);
+  color: var(--neon-cyan);
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+}
+
+.sub {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.months {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.monthLink {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.8rem;
+}
+
+.monthLink:hover {
+  color: var(--neon-cyan);
+}
+
+/* Сумма месяца и прогноз стоят рядом: одна цифра без другой врёт. */
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-end;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 24px;
+}
+
+.totalValue {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--neon-cyan);
+  line-height: 1.1;
+}
+
+.totalLabel,
+.sideLabel {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.totalSide {
+  max-width: 320px;
+}
+
+.sideValue {
+  font-size: 1.15rem;
+  color: var(--text-primary, #e8e8e8);
+}
+
+/* График по дням: голые столбики, без библиотеки ради пяти сервисов. */
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 120px;
+  margin-bottom: 28px;
+  padding: 0 2px;
+}
+
+.barWrap {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  min-width: 8px;
+}
+
+.bar {
+  width: 100%;
+  background: linear-gradient(180deg, var(--neon-cyan), rgba(0, 229, 255, 0.25));
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+}
+
+.barDay {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+}
+
+.cards {
+  display: grid;
+  gap: 14px;
+}
+
+.card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.cardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.cardTitle {
+  font-size: 1rem;
+  color: var(--text-primary, #e8e8e8);
+}
+
+.cardTotal {
+  font-family: var(--font-display);
+  color: var(--neon-cyan);
+  font-size: 1.1rem;
+}
+
+.breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 6px;
+}
+
+.dim {
+  opacity: 0.6;
+}
+
+.metrics {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.metric {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.metricValue {
+  color: var(--text-primary, #e8e8e8);
+}
+
+.metricCost {
+  color: var(--text-primary, #e8e8e8);
+  text-align: right;
+}
+
+.note {
+  margin-top: 12px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.edit,
+.save {
+  margin-top: 14px;
+  background: transparent;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  color: var(--neon-cyan);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.edit:hover,
+.save:hover {
+  background: rgba(0, 229, 255, 0.08);
+}
+
+.form {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.field input,
+.field select {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: var(--text-primary, #e8e8e8);
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  width: 130px;
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 0.78rem;
+}
