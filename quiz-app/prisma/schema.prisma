@@ -628,3 +628,22 @@ model IgSync {
 
   @@map("ig_syncs")
 }
+
+// Ники людей из инста-директа. Список чатов ChatPlace отдаёт имя, но не ник,
+// а карточка чата отдаёт ник — и упирается в 429, если дёргать её пачками.
+// Поэтому ники собираются заранее фоном (scripts/ig-chats-sync.ts), а
+// помощник в продажах ищет человека уже здесь, одним запросом.
+// Таблица заведена руками (ig-chats-create-tables.mjs): prisma db push на
+// этой базе запрещён, она общая с другими проектами.
+model IgChat {
+  chatId        String   @id @map("chat_id")
+  clientId      String   @map("client_id")
+  username      String?
+  name          String?
+  lastMessageAt DateTime @map("last_message_at")
+  scannedAt     DateTime @updatedAt @map("scanned_at")
+
+  @@index([username])
+  @@index([lastMessageAt])
+  @@map("ig_chat")
+}
