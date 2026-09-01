@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { href: '/admin/roadmaps', label: 'Карты клиентов' },
   { href: '/admin/analytics', label: 'Аналитика' },
   { href: '/admin/uroven', label: 'Лиды · Уровень' },
+  { href: '/admin/progress', label: 'Обучение' },
   { href: '/admin/anketa', label: 'Анкеты' },
   { href: '/admin/zayavki', label: 'Заявки' },
   { href: '/admin/queue', label: 'Очередь' },

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
+import { trackSection, trackMaterial } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
 
 // Раздел «Промпты» — инструменты к урокам курса. Человек копирует промпт
@@ -46,6 +47,7 @@ function PromptyInner() {
   const [items, setItems] = useState<Prompt[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [tgId, setTgId] = useState<number | null>(null);
 
   useEffect(() => {
     const prev = new URLSearchParams(window.location.search).get('preview') || '';
@@ -56,6 +58,7 @@ function PromptyInner() {
       if (stop) return;
       if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
       const id = tg?.initDataUnsafe?.user?.id ?? null;
+      setTgId(id);
       try {
         const qs = new URLSearchParams();
         if (id) qs.set('telegramId', String(id));
@@ -65,7 +68,7 @@ function PromptyInner() {
         if (stop) return;
         if (!data.identified) setState('guest');
         else if (!data.allowed) setState('locked');
-        else { setItems(data.items || []); setState('ok'); }
+        else { setItems(data.items || []); setState('ok'); trackSection('prompty', id); }
       } catch {
         if (!stop) setState('guest');
       }
@@ -74,6 +77,8 @@ function PromptyInner() {
   }, []);
 
   async function copy(p: Prompt) {
+    // Промпт скопировали — значит взяли в работу. Это и есть «прочитал» для раздела.
+    trackMaterial('prompty', p.slug, p.title, tgId);
     try {
       await navigator.clipboard.writeText(p.body);
     } catch {

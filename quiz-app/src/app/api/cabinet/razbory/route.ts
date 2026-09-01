@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getActiveAccessByTelegram } from '@/lib/access';
 import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { RAZBORY, RAZBORY_MIN_TIER, RAZBORY_ROLE, findRazbor, toCard } from '@/content/razbory';
+import { playerSrc, videoBridge } from '@/lib/cabinet-video';
 
 export const runtime = 'nodejs';
 
@@ -26,7 +27,7 @@ function videoBlock(kinescopeId: string): string {
     return '<div class="rz-video rz-video-soon">Запись разбора появится здесь</div>';
   }
   return (
-    '<div class="rz-video"><iframe src="https://kinescope.io/embed/' + kinescopeId + '" ' +
+    '<div class="rz-video"><iframe src="' + playerSrc(kinescopeId) + '" ' +
     'allow="autoplay; fullscreen; picture-in-picture; encrypted-media;" allowfullscreen ' +
     'frameborder="0" title="Запись разбора"></iframe></div>'
   );
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
       }
       const html = razbor.html
         .replace('<!--VIDEO_SLOT-->', videoBlock(razbor.kinescopeId))
-        .replace('</head>', VIDEO_CSS + '</head>');
+        .replace('</head>', VIDEO_CSS + videoBridge('razbory', razbor.slug) + '</head>');
       return NextResponse.json({ success: true, identified: true, allowed: true, tier, html });
     }
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getActiveAccessByTelegram } from '@/lib/access';
 import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { LESSONS, KURS_MIN_TIER, KURS_ROLE, findLesson, toCard } from '@/content/kurs';
+import { playerSrc, videoBridge } from '@/lib/cabinet-video';
 
 export const runtime = 'nodejs';
 
@@ -46,8 +47,7 @@ function videoBlock(kinescopeId: string, watermark: string): string {
     return '<div class="kv kv-soon">Запись этого урока появится здесь</div>';
   }
   // Вотермарк — Telegram-метка зрителя, тумблер включён в дашборде Kinescope.
-  const src = 'https://kinescope.io/embed/' + encodeURIComponent(kinescopeId)
-    + (watermark ? '?watermark=' + encodeURIComponent(watermark) : '');
+  const src = playerSrc(kinescopeId, watermark ? 'watermark=' + encodeURIComponent(watermark) : '');
   return (
     '<div class="kv"><iframe src="' + src + '" '
     + 'allow="autoplay; fullscreen; picture-in-picture; encrypted-media;" allowfullscreen '
@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
       const html = lesson.html
         .replace('<!--VIDEO_SLOT-->', player)
         .replace('<!--FOOTER_SLOT-->', footerBlock(lesson.slug, next))
-        .replace('</head>', VIDEO_CSS + '</head>');
+        .replace('</head>', VIDEO_CSS + videoBridge('kurs', lesson.slug) + '</head>');
       return NextResponse.json({ success: true, identified: true, allowed: true, tier, html });
     }
 
