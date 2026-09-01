@@ -1165,24 +1165,25 @@ export const SALES_DOCS: SalesDoc[] = [
 
 ## Ссылки для директа: всегда с меткой
 
-Когда ссылка уходит человеку в личку, к ней добавляются метки. Тогда видно,
-кто открыл и что смотрел.
+Когда ссылка уходит человеку в личку, к ней добавляются две метки. Тогда в
+статистике видно, что переход пришёл из директа, а не из шапки профиля или
+рассылки.
 
 \`\`\`
-https://thesashatoyz.com/cases/КЕЙС?utm_source=instagram&utm_medium=dm&u=НИК
+https://thesashatoyz.com/cases/КЕЙС?utm_source=instagram&utm_medium=dm
 \`\`\`
 
-\`НИК\` — ник человека в инстаграме без собаки. Например, для @who_is_ann:
+Например, кейс Васи:
 
 \`\`\`
-https://thesashatoyz.com/cases/vasya?utm_source=instagram&utm_medium=dm&u=who_is_ann
+https://thesashatoyz.com/cases/vasya?utm_source=instagram&utm_medium=dm
 \`\`\`
 
 То же правило для статей и подкастов: \`/blog/...\` и \`/podcast/...\` с теми же
-метками. Ссылки без метки остаются только там, где адрес называется голосом
-или ставится в шапку профиля.
+метками. Ссылки без меток остаются там, где адрес называется голосом или
+ставится в шапку профиля.
 
-Смотреть, кто открыл: \`node scripts/case-clicks.mjs 14\` из quiz-app.
+Смотреть переходы: \`node scripts/case-clicks.mjs 14\` из quiz-app.
 
 ## Как пользоваться
 
