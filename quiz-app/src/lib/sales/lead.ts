@@ -113,10 +113,39 @@ export function renderThread(messages: CpMessage[]): string {
     .map((m) => {
       const when = new Date(m.createdAt * 1000).toISOString().slice(0, 16).replace('T', ' ');
       const who = m.side === 'client' ? 'ЧЕЛОВЕК' : 'МЫ';
-      const media = m.mediaFiles?.length
-        ? ` [${m.mediaFiles.map((f) => f.typeName).join(', ')}]`
-        : '';
-      return `[${when}] ${who}${media}: ${(m.message || '').replace(/\s+/g, ' ')}`;
+
+      // Кодовое слово под постом — это не реплика в разговоре, а нажатие
+      // кнопки: человек написал «хочукаквася», чтобы бот прислал материалы.
+      // Без пометки модель принимает его за высказывание и отвечает на него
+      // («о, узнал себя в васе»), хотя человек ничего подобного не говорил.
+      const isComment = m.mediaFiles?.some((f) => (f.typeName || '').toLowerCase().includes('comment'));
+
+      const media = m.mediaFiles
+        ?.filter((f) => !(f.typeName || '').toLowerCase().includes('comment'))
+        .map((f) => f.typeName)
+        .filter(Boolean);
+
+      const mark = isComment
+        ? ' (кодовое слово в комментарии под постом, не сообщение в переписке)'
+        : media?.length
+          ? ` [${media.join(', ')}]`
+          : '';
+
+      return `[${when}] ${who}${mark}: ${plain(m.message)}`;
     })
     .join('\n');
+}
+
+// Сообщения бота приходят разметкой: <p>, <br>, ссылки тегом. Модели это
+// только мешает, поэтому оставляем текст и голые адреса.
+function plain(html: string | null): string {
+  return (html || '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/p>\s*<p>/gi, ' ')
+    .replace(/<a[^>]*href="([^"]+)"[^>]*>.*?<\/a>/gi, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
