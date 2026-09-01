@@ -31,6 +31,9 @@ import {
   transcribePending,
 } from '@/lib/intake';
 import { sendWelcomeT2 } from '@/lib/onboarding';
+import { findIntakeFor, rebuildRoadmap } from '@/lib/roadmap/build';
+import { approveAndSend } from '@/lib/roadmap/review';
+import { scheduleRoadmapBuild } from '@/lib/qstash';
 import { INTAKE_TEXTS } from '@/content/intake-tarif3';
 import { trackContent } from '@/content/intake-tracks';
 
@@ -523,8 +526,61 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Черновик маршрутной карты: одобрить или пересобрать. Только Саша.
+      if ((data.startsWith('karta_ok:') || data.startsWith('karta_redo:')) && cb.message) {
+        const isAdmin = String(cb.message.chat.id) === (process.env.ADMIN_CHAT_ID || '').trim();
+        if (!isAdmin) {
+          await answerCallbackQuery(cb.id);
+          return NextResponse.json({ ok: true });
+        }
+
+        const roadmapId = data.slice(data.indexOf(':') + 1);
+        const chatId = cb.message.chat.id;
+        const messageId = cb.message.message_id;
+
+        if (data.startsWith('karta_ok:')) {
+          // Кнопки снимаем сразу: одобрение нажимается один раз, иначе
+          // человек получит второе такое же сообщение.
+          await answerCallbackQuery(cb.id, 'Отправляю…');
+          await editMessageText(chatId, messageId, 'отправляю карту…');
+          const result = await approveAndSend(roadmapId);
+          await editMessageText(chatId, messageId, result);
+          return NextResponse.json({ ok: true });
+        }
+
+        await answerCallbackQuery(cb.id, 'Пересобираю…');
+        const queued = await rebuildRoadmap(roadmapId);
+        await editMessageText(chatId, messageId, queued);
+        return NextResponse.json({ ok: true });
+      }
+
       // Unknown callback — just ack
       await answerCallbackQuery(cb.id);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Сборка маршрутной карты руками: /karta_sobrat @username. Только Саша.
+    if (
+      update.message?.text?.startsWith('/karta_sobrat') &&
+      String(update.message.chat.id) === (process.env.ADMIN_CHAT_ID || '').trim()
+    ) {
+      const chatId = update.message.chat.id;
+      const arg = update.message.text.trim().split(/\s+/)[1] || '';
+
+      if (!arg) {
+        await sendBotMessage(chatId, 'кому: /karta_sobrat @username', undefined, null);
+        return NextResponse.json({ ok: true });
+      }
+
+      const intakeId = await findIntakeFor(arg);
+      if (!intakeId) {
+        await sendBotMessage(chatId, `анкеты ${arg} нет в базе, собирать не из чего`, undefined, null);
+        return NextResponse.json({ ok: true });
+      }
+
+      // Сборка идёт минуты, вебхук столько не живёт: уводим в очередь.
+      await scheduleRoadmapBuild(intakeId, 1);
+      await sendBotMessage(chatId, `собираю карту ${arg}, черновик пришлю сюда через пару минут`, undefined, null);
       return NextResponse.json({ ok: true });
     }
 

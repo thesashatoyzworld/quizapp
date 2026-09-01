@@ -29,10 +29,10 @@ export interface BoardData {
 
 const STEP_CYCLE = ['todo', 'partial', 'done', 'blocked'] as const;
 const STEP_LABEL: Record<string, string> = { done: 'пройден', partial: 'частично', blocked: 'стоим здесь', todo: 'впереди' };
-const KIND_LABEL: Record<string, string> = { blocker: 'блокер', risk: 'риск', decision: 'решение', insight: 'наблюдение', touch: 'касание' };
+const KIND_LABEL: Record<string, string> = { blocker: 'блокер', risk: 'риск', decision: 'решение', insight: 'наблюдение', touch: 'касание', handoff: 'сообщение человеку' };
 const KIND_CLASS: Record<string, string> = {
   blocker: styles.kindBlocker, risk: styles.kindRisk, decision: styles.kindDecision,
-  insight: styles.kindInsight, touch: styles.kindTouch,
+  insight: styles.kindInsight, touch: styles.kindTouch, handoff: styles.kindDecision,
 };
 
 export default function RoadmapBoard({ data }: { data: BoardData }) {

@@ -383,7 +383,9 @@ model IntakeAnswer {
 
   kind        String // text | voice | photo | document | video_note
   rawText     String? @map("raw_text")
-  transcript  String? // расшифровка голосового через whisper
+  transcript  String? // расшифровка голосового
+  // ok | failed. Пусто у текстовых ответов и у тех, до кого ещё не дошли руки.
+  transcriptStatus String? @map("transcript_status")
   fileId      String? @map("file_id") // telegram file_id, чтобы Саша послушал сам
   durationSec Int?    @map("duration_sec")
   skipped     Boolean @default(false)
