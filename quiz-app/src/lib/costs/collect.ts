@@ -46,11 +46,12 @@ async function savePoints(service: string, points: UsagePoint[]): Promise<number
   const currency = plan?.currency ?? null;
 
   for (const point of points) {
-    const cost = costOf(point, pricing);
+    // Если сервис назвал деньги сам — берём его цифру, тариф не гадаем.
+    const cost = point.cost ?? costOf(point, pricing);
     const data = {
       value: point.value,
       cost,
-      currency: cost === null ? null : currency,
+      currency: cost === null ? null : (point.currency ?? currency),
       source: 'api',
     };
     await prisma.serviceUsageDaily.upsert({

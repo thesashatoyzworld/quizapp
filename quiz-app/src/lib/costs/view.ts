@@ -55,6 +55,8 @@ export const METRIC_LABEL: Record<string, string> = {
   cdn_bytes: 'трафик',
   storage_bytes: 'хранение',
   encoding_seconds: 'кодирование',
+  minutes_used: 'расшифровка',
+  credits: 'кредиты',
   characters: 'символы',
   input_tokens: 'входные токены',
   output_tokens: 'выходные токены',
@@ -66,6 +68,7 @@ export const METRIC_LABEL: Record<string, string> = {
 export function formatMetric(metric: string, value: number): string {
   if (metric === 'storage_bytes') return `${(value / 1_000_000_000).toFixed(1)} ГБ в среднем`;
   if (metric.endsWith('_bytes')) return `${(value / 1_000_000_000).toFixed(1)} ГБ`;
+  if (metric === 'minutes_used') return `${Math.round(value)} мин`;
   if (metric.endsWith('_seconds')) return `${Math.round(value / 60)} мин`;
   return value.toLocaleString('ru-RU');
 }
