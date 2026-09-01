@@ -63,6 +63,16 @@ export async function handleSalesQuestion(params: {
     ].join('');
     await sendBotMessage(chatId, head, undefined, null);
 
+    if (!res.variants.length) {
+      await sendBotMessage(
+        chatId,
+        'модель не вернула ни одного варианта. попробуй ещё раз тем же ником',
+        undefined,
+        null,
+      );
+      return { handled: true };
+    }
+
     for (const [i, v] of res.variants.entries()) {
       await sendBotMessage(chatId, `${i + 1}. ${v.text}\n\n— ${v.why}`, undefined, null);
     }
