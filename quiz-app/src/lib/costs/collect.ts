@@ -5,16 +5,9 @@
 
 import { prisma } from '@/lib/prisma';
 import { elevenLabsUsage, kinescopeUsage, usdRubRate, type UsagePoint } from './sources';
+import type { Pricing } from './view';
 
 const GB = 1_000_000_000;
-
-/** Ставки сверх пакета. Форма своя у каждого сервиса, отсюда необязательные поля. */
-type Pricing = {
-  cdn_gb?: number;
-  storage_gb?: number;
-  encoding_min?: number;
-  per_1k_chars?: number;
-};
 
 /** Сколько дней в месяце этой даты — хранение тарифицируется средним за месяц. */
 function daysInMonth(date: string): number {

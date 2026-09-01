@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import type { CostsReport, ServiceMonth } from '@/lib/costs/report';
-import { METRIC_LABEL, formatMetric } from '@/lib/costs/report';
+import type { CostsReport, ServiceMonth } from '@/lib/costs/view';
+import { METRIC_LABEL, formatMetric } from '@/lib/costs/view';
 import styles from './rashody.module.css';
 
 function rub(value: number): string {
