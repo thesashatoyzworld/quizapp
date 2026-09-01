@@ -10,6 +10,7 @@ import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { canBuy, isOnSale, PERSONAL_KEY, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { handleKbQuestion } from '@/lib/kb/ask';
+import { handleSalesQuestion } from '@/lib/sales/ask';
 import {
   INTAKE_CB,
   adminAddQuestion,
@@ -685,6 +686,17 @@ export async function POST(request: NextRequest) {
           });
         }
         return NextResponse.json({ ok: true });
+      }
+
+      // Помощник в продажах: свой человек прислал ник — достаём переписку из
+      // инста-директа и предлагаем, что написать. Стоит перед базой знаний,
+      // иначе «@nedosek_coach» уедет искать урок курса.
+      if (m.text) {
+        const sales = await handleSalesQuestion({ chatId: m.chat.id, text: m.text });
+        if (sales.handled) {
+          if (sales.work) after(sales.work);
+          return NextResponse.json({ ok: true });
+        }
       }
 
       // Анкета сообщение не забрала — значит человек просто написал вопрос.
