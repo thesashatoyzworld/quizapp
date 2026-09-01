@@ -666,10 +666,7 @@ export async function POST(request: NextRequest) {
         chatId: update.message.chat.id,
         text: update.message.text,
       });
-      if (sales.handled) {
-        if (sales.work) after(sales.work);
-        return NextResponse.json({ ok: true });
-      }
+      if (sales.handled) return NextResponse.json({ ok: true });
     }
 
     // Ответ на вопрос анкеты: голос, текст, скрин, ссылка, кружок, файл.
