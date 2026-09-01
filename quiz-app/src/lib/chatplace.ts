@@ -18,14 +18,29 @@ export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // ChatPlace отдаёт 500, когда запросы идут подряд без передышки — на длинной
 // выкачке это ловится регулярно. Помогает не столько повтор, сколько пауза
 // перед ним, поэтому она растёт: секунда, три, семь.
+//
+// 429 — отдельная история: это лимит, а не сбой. Он приходит, когда карточки
+// чатов дёргают пачками, и ждать надо дольше, чем при 500.
 async function call<T>(tool: string, args: Record<string, unknown> = {}, attempt = 1): Promise<T> {
   const MAX_ATTEMPTS = 4;
   try {
     return await callOnce<T>(tool, args);
   } catch (e) {
-    const retriable = e instanceof ChatPlaceError && /HTTP 5\d\d/.test(e.message);
+    const msg = e instanceof ChatPlaceError ? e.message : '';
+    const rateLimited = /HTTP 429/.test(msg);
+    const retriable = e instanceof ChatPlaceError && (/HTTP 5\d\d/.test(msg) || rateLimited);
     if (!retriable || attempt >= MAX_ATTEMPTS) throw e;
-    await sleep(attempt * attempt * 800);
+
+    // При лимите Cloudflare сам пишет, сколько ждать (retry_after, секунды),
+    // и это заметно больше, чем пауза после обычного сбоя: тридцать секунд
+    // против одной. Своя догадка тут только вредит — ждём столько, сколько
+    // просят, и удваиваем на каждой следующей попытке.
+    const asked = rateLimited ? Number(msg.match(/"retry_after":\s*(\d+)/)?.[1]) : NaN;
+    const waitMs = rateLimited
+      ? (Number.isFinite(asked) ? asked * 1000 : 30_000) * attempt
+      : attempt * attempt * 800;
+
+    await sleep(waitMs);
     return call<T>(tool, args, attempt + 1);
   }
 }

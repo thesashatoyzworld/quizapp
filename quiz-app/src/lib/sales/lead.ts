@@ -1,11 +1,16 @@
 import { prisma } from '@/lib/prisma';
-import { listChats, listChatMessages, getChat, sleep, type CpMessage } from '@/lib/chatplace';
+import { listChats, listChatMessages, type CpMessage } from '@/lib/chatplace';
 
 // Найти человека по нику и достать его переписку из инста-директа.
 //
-// Сначала смотрим в ig_lead: там четыре тысячи людей из воронок, и у каждого
-// уже сохранён id чата. Кого там нет (написал сам, минуя кодовое слово) —
-// ищем среди свежих чатов ChatPlace по нику и имени.
+// Порядок поиска, от дешёвого к дорогому:
+//   1. ig_lead — четыре тысячи людей из воронок, id чата уже сохранён
+//   2. ig_chat — ники, собранные фоном (cron-ig-chats дважды в день)
+//   3. свежий список чатов по имени — один запрос, без карточек
+//
+// Карточки чатов здесь не дёргаем принципиально. Раньше поиск перебирал их
+// сотнями и упирался в 429 от Cloudflare, а ошибки глохли в catch: помощник
+// молча отвечал «не нашёл» на человека, который в директе есть.
 
 export type SalesLead = {
   handle: string | null;
@@ -47,18 +52,8 @@ async function fromLeads(handle: string): Promise<SalesLead | null> {
   };
 }
 
-// Сколько свежих чатов перебрать по нику, если по имени не совпало.
-// В директ пишут около сорока человек в день, а спрашивают обычно про тех,
-// кто писал на этой неделе. Сотней не обойтись: живой Александр стоял на
-// 84-м месте через сутки после своего сообщения.
-const PROBE_CHATS = 250;
-const PROBE_PARALLEL = 10;
-
-async function fromChats(handle: string): Promise<SalesLead | null> {
-  const h = clean(handle);
-  const chats = await listChats(4);
-
-  const mk = (id: string, name: string | null, nick: string | null): SalesLead => ({
+function toLead(id: string, name: string | null, nick: string | null): SalesLead {
+  return {
     handle: nick,
     name,
     chatId: id,
@@ -67,34 +62,40 @@ async function fromChats(handle: string): Promise<SalesLead | null> {
     status: null,
     formKind: null,
     note: null,
+  };
+}
+
+// Ники, собранные фоном. Один запрос к базе, никакой нагрузки на ChatPlace.
+async function fromChatCache(handle: string): Promise<SalesLead | null> {
+  const h = clean(handle);
+  const row = await prisma.igChat.findFirst({
+    where: {
+      OR: [
+        { username: { equals: h, mode: 'insensitive' } },
+        { name: { contains: h, mode: 'insensitive' } },
+      ],
+    },
+    orderBy: { lastMessageAt: 'desc' },
   });
+  return row ? toLead(row.chatId, row.name, row.username) : null;
+}
 
-  // Сначала дешёвый проход: в списке есть имя, но нет ника.
-  const byName = chats.find((c) => clean(c.clientName || '').includes(h));
-  if (byName) return mk(byName.id, byName.clientName, null);
-
-  // Ник лежит только в карточке чата, поэтому свежие приходится перебирать.
-  // Пачками: по одному это минуты ожидания, а десяток одновременных запросов
-  // ChatPlace держит.
-  const probe = chats.slice(0, PROBE_CHATS);
-  for (let i = 0; i < probe.length; i += PROBE_PARALLEL) {
-    const batch = probe.slice(i, i + PROBE_PARALLEL);
-    const cards = await Promise.all(
-      batch.map((c) => getChat(c.id).catch(() => null)), // недоступный чат не повод бросать поиск
-    );
-    for (const [j, full] of cards.entries()) {
-      if (full?.username && clean(full.username) === h) {
-        return mk(batch[j].id, batch[j].clientName, full.username);
-      }
-    }
-    await sleep(120);
-  }
-  return null;
+// Последняя попытка: свежий список чатов. Ников там нет, поэтому сверяем имя —
+// ассистент может назвать человека и по имени, как он подписан в директе.
+async function fromRecentByName(handle: string): Promise<SalesLead | null> {
+  const h = clean(handle);
+  if (h.length < 3) return null;
+  const chats = await listChats(2);
+  const hit = chats.find((c) => clean(c.clientName || '').includes(h));
+  return hit ? toLead(hit.id, hit.clientName, null) : null;
 }
 
 /** Ник или кусок имени → переписка. `null`, если человека не нашли. */
 export async function findThread(handle: string): Promise<SalesThread | null> {
-  const lead = (await fromLeads(handle)) || (await fromChats(handle));
+  const lead =
+    (await fromLeads(handle)) ||
+    (await fromChatCache(handle)) ||
+    (await fromRecentByName(handle));
   if (!lead) return null;
 
   const raw = await listChatMessages(lead.chatId, 40);
