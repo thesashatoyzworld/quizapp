@@ -652,6 +652,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Помощник в продажах. Стоит перед анкетой намеренно: анкета забирает
+    // любое сообщение своего человека и отвечает «записал», а ник в ответ на
+    // её вопрос никто не шлёт. Ветка узкая — только свои чаты и только когда
+    // в сообщении есть ник, поэтому анкете она не мешает. Здесь же ловятся
+    // команды: ниже по коду сообщения с «/» отрезаны.
+    if (
+      update.message?.text &&
+      update.message.from?.id &&
+      isPrivateChat(update.message.chat, update.message.from.id)
+    ) {
+      const sales = await handleSalesQuestion({
+        chatId: update.message.chat.id,
+        text: update.message.text,
+      });
+      if (sales.handled) {
+        if (sales.work) after(sales.work);
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     // Ответ на вопрос анкеты: голос, текст, скрин, ссылка, кружок, файл.
     // Команды сюда не попадают, они разобраны выше.
     if (
@@ -686,17 +706,6 @@ export async function POST(request: NextRequest) {
           });
         }
         return NextResponse.json({ ok: true });
-      }
-
-      // Помощник в продажах: свой человек прислал ник — достаём переписку из
-      // инста-директа и предлагаем, что написать. Стоит перед базой знаний,
-      // иначе «@nedosek_coach» уедет искать урок курса.
-      if (m.text) {
-        const sales = await handleSalesQuestion({ chatId: m.chat.id, text: m.text });
-        if (sales.handled) {
-          if (sales.work) after(sales.work);
-          return NextResponse.json({ ok: true });
-        }
       }
 
       // Анкета сообщение не забрала — значит человек просто написал вопрос.
