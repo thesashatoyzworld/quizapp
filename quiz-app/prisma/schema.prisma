@@ -573,3 +573,56 @@ model IgLead {
   @@index([formKind])
   @@map("ig_lead")
 }
+
+// ═══════════════════════════════════════
+// КОНТЕНТ КЛИЕНТОВ В ИНСТАГРАМЕ
+// ═══════════════════════════════════════
+//
+// Что человек выложил и о чём это было. Ленту собирает офлайн-конвейер
+// GSD-BRAND/scripts/ig-monitor (Apify → кадры и речь → разбор моделью),
+// сюда заливается готовый результат скриптом ig-import.mjs.
+// Ключ — shortcode: повторный импорт правит запись, а не плодит вторую.
+// Сторис здесь пока не живут: публично их не достать, нужен вход клиента.
+
+model IgPost {
+  id        String @id @default(uuid())
+  handle    String // ник в инстаграме, без @
+  slug      String? // slug маршрутной карты, если клиент заведён
+  shortcode String @unique
+  url       String
+  type      String // reel | карусель | фото
+
+  postedAt DateTime @map("posted_at")
+  caption  String?
+  speech   String? // расшифровка речи из ролика
+  plays    Int?
+  likes    Int?
+  comments Int?
+
+  // Разбор: тема берётся из кадров и речи, подпись для неё ненадёжна.
+  theme   String?
+  format  String?
+  purpose String?
+  hook    String?
+  cta     String?
+  leadsTo String? @map("leads_to")
+  onRoute Boolean? @map("on_route") // двигает ли задачу из маршрутной карты
+  why     String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([handle, postedAt])
+  @@index([slug, postedAt])
+  @@map("ig_posts")
+}
+
+// Докуда конвейер смотрел ленту. Пустая неделя без этой отметки читается
+// как «клиент ничего не выложил», хотя мы просто не тянули тот период.
+model IgSync {
+  handle      String   @id
+  coveredFrom DateTime @map("covered_from")
+  lastRunAt   DateTime @default(now()) @map("last_run_at")
+
+  @@map("ig_syncs")
+}
