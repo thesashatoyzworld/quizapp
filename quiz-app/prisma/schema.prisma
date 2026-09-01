@@ -647,3 +647,65 @@ model IgChat {
   @@index([lastMessageAt])
   @@map("ig_chat")
 }
+
+// Расходы на сервисы. Тариф лежит записью, потребление собирается по дням.
+//
+// Деньги здесь в валюте самого сервиса: Kinescope считает в рублях, Anthropic
+// и ElevenLabs в долларах. Сводить в одну валюту — дело страницы, не базы.
+model ServiceCostPlan {
+  id      String @id @default(uuid())
+  service String @unique // kinescope | elevenlabs | anthropic_api | claude_sub | zoom
+  title   String // как тариф называется у самого сервиса
+
+  amount   Float  @default(0) // фиксированная часть за период
+  currency String @default("RUB")
+  period   String @default("month") // month | year
+
+  billingDay   Int?      @map("billing_day") // день месяца, когда списывают
+  nextChargeAt DateTime? @map("next_charge_at") // для годовых и разовых
+
+  // Ставки сверх пакета и что в пакет входит. Форма своя у каждого сервиса,
+  // поэтому JSON: {"cdn_gb": 1.9, "storage_gb": 1.9, "encoding_min": 0.8}.
+  pricing Json?
+
+  note   String?
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("service_cost_plans")
+}
+
+// Один день одного сервиса по одной метрике. Пересборка дня переписывает
+// строку, а не плодит: ключ (service, date, metric) уникальный.
+model ServiceUsageDaily {
+  id      String   @id @default(uuid())
+  service String
+  date    DateTime @db.Date
+  metric  String // cdn_bytes | storage_bytes | encoding_seconds | characters | input_tokens | output_tokens
+
+  value    Float   @default(0)
+  cost     Float? // деньги за этот день по метрике, если считаются
+  currency String?
+
+  source String @default("api") // api — сервис сам отдал, computed — посчитали
+  meta   Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([service, date, metric])
+  @@index([date])
+  @@map("service_usage_daily")
+}
+
+// Курс на день списания. Нужен, чтобы сумма месяца сходилась с выпиской банка,
+// а не пересчитывалась задним числом по сегодняшнему курсу.
+model FxRateDaily {
+  date      DateTime @id @db.Date
+  usdRub    Float    @map("usd_rub")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("fx_rates_daily")
+}

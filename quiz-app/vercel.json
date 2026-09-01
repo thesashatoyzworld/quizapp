@@ -11,6 +11,14 @@
     {
       "path": "/api/cron-ig-chats",
       "schedule": "20 2,11 * * *"
+    },
+    {
+      "path": "/api/cron-costs",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/cron-costs-digest",
+      "schedule": "0 6 1 * *"
     }
   ]
 }
