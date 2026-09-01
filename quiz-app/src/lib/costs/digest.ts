@@ -61,7 +61,6 @@ export async function sendMonthlyDigest(month?: string) {
   lines.push('');
   lines.push('<a href="https://world.thesashatoyz.com/admin/rashody">Раздел «Расходы»</a>');
 
-  const sent = await notifyAdmin(lines.join('
-'), { parseMode: 'HTML', disableLinkPreview: true });
+  const sent = await notifyAdmin(lines.join('\n'), { parseMode: 'HTML', disableLinkPreview: true });
   return { month: target, sent, totalRub: Math.round(report.totalRub) };
 }
