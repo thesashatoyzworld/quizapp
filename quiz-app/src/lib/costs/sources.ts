@@ -15,6 +15,9 @@ export type UsagePoint = {
   date: string; // YYYY-MM-DD
   metric: string;
   value: number;
+  /** Деньги, если сервис назвал их сам. Иначе считаются по тарифу. */
+  cost?: number;
+  currency?: string;
 };
 
 const KINESCOPE_API = 'https://api.kinescope.io';
@@ -73,8 +76,12 @@ export async function kinescopeUsage(from: string, to: string): Promise<UsagePoi
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Символы по дням. Отвечает на обычный рабочий ключ; `/v1/user/subscription`
+ * Расход по дням. Отвечает на обычный рабочий ключ; `/v1/user/subscription`
  * (остаток пакета) — нет, там нужно право `user_read`.
+ *
+ * Тариф знать не нужно: у метрики `fiat_units_spent` сервис сам называет
+ * потраченное, в центах. Сверено 01.09.2026 — 31 августа 406 минут стоили
+ * 148,87 единиц, то есть $0,22 за час расшифровки, ровно прайс Scribe.
  */
 export async function elevenLabsUsage(from: string, to: string): Promise<UsagePoint[]> {
   const key = process.env.ELEVENLABS_API_KEY;
@@ -82,22 +89,45 @@ export async function elevenLabsUsage(from: string, to: string): Promise<UsagePo
 
   const startUnix = Date.parse(`${from}T00:00:00Z`);
   const endUnix = Date.parse(`${to}T23:59:59Z`);
-  const res = await fetch(
-    `${ELEVENLABS_API}/v1/usage/character-stats?start_unix=${startUnix}&end_unix=${endUnix}`,
-    { headers: { 'xi-api-key': key } },
-  );
-  if (!res.ok) throw new Error(`elevenlabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
 
-  const body = (await res.json()) as { time?: number[]; usage?: Record<string, number[]> };
-  const time = body.time ?? [];
-  // Разрезов может быть несколько (по ключам, по голосам) — нам нужна сумма.
-  const series = Object.values(body.usage ?? {});
+  async function series(metric: string): Promise<Map<string, number>> {
+    const res = await fetch(
+      `${ELEVENLABS_API}/v1/usage/character-stats?start_unix=${startUnix}&end_unix=${endUnix}&metric=${metric}`,
+      { headers: { 'xi-api-key': key as string } },
+    );
+    if (!res.ok) throw new Error(`elevenlabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
+
+    const body = (await res.json()) as { time?: number[]; usage?: Record<string, number[]> };
+    const rows = Object.values(body.usage ?? {});
+    const out = new Map<string, number>();
+    (body.time ?? []).forEach((ms, i) => {
+      // Разрезов может быть несколько (по продуктам, по ключам) — нам нужна сумма.
+      const value = rows.reduce((sum, row) => sum + (row[i] ?? 0), 0);
+      if (value > 0) out.set(isoDay(new Date(ms)), value);
+    });
+    return out;
+  }
+
+  const [spent, minutes, credits] = await Promise.all([
+    series('fiat_units_spent'),
+    series('minutes_used'),
+    series('credits'),
+  ]);
 
   const points: UsagePoint[] = [];
-  time.forEach((ms, i) => {
-    const value = series.reduce((sum, row) => sum + (row[i] ?? 0), 0);
-    if (value > 0) points.push({ date: isoDay(new Date(ms)), metric: 'characters', value });
-  });
+  for (const [date, value] of minutes) {
+    const cents = spent.get(date);
+    points.push({
+      date,
+      metric: 'minutes_used',
+      value,
+      // Единицы приходят в центах, храним в долларах, как остальной прайс.
+      ...(cents === undefined ? {} : { cost: cents / 100, currency: 'USD' }),
+    });
+  }
+  for (const [date, value] of credits) {
+    points.push({ date, metric: 'credits', value });
+  }
   return points;
 }
 

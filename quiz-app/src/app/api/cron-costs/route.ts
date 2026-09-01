@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { collectCosts } from '@/lib/costs/collect';
+import { sendMonthlyDigest } from '@/lib/costs/digest';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -30,7 +31,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await collectCosts(from, to);
-    return NextResponse.json(result);
+
+    // Первого числа тем же заходом уходит сводка за прошлый месяц: сбор уже
+    // прошёл, значит последний день месяца в неё попал.
+    const digest =
+      new Date().getUTCDate() === 1 && !params.get('from')
+        ? await sendMonthlyDigest()
+        : null;
+
+    return NextResponse.json({ ...result, digest });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });
