@@ -10,6 +10,7 @@ import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { canBuy, isOnSale, PERSONAL_KEY, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { handleKbQuestion } from '@/lib/kb/ask';
+import { handleSalesQuestion } from '@/lib/sales/ask';
 import {
   INTAKE_CB,
   adminAddQuestion,
@@ -649,6 +650,26 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({ ok: true });
+    }
+
+    // Помощник в продажах. Стоит перед анкетой намеренно: анкета забирает
+    // любое сообщение своего человека и отвечает «записал», а ник в ответ на
+    // её вопрос никто не шлёт. Ветка узкая — только свои чаты и только когда
+    // в сообщении есть ник, поэтому анкете она не мешает. Здесь же ловятся
+    // команды: ниже по коду сообщения с «/» отрезаны.
+    if (
+      update.message?.text &&
+      update.message.from?.id &&
+      isPrivateChat(update.message.chat, update.message.from.id)
+    ) {
+      const sales = await handleSalesQuestion({
+        chatId: update.message.chat.id,
+        text: update.message.text,
+      });
+      if (sales.handled) {
+        if (sales.work) after(sales.work);
+        return NextResponse.json({ ok: true });
+      }
     }
 
     // Ответ на вопрос анкеты: голос, текст, скрин, ссылка, кружок, файл.
