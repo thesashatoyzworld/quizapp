@@ -747,3 +747,16 @@ model TgBusinessMsg {
   @@index([username])
   @@map("tg_business_msg")
 }
+
+/** Скриншот переписки, присланный боту. Альбом собирается по groupId. */
+model TgShot {
+  id        String   @id
+  groupId   String?  @map("group_id")
+  chatId    String   @map("chat_id")
+  fileId    String   @map("file_id")
+  caption   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([groupId, createdAt])
+  @@map("tg_shot")
+}

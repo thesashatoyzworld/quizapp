@@ -41,7 +41,7 @@ export type TgBusinessMessage = {
  * @sashatoyzwork, подсказки к ним должны лежать там же, а не в другом чате
  * на другом телефоне.
  */
-function helpers(): number[] {
+export function helpers(): number[] {
   return [
     process.env.ADMIN_CHAT_ID_WORK,
     ...(process.env.SALES_HELPER_CHAT_IDS || '').split(','),
@@ -113,7 +113,7 @@ async function ensureConnection(id: string) {
 }
 
 /** Анкета человека: сперва по номеру из сообщения, потом по нику. */
-async function findLead(text: string, username?: string | null) {
+export async function findLead(text: string, username?: string | null) {
   const marked = text.match(/#(\d{1,7})\b/);
   if (marked) {
     const byId = await prisma.dwyLead.findUnique({ where: { id: Number(marked[1]) } });
@@ -128,35 +128,38 @@ async function findLead(text: string, username?: string | null) {
   return null;
 }
 
-/** Что известно о человеке — это уходит в промпт перед перепиской. */
+/** Анкета человека строками для промпта. Нужна и личке, и скриншотам. */
+export function describeLead(lead: Awaited<ReturnType<typeof findLead>>): string {
+  if (!lead) return 'анкеты не нашёл — человек пришёл не с формы или писал с другого аккаунта';
+  return [
+    `АНКЕТА №${lead.id} от ${lead.createdAt.toISOString().slice(0, 10)}:`,
+    lead.firstName ? `  имя: ${lead.firstName}` : '',
+    lead.who ? `  кто: ${lead.who}` : '',
+    lead.hasProduct ? `  продукт: ${lead.hasProduct}${lead.product ? ` (${lead.product})` : ''}` : '',
+    lead.level ? `  уровень: ${lead.level}` : '',
+    lead.tried ? `  что пробовал: ${lead.tried}` : '',
+    lead.want ? `  что хочет через 3 месяца: ${lead.want}` : '',
+    lead.income ? `  доход: ${lead.income}` : '',
+    lead.hours ? `  часов в неделю: ${lead.hours}` : '',
+    lead.instagram ? `  инстаграм: ${lead.instagram}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+/** Что известно о человеке из личного чата — уходит в промпт перед перепиской. */
 function describe(
   msg: TgBusinessMessage,
   lead: Awaited<ReturnType<typeof findLead>>,
 ): string {
-  const lines = [
+  return [
     msg.chat.username ? `ник: @${msg.chat.username}` : null,
     msg.chat.first_name ? `имя в телеграме: ${msg.chat.first_name}` : null,
     'канал: личка в телеграме, не инстаграм',
-  ];
-
-  if (lead) {
-    lines.push(
-      `АНКЕТА №${lead.id} от ${lead.createdAt.toISOString().slice(0, 10)}:`,
-      lead.firstName ? `  имя: ${lead.firstName}` : '',
-      lead.who ? `  кто: ${lead.who}` : '',
-      lead.hasProduct ? `  продукт: ${lead.hasProduct}${lead.product ? ` (${lead.product})` : ''}` : '',
-      lead.level ? `  уровень: ${lead.level}` : '',
-      lead.tried ? `  что пробовал: ${lead.tried}` : '',
-      lead.want ? `  что хочет через 3 месяца: ${lead.want}` : '',
-      lead.income ? `  доход: ${lead.income}` : '',
-      lead.hours ? `  часов в неделю: ${lead.hours}` : '',
-      lead.instagram ? `  инстаграм: ${lead.instagram}` : '',
-    );
-  } else {
-    lines.push('анкеты не нашёл — человек пришёл не с формы или писал с другого аккаунта');
-  }
-
-  return lines.filter(Boolean).join('\n');
+    describeLead(lead),
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 /** Переписка строками, как её ждёт промпт. */
