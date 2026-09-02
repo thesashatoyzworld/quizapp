@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { sendBotMessage } from '@/lib/telegram';
 import { suggestFromThread } from './answer';
@@ -201,20 +202,25 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
   // тот же, и привязка не должна зависеть от того, кто написал последним.
   const lead = await findLead(side === 'client' ? text : '', msg.chat.username);
 
-  await prisma.tgBusinessMsg.upsert({
-    where: { id: `${msg.chat.id}:${msg.message_id}` },
-    create: {
-      id: `${msg.chat.id}:${msg.message_id}`,
-      chatId: String(msg.chat.id),
-      side,
-      username: msg.chat.username || null,
-      name: msg.chat.first_name || null,
-      text,
-      leadId: lead?.id ?? null,
-      createdAt: new Date(msg.date * 1000),
-    },
-    update: {},
-  });
+  // Пишем через create, а не upsert: телеграм повторяет апдейт, если ответа
+  // не дождался, а разбор занимает полминуты. Конфликт по ключу — значит это
+  // повтор, и подсказку по нему слать второй раз не надо.
+  try {
+    await prisma.tgBusinessMsg.create({
+      data: {
+        id: `${msg.chat.id}:${msg.message_id}`,
+        chatId: String(msg.chat.id),
+        side,
+        username: msg.chat.username || null,
+        name: msg.chat.first_name || null,
+        text,
+        leadId: lead?.id ?? null,
+        createdAt: new Date(msg.date * 1000),
+      },
+    });
+  } catch {
+    return;
+  }
 
   if (side !== 'client') return;
 
@@ -247,4 +253,38 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
       await sendBotMessage(chatId, `нужен ты: ${callSasha}`, undefined, null);
     }
   }
+}
+
+/**
+ * Нажали «отправить» под вариантом — уходит человеку от имени аккаунта.
+ *
+ * Пишем через business_connection_id: сообщение появляется в переписке как
+ * Сашино, а не как сообщение бота. Право на это выдано при подключении
+ * (can_reply), без него телеграм откажет.
+ */
+export async function sendSuggestion(id: string): Promise<{ ok: boolean; error?: string }> {
+  const s = await prisma.tgSuggestion.findUnique({ where: { id } });
+  if (!s) return { ok: false, error: 'вариант потерялся, собери заново' };
+  if (s.sentAt) return { ok: false, error: 'уже отправлено' };
+
+  const token = process.env.BOT_TOKEN;
+  if (!token) return { ok: false, error: 'нет токена' };
+
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      business_connection_id: s.connId,
+      chat_id: Number(s.chatId),
+      text: s.text,
+    }),
+  });
+  const body = (await res.json()) as { ok: boolean; description?: string };
+  if (!body.ok) {
+    console.error('[business] отправка не прошла', body.description);
+    return { ok: false, error: body.description || 'телеграм отказал' };
+  }
+
+  await prisma.tgSuggestion.update({ where: { id }, data: { sentAt: new Date() } });
+  return { ok: true };
 }
