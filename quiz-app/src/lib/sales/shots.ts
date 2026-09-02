@@ -184,23 +184,23 @@ export async function handleScreenshots(msg: ShotMessage): Promise<boolean> {
     .map((m) => `${m.side === 'client' ? 'ЧЕЛОВЕК' : 'МЫ'}: ${m.text}`)
     .join('\n');
 
-  const { variants, callSasha } = await suggestFromThread({ about, rendered });
+  const step = await suggestFromThread({ about, rendered });
 
   const who = read.handle ? `@${read.handle}` : read.who || 'человек со скриншота';
   await sendBotMessage(
     msg.chat.id,
-    `${who}${lead ? ` · анкета №${lead.id}` : ''}\nсообщений на скрине: ${read.messages.length}`,
+    `${who}${lead ? ` · анкета №${lead.id}` : ''}${step.stage ? ` · ${step.stage}` : ''}\nсообщений на скрине: ${read.messages.length}`,
     undefined,
     null,
   );
-  for (const [i, v] of variants.entries()) {
-    await sendBotMessage(msg.chat.id, `${i + 1}. ${v.text}\n\n— ${v.why}`, undefined, null);
+  if (step.message) {
+    await sendBotMessage(msg.chat.id, step.message, undefined, null);
+    await sendBotMessage(msg.chat.id, `— ${step.why}`, undefined, null);
+  } else {
+    await sendBotMessage(msg.chat.id, 'шаг не собрался, посмотри сам', undefined, null);
   }
-  if (!variants.length) {
-    await sendBotMessage(msg.chat.id, 'вариантов не получилось, посмотри сам', undefined, null);
-  }
-  if (callSasha) {
-    await sendBotMessage(msg.chat.id, `нужен ты: ${callSasha}`, undefined, null);
+  if (step.callSasha) {
+    await sendBotMessage(msg.chat.id, `нужен ты: ${step.callSasha}`, undefined, null);
   }
 
   return true;
