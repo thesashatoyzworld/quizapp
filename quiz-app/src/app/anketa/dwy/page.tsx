@@ -52,9 +52,8 @@ function DwyInner() {
   const mode = DWY_MODES[kind];
 
   const [name, setName] = useState('');
-  // Номер отправленной анкеты — им подписано сообщение, которым человек
-  // начинает переписку, чтобы бот на том конце знал, кто пишет.
-  const [leadId, setLeadId] = useState<number | null>(null);
+  // Ссылка на личку: по ней уходим сами и на неё же смотрит запасная кнопка.
+  const [handoffUrl, setHandoffUrl] = useState('');
   const [contact, setContact] = useState('');
   const [phone, setPhone] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -211,7 +210,23 @@ function DwyInner() {
         return;
       }
       const data = await res.json().catch(() => ({}));
-      setLeadId(typeof data?.id === 'number' ? data.id : null);
+      // Номером анкеты подписано сообщение, которым человек начинает
+      // переписку: по нему бот на том конце знает, кто пишет.
+      const id = typeof data?.id === 'number' ? data.id : null;
+
+      // Человека не спрашиваем, хочет ли он написать — открываем телеграм
+      // сами. Разговор всё равно начинать ему: бот постучаться первым не
+      // может. Экран «спасибо» при этом отрисовывается: если переход не
+      // сработал (Instagram WebView такое умеет), на нём осталась кнопка.
+      if (mode.handoff) {
+        const text = `привет) анкета на менторство - ${name.trim()}${id ? `, #${id}` : ''}`;
+        const url = `https://t.me/${mode.handoff.account}?text=${encodeURIComponent(text)}`;
+        setHandoffUrl(url);
+        setSent(true);
+        window.location.assign(url);
+        return;
+      }
+
       setSent(true);
     } catch {
       setError('Не отправилось. Проверьте связь и попробуйте ещё раз.');
@@ -230,17 +245,10 @@ function DwyInner() {
           {mode.thanks.map((line, i) => (
             <p key={i} className={i === 0 ? 'dwy-done-h' : 'dwy-done-p'}>{line}</p>
           ))}
-          {mode.handoff && (
+          {mode.handoff && handoffUrl && (
             <div className="dwy-handoff">
               <p className="dwy-handoff-note">{mode.handoff.note}</p>
-              <a
-                className="dwy-handoff-btn"
-                href={`https://t.me/${mode.handoff.account}?text=${encodeURIComponent(
-                  `привет) анкета на менторство - ${name.trim()}${leadId ? `, #${leadId}` : ''}`,
-                )}`}
-              >
-                {mode.handoff.button}
-              </a>
+              <a className="dwy-handoff-btn" href={handoffUrl}>{mode.handoff.button}</a>
             </div>
           )}
         </section>
