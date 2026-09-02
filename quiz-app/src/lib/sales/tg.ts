@@ -186,6 +186,15 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
   // Группы и каналы мимо: помощник про переписку один на один.
   if (msg.chat.type !== 'private') return;
 
+  // ⚠️ Чат с ботом подключение тоже отдаёт. Свои же подсказки прилетают сюда
+  // как чужие сообщения, бот отвечает на них новыми подсказками — и так по
+  // кругу. Отсекаем ботов и собственные служебные чаты до всякой работы.
+  if (msg.from?.is_bot) return;
+  if (helpers().includes(msg.chat.id)) return;
+  // Свой же чат узнаём по токену: его первая часть — это id бота. Признака
+  // is_bot в апдейте может не оказаться, а петля стоит дорого.
+  if (msg.chat.id === Number((process.env.BOT_TOKEN || '').split(':')[0])) return;
+
   const conn = await ensureConnection(msg.business_connection_id);
   // Свои сообщения тоже сохраняем: без них модель не увидит, что мы уже
   // ответили, и предложит отвечать на несказанное.
