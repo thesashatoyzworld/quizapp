@@ -34,10 +34,16 @@ export type TgBusinessMessage = {
   caption?: string;
 };
 
-/** Кому уходят подсказки: Саша плюс те, кого он добавил. */
+/**
+ * Кому уходят подсказки: рабочий аккаунт плюс те, кого Саша добавил.
+ *
+ * Именно рабочий, а не ADMIN_CHAT_ID — тот личный. Переписки ведутся с
+ * @sashatoyzwork, подсказки к ним должны лежать там же, а не в другом чате
+ * на другом телефоне.
+ */
 function helpers(): number[] {
   return [
-    process.env.ADMIN_CHAT_ID,
+    process.env.ADMIN_CHAT_ID_WORK,
     ...(process.env.SALES_HELPER_CHAT_IDS || '').split(','),
   ]
     .map((v) => Number((v || '').trim()))
@@ -188,7 +194,9 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
         ? 'us'
         : 'client';
 
-  const lead = side === 'client' ? await findLead(text, msg.chat.username) : null;
+  // Анкету ищем по любому сообщению, включая наши: человек в чате один и
+  // тот же, и привязка не должна зависеть от того, кто написал последним.
+  const lead = await findLead(side === 'client' ? text : '', msg.chat.username);
 
   await prisma.tgBusinessMsg.upsert({
     where: { id: `${msg.chat.id}:${msg.message_id}` },
@@ -213,15 +221,14 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
     take: 40,
   });
 
-  const known = lead ?? (await findLead('', msg.chat.username));
   const { variants, callSasha } = await suggestFromThread({
-    about: describe(msg, known),
+    about: describe(msg, lead),
     rendered: render(rows),
   });
 
   const who = msg.chat.username ? `@${msg.chat.username}` : msg.chat.first_name || 'без ника';
   const head = [
-    `${who}${known ? ` · анкета №${known.id}` : ' · анкеты нет'}`,
+    `${who}${lead ? ` · анкета №${lead.id}` : ' · анкеты нет'}`,
     `\nнаписал: ${text.slice(0, 300)}`,
   ].join('');
 
