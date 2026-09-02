@@ -77,6 +77,35 @@ export async function saveConnection(conn: TgBusinessConnection): Promise<void> 
   }
 }
 
+/**
+ * Подключение по его id. Апдейт о подключении приходит один раз, в момент
+ * привязки бота, и если бот тогда ещё не был подписан на этот тип — он ушёл
+ * в никуда. Поэтому недостающее добираем у телеграма по id из сообщения:
+ * без владельца не отличить Сашины реплики от чужих.
+ */
+async function ensureConnection(id: string) {
+  const known = await prisma.tgBusinessConn.findUnique({ where: { id } });
+  if (known) return known;
+
+  const token = process.env.BOT_TOKEN;
+  if (!token) return null;
+  try {
+    const res = await fetch(
+      `https://api.telegram.org/bot${token}/getBusinessConnection?business_connection_id=${encodeURIComponent(id)}`,
+    );
+    const body = (await res.json()) as { ok: boolean; result?: TgBusinessConnection };
+    if (!body.ok || !body.result) {
+      console.error('[business] подключение не отдалось', JSON.stringify(body).slice(0, 200));
+      return null;
+    }
+    await saveConnection(body.result);
+    return prisma.tgBusinessConn.findUnique({ where: { id } });
+  } catch (e) {
+    console.error('[business] getBusinessConnection упал', e);
+    return null;
+  }
+}
+
 /** Анкета человека: сперва по номеру из сообщения, потом по нику. */
 async function findLead(text: string, username?: string | null) {
   const marked = text.match(/#(\d{1,7})\b/);
@@ -147,12 +176,17 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
   // Группы и каналы мимо: помощник про переписку один на один.
   if (msg.chat.type !== 'private') return;
 
-  const conn = await prisma.tgBusinessConn.findUnique({
-    where: { id: msg.business_connection_id },
-  });
+  const conn = await ensureConnection(msg.business_connection_id);
   // Свои сообщения тоже сохраняем: без них модель не увидит, что мы уже
   // ответили, и предложит отвечать на несказанное.
-  const side = conn && String(msg.from?.id) === conn.userId ? 'us' : 'client';
+  const side =
+    conn && String(msg.from?.id) === conn.userId
+      ? 'us'
+      : // Подключение не добралось — тогда по грубому признаку: входящее
+        // всегда приходит от того же, чей это чат.
+        !conn && msg.from && msg.from.id !== msg.chat.id
+        ? 'us'
+        : 'client';
 
   const lead = side === 'client' ? await findLead(text, msg.chat.username) : null;
 
