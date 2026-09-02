@@ -52,6 +52,9 @@ function DwyInner() {
   const mode = DWY_MODES[kind];
 
   const [name, setName] = useState('');
+  // Номер отправленной анкеты — им подписано сообщение, которым человек
+  // начинает переписку, чтобы бот на том конце знал, кто пишет.
+  const [leadId, setLeadId] = useState<number | null>(null);
   const [contact, setContact] = useState('');
   const [phone, setPhone] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -207,6 +210,8 @@ function DwyInner() {
         setSending(false);
         return;
       }
+      const data = await res.json().catch(() => ({}));
+      setLeadId(typeof data?.id === 'number' ? data.id : null);
       setSent(true);
     } catch {
       setError('Не отправилось. Проверьте связь и попробуйте ещё раз.');
@@ -225,6 +230,19 @@ function DwyInner() {
           {mode.thanks.map((line, i) => (
             <p key={i} className={i === 0 ? 'dwy-done-h' : 'dwy-done-p'}>{line}</p>
           ))}
+          {mode.handoff && (
+            <div className="dwy-handoff">
+              <p className="dwy-handoff-note">{mode.handoff.note}</p>
+              <a
+                className="dwy-handoff-btn"
+                href={`https://t.me/${mode.handoff.account}?text=${encodeURIComponent(
+                  `привет) анкета на менторство - ${name.trim()}${leadId ? `, #${leadId}` : ''}`,
+                )}`}
+              >
+                {mode.handoff.button}
+              </a>
+            </div>
+          )}
         </section>
       ) : (
         <>
@@ -338,6 +356,13 @@ function DwyInner() {
         .dwy-done { padding: 60px 0; }
         .dwy-done-h { font-size: 25px; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.02em; }
         .dwy-done-p { font-size: 18px; color: var(--mut); margin: 0; line-height: 1.5; }
+        .dwy-handoff { margin-top: 28px; }
+        .dwy-handoff-note { font-size: 16px; color: var(--mut); margin: 0 0 14px; line-height: 1.5; }
+        .dwy-handoff-btn {
+          display: inline-block; padding: 15px 26px; border-radius: 12px;
+          background: var(--fg); color: var(--bg); text-decoration: none;
+          font-size: 17px; font-weight: 600;
+        }
         @media (max-width: 560px) {
           .dwy { padding: 28px 15px 60px; }
           .dwy-h1 { font-size: 24px; }
