@@ -33,12 +33,9 @@ async function main() {
   console.log(`\n=== ${res.who}${res.waiting ? ` · ждёт ${res.waiting}` : ''} ===\n`);
   console.log(renderThread(res.thread!.messages));
 
-  console.log(`\n=== что написать (${res.variants.length}) ===`);
-  for (const [i, v] of res.variants.entries()) {
-    console.log(`\n--- вариант ${i + 1} ---`);
-    console.log(v.text);
-    console.log(`   ↳ ${v.why}`);
-  }
+  console.log(`\n=== что написать · ${res.stage} ===` + '\n');
+  console.log(res.message);
+  console.log(`   ↳ ${res.why}`);
 
   if (res.callSasha) console.log(`\n[ЗДЕСЬ НУЖЕН САША] ${res.callSasha}`);
   console.log(`\nвремя: ${((Date.now() - started) / 1000).toFixed(1)} с`);
