@@ -12,7 +12,7 @@ import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { handleKbQuestion } from '@/lib/kb/ask';
 import { handleSalesQuestion } from '@/lib/sales/ask';
 import {
-  handleBusinessMessage, saveConnection,
+  handleBusinessMessage, saveConnection, sendSuggestion, helpers,
   type TgBusinessConnection, type TgBusinessMessage,
 } from '@/lib/sales/tg';
 import { handleScreenshots } from '@/lib/sales/shots';
@@ -361,6 +361,31 @@ export async function POST(request: NextRequest) {
     if (update.callback_query) {
       const cb = update.callback_query;
       const data = cb.data || '';
+
+      // Кнопка уже отработала — на повторное нажатие просто отвечаем.
+      if (data === 'noop') {
+        await answerCallbackQuery(cb.id, 'уже отправлено');
+        return NextResponse.json({ ok: true });
+      }
+
+      // «Отправить» под вариантом ответа: уходит человеку от имени аккаунта.
+      if (data.startsWith('sndv:') && cb.message) {
+        const chatId = cb.message.chat.id;
+        if (!helpers().includes(chatId)) {
+          await answerCallbackQuery(cb.id, 'не твоя кнопка');
+          return NextResponse.json({ ok: true });
+        }
+        const res = await sendSuggestion(data.slice(5));
+        await answerCallbackQuery(cb.id, res.ok ? 'отправил' : res.error || 'не вышло');
+        if (res.ok) {
+          // Кнопку убираем: иначе то же сообщение уйдёт человеку дважды.
+          await editAdminMarkup(
+            { chatId: String(chatId), messageId: cb.message.message_id },
+            { inline_keyboard: [[{ text: '✅ отправлено', callback_data: 'noop' }]] },
+          );
+        }
+        return NextResponse.json({ ok: true });
+      }
 
       // Кнопки статуса под уведомлением о заявке с сайта.
       const leadHit = parseLeadCallback(data);

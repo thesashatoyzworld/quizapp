@@ -760,3 +760,16 @@ model TgShot {
   @@index([groupId, createdAt])
   @@map("tg_shot")
 }
+
+/** Вариант ответа под кнопкой «отправить». Текст в callback_data не влезает. */
+model TgSuggestion {
+  id        String    @id
+  connId    String    @map("conn_id")
+  chatId    String    @map("chat_id")
+  text      String
+  createdAt DateTime  @default(now()) @map("created_at")
+  sentAt    DateTime? @map("sent_at")
+
+  @@index([chatId, createdAt])
+  @@map("tg_suggestion")
+}
