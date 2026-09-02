@@ -20,6 +20,12 @@ const TOKEN = process.env.BOT_TOKEN;
 const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 const DEFAULT_URL = 'https://quiz.thesashatoyz.com/api/telegram-webhook';
 
+// Что бот слушает. Список явный: без него Телеграм ставит свой набор по
+// умолчанию, а он меняется от версии к версии.
+//   business_connection — бота подключили к личке рабочего аккаунта
+//   business_message    — сообщение в этой личке, разбирает ветка помощника
+const ALLOWED = ['message', 'callback_query', 'business_connection', 'business_message'];
+
 if (!TOKEN) {
   console.error('Нет BOT_TOKEN — положи его в .env.local');
   process.exit(1);
@@ -52,6 +58,7 @@ if (cmd === 'status' || !cmd) {
   console.log('Последняя ошибка:   ', r.last_error_message || '—',
     r.last_error_date ? new Date(r.last_error_date * 1000).toISOString() : '');
   console.log('Секрет локально:    ', SECRET ? `задан (${SECRET.length} симв.)` : 'НЕ ЗАДАН');
+  console.log('Слушает:            ', (r.allowed_updates || ['(набор по умолчанию)']).join(', '));
   process.exit(0);
 }
 
@@ -67,6 +74,7 @@ if (cmd === 'set') {
   const res = await api('setWebhook', {
     url,
     secret_token: SECRET,
+    allowed_updates: ALLOWED,
     // Апдейты, накопленные за время раскатки, отбрасывать не надо.
     drop_pending_updates: false,
   });

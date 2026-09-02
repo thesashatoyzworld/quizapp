@@ -166,7 +166,9 @@ export async function POST(req: NextRequest) {
         .catch((e) => console.error('[dwy-lead] не записал notifyRefs', e));
     });
 
-    return NextResponse.json({ ok: true });
+    // Номер анкеты отдаём клиенту: он уходит в текст сообщения, которым
+    // человек начинает переписку, и по нему бот находит, кто пришёл.
+    return NextResponse.json({ ok: true, id: saved.id });
   } catch (e) {
     console.error('[dwy-lead] handler error', e);
     return NextResponse.json({ error: 'internal error' }, { status: 500 });

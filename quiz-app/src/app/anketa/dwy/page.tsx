@@ -52,6 +52,8 @@ function DwyInner() {
   const mode = DWY_MODES[kind];
 
   const [name, setName] = useState('');
+  // Ссылка на личку: по ней уходим сами и на неё же смотрит запасная кнопка.
+  const [handoffUrl, setHandoffUrl] = useState('');
   const [contact, setContact] = useState('');
   const [phone, setPhone] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -207,6 +209,24 @@ function DwyInner() {
         setSending(false);
         return;
       }
+      const data = await res.json().catch(() => ({}));
+      // Номером анкеты подписано сообщение, которым человек начинает
+      // переписку: по нему бот на том конце знает, кто пишет.
+      const id = typeof data?.id === 'number' ? data.id : null;
+
+      // Человека не спрашиваем, хочет ли он написать — открываем телеграм
+      // сами. Разговор всё равно начинать ему: бот постучаться первым не
+      // может. Экран «спасибо» при этом отрисовывается: если переход не
+      // сработал (Instagram WebView такое умеет), на нём осталась кнопка.
+      if (mode.handoff) {
+        const text = `привет) анкета на менторство - ${name.trim()}${id ? `, #${id}` : ''}`;
+        const url = `https://t.me/${mode.handoff.account}?text=${encodeURIComponent(text)}`;
+        setHandoffUrl(url);
+        setSent(true);
+        window.location.assign(url);
+        return;
+      }
+
       setSent(true);
     } catch {
       setError('Не отправилось. Проверьте связь и попробуйте ещё раз.');
@@ -225,6 +245,12 @@ function DwyInner() {
           {mode.thanks.map((line, i) => (
             <p key={i} className={i === 0 ? 'dwy-done-h' : 'dwy-done-p'}>{line}</p>
           ))}
+          {mode.handoff && handoffUrl && (
+            <div className="dwy-handoff">
+              <p className="dwy-handoff-note">{mode.handoff.note}</p>
+              <a className="dwy-handoff-btn" href={handoffUrl}>{mode.handoff.button}</a>
+            </div>
+          )}
         </section>
       ) : (
         <>
@@ -338,6 +364,13 @@ function DwyInner() {
         .dwy-done { padding: 60px 0; }
         .dwy-done-h { font-size: 25px; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.02em; }
         .dwy-done-p { font-size: 18px; color: var(--mut); margin: 0; line-height: 1.5; }
+        .dwy-handoff { margin-top: 28px; }
+        .dwy-handoff-note { font-size: 16px; color: var(--mut); margin: 0 0 14px; line-height: 1.5; }
+        .dwy-handoff-btn {
+          display: inline-block; padding: 15px 26px; border-radius: 12px;
+          background: var(--fg); color: var(--bg); text-decoration: none;
+          font-size: 17px; font-weight: 600;
+        }
         @media (max-width: 560px) {
           .dwy { padding: 28px 15px 60px; }
           .dwy-h1 { font-size: 24px; }
