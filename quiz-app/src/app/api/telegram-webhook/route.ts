@@ -15,6 +15,7 @@ import {
   handleBusinessMessage, saveConnection,
   type TgBusinessConnection, type TgBusinessMessage,
 } from '@/lib/sales/tg';
+import { handleScreenshots } from '@/lib/sales/shots';
 import {
   INTAKE_CB,
   adminAddQuestion,
@@ -87,6 +88,11 @@ interface TelegramUpdate {
     // Анкета принимает не только текст: голосовые, скрины, кружки, файлы.
     voice?: { file_id: string; duration?: number; file_size?: number };
     photo?: { file_id: string }[];
+    // Номер сообщения: по нему альбом из скриншотов разбирает только первый
+    // апдейт, иначе на три картинки прилетит три одинаковых ответа.
+    message_id?: number;
+    // Альбом приходит по апдейту на картинку, склеивается по этому полю.
+    media_group_id?: string;
     document?: { file_id: string; file_name?: string };
     video_note?: { file_id: string; duration?: number };
     caption?: string;
@@ -696,6 +702,24 @@ export async function POST(request: NextRequest) {
         text: update.message.text,
       });
       if (sales.handled) return NextResponse.json({ ok: true });
+    }
+
+    // Скриншот переписки от своих. Тоже перед анкетой: она забирает картинки
+    // как ответ на свой вопрос. Ветка узкая — только чаты помощника.
+    if (
+      update.message?.photo?.length &&
+      update.message.from?.id &&
+      isPrivateChat(update.message.chat, update.message.from.id)
+    ) {
+      const m = update.message;
+      const shot = await handleScreenshots({
+        chat: { id: m.chat.id },
+        message_id: m.message_id ?? 0,
+        photo: m.photo,
+        media_group_id: m.media_group_id,
+        caption: m.caption,
+      });
+      if (shot) return NextResponse.json({ ok: true });
     }
 
     // Ответ на вопрос анкеты: голос, текст, скрин, ссылка, кружок, файл.
