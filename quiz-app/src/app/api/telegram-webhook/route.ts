@@ -12,7 +12,7 @@ import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { handleKbQuestion } from '@/lib/kb/ask';
 import { handleSalesQuestion } from '@/lib/sales/ask';
 import {
-  handleBusinessMessage, saveConnection, sendSuggestion, helpers,
+  handleBusinessMessage, saveConnection, sendSuggestion, regenerate, helpers,
   type TgBusinessConnection, type TgBusinessMessage,
 } from '@/lib/sales/tg';
 import { handleScreenshots } from '@/lib/sales/shots';
@@ -365,6 +365,19 @@ export async function POST(request: NextRequest) {
       // Кнопка уже отработала — на повторное нажатие просто отвечаем.
       if (data === 'noop') {
         await answerCallbackQuery(cb.id, 'уже отправлено');
+        return NextResponse.json({ ok: true });
+      }
+
+      // «Другой» — собрать шаг заново по тому же чату.
+      if (data.startsWith('rgen:') && cb.message) {
+        const chatId = cb.message.chat.id;
+        if (!helpers().includes(chatId)) {
+          await answerCallbackQuery(cb.id, 'не твоя кнопка');
+          return NextResponse.json({ ok: true });
+        }
+        await answerCallbackQuery(cb.id, 'собираю другой');
+        const ok = await regenerate(data.slice(5));
+        if (!ok) await sendBotMessage(chatId, 'переписки в базе нет, нечего пересобрать', undefined, null);
         return NextResponse.json({ ok: true });
       }
 

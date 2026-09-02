@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { sendBotMessage } from '@/lib/telegram';
-import { suggestFromThread } from './answer';
+import { suggestFromThread, type SalesStep } from './answer';
 
 // Личка рабочего аккаунта.
 //
@@ -239,29 +239,106 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
     take: 40,
   });
 
-  const { variants, callSasha } = await suggestFromThread({
+  const step = await suggestFromThread({
     about: describe(msg, lead),
     rendered: render(rows),
   });
 
   const who = msg.chat.username ? `@${msg.chat.username}` : msg.chat.first_name || 'без ника';
-  const head = [
-    `${who}${lead ? ` · анкета №${lead.id}` : ' · анкеты нет'}`,
-    `\nнаписал: ${text.slice(0, 300)}`,
-  ].join('');
+  await sendStep({
+    connId: msg.business_connection_id,
+    chatId: String(msg.chat.id),
+    head: [
+      `${who}${lead ? ` · анкета №${lead.id}` : ' · анкеты нет'}`,
+      step.stage ? ` · ${step.stage}` : '',
+      `\nнаписал: ${text.slice(0, 300)}`,
+    ].join(''),
+    step,
+  });
+}
 
-  for (const chatId of helpers()) {
-    await sendBotMessage(chatId, head, undefined, null);
-    for (const [i, v] of variants.entries()) {
-      await sendBotMessage(chatId, `${i + 1}. ${v.text}\n\n— ${v.why}`, undefined, null);
+/**
+ * Показать шаг тому, кто ведёт переписку: карточка, само сообщение и кнопки.
+ *
+ * Сообщение приходит отдельным куском, чтобы его можно было скопировать
+ * одним нажатием, если отправлять хочется руками и с правками.
+ */
+export async function sendStep(params: {
+  connId: string;
+  chatId: string;
+  head: string;
+  step: SalesStep;
+}): Promise<void> {
+  const { connId, chatId, head, step } = params;
+
+  for (const helper of helpers()) {
+    await sendBotMessage(helper, head, undefined, null);
+
+    if (!step.message) {
+      await sendBotMessage(helper, 'шаг не собрался, посмотри сам', undefined, null);
+      continue;
     }
-    if (!variants.length) {
-      await sendBotMessage(chatId, 'вариантов не получилось, посмотри сам', undefined, null);
-    }
-    if (callSasha) {
-      await sendBotMessage(chatId, `нужен ты: ${callSasha}`, undefined, null);
+
+    // Текст живёт в базе, кнопка несёт только id: в callback_data 64 байта.
+    const saved = await prisma.tgSuggestion.create({
+      data: { id: randomUUID(), connId, chatId, text: step.message },
+    });
+
+    await sendBotMessage(
+      helper,
+      step.message,
+      {
+        inline_keyboard: [
+          [
+            { text: '📤 отправить', callback_data: `sndv:${saved.id}` },
+            { text: '↻ другой', callback_data: `rgen:${chatId}` },
+          ],
+        ],
+      },
+      null,
+    );
+
+    await sendBotMessage(helper, `— ${step.why}`, undefined, null);
+
+    if (step.callSasha) {
+      await sendBotMessage(helper, `нужен ты: ${step.callSasha}`, undefined, null);
     }
   }
+}
+
+/** Собрать шаг заново по тому же чату — кнопка «другой». */
+export async function regenerate(chatId: string): Promise<boolean> {
+  const rows = await prisma.tgBusinessMsg.findMany({
+    where: { chatId },
+    orderBy: { createdAt: 'asc' },
+    take: 40,
+  });
+  if (!rows.length) return false;
+
+  const last = rows[rows.length - 1];
+  const conn = await prisma.tgBusinessConn.findFirst({ orderBy: { connectedAt: 'desc' } });
+  const lead = await findLead('', last.username);
+
+  const step = await suggestFromThread({
+    about: [
+      last.username ? `ник: @${last.username}` : null,
+      last.name ? `имя в телеграме: ${last.name}` : null,
+      'канал: личка в телеграме, не инстаграм',
+      'предыдущий вариант не подошёл — дай другой ход, не переписывай тот же',
+      describeLead(lead),
+    ]
+      .filter(Boolean)
+      .join('\n'),
+    rendered: render(rows),
+  });
+
+  await sendStep({
+    connId: conn?.id || '',
+    chatId,
+    head: `${last.username ? '@' + last.username : last.name || 'человек'}${lead ? ` · анкета №${lead.id}` : ''}${step.stage ? ` · ${step.stage}` : ''}\nдругой ход:`,
+    step,
+  });
+  return true;
 }
 
 /**

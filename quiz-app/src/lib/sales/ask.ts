@@ -58,24 +58,25 @@ export async function handleSalesQuestion(params: {
 
     const last = res.thread?.messages[res.thread.messages.length - 1];
     const head = [
-      `${res.who}${res.waiting ? ` · ждёт ${res.waiting}` : ''}`,
+      `${res.who}${res.waiting ? ` · ждёт ${res.waiting}` : ''}${res.stage ? ` · ${res.stage}` : ''}`,
       last ? `\nпоследнее: ${last.side === 'client' ? '' : '(наше) '}${(last.message || '').slice(0, 300)}` : '',
     ].join('');
     await sendBotMessage(chatId, head, undefined, null);
 
-    if (!res.variants.length) {
+    if (!res.message) {
       await sendBotMessage(
         chatId,
-        'модель не вернула ни одного варианта. попробуй ещё раз тем же ником',
+        'шаг не собрался. попробуй ещё раз тем же ником',
         undefined,
         null,
       );
       return { handled: true };
     }
 
-    for (const [i, v] of res.variants.entries()) {
-      await sendBotMessage(chatId, `${i + 1}. ${v.text}\n\n— ${v.why}`, undefined, null);
-    }
+    // Сообщение отдельным куском: его копируют одним нажатием. Кнопки
+    // отправки здесь нет — в инсте бот пока только суфлирует.
+    await sendBotMessage(chatId, res.message, undefined, null);
+    await sendBotMessage(chatId, `— ${res.why}`, undefined, null);
 
     if (res.callSasha) {
       await sendBotMessage(chatId, `здесь нужен Саша: ${res.callSasha}`, undefined, null);
