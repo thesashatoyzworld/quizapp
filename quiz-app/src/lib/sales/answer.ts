@@ -107,7 +107,54 @@ function waitingFor(thread: SalesThread): string | null {
   return `${Math.round(hours / 24)} дн`;
 }
 
-/** Ник человека → что ему написать дальше. */
+/**
+ * Что написать дальше по готовой переписке. Источник неважен: инста-директ
+ * приходит из ChatPlace, личка рабочего аккаунта — из телеграма, база
+ * и промпт для обоих одни.
+ */
+export async function suggestFromThread(params: {
+  /** Что известно о человеке: ник, анкета, воронка. */
+  about: string;
+  /** Переписка строками «[время] ЧЕЛОВЕК/МЫ: текст». */
+  rendered: string;
+}): Promise<{ variants: SalesVariant[]; callSasha: string | null }> {
+  const res = await anthropic.messages.create({
+    model: 'claude-sonnet-5',
+    max_tokens: 6000,
+    system: [
+      { type: 'text' as const, text: SYSTEM },
+      { type: 'text' as const, text: SALES_KB, cache_control: { type: 'ephemeral' as const } },
+    ],
+    messages: [
+      {
+        role: 'user',
+        content: `Человек:
+${params.about || 'ничего не известно'}
+
+Переписка:
+${params.rendered}
+
+Что написать дальше?`,
+      },
+    ],
+    output_config: { format: { type: 'json_schema', schema: SCHEMA } },
+  });
+
+  if (process.env.SALES_DEBUG) {
+    console.error('[sales] stop_reason:', res.stop_reason, '· output:', res.usage.output_tokens);
+  }
+
+  const block = res.content.find((b) => b.type === 'text');
+  if (!block || block.type !== 'text') return { variants: [], callSasha: null };
+  try {
+    return JSON.parse(block.text) as { variants: SalesVariant[]; callSasha: string | null };
+  } catch {
+    console.error('[sales] ответ модели не разобрался как json');
+    return { variants: [], callSasha: null };
+  }
+}
+
+/** Ник человека → что ему написать дальше. Инста-директ. */
 export async function suggestReply(handle: string): Promise<SalesAnswer> {
   const thread = await findThread(handle);
   if (!thread) {
@@ -133,36 +180,7 @@ export async function suggestReply(handle: string): Promise<SalesAnswer> {
     .filter(Boolean)
     .join('\n');
 
-  const res = await anthropic.messages.create({
-    model: 'claude-sonnet-5',
-    // С запасом: часть бюджета уходит на размышление, и на 2000 ответ
-    // однажды оборвался — пришёл пустой список вариантов.
-    max_tokens: 6000,
-    system: [
-      // База не меняется от запроса к запросу — держим её первой и кэшируем,
-      // тогда повторные вопросы стоят копейки.
-      { type: 'text' as const, text: SYSTEM },
-      { type: 'text' as const, text: SALES_KB, cache_control: { type: 'ephemeral' as const } },
-    ],
-    messages: [
-      {
-        role: 'user',
-        content: `Человек:\n${about || 'ничего не известно, кроме ника'}\n\nПереписка:\n${renderThread(messages)}\n\nЧто написать дальше?`,
-      },
-    ],
-    output_config: { format: { type: 'json_schema', schema: SCHEMA } },
-  });
-
-  if (process.env.SALES_DEBUG) {
-    console.error('[sales] stop_reason:', res.stop_reason, '· output:', res.usage.output_tokens);
-    console.error('[sales] сырьё:', JSON.stringify(res.content).slice(0, 600));
-  }
-
-  const block = res.content.find((b) => b.type === 'text');
-  const parsed =
-    block && block.type === 'text'
-      ? (JSON.parse(block.text) as { variants: SalesVariant[]; callSasha: string | null })
-      : { variants: [], callSasha: null };
+  const parsed = await suggestFromThread({ about, rendered: renderThread(messages) });
 
   return {
     found: true,

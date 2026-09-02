@@ -709,3 +709,41 @@ model FxRateDaily {
 
   @@map("fx_rates_daily")
 }
+
+// ═══════════════════════════════════════
+// ЛИЧКА РАБОЧЕГО АККАУНТА
+// ═══════════════════════════════════════
+//
+// Бот подключён к @sashatoyzwork через «Chat automation» и видит его личные
+// переписки. Историю чата Telegram боту не отдаёт — только то, что приходит
+// после подключения, поэтому переписку копим сами.
+
+/** Подключение бота к аккаунту. Из него берётся business_connection_id. */
+model TgBusinessConn {
+  id          String   @id
+  userId      String   @map("user_id")
+  username    String?
+  canReply    Boolean  @default(false) @map("can_reply")
+  isEnabled   Boolean  @default(true) @map("is_enabled")
+  connectedAt DateTime @default(now()) @map("connected_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("tg_business_conn")
+}
+
+/** Сообщение из личной переписки. side: client | us. */
+model TgBusinessMsg {
+  id        String   @id
+  chatId    String   @map("chat_id")
+  side      String
+  username  String?
+  name      String?
+  text      String
+  /** Номер анкеты, если человек пришёл с формы и она узналась. */
+  leadId    Int?     @map("lead_id")
+  createdAt DateTime @map("created_at")
+
+  @@index([chatId, createdAt])
+  @@index([username])
+  @@map("tg_business_msg")
+}

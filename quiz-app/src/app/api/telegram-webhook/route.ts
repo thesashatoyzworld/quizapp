@@ -12,6 +12,10 @@ import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { handleKbQuestion } from '@/lib/kb/ask';
 import { handleSalesQuestion } from '@/lib/sales/ask';
 import {
+  handleBusinessMessage, saveConnection,
+  type TgBusinessConnection, type TgBusinessMessage,
+} from '@/lib/sales/tg';
+import {
   INTAKE_CB,
   adminAddQuestion,
   claimBlindIntake,
@@ -61,6 +65,10 @@ function isFromTelegram(request: NextRequest): boolean {
 }
 
 interface TelegramUpdate {
+  // Личка рабочего аккаунта, к которому подключён бот. Отдельный тип: это
+  // НЕ сообщения боту, и в общий разбор ниже они попадать не должны.
+  business_connection?: TgBusinessConnection;
+  business_message?: TgBusinessMessage;
   message?: {
     chat: {
       id: number;
@@ -321,6 +329,27 @@ export async function POST(request: NextRequest) {
 
   try {
     const update: TelegramUpdate = await request.json();
+
+    // Личка рабочего аккаунта идёт своей веткой и с ранним выходом. Ниже
+    // весь разбор висит на update.message — команды, кабинет, анкеты, — и
+    // если пустить переписки с клиентами туда же, бот начнёт отвечать на них
+    // как на команды себе.
+    if (update.business_connection) {
+      await saveConnection(update.business_connection);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (update.business_message) {
+      // Работу делаем прямо в запросе, не откладывая в after(): фоновая
+      // часть до человека не доходит — на этом уже обожглись в ветке
+      // помощника. Полминуты вебхук держит, у роута maxDuration 60.
+      try {
+        await handleBusinessMessage(update.business_message);
+      } catch (e) {
+        console.error('[business_message] разбор не прошёл', e);
+      }
+      return NextResponse.json({ ok: true });
+    }
 
     // Handle inline button callbacks
     if (update.callback_query) {
