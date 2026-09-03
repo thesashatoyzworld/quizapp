@@ -63,6 +63,7 @@ export async function POST() {
             .filter(Boolean)
             .join('\n'),
           rendered,
+          waitingSeconds: r.waitingSeconds,
         });
 
         if (!step.message) return false;

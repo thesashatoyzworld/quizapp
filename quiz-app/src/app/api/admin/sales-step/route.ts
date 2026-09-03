@@ -40,6 +40,11 @@ export async function POST(request: NextRequest) {
   const rows = await threadOf(chatId, 60);
   if (!rows.length) return NextResponse.json({ error: 'переписки нет' }, { status: 404 });
 
+  // Сколько человек ждёт: по этому помощник решает, объяснять ли паузу.
+  const tail = rows[rows.length - 1];
+  const waitingSeconds =
+    tail.side === 'client' ? Math.round((Date.now() - tail.createdAt.getTime()) / 1000) : null;
+
   const last = await prisma.tgBusinessMsg.findFirst({
     where: { chatId },
     orderBy: { createdAt: 'desc' },
@@ -66,6 +71,7 @@ export async function POST(request: NextRequest) {
       .join('\n'),
     rendered,
     steer: typeof steer === 'string' && steer.trim() ? steer.trim().slice(0, 500) : null,
+    waitingSeconds,
   });
 
   // Кладём в базу: если Саша ушёл со страницы и вернулся, ответ уже готов.
