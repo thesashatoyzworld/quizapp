@@ -63,9 +63,13 @@ const step = await suggestFromThread({
   steer,
 });
 
+console.log(`ПРОДАЁМ: ${step.sell}`);
 console.log(`СТАДИЯ: ${step.stage}\n`);
 console.log(step.message);
 console.log(`\n— ${step.why}`);
+if (step.plan?.length) {
+  console.log(`\nдальше:\n${step.plan.map((p, i) => `  ${i + 1}. ${p}`).join('\n')}`);
+}
 if (step.callSasha) console.log(`\nнужен Саша: ${step.callSasha}`);
 
 await prisma.$disconnect();

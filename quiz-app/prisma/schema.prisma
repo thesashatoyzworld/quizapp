@@ -810,6 +810,9 @@ model TgSuggestion {
   why       String?
   stage     String?
   callSasha String?   @map("call_sasha")
+  /** Ступень лестницы для этого человека и ходы до оффера. */
+  sell      String?
+  plan      String[]
   createdAt DateTime  @default(now()) @map("created_at")
   sentAt    DateTime? @map("sent_at")
 
