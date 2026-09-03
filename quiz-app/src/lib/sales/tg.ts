@@ -163,6 +163,23 @@ function describe(
     .join('\n');
 }
 
+/**
+ * Хвост переписки: последние сообщения, в порядке разговора.
+ *
+ * ⚠️ Именно последние. С «orderBy asc, take: 40» приезжали сорок самых
+ * старых — пока история копилась с нуля, разницы не было, но после заливки
+ * выгрузки из Telegram Desktop бот читал бы знакомство недельной давности
+ * и не видел, о чём речь сейчас.
+ */
+async function thread(chatId: string, take = 40) {
+  const rows = await prisma.tgBusinessMsg.findMany({
+    where: { chatId },
+    orderBy: { createdAt: 'desc' },
+    take,
+  });
+  return rows.reverse();
+}
+
 /** Переписка строками, как её ждёт промпт. */
 function render(rows: { side: string; text: string; createdAt: Date }[]): string {
   if (!rows.length) return '(переписки ещё нет)';
@@ -233,11 +250,7 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
 
   if (side !== 'client') return;
 
-  const rows = await prisma.tgBusinessMsg.findMany({
-    where: { chatId: String(msg.chat.id) },
-    orderBy: { createdAt: 'asc' },
-    take: 40,
-  });
+  const rows = await thread(String(msg.chat.id));
 
   const step = await suggestFromThread({
     about: describe(msg, lead),
@@ -308,11 +321,7 @@ export async function sendStep(params: {
 
 /** Собрать шаг заново по тому же чату — кнопка «другой». */
 export async function regenerate(chatId: string): Promise<boolean> {
-  const rows = await prisma.tgBusinessMsg.findMany({
-    where: { chatId },
-    orderBy: { createdAt: 'asc' },
-    take: 40,
-  });
+  const rows = await thread(chatId);
   if (!rows.length) return false;
 
   const last = rows[rows.length - 1];
