@@ -1,7 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { prisma } from '@/lib/prisma';
-import { SALES_KB } from '@/content/sales-kb';
-import { findThread, renderThread, type SalesThread } from './lead';
+import Anthropic from "@anthropic-ai/sdk";
+import { prisma } from "@/lib/prisma";
+import { SALES_KB } from "@/content/sales-kb";
+import { findThread, renderThread, type SalesThread } from "./lead";
 
 // Помощник в продажах: смотрит живую переписку и предлагает, что написать
 // дальше. Не отправляет сам — решение и отправка остаются за человеком.
@@ -208,21 +208,21 @@ const SYSTEM = `Ты ведёшь переписки за Сашу и довод
 
 ## Если мы долго молчали
 
-Тебе говорят, сколько человек ждёт ответа. Больше четырёх часов — первой
-строкой коротко скажи, почему была пауза, и сразу переходи к делу:
+Тебе говорят, сколько человек ждёт ответа. Провисел дольше двенадцати часов —
+первой строкой назови причину задержки и сразу переходи к делу:
 
 > много заявок было, только разгребаю
 > вчера был завал по заявкам, добрался только сейчас
 
-Одна строка, деловым тоном. Не «извини, пожалуйста, за долгое ожидание»,
-не объяснение на абзац, не обещания «больше такого не повторится»: Саша не
-оправдывается. Причина всегда рабочая — заявок много, разбирал очередь,
-были созвоны.
+⛔ **Мы не извиняемся.** Ни «извини», ни «прости», ни «сорри», ни «прошу
+прощения», ни «виноват» — этих слов в сообщении нет. Саша не оправдывается
+за свой график: он говорит, что было, и работает дальше. Одна строка,
+деловым тоном, без обещаний «больше такого не повторится».
 
-Меньше четырёх часов — не упоминай паузу вообще, это нормальный темп
-переписки. И не начинай с неё, если человек ждёт ответа на прямой вопрос
-про деньги: тогда сначала пауза одной строкой, а дальше сразу ответ, а не
-новые вопросы.
+Меньше двенадцати часов — про паузу не упоминай вообще, это нормальный темп
+переписки. И не начинай с причины, если человек ждёт ответа на прямой вопрос
+про деньги: сначала строка про задержку, дальше сразу ответ, а не новые
+вопросы.
 
 ## Как писать
 
@@ -268,39 +268,46 @@ const SYSTEM = `Ты ведёшь переписки за Сашу и довод
 работа. Сообщение всё равно дай: до передачи есть что написать.`;
 
 const SCHEMA = {
-  type: 'object',
+  type: "object",
   properties: {
-    message: { type: 'string', description: 'готовое сообщение целиком, отправляется как есть' },
-    why: { type: 'string', description: 'одной строкой: почему этот шаг сейчас' },
+    message: {
+      type: "string",
+      description: "готовое сообщение целиком, отправляется как есть",
+    },
+    why: {
+      type: "string",
+      description: "одной строкой: почему этот шаг сейчас",
+    },
     stage: {
-      type: 'string',
-      description: 'где человек стоит: не знаем ситуацию | знаем ситуацию | греется | прогрет | внутри тарифа 1 | молчит',
+      type: "string",
+      description:
+        "где человек стоит: не знаем ситуацию | знаем ситуацию | греется | прогрет | внутри тарифа 1 | молчит",
     },
     callSasha: {
-      type: ['string', 'null'],
-      description: 'если нужен Саша — почему; иначе null',
+      type: ["string", "null"],
+      description: "если нужен Саша — почему; иначе null",
     },
     sell: {
-      type: 'string',
+      type: "string",
       description:
-        'ступень лестницы для этого человека: продукт, цена и одной фразой почему именно он — по фактам переписки и анкеты. Например «тариф 1, 5 450: продукта нет, платных клиентов нет, окупать нечем»',
+        "ступень лестницы для этого человека: продукт, цена и одной фразой почему именно он — по фактам переписки и анкеты. Например «тариф 1, 5 450: продукта нет, платных клиентов нет, окупать нечем»",
     },
     plan: {
-      type: 'array',
-      items: { type: 'string' },
+      type: "array",
+      items: { type: "string" },
       description:
-        'два-три следующих хода после этого сообщения и до оффера, по одному короткому предложению. Человеку не показывается',
+        "два-три следующих хода после этого сообщения и до оффера, по одному короткому предложению. Человеку не показывается",
     },
   },
-  required: ['message', 'why', 'stage', 'callSasha', 'sell', 'plan'],
+  required: ["message", "why", "stage", "callSasha", "sell", "plan"],
   additionalProperties: false,
 } as const;
 
 function waitingFor(thread: SalesThread): string | null {
   const last = thread.messages[thread.messages.length - 1];
-  if (!last || last.side !== 'client') return null;
+  if (!last || last.side !== "client") return null;
   const hours = Math.round((Date.now() - last.createdAt * 1000) / 3_600_000);
-  if (hours < 1) return 'меньше часа';
+  if (hours < 1) return "меньше часа";
   if (hours < 24) return `${hours} ч`;
   return `${Math.round(hours / 24)} дн`;
 }
@@ -314,7 +321,7 @@ function waitingFor(thread: SalesThread): string | null {
  */
 async function recentCorrections(take = 6): Promise<string | null> {
   const rows = await prisma.salesCorrection.findMany({
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: "desc" },
     take,
     select: { suggested: true, sent: true },
   });
@@ -330,7 +337,7 @@ ${r.suggested}
 Саша отправил вместо этого:
 ${r.sent}`,
     )
-    .join('\n\n---\n\n');
+    .join("\n\n---\n\n");
 
   return `# Правки Саши на живых переписках
 
@@ -351,17 +358,22 @@ ${cases}`;
  * просил ставить обязательно.
  */
 function waitedLine(seconds?: number | null): string {
-  if (!seconds || seconds < 3600) return '';
+  if (!seconds || seconds < 3600) return "";
 
   const human =
-    seconds < 24 * 3600 ? `${Math.round(seconds / 3600)} ч` : `${Math.round(seconds / 86400)} дн`;
-  if (seconds < 4 * 3600) return `Ждёт ответа: ${human}`;
+    seconds < 24 * 3600
+      ? `${Math.round(seconds / 3600)} ч`
+      : `${Math.round(seconds / 86400)} дн`;
+  if (seconds < 12 * 3600) return `Ждёт ответа: ${human}`;
 
   return `Ждёт ответа: ${human}
 
-ВАЖНО: мы молчали дольше четырёх часов. Первой строкой коротко скажи, почему
-была пауза (много заявок, разгребал очередь, были созвоны), и сразу переходи
-к делу. Одна строка, без извинений на абзац и без обещаний.`;
+ВАЖНО: человек провисел без ответа дольше двенадцати часов. Первой строкой
+назови причину задержки — «много заявок было, только разгребаю», «был завал
+по заявкам, добрался только сейчас» — и сразу переходи к делу.
+
+Причина, а НЕ извинение. Слов «извини», «прости», «сорри», «прошу прощения»
+в сообщении быть не должно вообще.`;
 }
 
 /**
@@ -382,20 +394,32 @@ export async function suggestFromThread(params: {
   // Чему научились на правках: что предлагали и что Саша отправил вместо.
   const lessons = await recentCorrections();
 
-  const res = await anthropic.messages.create({
-    model: 'claude-sonnet-5',
-    max_tokens: 6000,
-    system: [
-      { type: 'text' as const, text: SYSTEM },
-      { type: 'text' as const, text: SALES_KB, cache_control: { type: 'ephemeral' as const } },
-      // Правки идут ПОСЛЕ базы и вне кэша: они меняются часто, а база нет.
-      ...(lessons ? [{ type: 'text' as const, text: lessons }] : []),
-    ],
-    messages: [
-      {
-        role: 'user',
-        content: `Человек:
-${params.about || 'ничего не известно'}
+  const step = await ask();
+  // Изредка модель отдаёт не json или пустое сообщение. Пустая карточка в
+  // кабинете стоит дороже одного лишнего вызова, поэтому пробуем ещё раз.
+  if (step.message.trim()) return step;
+  console.error("[sales] пустой ответ, пробую второй раз");
+  return ask();
+
+  async function ask(): Promise<SalesStep> {
+    const res = await anthropic.messages.create({
+      model: "claude-sonnet-5",
+      max_tokens: 6000,
+      system: [
+        { type: "text" as const, text: SYSTEM },
+        {
+          type: "text" as const,
+          text: SALES_KB,
+          cache_control: { type: "ephemeral" as const },
+        },
+        // Правки идут ПОСЛЕ базы и вне кэша: они меняются часто, а база нет.
+        ...(lessons ? [{ type: "text" as const, text: lessons }] : []),
+      ],
+      messages: [
+        {
+          role: "user",
+          content: `Человек:
+${params.about || "ничего не известно"}
 ${waitedLine(params.waitingSeconds)}
 
 Переписка:
@@ -409,26 +433,42 @@ ${params.steer}
 Это указание, а не пожелание: следуй ему, но по-прежнему одним сообщением
 и по правилам базы. Если оно противоречит фактам переписки — всё равно делай
 как сказано, а сомнение вынеси в поле why.`
-    : ''
+    : ""
 }
 Что написать дальше?`,
-      },
-    ],
-    output_config: { format: { type: 'json_schema', schema: SCHEMA } },
-  });
+        },
+      ],
+      output_config: { format: { type: "json_schema", schema: SCHEMA } },
+    });
 
-  if (process.env.SALES_DEBUG) {
-    console.error('[sales] stop_reason:', res.stop_reason, '· output:', res.usage.output_tokens);
-  }
+    if (process.env.SALES_DEBUG) {
+      console.error(
+        "[sales] stop_reason:",
+        res.stop_reason,
+        "· output:",
+        res.usage.output_tokens,
+      );
+    }
 
-  const empty: SalesStep = { message: '', why: '', stage: '', callSasha: null, sell: '', plan: [] };
-  const block = res.content.find((b) => b.type === 'text');
-  if (!block || block.type !== 'text') return empty;
-  try {
-    return JSON.parse(block.text) as SalesStep;
-  } catch {
-    console.error('[sales] ответ модели не разобрался как json');
-    return empty;
+    const empty: SalesStep = {
+      message: "",
+      why: "",
+      stage: "",
+      callSasha: null,
+      sell: "",
+      plan: [],
+    };
+    const block = res.content.find((b) => b.type === "text");
+    if (!block || block.type !== "text") return empty;
+    try {
+      return JSON.parse(block.text) as SalesStep;
+    } catch {
+      // Сюда падаем, когда модель отдала не json. Случается редко, но пустая
+      // карточка вместо ответа стоит дороже одного лишнего вызова.
+
+      console.error("[sales] ответ модели не разобрался как json");
+      return empty;
+    }
   }
 }
 
@@ -440,11 +480,11 @@ export async function suggestReply(handle: string): Promise<SalesAnswer> {
       found: false,
       who: handle,
       waiting: null,
-      message: '',
-      why: '',
-      stage: '',
+      message: "",
+      why: "",
+      stage: "",
       callSasha: null,
-      sell: '',
+      sell: "",
       plan: [],
       thread: null,
     };
@@ -456,13 +496,18 @@ export async function suggestReply(handle: string): Promise<SalesAnswer> {
     lead.name ? `имя в инстаграме: ${lead.name}` : null,
     lead.keyword ? `пришёл по кодовому слову: ${lead.keyword}` : null,
     lead.automationName ? `воронка: ${lead.automationName}` : null,
-    lead.formKind ? `ВНИМАНИЕ: уже оставил анкету (${lead.formKind}), из холодной ему не пишем` : null,
+    lead.formKind
+      ? `ВНИМАНИЕ: уже оставил анкету (${lead.formKind}), из холодной ему не пишем`
+      : null,
     lead.note ? `заметка ассистента: ${lead.note}` : null,
   ]
     .filter(Boolean)
-    .join('\n');
+    .join("\n");
 
-  const parsed = await suggestFromThread({ about, rendered: renderThread(messages) });
+  const parsed = await suggestFromThread({
+    about,
+    rendered: renderThread(messages),
+  });
 
   return {
     found: true,
