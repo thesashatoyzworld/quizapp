@@ -42,6 +42,13 @@ const rendered = rows
 
 console.log(`${rows.length} сообщений, последнее от ${last.side === 'client' ? 'человека' : 'нас'}\n`);
 
+// Сколько человек ждёт — от этого зависит, объяснит ли помощник паузу.
+const waitingSeconds =
+  last.side === 'client' ? Math.round((Date.now() - last.createdAt.getTime()) / 1000) : null;
+
+// Направление ответа можно задать вторым аргументом.
+const steer = process.argv[3] || null;
+
 const step = await suggestFromThread({
   about: [
     last.username ? `ник: @${last.username}` : null,
@@ -52,6 +59,8 @@ const step = await suggestFromThread({
     .filter(Boolean)
     .join('\n'),
   rendered,
+  waitingSeconds,
+  steer,
 });
 
 console.log(`СТАДИЯ: ${step.stage}\n`);
