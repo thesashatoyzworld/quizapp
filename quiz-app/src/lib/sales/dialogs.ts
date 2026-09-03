@@ -1,0 +1,142 @@
+import { prisma } from '@/lib/prisma';
+
+// Кто ждёт ответа в личке и что ему уже написали.
+//
+// Раньше помощник пушил подсказку на каждое входящее, и переписки с разными
+// людьми перемешивались в одну ленту: человек пишет очередью из пяти реплик,
+// а в чат прилетает двадцать сообщений от бота. Работа переехала в кабинет,
+// где у каждого человека своя страница, а телеграм получает только пинг.
+
+/** Через сколько молчания считаем, что человек ждёт нас, а не думает. */
+const FRESH_SECONDS = 90;
+
+export type WaitingRow = {
+  chatId: string;
+  name: string | null;
+  username: string | null;
+  leadId: number | null;
+  /** Доход из анкеты — по нему видно, кто тянет на большой формат. */
+  income: string | null;
+  /** Последнее, что человек написал. */
+  lastText: string;
+  lastAt: Date;
+  /** Сколько его сообщений подряд остались без нашего ответа. */
+  unanswered: number;
+  waitingSeconds: number;
+};
+
+/**
+ * Люди, у которых последнее слово осталось за ними.
+ *
+ * Свежие реплики (моложе полутора минут) не показываем: человек ещё
+ * дописывает очередь, и отвечать ему на первую фразу из пяти бессмысленно.
+ */
+export async function waiting(): Promise<WaitingRow[]> {
+  const rows = await prisma.$queryRaw<
+    {
+      chat_id: string;
+      name: string | null;
+      username: string | null;
+      lead_id: number | null;
+      income: string | null;
+      text: string;
+      created_at: Date;
+      unanswered: bigint;
+    }[]
+  >`
+    WITH last_us AS (
+      SELECT chat_id, max(created_at) AS at
+        FROM tg_business_msg WHERE side = 'us' GROUP BY chat_id
+    ),
+    last_msg AS (
+      SELECT DISTINCT ON (chat_id) chat_id, side, text, created_at, name, username, lead_id
+        FROM tg_business_msg ORDER BY chat_id, created_at DESC
+    )
+    SELECT m.chat_id, m.name, m.username, m.lead_id, l.income, m.text, m.created_at,
+           (SELECT count(*) FROM tg_business_msg t
+             WHERE t.chat_id = m.chat_id AND t.side = 'client'
+               AND t.created_at > coalesce(u.at, '-infinity'::timestamp)) AS unanswered
+      FROM last_msg m
+      LEFT JOIN last_us u ON u.chat_id = m.chat_id
+      LEFT JOIN dwy_leads l ON l.id = m.lead_id
+     WHERE m.side = 'client'
+       AND m.created_at < now() - make_interval(secs => ${FRESH_SECONDS})
+     ORDER BY m.created_at ASC
+  `;
+
+  return rows.map((r) => ({
+    chatId: r.chat_id,
+    name: r.name,
+    username: r.username,
+    leadId: r.lead_id,
+    income: r.income,
+    lastText: r.text,
+    lastAt: r.created_at,
+    unanswered: Number(r.unanswered),
+    waitingSeconds: Math.max(0, Math.round((Date.now() - r.created_at.getTime()) / 1000)),
+  }));
+}
+
+/** «9 часов», «20 минут» — сколько человек уже ждёт. */
+export function waited(seconds: number): string {
+  if (seconds < 60) return 'только что';
+  const m = Math.round(seconds / 60);
+  if (m < 60) return `${m} мин`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} ч`;
+  return `${Math.round(h / 24)} дн`;
+}
+
+/**
+ * Насколько срочно. Красный это не «важный человек», а «ждёт слишком долго»:
+ * по данным MIT ответ в первые пять минут против получаса даёт кратно больше
+ * шансов вообще довести разговор до квалификации.
+ */
+export function heat(row: WaitingRow): 'hot' | 'warm' | 'fresh' {
+  if (row.waitingSeconds > 4 * 3600) return 'hot';
+  if (row.waitingSeconds > 3600) return 'warm';
+  return 'fresh';
+}
+
+export type ThreadRow = {
+  id: string;
+  side: string;
+  text: string;
+  mediaType: string | null;
+  createdAt: Date;
+};
+
+/** Переписка чата целиком, в порядке разговора. */
+export async function threadOf(chatId: string, take = 200): Promise<ThreadRow[]> {
+  const rows = await prisma.tgBusinessMsg.findMany({
+    where: { chatId },
+    orderBy: { createdAt: 'desc' },
+    take,
+    select: { id: true, side: true, text: true, mediaType: true, createdAt: true },
+  });
+  return rows.reverse();
+}
+
+/**
+ * Чат человека по анкете. Привязка ставится при разборе сообщения, но у тех,
+ * кто написал до неё, lead_id пустой — тогда ищем по нику из анкеты.
+ */
+export async function chatOfLead(lead: {
+  id: number;
+  username: string | null;
+}): Promise<string | null> {
+  const byLead = await prisma.tgBusinessMsg.findFirst({
+    where: { leadId: lead.id },
+    orderBy: { createdAt: 'desc' },
+    select: { chatId: true },
+  });
+  if (byLead) return byLead.chatId;
+
+  if (!lead.username) return null;
+  const byName = await prisma.tgBusinessMsg.findFirst({
+    where: { username: { equals: lead.username, mode: 'insensitive' } },
+    orderBy: { createdAt: 'desc' },
+    select: { chatId: true },
+  });
+  return byName?.chatId ?? null;
+}
