@@ -56,18 +56,21 @@ function time(iso: string): string {
 export default function SalesThread({
   chatId,
   messages,
+  ready = null,
   compact = false,
 }: {
   chatId: string;
   messages: ThreadMsg[];
+  /** Ответ, собранный заранее пачкой: показываем сразу, без ожидания. */
+  ready?: Step | null;
   compact?: boolean;
 }) {
   const [thread, setThread] = useState(messages);
   // В карточке заявки переписка мешает анкете, поэтому там она свёрнута до
   // последних реплик, а целиком открывается по кнопке.
   const [full, setFull] = useState(!compact);
-  const [step, setStep] = useState<Step | null>(null);
-  const [text, setText] = useState('');
+  const [step, setStep] = useState<Step | null>(ready);
+  const [text, setText] = useState(ready?.message ?? '');
   const [busy, setBusy] = useState<'step' | 'send' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);

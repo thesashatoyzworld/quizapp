@@ -140,3 +140,49 @@ export async function chatOfLead(lead: {
   });
   return byName?.chatId ?? null;
 }
+
+/**
+ * Готовый, но ещё не отправленный ответ по этому чату.
+ *
+ * Подсказку собираем заранее пачкой, чтобы Саша, открыв человека, видел текст
+ * сразу, а не ждал минуту на каждом. Годной считаем только ту, что собрана
+ * после последней реплики человека: всё, что старше, отвечает на несказанное.
+ */
+export type ReadyStep = {
+  id: string;
+  message: string;
+  why: string;
+  stage: string;
+  callSasha: string | null;
+};
+
+export async function readySuggestion(chatId: string): Promise<ReadyStep | null> {
+  const [last, suggestion] = await Promise.all([
+    prisma.tgBusinessMsg.findFirst({
+      where: { chatId },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    }),
+    prisma.tgSuggestion.findFirst({
+      where: { chatId, sentAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, text: true, why: true, stage: true, callSasha: true, createdAt: true },
+    }),
+  ]);
+
+  if (!last || !suggestion) return null;
+  if (suggestion.createdAt < last.createdAt) return null;
+  return {
+    id: suggestion.id,
+    message: suggestion.text,
+    why: suggestion.why || 'собран заранее',
+    stage: suggestion.stage || '',
+    callSasha: suggestion.callSasha,
+  };
+}
+
+/** По каким чатам ответ уже собран — для пометок в списке. */
+export async function readyChats(chatIds: string[]): Promise<Set<string>> {
+  const ready = await Promise.all(chatIds.map((id) => readySuggestion(id).then((r) => (r ? id : null))));
+  return new Set(ready.filter((v): v is string => !!v));
+}

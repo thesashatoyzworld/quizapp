@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLeadCard, kindLabel } from '@/lib/zayavki';
-import { chatOfLead, threadOf } from '@/lib/sales/dialogs';
+import { chatOfLead, threadOf, readySuggestion } from '@/lib/sales/dialogs';
 import SalesThread from '../../dialogi/SalesThread';
 import LeadWork from './LeadWork';
 
@@ -67,6 +67,7 @@ export default async function LeadCardPage({ params }: { params: Promise<{ id: s
   // чего помощник предлагал людям то, что им уже говорили.
   const chatId = await chatOfLead({ id: lead.id, username: lead.username });
   const thread = chatId ? await threadOf(chatId) : [];
+  const readyStep = chatId ? await readySuggestion(chatId) : null;
 
   return (
     <div style={{ maxWidth: 900 }}>
@@ -114,6 +115,7 @@ export default async function LeadCardPage({ params }: { params: Promise<{ id: s
         {chatId && thread.length ? (
           <SalesThread
             chatId={chatId}
+            ready={readyStep}
             compact
             messages={thread.map((m) => ({ ...m, createdAt: m.createdAt.toISOString() }))}
           />

@@ -3,7 +3,8 @@ import { getAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
 import { suggestFromThread } from '@/lib/sales/answer';
 import { findLead, describeLead } from '@/lib/sales/tg';
-import { threadOf } from '@/lib/sales/dialogs';
+import { threadOf, readySuggestion } from '@/lib/sales/dialogs';
+import { randomUUID } from 'node:crypto';
 
 // Собрать следующий шаг по переписке — по кнопке в кабинете, а не на каждое
 // входящее.
@@ -21,6 +22,18 @@ export async function POST(request: NextRequest) {
   const { chatId, another } = await request.json();
   if (!chatId || typeof chatId !== 'string') {
     return NextResponse.json({ error: 'chatId обязателен' }, { status: 400 });
+  }
+
+  // Ответ мог быть собран заранее пачкой — тогда отдаём его сразу, вместо
+  // того чтобы заставлять ждать минуту второй раз. Кнопка «другой» этот
+  // короткий путь пропускает намеренно.
+  if (!another) {
+    const ready = await readySuggestion(chatId);
+    if (ready) {
+      const { id: _id, ...step } = ready;
+      void _id;
+      return NextResponse.json({ ok: true, cached: true, step });
+    }
   }
 
   const rows = await threadOf(chatId, 60);
@@ -52,6 +65,21 @@ export async function POST(request: NextRequest) {
       .join('\n'),
     rendered,
   });
+
+  // Кладём в базу: если Саша ушёл со страницы и вернулся, ответ уже готов.
+  if (step.message) {
+    await prisma.tgSuggestion.create({
+      data: {
+        id: randomUUID(),
+        connId: '',
+        chatId,
+        text: step.message,
+        why: step.why,
+        stage: step.stage,
+        callSasha: step.callSasha,
+      },
+    });
+  }
 
   return NextResponse.json({ ok: true, step });
 }
