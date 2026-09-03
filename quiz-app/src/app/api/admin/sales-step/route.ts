@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { chatId, another } = await request.json();
+  const { chatId, another, steer } = await request.json();
   if (!chatId || typeof chatId !== 'string') {
     return NextResponse.json({ error: 'chatId обязателен' }, { status: 400 });
   }
@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
   // Ответ мог быть собран заранее пачкой — тогда отдаём его сразу, вместо
   // того чтобы заставлять ждать минуту второй раз. Кнопка «другой» этот
   // короткий путь пропускает намеренно.
-  if (!another) {
+  // Заданное направление — всегда новый разбор: готовый ответ собран без него.
+  if (!another && !steer) {
     const ready = await readySuggestion(chatId);
     if (ready) {
       const { id: _id, ...step } = ready;
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .join('\n'),
     rendered,
+    steer: typeof steer === 'string' && steer.trim() ? steer.trim().slice(0, 500) : null,
   });
 
   // Кладём в базу: если Саша ушёл со страницы и вернулся, ответ уже готов.
