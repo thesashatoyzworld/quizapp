@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: '/admin/progress', label: 'Обучение' },
   { href: '/admin/anketa', label: 'Анкеты' },
   { href: '/admin/zayavki', label: 'Заявки' },
+  { href: '/admin/dialogi', label: 'Диалоги' },
   { href: '/admin/queue', label: 'Очередь' },
   { href: '/admin/campaigns', label: 'Кампании' },
   { href: '/admin/users', label: 'Пользователи' },

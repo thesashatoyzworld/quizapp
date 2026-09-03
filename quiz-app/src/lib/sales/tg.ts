@@ -406,6 +406,76 @@ export async function regenerate(chatId: string): Promise<boolean> {
 }
 
 /**
+ * Отправить человеку произвольный текст от имени рабочего аккаунта.
+ *
+ * Нужна кабинету: там ответ можно поправить руками перед отправкой, поэтому
+ * шлём текст, а не заранее сохранённый вариант.
+ *
+ * Отправленное сразу кладём в переписку под ключом из ответа телеграма. Тот
+ * же ключ придёт следом апдейтом business_message — и отвалится дедупом,
+ * вместо того чтобы лечь в тред вторым таким же сообщением.
+ */
+export async function sendAs(
+  chatId: string,
+  text: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const body = text.trim();
+  if (!body) return { ok: false, error: 'пустой текст' };
+
+  const token = process.env.BOT_TOKEN;
+  if (!token) return { ok: false, error: 'нет токена' };
+
+  const conn = await prisma.tgBusinessConn.findFirst({
+    where: { isEnabled: true },
+    orderBy: { connectedAt: 'desc' },
+  });
+  if (!conn) return { ok: false, error: 'бот не подключён к личке' };
+  if (!conn.canReply) return { ok: false, error: 'нет права отвечать, проверь настройки бизнес-бота' };
+
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      business_connection_id: conn.id,
+      chat_id: Number(chatId),
+      text: body,
+    }),
+  });
+  const out = (await res.json()) as {
+    ok: boolean;
+    description?: string;
+    result?: { message_id: number; date: number };
+  };
+  if (!out.ok || !out.result) {
+    console.error('[business] отправка из кабинета не прошла', out.description);
+    return { ok: false, error: out.description || 'телеграм отказал' };
+  }
+
+  const known = await prisma.tgBusinessMsg.findFirst({
+    where: { chatId },
+    orderBy: { createdAt: 'desc' },
+    select: { username: true, name: true, leadId: true },
+  });
+
+  await prisma.tgBusinessMsg
+    .create({
+      data: {
+        id: `${chatId}:${out.result.message_id}`,
+        chatId,
+        side: 'us',
+        username: known?.username ?? null,
+        name: known?.name ?? null,
+        text: body,
+        leadId: known?.leadId ?? null,
+        createdAt: new Date(out.result.date * 1000),
+      },
+    })
+    .catch(() => {});
+
+  return { ok: true };
+}
+
+/**
  * Нажали «отправить» под вариантом — уходит человеку от имени аккаунта.
  *
  * Пишем через business_connection_id: сообщение появляется в переписке как

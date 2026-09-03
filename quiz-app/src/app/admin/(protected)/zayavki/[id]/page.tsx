@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLeadCard, kindLabel } from '@/lib/zayavki';
+import { chatOfLead, threadOf } from '@/lib/sales/dialogs';
+import SalesThread from '../../dialogi/SalesThread';
 import LeadWork from './LeadWork';
 
 export const dynamic = 'force-dynamic';
@@ -60,6 +62,12 @@ export default async function LeadCardPage({ params }: { params: Promise<{ id: s
 
   const { lead, answers, otherForms, funnels, bot, intake, purchases, accesses, waitlists } = data;
 
+  // Личная переписка человека, если она у нас есть. Держим её рядом с анкетой
+  // намеренно: отвечать, не видя, что он про себя написал, — как раз то, из-за
+  // чего помощник предлагал людям то, что им уже говорили.
+  const chatId = await chatOfLead({ id: lead.id, username: lead.username });
+  const thread = chatId ? await threadOf(chatId) : [];
+
   return (
     <div style={{ maxWidth: 900 }}>
       <Link href="/admin/zayavki" style={{ ...link, fontSize: '0.82rem' }}>← все заявки</Link>
@@ -102,6 +110,14 @@ export default async function LeadCardPage({ params }: { params: Promise<{ id: s
             )}
           </div>
         </div>
+
+        {chatId && thread.length ? (
+          <SalesThread
+            chatId={chatId}
+            compact
+            messages={thread.map((m) => ({ ...m, createdAt: m.createdAt.toISOString() }))}
+          />
+        ) : null}
 
         <LeadWork
           id={lead.id}
