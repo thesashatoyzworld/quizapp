@@ -85,6 +85,8 @@ export async function POST(request: NextRequest) {
         why: step.why,
         stage: step.stage,
         callSasha: step.callSasha,
+        sell: step.sell,
+        plan: step.plan,
       },
     });
   }

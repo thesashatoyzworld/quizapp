@@ -154,6 +154,8 @@ export type ReadyStep = {
   why: string;
   stage: string;
   callSasha: string | null;
+  sell: string;
+  plan: string[];
 };
 
 export async function readySuggestion(chatId: string): Promise<ReadyStep | null> {
@@ -166,7 +168,16 @@ export async function readySuggestion(chatId: string): Promise<ReadyStep | null>
     prisma.tgSuggestion.findFirst({
       where: { chatId, sentAt: null },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, text: true, why: true, stage: true, callSasha: true, createdAt: true },
+      select: {
+        id: true,
+        text: true,
+        why: true,
+        stage: true,
+        callSasha: true,
+        sell: true,
+        plan: true,
+        createdAt: true,
+      },
     }),
   ]);
 
@@ -178,6 +189,8 @@ export async function readySuggestion(chatId: string): Promise<ReadyStep | null>
     why: suggestion.why || 'собран заранее',
     stage: suggestion.stage || '',
     callSasha: suggestion.callSasha,
+    sell: suggestion.sell || '',
+    plan: suggestion.plan || [],
   };
 }
 

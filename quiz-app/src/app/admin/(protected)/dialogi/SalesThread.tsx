@@ -17,7 +17,14 @@ export type ThreadMsg = {
   createdAt: string;
 };
 
-type Step = { message: string; why: string; stage: string; callSasha: string | null };
+type Step = {
+  message: string;
+  why: string;
+  stage: string;
+  callSasha: string | null;
+  sell?: string;
+  plan?: string[];
+};
 
 const box: React.CSSProperties = {
   background: 'var(--bg-secondary)',
@@ -276,6 +283,26 @@ export default function SalesThread({
 
         {step ? (
           <>
+            {/*
+              Куда ведём, до текста ответа: сообщение само по себе не говорит,
+              на какой продукт человек идёт, а решает это именно оно.
+            */}
+            {step.sell ? (
+              <div
+                style={{
+                  background: 'rgba(0,240,255,0.06)',
+                  border: '1px solid rgba(0,240,255,0.2)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  marginBottom: 12,
+                  fontSize: '0.85rem',
+                }}
+              >
+                <span style={{ color: 'var(--text-muted)' }}>продаём: </span>
+                {step.sell}
+              </div>
+            ) : null}
+
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -296,6 +323,23 @@ export default function SalesThread({
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '8px 0 12px' }}>
               — {step.why}
             </div>
+
+            {step.plan?.length ? (
+              <details style={{ marginBottom: 12 }}>
+                <summary
+                  style={{ cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-muted)' }}
+                >
+                  дальше по плану · {step.plan.length}
+                </summary>
+                <ol style={{ margin: '8px 0 0 18px', padding: 0, fontSize: '0.82rem', lineHeight: 1.5 }}>
+                  {step.plan.map((p, i) => (
+                    <li key={i} style={{ marginBottom: 4 }}>
+                      {p}
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            ) : null}
             {step.callSasha ? (
               <div style={{ fontSize: '0.82rem', color: '#ffb547', marginBottom: 12 }}>
                 нужен Саша: {step.callSasha}

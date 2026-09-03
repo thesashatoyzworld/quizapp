@@ -76,6 +76,8 @@ export async function POST() {
             why: step.why,
             stage: step.stage,
             callSasha: step.callSasha,
+            sell: step.sell,
+            plan: step.plan,
           },
         });
         return true;
