@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { waiting, waited, heat } from '@/lib/sales/dialogs';
+import { waiting, waited, heat, readyChats } from '@/lib/sales/dialogs';
+import PrepareAll from './PrepareAll';
 
 // Очередь личных переписок: кто остался без ответа и сколько ждёт.
 //
@@ -34,6 +35,7 @@ const td: React.CSSProperties = {
 export default async function DialogiPage() {
   const rows = await waiting();
   const hot = rows.filter((r) => heat(r) === 'hot').length;
+  const ready = await readyChats(rows.map((r) => r.chatId));
 
   return (
     <div style={{ padding: '24px 28px' }}>
@@ -43,6 +45,8 @@ export default async function DialogiPage() {
           ? `${rows.length} ждут ответа${hot ? `, из них ${hot} дольше четырёх часов` : ''}`
           : 'все отвечены'}
       </p>
+
+      <PrepareAll waiting={rows.length} ready={ready.size} />
 
       {rows.length ? (
         <div style={{ overflowX: 'auto' }}>
@@ -80,6 +84,11 @@ export default async function DialogiPage() {
                     {r.lastText.length > 120 ? '…' : ''}
                   </td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                    {ready.has(r.chatId) ? (
+                      <div style={{ fontSize: '0.72rem', color: 'var(--neon-cyan)', marginBottom: 4 }}>
+                        ответ готов
+                      </div>
+                    ) : null}
                     <Link
                       href={r.leadId ? `/admin/zayavki/${r.leadId}` : `/admin/dialogi/${r.chatId}`}
                       style={{ color: 'var(--neon-cyan)', textDecoration: 'none' }}
