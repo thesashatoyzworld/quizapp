@@ -270,6 +270,44 @@ export async function notifyAdmin(
   return refs.length > 0;
 }
 
+/**
+ * Переписать текст уже отправленного сообщения.
+ *
+ * Нужно очереди личек: она живёт одним сообщением, которое меняется, вместо
+ * ленты из подсказок. false — сообщение недоступно (удалили, слишком старое),
+ * значит вызывающему стоит отправить новое.
+ */
+export async function editBotMessageText(
+  chatId: number | string,
+  messageId: number,
+  text: string,
+  replyMarkup?: object,
+): Promise<boolean> {
+  if (!BOT_TOKEN) return false;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        parse_mode: 'HTML',
+        link_preview_options: { is_disabled: true },
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+      }),
+    });
+    const data = await res.json();
+    // «not modified» — очередь не изменилась с прошлого раза, это не ошибка.
+    if (data.ok === true || String(data.description || '').includes('not modified')) return true;
+    console.error('[editBotMessageText] telegram отказал', data.error_code, data.description);
+    return false;
+  } catch (error) {
+    console.error('[editBotMessageText] упало:', error);
+    return false;
+  }
+}
+
 /** Перерисовать кнопки в уже отправленном уведомлении. */
 export async function editAdminMarkup(ref: NotifyRef, replyMarkup: object): Promise<void> {
   if (!BOT_TOKEN) return;

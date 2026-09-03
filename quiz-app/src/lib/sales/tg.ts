@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { sendBotMessage } from '@/lib/telegram';
 import { transcribeTgVoice, TG_FILE_LIMIT_BYTES } from '@/lib/whisper';
 import { suggestFromThread, type SalesStep } from './answer';
+import { pushDigest } from './digest';
 
 // Личка рабочего аккаунта.
 //
@@ -153,21 +154,6 @@ export function describeLead(lead: Awaited<ReturnType<typeof findLead>>): string
     .join('\n');
 }
 
-/** Что известно о человеке из личного чата — уходит в промпт перед перепиской. */
-function describe(
-  msg: TgBusinessMessage,
-  lead: Awaited<ReturnType<typeof findLead>>,
-): string {
-  return [
-    msg.chat.username ? `ник: @${msg.chat.username}` : null,
-    msg.chat.first_name ? `имя в телеграме: ${msg.chat.first_name}` : null,
-    'канал: личка в телеграме, не инстаграм',
-    describeLead(lead),
-  ]
-    .filter(Boolean)
-    .join('\n');
-}
-
 /** «01:51» для заглушки: без длительности непонятно, реплика это или монолог. */
 function stamp(seconds?: number): string {
   if (!seconds || !Number.isFinite(seconds)) return '';
@@ -303,26 +289,21 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
 
   if (side !== 'client') return;
 
-  const rows = await thread(String(msg.chat.id));
+  // Подсказку здесь больше не собираем. Во-первых, разбор идёт около минуты
+  // против шестидесяти секунд вебхука — на длинных тредах он не успевал, и
+  // помощник молчал ровно там, где шёл живой разговор. Во-вторых, четыре
+  // сообщения на каждую входящую реплику превращали чат в кашу.
+  //
+  // Вместо этого правим одну сводку: кто ждёт и сколько. Ответ собирается
+  // в кабинете, на странице человека, по кнопке.
+  if (voiceFailed) {
+    const who = msg.chat.username ? `@${msg.chat.username}` : msg.chat.first_name || 'человек';
+    for (const helper of helpers()) {
+      await sendBotMessage(helper, `${who}: голосовое не разобралось, послушай сам`, undefined, null);
+    }
+  }
 
-  const step = await suggestFromThread({
-    about: describe(msg, lead),
-    rendered: render(rows),
-  });
-
-  const who = msg.chat.username ? `@${msg.chat.username}` : msg.chat.first_name || 'без ника';
-  await sendStep({
-    connId: msg.business_connection_id,
-    chatId: String(msg.chat.id),
-    head: [
-      `${who}${lead ? ` · анкета №${lead.id}` : ' · анкеты нет'}`,
-      step.stage ? ` · ${step.stage}` : '',
-      // Голосовое показываем расшифровкой: иначе непонятно, на что ответ.
-      `\n${voice ? 'наговорил' : 'написал'}: ${text.slice(0, 300)}`,
-      voiceFailed ? '\n\n⚠️ голосовое не разобралось, послушай сам' : '',
-    ].join(''),
-    step,
-  });
+  await pushDigest();
 }
 
 /**

@@ -768,6 +768,21 @@ model TgShot {
   @@map("tg_shot")
 }
 
+/**
+ * Сообщение-сводка в чате помощника: одно на чат, обновляется на месте.
+ *
+ * Раньше на каждое входящее прилетала отдельная подсказка, и разговоры с
+ * разными людьми перемешивались в ленту. Теперь бот держит одну очередь.
+ */
+model TgDigest {
+  chatId    String   @id @map("chat_id")
+  messageId Int      @map("message_id")
+  sentAt    DateTime @default(now()) @map("sent_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("tg_digest")
+}
+
 /** Вариант ответа под кнопкой «отправить». Текст в callback_data не влезает. */
 model TgSuggestion {
   id        String    @id
