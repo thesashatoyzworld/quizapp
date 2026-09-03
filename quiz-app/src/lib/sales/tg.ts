@@ -135,6 +135,33 @@ export async function findLead(text: string, username?: string | null) {
   return null;
 }
 
+/**
+ * Откуда человек пришёл. В анкете это `source` из адреса страницы.
+ *
+ * Важно для первого шага: пришедший со страницы кейса уже его прочитал, и
+ * вопрос «а ты кейс мой видел?» выглядит так, будто мы не читали, откуда он
+ * взялся. Живой случай 03.09 с тренером, пришедшим с кейса Васи.
+ */
+function cameFrom(source: string | null): string | null {
+  if (!source) return null;
+
+  const known: Record<string, string> = {
+    bio: 'из шапки профиля в инстаграме',
+    direct: 'написал в директ сам',
+    tg: 'из телеграма',
+    'tg-channel': 'из телеграм-канала',
+    uroven: 'со страницы тарифов',
+  };
+  if (known[source]) return known[source];
+
+  if (source.startsWith('case-')) {
+    const who = source.slice('case-'.length);
+    return `со страницы кейса «${who}» — ЭТОТ КЕЙС ОН УЖЕ ЧИТАЛ. Не предлагай его снова и не спрашивай, видел ли: он с него и пришёл. Опирайся на кейс как на общее знание`;
+  }
+  if (source.startsWith('yt-')) return `с ролика на ютубе (${source.slice(3)})`;
+  return source;
+}
+
 /** Анкета человека строками для промпта. Нужна и личке, и скриншотам. */
 export function describeLead(lead: Awaited<ReturnType<typeof findLead>>): string {
   if (!lead) return 'анкеты не нашёл — человек пришёл не с формы или писал с другого аккаунта';
@@ -149,6 +176,7 @@ export function describeLead(lead: Awaited<ReturnType<typeof findLead>>): string
     lead.income ? `  доход: ${lead.income}` : '',
     lead.hours ? `  часов в неделю: ${lead.hours}` : '',
     lead.instagram ? `  инстаграм: ${lead.instagram}` : '',
+    cameFrom(lead.source) ? `  пришёл: ${cameFrom(lead.source)}` : '',
   ]
     .filter(Boolean)
     .join('\n');

@@ -250,7 +250,7 @@ export default function SalesThread({
             <input
               value={steer}
               onChange={(e) => setSteer(e.target.value)}
-              placeholder="куда вести ответ: например «спроси про чек» или «веди на тариф 1»"
+              placeholder="куда вести ответ, если нужно: «спроси про чек», «веди на тариф 1»"
               disabled={busy === 'step'}
               style={{
                 width: '100%',
@@ -301,23 +301,44 @@ export default function SalesThread({
                 нужен Саша: {step.callSasha}
               </div>
             ) : null}
-            <input
-              value={steer}
-              onChange={(e) => setSteer(e.target.value)}
-              placeholder="не то? скажи, куда вести, и жми «другой»"
-              disabled={busy !== null}
-              style={{
-                width: '100%',
-                background: 'rgba(0,0,0,0.35)',
-                color: 'var(--text-primary)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 8,
-                padding: '10px 12px',
-                fontSize: '0.85rem',
-                fontFamily: 'inherit',
-                marginBottom: 10,
-              }}
-            />
+            {/*
+              Поле правки и кнопка стоят рядом: раньше поле было отдельно, и
+              оставалось непонятно, что после ввода надо нажать «другой» —
+              текст писали, ничего не жали и решали, что правки не работают.
+            */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <input
+                value={steer}
+                onChange={(e) => setSteer(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && steer.trim() && busy === null) ask(true);
+                }}
+                placeholder="что поправить: «не спрашивай про кейс, он с него пришёл»"
+                disabled={busy !== null}
+                style={{
+                  flex: 1,
+                  background: 'rgba(0,0,0,0.35)',
+                  color: 'var(--text-primary)',
+                  border: `1px solid ${steer.trim() ? 'rgba(0,240,255,0.45)' : 'rgba(255,255,255,0.12)'}`,
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  fontSize: '0.85rem',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <button
+                onClick={() => ask(true)}
+                disabled={busy !== null || !steer.trim()}
+                style={{
+                  ...btn,
+                  whiteSpace: 'nowrap',
+                  opacity: steer.trim() ? 1 : 0.4,
+                  background: steer.trim() ? 'rgba(0,240,255,0.12)' : 'transparent',
+                }}
+              >
+                переписать
+              </button>
+            </div>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button
@@ -328,7 +349,7 @@ export default function SalesThread({
                 {busy === 'send' ? 'отправляю…' : '📤 отправить'}
               </button>
               <button onClick={() => ask(true)} disabled={busy !== null} style={btn}>
-                ↻ другой
+                ↻ другой ход
               </button>
               <button onClick={() => setStep(null)} disabled={busy !== null} style={btn}>
                 отвечу сам
