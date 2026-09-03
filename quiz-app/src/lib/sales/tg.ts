@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { sendBotMessage } from '@/lib/telegram';
+import { transcribeTgVoice, TG_FILE_LIMIT_BYTES } from '@/lib/whisper';
 import { suggestFromThread, type SalesStep } from './answer';
+import { pushDigest } from './digest';
 
 // Личка рабочего аккаунта.
 //
@@ -25,6 +27,8 @@ export type TgBusinessConnection = {
   is_enabled: boolean;
 };
 
+type TgVoice = { file_id: string; duration?: number; file_size?: number };
+
 export type TgBusinessMessage = {
   business_connection_id: string;
   message_id: number;
@@ -33,6 +37,8 @@ export type TgBusinessMessage = {
   date: number;
   text?: string;
   caption?: string;
+  voice?: TgVoice;
+  video_note?: TgVoice;
 };
 
 /**
@@ -148,19 +154,52 @@ export function describeLead(lead: Awaited<ReturnType<typeof findLead>>): string
     .join('\n');
 }
 
-/** Что известно о человеке из личного чата — уходит в промпт перед перепиской. */
-function describe(
-  msg: TgBusinessMessage,
-  lead: Awaited<ReturnType<typeof findLead>>,
-): string {
-  return [
-    msg.chat.username ? `ник: @${msg.chat.username}` : null,
-    msg.chat.first_name ? `имя в телеграме: ${msg.chat.first_name}` : null,
-    'канал: личка в телеграме, не инстаграм',
-    describeLead(lead),
-  ]
-    .filter(Boolean)
-    .join('\n');
+/** «01:51» для заглушки: без длительности непонятно, реплика это или монолог. */
+function stamp(seconds?: number): string {
+  if (!seconds || !Number.isFinite(seconds)) return '';
+  return ` ${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.round(seconds % 60)).padStart(2, '0')}`;
+}
+
+/**
+ * Голосовое в переписке — это тоже разговор, и часто самая важная его часть:
+ * человек проговаривает возражение целиком, тогда как текстом отвечает
+ * односложно. Пока их не расшифровывали, помощник видел в треде дырку и
+ * отвечал на несказанное.
+ *
+ * Расшифровку ведёт тот же lib/whisper, что и голосовые анкеты, — движок
+ * задаётся TRANSCRIBE_PROVIDER, отдельного здесь заводить не надо.
+ */
+async function transcribeVoice(v: TgVoice): Promise<{ text: string; failed: boolean }> {
+  const label = `[голосовое${stamp(v.duration)}`;
+  if ((v.file_size || 0) > TG_FILE_LIMIT_BYTES) {
+    return { text: `${label}, слишком большое для расшифровки]`, failed: true };
+  }
+  try {
+    const text = (await transcribeTgVoice(v.file_id)).trim();
+    return text
+      ? { text, failed: false }
+      : { text: `${label}, расшифровка пустая]`, failed: true };
+  } catch (e) {
+    console.error('[business] голосовое не расшифровалось', e);
+    return { text: `${label}, расшифровать не вышло]`, failed: true };
+  }
+}
+
+/**
+ * Хвост переписки: последние сообщения, в порядке разговора.
+ *
+ * ⚠️ Именно последние. С «orderBy asc, take: 40» приезжали сорок самых
+ * старых — пока история копилась с нуля, разницы не было, но после заливки
+ * выгрузки из Telegram Desktop бот читал бы знакомство недельной давности
+ * и не видел, о чём речь сейчас.
+ */
+async function thread(chatId: string, take = 40) {
+  const rows = await prisma.tgBusinessMsg.findMany({
+    where: { chatId },
+    orderBy: { createdAt: 'desc' },
+    take,
+  });
+  return rows.reverse();
 }
 
 /** Переписка строками, как её ждёт промпт. */
@@ -181,8 +220,9 @@ function render(rows: { side: string; text: string; createdAt: Date }[]): string
  * Подсказку готовим только когда последнее слово за человеком.
  */
 export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<void> {
-  const text = (msg.text || msg.caption || '').trim();
-  if (!text) return;
+  const said = (msg.text || msg.caption || '').trim();
+  const voice = msg.voice || msg.video_note;
+  if (!said && !voice) return;
   // Группы и каналы мимо: помощник про переписку один на один.
   if (msg.chat.type !== 'private') return;
 
@@ -209,21 +249,28 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
 
   // Анкету ищем по любому сообщению, включая наши: человек в чате один и
   // тот же, и привязка не должна зависеть от того, кто написал последним.
-  const lead = await findLead(side === 'client' ? text : '', msg.chat.username);
+  const lead = await findLead(side === 'client' ? said : '', msg.chat.username);
+
+  const id = `${msg.chat.id}:${msg.message_id}`;
 
   // Пишем через create, а не upsert: телеграм повторяет апдейт, если ответа
   // не дождался, а разбор занимает полминуты. Конфликт по ключу — значит это
   // повтор, и подсказку по нему слать второй раз не надо.
+  //
+  // Голосовое кладём заглушкой ДО расшифровки — иначе повторный апдейт успел
+  // бы отправить тот же файл в расшифровку второй раз, за отдельные деньги.
   try {
     await prisma.tgBusinessMsg.create({
       data: {
-        id: `${msg.chat.id}:${msg.message_id}`,
+        id,
         chatId: String(msg.chat.id),
         side,
         username: msg.chat.username || null,
         name: msg.chat.first_name || null,
-        text,
+        text: said || `[голосовое${stamp(voice?.duration)}, расшифровывается]`,
         leadId: lead?.id ?? null,
+        mediaType: voice ? (msg.video_note ? 'video' : 'voice') : null,
+        mediaRef: voice?.file_id ?? null,
         createdAt: new Date(msg.date * 1000),
       },
     });
@@ -231,30 +278,32 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
     return;
   }
 
+  let text = said;
+  let voiceFailed = false;
+  if (voice) {
+    const heard = await transcribeVoice(voice);
+    voiceFailed = heard.failed;
+    text = said ? `${said}\n${heard.text}` : heard.text;
+    await prisma.tgBusinessMsg.update({ where: { id }, data: { text } });
+  }
+
   if (side !== 'client') return;
 
-  const rows = await prisma.tgBusinessMsg.findMany({
-    where: { chatId: String(msg.chat.id) },
-    orderBy: { createdAt: 'asc' },
-    take: 40,
-  });
+  // Подсказку здесь больше не собираем. Во-первых, разбор идёт около минуты
+  // против шестидесяти секунд вебхука — на длинных тредах он не успевал, и
+  // помощник молчал ровно там, где шёл живой разговор. Во-вторых, четыре
+  // сообщения на каждую входящую реплику превращали чат в кашу.
+  //
+  // Вместо этого правим одну сводку: кто ждёт и сколько. Ответ собирается
+  // в кабинете, на странице человека, по кнопке.
+  if (voiceFailed) {
+    const who = msg.chat.username ? `@${msg.chat.username}` : msg.chat.first_name || 'человек';
+    for (const helper of helpers()) {
+      await sendBotMessage(helper, `${who}: голосовое не разобралось, послушай сам`, undefined, null);
+    }
+  }
 
-  const step = await suggestFromThread({
-    about: describe(msg, lead),
-    rendered: render(rows),
-  });
-
-  const who = msg.chat.username ? `@${msg.chat.username}` : msg.chat.first_name || 'без ника';
-  await sendStep({
-    connId: msg.business_connection_id,
-    chatId: String(msg.chat.id),
-    head: [
-      `${who}${lead ? ` · анкета №${lead.id}` : ' · анкеты нет'}`,
-      step.stage ? ` · ${step.stage}` : '',
-      `\nнаписал: ${text.slice(0, 300)}`,
-    ].join(''),
-    step,
-  });
+  await pushDigest();
 }
 
 /**
@@ -308,11 +357,7 @@ export async function sendStep(params: {
 
 /** Собрать шаг заново по тому же чату — кнопка «другой». */
 export async function regenerate(chatId: string): Promise<boolean> {
-  const rows = await prisma.tgBusinessMsg.findMany({
-    where: { chatId },
-    orderBy: { createdAt: 'asc' },
-    take: 40,
-  });
+  const rows = await thread(chatId);
   if (!rows.length) return false;
 
   const last = rows[rows.length - 1];
@@ -339,6 +384,76 @@ export async function regenerate(chatId: string): Promise<boolean> {
     step,
   });
   return true;
+}
+
+/**
+ * Отправить человеку произвольный текст от имени рабочего аккаунта.
+ *
+ * Нужна кабинету: там ответ можно поправить руками перед отправкой, поэтому
+ * шлём текст, а не заранее сохранённый вариант.
+ *
+ * Отправленное сразу кладём в переписку под ключом из ответа телеграма. Тот
+ * же ключ придёт следом апдейтом business_message — и отвалится дедупом,
+ * вместо того чтобы лечь в тред вторым таким же сообщением.
+ */
+export async function sendAs(
+  chatId: string,
+  text: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const body = text.trim();
+  if (!body) return { ok: false, error: 'пустой текст' };
+
+  const token = process.env.BOT_TOKEN;
+  if (!token) return { ok: false, error: 'нет токена' };
+
+  const conn = await prisma.tgBusinessConn.findFirst({
+    where: { isEnabled: true },
+    orderBy: { connectedAt: 'desc' },
+  });
+  if (!conn) return { ok: false, error: 'бот не подключён к личке' };
+  if (!conn.canReply) return { ok: false, error: 'нет права отвечать, проверь настройки бизнес-бота' };
+
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      business_connection_id: conn.id,
+      chat_id: Number(chatId),
+      text: body,
+    }),
+  });
+  const out = (await res.json()) as {
+    ok: boolean;
+    description?: string;
+    result?: { message_id: number; date: number };
+  };
+  if (!out.ok || !out.result) {
+    console.error('[business] отправка из кабинета не прошла', out.description);
+    return { ok: false, error: out.description || 'телеграм отказал' };
+  }
+
+  const known = await prisma.tgBusinessMsg.findFirst({
+    where: { chatId },
+    orderBy: { createdAt: 'desc' },
+    select: { username: true, name: true, leadId: true },
+  });
+
+  await prisma.tgBusinessMsg
+    .create({
+      data: {
+        id: `${chatId}:${out.result.message_id}`,
+        chatId,
+        side: 'us',
+        username: known?.username ?? null,
+        name: known?.name ?? null,
+        text: body,
+        leadId: known?.leadId ?? null,
+        createdAt: new Date(out.result.date * 1000),
+      },
+    })
+    .catch(() => {});
+
+  return { ok: true };
 }
 
 /**

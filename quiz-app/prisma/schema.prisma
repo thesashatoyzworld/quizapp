@@ -741,6 +741,13 @@ model TgBusinessMsg {
   text      String
   /** Номер анкеты, если человек пришёл с формы и она узналась. */
   leadId    Int?     @map("lead_id")
+  /** voice | photo | video | file — если в сообщении было не только слово. */
+  mediaType String?  @map("media_type")
+  /**
+   * Где лежит исходник: путь внутри выгрузки Telegram Desktop или file_id
+   * живого апдейта. Пока голосовое не расшифровано, в text стоит заглушка.
+   */
+  mediaRef  String?  @map("media_ref")
   createdAt DateTime @map("created_at")
 
   @@index([chatId, createdAt])
@@ -759,6 +766,21 @@ model TgShot {
 
   @@index([groupId, createdAt])
   @@map("tg_shot")
+}
+
+/**
+ * Сообщение-сводка в чате помощника: одно на чат, обновляется на месте.
+ *
+ * Раньше на каждое входящее прилетала отдельная подсказка, и разговоры с
+ * разными людьми перемешивались в ленту. Теперь бот держит одну очередь.
+ */
+model TgDigest {
+  chatId    String   @id @map("chat_id")
+  messageId Int      @map("message_id")
+  sentAt    DateTime @default(now()) @map("sent_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("tg_digest")
 }
 
 /** Вариант ответа под кнопкой «отправить». Текст в callback_data не влезает. */
