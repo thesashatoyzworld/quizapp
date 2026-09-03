@@ -25,14 +25,18 @@ export async function POST() {
   // Тех, у кого ответ уже собран после их последней реплики, пропускаем:
   // повторный разбор стоит денег и даёт то же самое.
   const todo: typeof rows = [];
+  let already = 0;
   for (const r of rows) {
-    if (todo.length >= BATCH) break;
-    if (await readySuggestion(r.chatId)) continue;
+    if (await readySuggestion(r.chatId)) {
+      already += 1;
+      continue;
+    }
+    if (todo.length >= BATCH) continue;
     todo.push(r);
   }
 
   if (!todo.length) {
-    return NextResponse.json({ ok: true, prepared: 0, already: rows.length });
+    return NextResponse.json({ ok: true, prepared: 0, already, left: 0 });
   }
 
   const done = await Promise.all(
@@ -85,7 +89,9 @@ export async function POST() {
   return NextResponse.json({
     ok: true,
     prepared,
+    already,
     failed: done.length - prepared,
-    left: Math.max(0, rows.length - prepared),
+    // Осталось без ответа: у кого не было и кого не взяли в этот заход.
+    left: Math.max(0, rows.length - already - prepared),
   });
 }
