@@ -53,6 +53,46 @@ function time(iso: string): string {
   });
 }
 
+/**
+ * Живой индикатор на время разбора.
+ *
+ * Полоса не показывает настоящий прогресс — его неоткуда взять, модель не
+ * отчитывается о ходе. Она показывает, что работа идёт, и сколько уже прошло:
+ * без этого страница выглядит зависшей и кнопку жмут второй раз.
+ */
+function Progress({ seconds }: { seconds: number }) {
+  return (
+    <div style={{ marginTop: 12 }}>
+      <style>{`@keyframes salesbar { 0% { left: -35%; } 100% { left: 100%; } }`}</style>
+      <div
+        style={{
+          position: 'relative',
+          height: 4,
+          borderRadius: 2,
+          background: 'rgba(255,255,255,0.08)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            width: '35%',
+            borderRadius: 2,
+            background: 'var(--neon-cyan)',
+            animation: 'salesbar 1.4s ease-in-out infinite',
+          }}
+        />
+      </div>
+      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 8 }}>
+        читаю переписку и собираю ответ · {seconds} сек
+        {seconds > 75 ? ' · дольше обычного, но идёт' : ''}
+      </div>
+    </div>
+  );
+}
+
 export default function SalesThread({
   chatId,
   messages,
@@ -72,6 +112,10 @@ export default function SalesThread({
   const [step, setStep] = useState<Step | null>(ready);
   const [text, setText] = useState(ready?.message ?? '');
   const [busy, setBusy] = useState<'step' | 'send' | null>(null);
+  const [steer, setSteer] = useState('');
+  // Разбор идёт около минуты. Без бегущего счётчика страница выглядит
+  // зависшей, и человек жмёт кнопку второй раз.
+  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
@@ -84,6 +128,16 @@ export default function SalesThread({
     if (full && tail.current) tail.current.scrollTop = tail.current.scrollHeight;
   }, [full, thread.length]);
 
+  useEffect(() => {
+    if (busy !== 'step') {
+      setElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const timer = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 250);
+    return () => clearInterval(timer);
+  }, [busy]);
+
   async function ask(another: boolean) {
     setBusy('step');
     setError(null);
@@ -91,7 +145,7 @@ export default function SalesThread({
       const res = await fetch('/api/admin/sales-step', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId, another }),
+        body: JSON.stringify({ chatId, another, steer: steer.trim() || null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'не собралось');
@@ -192,10 +246,31 @@ export default function SalesThread({
         <div style={title}>Следующий шаг{step?.stage ? ` · ${step.stage}` : ''}</div>
 
         {!step && !sent ? (
-          <button onClick={() => ask(false)} disabled={busy === 'step'} style={btn}>
-            {busy === 'step' ? 'собираю, это до минуты…' : 'собрать ответ'}
-          </button>
+          <>
+            <input
+              value={steer}
+              onChange={(e) => setSteer(e.target.value)}
+              placeholder="куда вести ответ: например «спроси про чек» или «веди на тариф 1»"
+              disabled={busy === 'step'}
+              style={{
+                width: '100%',
+                background: 'rgba(0,0,0,0.35)',
+                color: 'var(--text-primary)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 8,
+                padding: '10px 12px',
+                fontSize: '0.85rem',
+                fontFamily: 'inherit',
+                marginBottom: 10,
+              }}
+            />
+            <button onClick={() => ask(false)} disabled={busy === 'step'} style={btn}>
+              собрать ответ
+            </button>
+          </>
         ) : null}
+
+        {busy === 'step' ? <Progress seconds={elapsed} /> : null}
 
         {sent ? <div style={{ color: 'var(--neon-cyan)' }}>отправлено</div> : null}
 
@@ -226,6 +301,24 @@ export default function SalesThread({
                 нужен Саша: {step.callSasha}
               </div>
             ) : null}
+            <input
+              value={steer}
+              onChange={(e) => setSteer(e.target.value)}
+              placeholder="не то? скажи, куда вести, и жми «другой»"
+              disabled={busy !== null}
+              style={{
+                width: '100%',
+                background: 'rgba(0,0,0,0.35)',
+                color: 'var(--text-primary)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 8,
+                padding: '10px 12px',
+                fontSize: '0.85rem',
+                fontFamily: 'inherit',
+                marginBottom: 10,
+              }}
+            />
+
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button
                 onClick={send}

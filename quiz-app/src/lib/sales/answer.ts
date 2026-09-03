@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { prisma } from '@/lib/prisma';
 import { SALES_KB } from '@/content/sales-kb';
 import { findThread, renderThread, type SalesThread } from './lead';
 
@@ -207,6 +208,44 @@ function waitingFor(thread: SalesThread): string | null {
 }
 
 /**
+ * Чему научились на правках Саши.
+ *
+ * Пара «предложили — отправили» говорит о промпте больше, чем любая теория:
+ * видно, что он вычёркивает, что дописывает и где мы промахиваемся тоном.
+ * Берём последние, потому что они отражают сегодняшние цены и формулировки.
+ */
+async function recentCorrections(take = 6): Promise<string | null> {
+  const rows = await prisma.salesCorrection.findMany({
+    orderBy: { createdAt: 'desc' },
+    take,
+    select: { suggested: true, sent: true },
+  });
+  if (!rows.length) return null;
+
+  const cases = rows
+    .reverse()
+    .map(
+      (r, i) => `Случай ${i + 1}.
+Предлагали:
+${r.suggested}
+
+Саша отправил вместо этого:
+${r.sent}`,
+    )
+    .join('\n\n---\n\n');
+
+  return `# Правки Саши на живых переписках
+
+Ниже то, что мы предлагали, и то, что Саша отправил на самом деле. Это не
+примеры для копирования дословно, а показания, чем предложенное не годилось:
+длина, тон, лишние объяснения, не тот шаг лестницы, преждевременная цена.
+
+Разбирая новую переписку, воспроизводи эти поправки, а не повторяй ошибки.
+
+${cases}`;
+}
+
+/**
  * Что написать дальше по готовой переписке. Источник неважен: инста-директ
  * приходит из ChatPlace, личка рабочего аккаунта — из телеграма, база
  * и промпт для обоих одни.
@@ -216,13 +255,20 @@ export async function suggestFromThread(params: {
   about: string;
   /** Переписка строками «[время] ЧЕЛОВЕК/МЫ: текст». */
   rendered: string;
+  /** Куда вести ответ — если Саша задал направление руками. */
+  steer?: string | null;
 }): Promise<SalesStep> {
+  // Чему научились на правках: что предлагали и что Саша отправил вместо.
+  const lessons = await recentCorrections();
+
   const res = await anthropic.messages.create({
     model: 'claude-sonnet-5',
     max_tokens: 6000,
     system: [
       { type: 'text' as const, text: SYSTEM },
       { type: 'text' as const, text: SALES_KB, cache_control: { type: 'ephemeral' as const } },
+      // Правки идут ПОСЛЕ базы и вне кэша: они меняются часто, а база нет.
+      ...(lessons ? [{ type: 'text' as const, text: lessons }] : []),
     ],
     messages: [
       {
@@ -232,7 +278,17 @@ ${params.about || 'ничего не известно'}
 
 Переписка:
 ${params.rendered}
+${
+  params.steer
+    ? `
+Саша сказал, куда вести ответ:
+${params.steer}
 
+Это указание, а не пожелание: следуй ему, но по-прежнему одним сообщением
+и по правилам базы. Если оно противоречит фактам переписки — всё равно делай
+как сказано, а сомнение вынеси в поле why.`
+    : ''
+}
 Что написать дальше?`,
       },
     ],
