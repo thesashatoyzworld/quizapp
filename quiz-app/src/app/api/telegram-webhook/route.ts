@@ -36,7 +36,7 @@ import {
   syncUsername,
   transcribePending,
 } from '@/lib/intake';
-import { sendWelcomeT2 } from '@/lib/onboarding';
+import { sendWelcomeT2, startIntake } from '@/lib/onboarding';
 import { findIntakeFor, rebuildRoadmap } from '@/lib/roadmap/build';
 import { approveAndSend } from '@/lib/roadmap/review';
 import { scheduleRoadmapBuild } from '@/lib/qstash';
@@ -954,6 +954,14 @@ export async function POST(request: NextRequest) {
               `готово ⚡\n\nоплата подтверждена, доступ к <b>${product.name}</b> открыт. материалы — в кабинете, жми кнопку ниже.`,
               { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] }
             );
+          }
+
+          // Тариф 3 = менторство: следом зовём собрать досье до созвона 1-1.
+          // В ветке Продамуса это уже было, а редим — единственная дверь для тех,
+          // кому доступ открыли мимо оплаты картой (крипта, рассрочка, партнёрство).
+          // Без этого анкету каждому запускали руками через /anketa_send.
+          if (product.slug === 'uroven-t3') {
+            await startIntake(chatId, 't3');
           }
 
           await notifyAdmin(

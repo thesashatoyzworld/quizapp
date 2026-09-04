@@ -8,7 +8,7 @@
 import { prisma } from '@/lib/prisma';
 import { sendBotMessage } from '@/lib/telegram';
 import { welcomeText, WELCOME_BUTTON } from '@/content/onboarding-t2';
-import { trackContent } from '@/content/intake-tracks';
+import { trackContent, type IntakeTrack } from '@/content/intake-tracks';
 import { ensureIntake, sendPreamble, getIntake, intakeTotal, withCount } from '@/lib/intake';
 
 const CABINET_URL =
@@ -53,21 +53,24 @@ export async function sendWelcomeT2(telegramId: number): Promise<boolean> {
     })
     .catch((e) => console.error('[onboarding] отметку welcome_sent записать не смог:', e));
 
-  await startIntakeT2(telegramId);
+  await startIntake(telegramId, 't2');
   return true;
 }
 
 /**
- * Интервью сразу за приветствием: момент максимальной мотивации, человек только
- * что заплатил. Анкету заводим с треком t2, даже если тариф потом сменится:
+ * Интервью сразу за доступом: момент максимальной мотивации, человек только
+ * что заплатил. Трек замораживаем сейчас, даже если тариф потом сменится:
  * вопросы должны остаться те, с которыми человек начал.
+ *
+ * Повторный заход молчит: анкету трогаем, только пока она `invited`, поэтому
+ * второй клик по своей же ссылке не сбросит начатое и не спросит заново.
  */
-async function startIntakeT2(telegramId: number): Promise<void> {
+export async function startIntake(telegramId: number, track: IntakeTrack): Promise<void> {
   try {
     const existing = await getIntake(telegramId);
     if (existing && existing.status !== 'invited') return;
 
-    const intake = await ensureIntake(telegramId, undefined, undefined, undefined, 't2');
+    const intake = await ensureIntake(telegramId, undefined, undefined, undefined, track);
     await sendBotMessage(telegramId, withCount(trackContent(intake.track).invite, intakeTotal(intake)));
     await sendPreamble(telegramId, intake);
   } catch (e) {
