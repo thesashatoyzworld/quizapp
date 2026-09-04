@@ -453,14 +453,21 @@ export async function suggestFromThread(params: {
     const res = await anthropic.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 6000,
+      // ⚠️ Порядок здесь стоит денег. Кэш совпадает по префиксу: всё, что стоит
+      // ДО метки, входит в ключ. Пока изменчивый SYSTEM шёл первым, каждая
+      // правка правил обнуляла кэш всей базы, и разбор стоил полную цену.
+      //
+      // Теперь первой идёт база — она не меняется неделями, — а правила и
+      // выученные поправки после метки: их можно трогать сколько угодно.
       system: [
-        { type: "text" as const, text: SYSTEM },
         {
           type: "text" as const,
           text: SALES_KB,
-          cache_control: { type: "ephemeral" as const },
+          // Час вместо пяти минут: очередь разбирается пачками с перерывами,
+          // и на пяти минутах кэш успевал протухнуть между заходами.
+          cache_control: { type: "ephemeral" as const, ttl: "1h" as const },
         },
-        // Правки идут ПОСЛЕ базы и вне кэша: они меняются часто, а база нет.
+        { type: "text" as const, text: SYSTEM },
         ...(lessons ? [{ type: "text" as const, text: lessons }] : []),
       ],
       messages: [

@@ -50,8 +50,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, prepared: 0, already, left: 0 });
   }
 
-  const done = await Promise.all(
-    todo.map(async (r) => {
+  // Первый разбор идёт отдельно и прогревает кэш базы: если запустить все
+  // разом, они стартуют до того, как кэш записан, и каждый платит полную цену.
+  const head = todo.shift();
+  const first = head ? [await one(head)] : [];
+
+  const done = [...first, ...(await Promise.all(todo.map(one)))];
+
+  async function one(r: (typeof rows)[number]) {
       try {
         const thread = await threadOf(r.chatId, 60);
         if (!thread.length) return false;
@@ -98,8 +104,7 @@ export async function POST(request: Request) {
         console.error('[sales-prepare] не собрался шаг', r.chatId, e);
         return false;
       }
-    }),
-  );
+  }
 
   const prepared = done.filter(Boolean).length;
   return NextResponse.json({
