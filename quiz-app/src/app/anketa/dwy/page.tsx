@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   WHO_OPTIONS, HAS_PRODUCT_OPTIONS, LEVELS,
   INCOME_OPTIONS, HOURS_OPTIONS, FOLLOWING_OPTIONS, READINESS_OPTIONS,
+  FOLLOWERS_SCALE, formatFollowers,
   DWY_MODES, DWY_FIELDS, isDwyKind, type DwyField,
 } from '@/content/dwy';
 
@@ -43,6 +44,45 @@ function Chips({ options, value, onChange }: {
   );
 }
 
+/**
+ * Подписчики слайдером.
+ *
+ * Цифру пишут неохотно и округляют в свою пользу, а из списка «до 1000 / до
+ * 10 000» не выбрать тому, у кого 1 200. Слайдер отвечается одним движением
+ * и сам показывает, что маленькая цифра здесь нормальна.
+ *
+ * Двигаем не число, а номер ступени: между 100 и 500 разница решающая, между
+ * 300 и 500 тысячами — уже нет, и на линейной шкале весь рабочий диапазон
+ * уместился бы в первый сантиметр.
+ */
+function Followers({ value, touched, onChange }: {
+  value: number; touched: boolean; onChange: (v: number) => void;
+}) {
+  const index = Math.max(0, FOLLOWERS_SCALE.indexOf(value));
+  return (
+    <div className="dwy-slider">
+      <div className={touched ? 'dwy-value' : 'dwy-value-off'}>
+        {touched ? formatFollowers(value) : 'перетащите ползунок'}
+      </div>
+      <input
+        type="range"
+        className="dwy-range"
+        min={0}
+        max={FOLLOWERS_SCALE.length - 1}
+        step={1}
+        value={index}
+        onChange={(e) => onChange(FOLLOWERS_SCALE[Number(e.target.value)])}
+      />
+      <div className="dwy-scale">
+        <span>0</span>
+        <span>1 000</span>
+        <span>50 000</span>
+        <span>1 млн</span>
+      </div>
+    </div>
+  );
+}
+
 function DwyInner() {
   const params = useSearchParams();
   const source = params.get('from') || 'direct';
@@ -67,6 +107,10 @@ function DwyInner() {
   const [income, setIncome] = useState('');
   const [hours, setHours] = useState('');
   const [following, setFollowing] = useState('');
+  // Ползунок стоит на нуле и до первого касания это не ответ, а его отсутствие:
+  // «совсем нет» — тоже осмысленная цифра, и отличать её надо явно.
+  const [followers, setFollowers] = useState(0);
+  const [followersSet, setFollowersSet] = useState(false);
   const [readiness, setReadiness] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -82,6 +126,7 @@ function DwyInner() {
     name, contact, phone, instagram, who, hasProduct,
     level: level ? String(level) : '', tried, want, income, hours,
     following, readiness,
+    followers: followersSet ? String(followers) : '',
   };
   const need = (f: DwyField) => mode.required.includes(f);
   const ready = contact.trim().length >= 3
@@ -188,6 +233,19 @@ function DwyInner() {
             <Chips options={HOURS_OPTIONS} value={hours} onChange={setHours} />
           </Field>
         );
+      case 'followers':
+        return (
+          <Field key={f} label="Сколько подписчиков в инстаграме" optional={optional}>
+            <Followers
+              value={followers}
+              touched={followersSet}
+              onChange={(v) => {
+                setFollowers(v);
+                setFollowersSet(true);
+              }}
+            />
+          </Field>
+        );
       case 'following':
         return (
           <Field key={f} label="Как давно вы на меня подписаны" optional={optional}>
@@ -218,6 +276,7 @@ function DwyInner() {
             name, contact, phone, instagram,
             who, hasProduct, product, level, tried, want, income, hours,
             following, readiness,
+            followers: followersSet ? followers : null,
           },
         }),
       });
@@ -363,6 +422,36 @@ function DwyInner() {
           background: #f2ece7; color: var(--mut);
         }
         .dwy-level-on .dwy-level-n { background: var(--acc); color: #fff; }
+        /* Слайдер подписчиков. Значение стоит НАД дорожкой: на телефоне палец
+           закрывает ползунок, и подпись под ним человек просто не видит. */
+        .dwy-slider { margin-top: 10px; }
+        .dwy-value {
+          font-size: 24px; font-weight: 800; color: var(--acc);
+          letter-spacing: -0.02em; line-height: 1.1;
+        }
+        .dwy-value-off { font-size: 15px; font-weight: 500; color: var(--mut); line-height: 1.6; }
+        .dwy-range {
+          width: 100%; margin: 14px 0 0; height: 4px; border-radius: 2px;
+          background: var(--line); outline: none;
+          -webkit-appearance: none; appearance: none;
+        }
+        /* Кружок крупный намеренно: 26px это минимум, за который уверенно
+           берёшься пальцем, не целясь. */
+        .dwy-range::-webkit-slider-thumb {
+          -webkit-appearance: none; appearance: none;
+          width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+          background: var(--acc); border: 3px solid #fff;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, .22);
+        }
+        .dwy-range::-moz-range-thumb {
+          width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+          background: var(--acc); border: 3px solid #fff;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, .22);
+        }
+        .dwy-scale {
+          display: flex; justify-content: space-between;
+          font-size: 11.5px; color: var(--mut); margin-top: 7px;
+        }
         .dwy-input, .dwy-area {
           width: 100%; font-family: inherit; font-size: 16px; color: var(--fg);
           background: var(--surf); border: 1px solid var(--line);

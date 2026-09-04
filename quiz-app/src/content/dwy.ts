@@ -40,6 +40,39 @@ export const INCOME_OPTIONS = ['до 50к', '50–150к', '150–500к', '500к+
 
 export const HOURS_OPTIONS = ['до 2 часов', '2–5 часов', '5–10 часов', '10+ часов'];
 
+// Шкала подписчиков для слайдера. Шаги неравномерные: между 100 и 500 разница
+// решающая, между 300 и 500 тысячами — уже нет. Линейная шкала от нуля до
+// миллиона превратила бы весь рабочий диапазон в первый сантиметр дорожки.
+export const FOLLOWERS_SCALE = [
+  0, 50, 100, 200, 300, 500, 750,
+  1000, 1500, 2000, 3000, 5000, 7500,
+  10000, 15000, 20000, 30000, 50000, 75000,
+  100000, 150000, 200000, 300000, 500000, 1000000,
+];
+
+/**
+ * Разряды пробелом. Своя реализация вместо toLocaleString намеренно: он ставит
+ * неразрывный пробел, из-за чего одинаковые на вид строки не совпадают в
+ * проверках, а на сборке без полной ICU молча съезжает на «15,000».
+ */
+function grouped(n: number): string {
+  const parts: string[] = [];
+  let rest = String(n);
+  while (rest.length > 3) {
+    parts.unshift(rest.slice(-3));
+    rest = rest.slice(0, -3);
+  }
+  parts.unshift(rest);
+  return parts.join(' ');
+}
+
+/** Подпись под слайдером. Верхняя ступень открытая: миллион и больше. */
+export function formatFollowers(n: number): string {
+  if (n === 0) return 'совсем нет';
+  const last = FOLLOWERS_SCALE[FOLLOWERS_SCALE.length - 1];
+  return n >= last ? `${grouped(last)}+` : grouped(n);
+}
+
 // Сколько человек уже читает Сашу. Ответ снимает вопрос «а ты мои материалы
 // смотрел?», который иначе задаётся всем подряд, и сразу показывает, кто
 // пришёл тёплым, а кто увидел один рилс.
@@ -72,7 +105,7 @@ export type DwyKind = (typeof DWY_KINDS)[number];
 
 /** Все поля анкеты в порядке формы. */
 export const DWY_FIELDS = [
-  'name', 'contact', 'phone', 'instagram', 'following',
+  'name', 'contact', 'phone', 'instagram', 'followers', 'following',
   'who', 'hasProduct', 'level', 'tried', 'want', 'income', 'hours', 'readiness',
 ] as const;
 export type DwyField = (typeof DWY_FIELDS)[number];
@@ -118,7 +151,7 @@ export type DwyMode = {
 // с опечатками, но номер на холодном трафике отдают неохотно — теряем
 // больше, чем страхуем.
 const MENTOR_REQUIRED = [
-  'name', 'contact', 'following',
+  'name', 'contact', 'followers', 'following',
   'who', 'hasProduct', 'level', 'tried', 'want', 'income', 'hours', 'readiness',
 ] as const;
 

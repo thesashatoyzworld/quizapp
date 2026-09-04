@@ -7,7 +7,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { normalizeInstagram } from '@/lib/dwy-message';
-import { LEVELS, DWY_MODES, isDwyKind } from '@/content/dwy';
+import { LEVELS, DWY_MODES, formatFollowers, isDwyKind } from '@/content/dwy';
 import { LEAD_STATUSES, isLeadStatus, type LeadStatus } from '@/content/lead-status';
 
 export {
@@ -206,7 +206,7 @@ export type LeadCard = {
 function buildAnswers(l: {
   who: string | null; hasProduct: string | null; product: string | null; level: number | null;
   tried: string | null; want: string | null; income: string | null; hours: string | null;
-  following: string | null; readiness: string | null;
+  following: string | null; readiness: string | null; followers: number | null;
 }): LeadAnswer[] {
   const out: LeadAnswer[] = [];
   if (l.who) out.push({ label: 'кем себя считает', value: l.who });
@@ -216,6 +216,9 @@ function buildAnswers(l: {
   if (l.level) out.push({ label: 'уровень', value: `${l.level} · ${LEVELS[l.level - 1] || ''}`.trim() });
   if (l.income) out.push({ label: 'доход', value: l.income });
   if (l.hours) out.push({ label: 'часов в неделю', value: l.hours });
+  if (l.followers !== null) {
+    out.push({ label: 'подписчиков', value: formatFollowers(l.followers) });
+  }
   if (l.following) out.push({ label: 'подписан на Сашу', value: l.following });
   // Готовность стоит рядом с деньгами, а не в хвосте свободных ответов:
   // по ней решают, с какой скоростью идти к цене.

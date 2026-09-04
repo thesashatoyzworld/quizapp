@@ -49,7 +49,7 @@ const minimal: DwyLeadInput = {
   kind: 't2',
   who: null, hasProduct: null, product: null, level: null,
   tried: null, want: null, income: null, hours: null,
-  following: null, readiness: null,
+  following: null, readiness: null, followers: null,
   source: 'uroven',
 };
 
@@ -68,7 +68,7 @@ const mentor = buildDwyMessage({
   phone: '+79991112233', instagram: '@dwy.probe', instagramHandle: 'dwy.probe',
   who: 'эксперт', hasProduct: 'да', product: 'консультации', level: 3,
   tried: 'снимал рилсы', want: 'поток заявок', income: '150–500к', hours: '5–10 часов',
-  following: 'больше года', readiness: 'вполне готов(-а)',
+  following: 'больше года', readiness: 'вполне готов(-а)', followers: 15000,
 });
 contains('заголовок менторства', mentor, 'Анкета на менторство');
 contains('телефон моноширинным', mentor, '<code>+79991112233</code>');
@@ -76,6 +76,7 @@ contains('инстаграм ссылкой', mentor, 'https://instagram.com/dwy
 contains('уровень словами', mentor, 'Уровень:</b> 3 · Делаю, но бесит');
 contains('продукт рядом с ответом', mentor, 'да · консультации');
 contains('давно подписан', mentor, 'Подписан:</b> больше года');
+contains('подписчики с разделителем', mentor, 'Подписчиков:</b> 15 000');
 contains('готовность с огоньком', mentor, 'Готов к покупке:</b> 🔥 вполне готов(-а)');
 
 console.log('\n— готовность: огонёк только у готовых —');
@@ -83,6 +84,12 @@ const thinking = buildDwyMessage({ ...minimal, kind: 'mentor', readiness: 'по�
 contains('думающий без огонька', thinking, 'Готов к покупке:</b> пока думаю');
 absent('огонька у думающего нет', thinking, '🔥');
 absent('пустой подписки нет', thinking, 'Подписан');
+absent('пустых подписчиков нет', thinking, 'Подписчиков');
+
+const zero = buildDwyMessage({ ...minimal, kind: 'mentor', followers: 0 });
+contains('ноль подписчиков это ответ', zero, 'Подписчиков:</b> совсем нет');
+const huge = buildDwyMessage({ ...minimal, kind: 'mentor', followers: 1000000 });
+contains('верхняя ступень открытая', huge, 'Подписчиков:</b> 1 000 000+');
 
 console.log('\n— сообщение: человек уже присылал анкету —');
 const again = buildDwyMessage({ ...minimal, kind: 'mentor' }, { days: 12, kind: 't2' });

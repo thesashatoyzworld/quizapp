@@ -33,6 +33,13 @@ function optional(v: unknown): string | null {
   return s || null;
 }
 
+/** Подписчики из анкеты: целое от нуля до десяти миллионов, иначе null. */
+function followersOf(raw: unknown): number | null {
+  const n = Number(raw);
+  if (raw === null || raw === undefined || raw === '' || !Number.isFinite(n)) return null;
+  return Math.min(10_000_000, Math.max(0, Math.round(n)));
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -96,6 +103,9 @@ export async function POST(req: NextRequest) {
       hours: optional(answers.hours),
       following: optional(answers.following),
       readiness: optional(answers.readiness),
+      // Ползунок ходит по своей шкале, но верить фронту нельзя: берём число,
+      // отсекаем мусор и потолок. null — вопрос пропустили.
+      followers: followersOf(answers.followers),
       source: typeof source === 'string' && source ? source.slice(0, 64) : 'direct',
     };
 
@@ -124,6 +134,7 @@ export async function POST(req: NextRequest) {
         hours: lead.hours,
         following: lead.following,
         readiness: lead.readiness,
+        followers: lead.followers,
         contact: lead.contact,
         phone: lead.phone,
         instagram: lead.instagramHandle ? `@${lead.instagramHandle}` : lead.instagram,

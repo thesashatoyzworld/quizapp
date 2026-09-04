@@ -1,4 +1,4 @@
-import { LEVELS, DWY_MODES, isDwyKind, type DwyKind } from '@/content/dwy';
+import { LEVELS, DWY_MODES, formatFollowers, isDwyKind, type DwyKind } from '@/content/dwy';
 
 export type DwyLeadInput = {
   name: string;
@@ -26,6 +26,8 @@ export type DwyLeadInput = {
   following: string | null;
   /** Насколько готов платить. */
   readiness: string | null;
+  /** Подписчиков в инстаграме. */
+  followers: number | null;
   source: string | null;
 };
 
@@ -146,6 +148,10 @@ export function buildDwyMessage(lead: DwyLeadInput, prior?: DwyPrior | null): st
   }
   if (lead.income) facts.push(`<b>Доход:</b> ${escape(lead.income)}`);
   if (lead.hours) facts.push(`<b>Часов в неделю:</b> ${escape(lead.hours)}`);
+  // Ноль — это ответ, а не пустое поле: пишем и его.
+  if (lead.followers !== null) {
+    facts.push(`<b>Подписчиков:</b> ${escape(formatFollowers(lead.followers))}`);
+  }
   if (lead.following) facts.push(`<b>Подписан:</b> ${escape(lead.following)}`);
   // Готовность идёт последней и с меткой: по ней решают, звонить сегодня или
   // сначала греть, и в длинном сообщении она не должна теряться среди фактов.

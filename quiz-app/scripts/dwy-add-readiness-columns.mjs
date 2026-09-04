@@ -1,4 +1,5 @@
-// Два новых вопроса анкеты: как давно подписан и насколько готов к покупке.
+// Новые вопросы анкеты: как давно подписан, насколько готов к покупке и
+// сколько подписчиков в инстаграме.
 //
 // Запуск: node scripts/dwy-add-readiness-columns.mjs
 //
@@ -16,10 +17,11 @@ await db.connect();
 
 await db.query(`ALTER TABLE dwy_leads ADD COLUMN IF NOT EXISTS following TEXT`);
 await db.query(`ALTER TABLE dwy_leads ADD COLUMN IF NOT EXISTS readiness TEXT`);
+await db.query(`ALTER TABLE dwy_leads ADD COLUMN IF NOT EXISTS followers INTEGER`);
 
 const { rows } = await db.query(`
   SELECT column_name FROM information_schema.columns
-   WHERE table_name = 'dwy_leads' AND column_name IN ('following', 'readiness')
+   WHERE table_name = 'dwy_leads' AND column_name IN ('following', 'readiness', 'followers')
    ORDER BY column_name
 `);
 console.log('на месте:', rows.map((r) => r.column_name).join(', ') || 'ничего');
