@@ -9,7 +9,7 @@
 // подписке. Промпт, схема и разбор общие, поэтому карта получается одна и та же.
 
 import type { MapEntry } from '@/lib/kb/map';
-import { SYSTEM, buildUserPrompt } from './prompt';
+import { SYSTEM, buildUserPrompt, planOf } from './prompt';
 import { callModel } from './llm';
 import { materialUrl, type RoadmapSource } from './source';
 
@@ -332,6 +332,7 @@ export async function generateRoadmap(source: RoadmapSource, startedAt: Date, ac
 
   const user = buildUserPrompt({
     name: source.username ? `${name} (@${source.username})` : name,
+    plan: planOf(source.track),
     transcript: source.transcript,
     catalog: source.catalog,
     startedAt: iso(startedAt),
