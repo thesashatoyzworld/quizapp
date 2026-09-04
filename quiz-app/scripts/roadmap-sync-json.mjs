@@ -47,9 +47,25 @@ for (const s of d.steps || []) {
       [s.status, s.evidence, map.id, s.position], `ступень ${s.position} «${s.title}»: ${cur.status} → ${s.status}`);
 }
 
+const { rows: [{ max: lastPos }] } = await c.query('select coalesce(max(position), -1) as max from roadmap_tasks where roadmap_id = $1', [map.id]);
+let nextPos = Number(lastPos) + 1;
+
 for (const t of d.tasks || []) {
   const { rows: [cur] } = await c.query('select status, title from roadmap_tasks where roadmap_id = $1 and key = $2', [map.id, t.key]);
-  if (!cur) { console.log(`  задачи ${t.key} в базе нет, пропускаю`); continue; }
+  if (!cur) {
+    // Новых задач в базе нет: карта пополняется после созвона. Видимость даём
+    // ту же, что у остальных задач клиента на этой карте.
+    const visibility = map.client_visible && t.owner === 'client' ? 'shared' : 'internal';
+    const pos = nextPos++;
+    await run(
+      `insert into roadmap_tasks (id, roadmap_id, position, title, why, owner, status, due_on, key, link_url, link_label, visibility)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [crypto.randomUUID(), map.id, pos, t.title, t.why || null, t.owner || 'client', t.status || 'todo',
+       t.dueOn || null, t.key, t.linkUrl || null, t.linkLabel || null, visibility],
+      `новая задача «${t.title.slice(0, 45)}»`
+    );
+    continue;
+  }
   if (cur.status !== t.status)
     await run('update roadmap_tasks set status = $1, done_at = case when $1 = \'done\' then coalesce(done_at, now()) else null end, updated_at = now() where roadmap_id = $2 and key = $3',
       [t.status, map.id, t.key], `задача «${cur.title.slice(0, 40)}»: ${cur.status} → ${t.status}`);
