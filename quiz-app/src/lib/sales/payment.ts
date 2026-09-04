@@ -1,0 +1,68 @@
+import { prisma } from '@/lib/prisma';
+
+// Человек сказал «давай», получил ссылку — и не оплатил.
+//
+// Это самая дорогая точка всей переписки: работа уже сделана, согласие уже
+// получено, и дальше всё решает пара касаний. Помощник должен знать, что
+// разговор стоит именно здесь, иначе начинает продавать заново тому, кто
+// уже согласился.
+
+/** Ссылка, по которой платят: страница тарифов, бот с оплатой, Продамус. */
+const PAY_LINK = /(thesashatoyz\.com\/uroven|start=uroven|prodamus|\/pay\/|ссылк[аиу] для оплаты)/i;
+
+export type AwaitingPayment = {
+  /** Когда отправили ссылку. */
+  sentAt: Date;
+  hours: number;
+  /** Сказал ли человек «да» после ссылки: согласие есть, денег нет. */
+  agreed: boolean;
+};
+
+/**
+ * Ждём ли мы от этого человека оплату.
+ *
+ * Оплату проверяем по выданному доступу: product_access ключуется телеграмным
+ * id, а он же служит id чата в личке. Есть доступ — человек уже купил, и
+ * никаких напоминаний ему слать не надо.
+ */
+export async function awaitingPayment(chatId: string): Promise<AwaitingPayment | null> {
+  // telegram_id в product_access хранится числом, а id чата у нас строка.
+  const paid = await prisma.productAccess.count({ where: { telegramId: BigInt(chatId) } });
+  if (paid > 0) return null;
+
+  const rows = await prisma.tgBusinessMsg.findMany({
+    where: { chatId },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+    select: { side: true, text: true, createdAt: true },
+  });
+
+  const link = rows.find((r) => r.side === 'us' && PAY_LINK.test(r.text));
+  if (!link) return null;
+
+  // «Да, давай», «ок», «оплачу» после ссылки — согласие, за которым не
+  // последовало денег. Отвечать на такое надо иначе, чем на молчание.
+  //
+  // ⚠️ Без \b: в JS граница слова считается по ASCII, и после кириллицы её
+  // просто нет — «Ок» с \b не совпадало вообще. Вместо неё запрет на букву
+  // следом, иначе «Дай подумать» читалось бы как согласие.
+  const YES = /^(да+|ок|окей|хорошо|давай|беру|оплачу|сейчас|понял[а]?)(?![а-яё])/i;
+  const agreed = rows.some(
+    (r) => r.side === 'client' && r.createdAt > link.createdAt && YES.test(r.text.trim()),
+  );
+
+  return {
+    sentAt: link.createdAt,
+    hours: Math.round((Date.now() - link.createdAt.getTime()) / 3_600_000),
+    agreed,
+  };
+}
+
+/** Строка для промпта: где стоит разговор и сколько уже стоит. */
+export function describePayment(p: AwaitingPayment | null): string | null {
+  if (!p) return null;
+  const when = p.hours < 24 ? `${p.hours} ч назад` : `${Math.round(p.hours / 24)} дн назад`;
+  return p.agreed
+    ? `⚠️ ССЫЛКА НА ОПЛАТУ отправлена ${when}, человек ответил согласием, но оплаты нет. Продавать заново не надо: он уже сказал да.`
+    : `⚠️ ССЫЛКА НА ОПЛАТУ отправлена ${when}, оплаты нет.`;
+}
