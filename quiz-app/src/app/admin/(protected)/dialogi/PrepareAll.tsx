@@ -15,11 +15,15 @@ export default function PrepareAll({ waiting, ready }: { waiting: number; ready:
 
   const left = waiting - ready;
 
-  async function run() {
+  async function run(force = false) {
     setBusy(true);
     setResult(null);
     try {
-      const res = await fetch('/api/admin/sales-prepare', { method: 'POST' });
+      const res = await fetch('/api/admin/sales-prepare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'не собралось');
       setResult(
@@ -40,7 +44,7 @@ export default function PrepareAll({ waiting, ready }: { waiting: number; ready:
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
       <button
-        onClick={run}
+        onClick={() => run(false)}
         disabled={busy || left <= 0}
         style={{
           padding: '9px 16px',
@@ -60,7 +64,28 @@ export default function PrepareAll({ waiting, ready }: { waiting: number; ready:
             : 'ответы собраны'}
       </button>
       {ready ? (
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>готовых: {ready}</span>
+        <>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>готовых: {ready}</span>
+          {/*
+            Правила помощника меняются часто, а собранные тексты живут до
+            отправки. Эта кнопка выбрасывает их и собирает заново по текущим.
+          */}
+          <button
+            onClick={() => run(true)}
+            disabled={busy}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'transparent',
+              color: 'var(--text-muted)',
+              cursor: busy ? 'default' : 'pointer',
+              fontSize: '0.78rem',
+            }}
+          >
+            {busy ? 'собираю…' : 'пересобрать заново'}
+          </button>
+        </>
       ) : null}
       {result ? (
         <span style={{ fontSize: '0.8rem', color: 'var(--neon-cyan)' }}>{result}</span>

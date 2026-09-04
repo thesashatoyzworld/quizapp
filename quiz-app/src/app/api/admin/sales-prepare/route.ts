@@ -17,11 +17,21 @@ export const maxDuration = 300;
 /** Сколько разбираем за один заход. Разбор идёт параллельно, но не бесконечно. */
 const BATCH = 12;
 
-export async function POST() {
+export async function POST(request: Request) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // force — собрать заново даже тем, у кого ответ уже готов. Нужно после
+  // правки правил: старые тексты собраны по прежним и молча устаревают.
+  const { force } = await request.json().catch(() => ({ force: false }));
+
   const rows = await waiting();
+
+  if (force === true) {
+    await prisma.tgSuggestion.deleteMany({
+      where: { sentAt: null, chatId: { in: rows.map((r) => r.chatId) } },
+    });
+  }
 
   // Тех, у кого ответ уже собран после их последней реплики, пропускаем:
   // повторный разбор стоит денег и даёт то же самое.
