@@ -10,6 +10,8 @@
 // бессрочный доступ (expiresAt = null), подписка — до даты (grantedAt + period).
 // ─────────────────────────────────────────────────────────────
 
+import { prices } from '@/content/prices';
+
 export type ProductType = 'one_time' | 'subscription';
 export type AccessPeriod = 'week' | 'month';
 
@@ -71,7 +73,9 @@ export const CATALOG: Record<string, CatalogProduct> = {
   uroven_t1: {
     slug: 'uroven-t1',
     name: 'Новый уровень контента — Тариф 1 (сам)',
-    price: 5450,
+    // Геттер, а не число: 13 сентября цена меняется сама, а объект каталога
+    // живёт в тёплой лямбде и вычислился бы один раз при загрузке модуля.
+    get price() { return prices().t1; },
     type: 'one_time',
     role: 'uroven',
     period: null,
@@ -83,7 +87,7 @@ export const CATALOG: Record<string, CatalogProduct> = {
   uroven_t2: {
     slug: 'uroven-t2',
     name: 'Новый уровень контента — Тариф 2 (сам + монетизация)',
-    price: 10000,
+    get price() { return prices().t2Month; },
     type: 'subscription',
     role: 'uroven',
     period: 'month',
@@ -92,7 +96,7 @@ export const CATALOG: Record<string, CatalogProduct> = {
   uroven_t3: {
     slug: 'uroven-t3',
     name: 'Новый уровень контента — Тариф 3 (делаем вместе)',
-    price: 50000,
+    get price() { return prices().t3Month; },
     type: 'subscription',
     role: 'uroven',
     period: 'month',

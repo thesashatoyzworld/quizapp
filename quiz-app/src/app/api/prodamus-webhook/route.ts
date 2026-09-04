@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { trackEvent, markFollowUpPaid, getUserInfo } from '@/lib/notion';
 import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
+import { floorPrice } from '@/content/prices';
 import { grantAccess } from '@/lib/access';
 import { ensureIntake, sendPreamble, intakeTotal, withCount } from '@/lib/intake';
 import { sendWelcomeT2 } from '@/lib/onboarding';
@@ -504,7 +505,12 @@ export async function POST(request: NextRequest) {
       // браузер, и она законно расходится с каталогом — на старой карточке т2
       // (2987944) десять человек продолжают платить 7 500 вместо 10 000, и их
       // продления гейт обязан пропускать.
-      if (product.type === 'one_time' && paidRaw !== undefined && amount < product.price) {
+      // 13 сентября цены поднимаются, и ссылку, взятую накануне, оплачивают
+      // уже по новой дате. Двое суток после смены старая сумма ещё законна,
+      // иначе в день X гейт отрежет всех, у кого страница открыта со вчера.
+      const floor = floorPrice(product.slug) ?? product.price;
+
+      if (product.type === 'one_time' && paidRaw !== undefined && amount < floor) {
         const email = (body.customer_email || body.email || '') as string;
         const phone = (body.customer_phone || body.phone || '') as string;
         const contact = tgUserId
@@ -518,14 +524,14 @@ export async function POST(request: NextRequest) {
             productSlug: product.slug,
             telegramId: tgUserId ? BigInt(tgUserId) : null,
             metadata: {
-              expected: product.price, paid: amount,
+              expected: floor, paid: amount,
               email, phone, orderId: String(orderId), granted: false,
             },
           },
         }).catch((e) => console.error('[Supabase] underpaid event insert failed:', e));
 
-        await notifyAdminUnderpaid(product.name, product.price, amount, contact, orderId as string);
-        console.warn(`[Prodamus Webhook] underpaid: ${orderId} paid ${amount} of ${product.price}, access withheld`);
+        await notifyAdminUnderpaid(product.name, floor, amount, contact, orderId as string);
+        console.warn(`[Prodamus Webhook] underpaid: ${orderId} paid ${amount} of ${floor}, access withheld`);
         return NextResponse.json({ success: true });
       }
 
