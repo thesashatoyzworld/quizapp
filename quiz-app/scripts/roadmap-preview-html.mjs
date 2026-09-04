@@ -134,8 +134,9 @@ const html = `<title>Карта · ${esc(map.client_name)}</title>
 <div class="context">
   <div class="eyebrow">Предпросмотр · вид клиента</div>
   <div class="lede">
-    Ровно то, что он увидит в кабинете, если карту открыть.
-    <b>Сейчас карта закрыта</b> — этот файл её не открывает, только показывает.
+    ${map.client_visible
+      ? 'Ровно то, что он видит в кабинете: карта <b>уже открыта</b>.'
+      : 'Ровно то, что он увидит в кабинете, если карту открыть. <b>Сейчас карта закрыта</b> — этот файл её не открывает, только показывает.'}
     ${esc(map.tier?.replace('uroven-t', 'Тариф '))} · @${esc(map.username)} · доступ ${short(map.started_at)}–${short(map.access_until)}.
   </div>
 </div>
