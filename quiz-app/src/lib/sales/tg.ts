@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
+import { formatFollowers } from '@/content/dwy';
 import { sendBotMessage } from '@/lib/telegram';
 import { transcribeTgVoice, TG_FILE_LIMIT_BYTES } from '@/lib/whisper';
 import { suggestFromThread, type SalesStep } from './answer';
@@ -281,6 +282,7 @@ export function describeLead(lead: Awaited<ReturnType<typeof findLead>>): string
     lead.want ? `  что хочет через 3 месяца: ${lead.want}` : '',
     lead.income ? `  доход: ${lead.income}` : '',
     lead.hours ? `  часов в неделю: ${lead.hours}` : '',
+    lead.followers !== null ? `  подписчиков в инстаграме: ${formatFollowers(lead.followers)}` : '',
     following(lead.following),
     readiness(lead.readiness),
     lead.instagram ? `  инстаграм: ${lead.instagram}` : '',

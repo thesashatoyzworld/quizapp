@@ -308,6 +308,8 @@ model DwyLead {
   following  String?
   /** Насколько готов платить: с какой скоростью идти к продаже. */
   readiness  String?
+  /** Подписчиков в инстаграме, ступень слайдера. */
+  followers  Int?
   contact    String?
   phone      String?
   instagram  String?
