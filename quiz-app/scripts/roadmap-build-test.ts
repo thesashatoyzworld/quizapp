@@ -1,9 +1,15 @@
 // Прогон всего цикла кроме отправки: анкета → модель → база → текст предпросмотра.
 //
-// Запуск: npx tsx scripts/roadmap-build-test.ts <username|telegramId> [--send]
+// Запуск: npx tsx scripts/roadmap-build-test.ts <username|telegramId> [--send] [--dry]
 //
 // Без --send ничего никуда не уходит: карта ложится в базу закрытой, а те же
 // сообщения, что ушли бы Саше, печатаются в файл roadmap-preview-<slug>.txt.
+// С --dry карта не пишется в базу вообще: только сборка и файл рядом. Нужно,
+// чтобы проверить сборку человеку, у которого карта уже согласована.
+//
+// Транспорт до модели выбирается в lib/roadmap/llm.ts: ROADMAP_BACKEND=cli
+// собирает через Claude CLI по подписке ($0, работает только на своей машине),
+// ROADMAP_BACKEND=api через ключ. Промпт и схема общие, карта одинаковая.
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
@@ -11,6 +17,7 @@ import fs from 'node:fs';
 
 const arg = process.argv[2];
 const send = process.argv.includes('--send');
+const dry = process.argv.includes('--dry');
 
 if (!arg) {
   console.error('Usage: npx tsx scripts/roadmap-build-test.ts <username|telegramId> [--send]');
@@ -40,7 +47,21 @@ async function main() {
 
   const t0 = Date.now();
   const draft = await generateRoadmap(source, started, until);
-  console.log(`модель отработала за ${Math.round((Date.now() - t0) / 1000)} c`);
+  console.log(`модель отработала за ${Math.round((Date.now() - t0) / 1000)} c, транспорт ${draft.backend}`);
+
+  if (dry) {
+    const file = `roadmap-dry-${source.username || source.telegramId}.json`;
+    fs.writeFileSync(file, JSON.stringify(draft, null, 2), 'utf8');
+    console.log(`карта НЕ записана в базу, черновик целиком: ${file}`);
+    console.log(`ступеней ${draft.steps.length}, задач ${draft.tasks.length}, заметок ${draft.notes.length}`);
+    if (draft.warnings.length) {
+      console.log('предупреждения:');
+      for (const w of draft.warnings) console.log(` - ${w}`);
+    } else {
+      console.log('предупреждений нет');
+    }
+    return;
+  }
 
   const slug = slugFor(source.username, source.telegramId, intakeId);
   const roadmapId = await saveDraft(draft, {

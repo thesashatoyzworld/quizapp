@@ -1,28 +1,17 @@
 // Сборка маршрутной карты по анкете: одно обращение к модели, дальше проверки.
 //
-// Модель отвечает вызовом инструмента со строгой схемой, поэтому разбирать
-// текст не нужно. Ссылки на материалы и даты она НЕ пишет: называет материал
-// идентификатором section/slug и неделю числом, остальное считает код. Так
-// выдуманная ссылка невозможна в принципе.
+// Модель отвечает по строгой схеме, поэтому разбирать текст не нужно. Ссылки на
+// материалы и даты она НЕ пишет: называет материал идентификатором section/slug
+// и неделю числом, остальное считает код. Так выдуманная ссылка невозможна
+// в принципе.
+//
+// Транспорт до модели живёт в llm.ts: в проде API, локально Claude CLI по
+// подписке. Промпт, схема и разбор общие, поэтому карта получается одна и та же.
 
-import Anthropic from '@anthropic-ai/sdk';
-import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import type { MapEntry } from '@/lib/kb/map';
 import { SYSTEM, buildUserPrompt } from './prompt';
+import { callModel } from './llm';
 import { materialUrl, type RoadmapSource } from './source';
-
-const MODEL = process.env.ROADMAP_MODEL || 'claude-opus-5';
-
-let client: Anthropic | null = null;
-
-function anthropic(): Anthropic {
-  if (!client) {
-    const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim();
-    if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set');
-    client = new Anthropic({ apiKey });
-  }
-  return client;
-}
 
 // ── что возвращает модель ────────────────────────────────────────────────────
 
@@ -161,6 +150,8 @@ export interface RoadmapDraft {
   notes: { kind: string; body: string; source: string; happenedOn: string }[];
   /** что стоит глянуть глазами: пустой список значит, что придраться не к чему */
   warnings: string[];
+  /** чем собрано: api за деньги или cli по подписке */
+  backend: 'api' | 'cli';
   usage: { input: number; output: number };
 }
 
@@ -184,7 +175,7 @@ function iso(d: Date): string {
  * Здесь же копятся предупреждения: Саша по ним видит, где черновик хромает,
  * не перечитывая всю карту.
  */
-export function assemble(draft: Draft, source: RoadmapSource, startedAt: Date): Omit<RoadmapDraft, 'usage'> {
+export function assemble(draft: Draft, source: RoadmapSource, startedAt: Date): Omit<RoadmapDraft, 'usage' | 'backend'> {
   const byId = new Map<string, MapEntry>();
   for (const e of source.entries) byId.set(`${e.section}/${e.slug}`, e);
 
@@ -259,6 +250,82 @@ export function assemble(draft: Draft, source: RoadmapSource, startedAt: Date): 
   };
 }
 
+/**
+ * Проверка формы ответа.
+ *
+ * У API её делает strict tool use, у CLI такого механизма нет, поэтому схему
+ * держим здесь: непройденная проверка возвращается модели текстом, и она
+ * пересобирает карту. Проверяем только форму, а не смысл: смысловые придирки
+ * копятся отдельно, в warnings у assemble.
+ */
+export function validateDraft(data: unknown): string[] {
+  const problems: string[] = [];
+  const d = data as Partial<Draft> | null;
+  if (!d || typeof d !== 'object') return ['ответ не объект'];
+
+  for (const field of ['goal', 'mainTakeaway', 'periodGoal', 'clientIntro'] as const) {
+    if (typeof d[field] !== 'string' || !d[field]?.trim()) problems.push(`поле ${field} пустое или не строка`);
+  }
+
+  if (!d.level || typeof d.level !== 'object') {
+    problems.push('нет объекта level');
+  } else {
+    if (!Number.isInteger(d.level.number) || d.level.number < 1 || d.level.number > 6) {
+      problems.push('level.number должен быть целым от 1 до 6');
+    }
+    if (!d.level.title?.trim()) problems.push('level.title пустой');
+    if (!d.level.evidence?.trim()) problems.push('level.evidence пустой');
+  }
+
+  if (!Array.isArray(d.metrics) || d.metrics.length < 3 || d.metrics.length > 6) {
+    problems.push('metrics должно быть от 3 до 6 штук');
+  } else {
+    d.metrics.forEach((m, i) => {
+      if (!m?.key?.trim() || !m?.label?.trim() || !m?.startValue?.trim()) problems.push(`metrics[${i}]: пустое поле`);
+    });
+  }
+
+  if (!Array.isArray(d.steps) || d.steps.length < 4 || d.steps.length > 7) {
+    problems.push('steps должно быть от 4 до 7 ступеней');
+  } else {
+    const allowed = new Set(['done', 'partial', 'blocked', 'todo']);
+    d.steps.forEach((s, i) => {
+      if (!Number.isInteger(s?.position)) problems.push(`steps[${i}]: position не целое число`);
+      if (!s?.title?.trim()) problems.push(`steps[${i}]: пустой title`);
+      if (!allowed.has(s?.status)) problems.push(`steps[${i}]: статус «${s?.status}» не из списка`);
+      if (!s?.evidence?.trim()) problems.push(`steps[${i}]: пустой evidence`);
+    });
+    const blocked = d.steps.filter((s) => s?.status === 'blocked').length;
+    if (blocked !== 1) problems.push(`ступеней со статусом blocked ${blocked}, а затык должен быть ровно один`);
+  }
+
+  if (!Array.isArray(d.tasks) || d.tasks.length < 12 || d.tasks.length > 16) {
+    problems.push('tasks должно быть от 12 до 16 задач');
+  } else {
+    d.tasks.forEach((t, i) => {
+      if (!t?.key?.trim()) problems.push(`tasks[${i}]: пустой key`);
+      if (!t?.title?.trim()) problems.push(`tasks[${i}]: пустой title`);
+      if (!t?.why?.trim()) problems.push(`tasks[${i}]: пустой why`);
+      if (t?.owner !== 'client' && t?.owner !== 'sasha') problems.push(`tasks[${i}]: owner «${t?.owner}» не client и не sasha`);
+      if (![1, 2, 3, 4].includes(t?.week)) problems.push(`tasks[${i}]: week «${t?.week}» не 1-4`);
+      if (typeof t?.material !== 'string') problems.push(`tasks[${i}]: material должен быть строкой, пустой если задача без материала`);
+    });
+  }
+
+  if (!Array.isArray(d.notes) || d.notes.length < 4 || d.notes.length > 8) {
+    problems.push('notes должно быть от 4 до 8 заметок');
+  } else {
+    const kinds = new Set(['insight', 'risk', 'blocker', 'decision']);
+    d.notes.forEach((n, i) => {
+      if (!kinds.has(n?.kind)) problems.push(`notes[${i}]: вид «${n?.kind}» не из списка`);
+      if (!n?.body?.trim()) problems.push(`notes[${i}]: пустой body`);
+      if (!n?.source?.trim()) problems.push(`notes[${i}]: пустой source`);
+    });
+  }
+
+  return problems;
+}
+
 /** Одно обращение к модели. Всё остальное считает assemble. */
 export async function generateRoadmap(source: RoadmapSource, startedAt: Date, accessUntil: Date): Promise<RoadmapDraft> {
   const name = source.firstName || source.username || 'клиент';
@@ -272,44 +339,26 @@ export async function generateRoadmap(source: RoadmapSource, startedAt: Date, ac
     weeks: weekEnds(startedAt),
   });
 
-  // Карта длинная, поэтому стрим: без него большой max_tokens упирается в таймаут.
-  const message = await anthropic()
-    .messages.stream({
-      model: MODEL,
-      max_tokens: 32000,
-      system: SYSTEM,
-      thinking: { type: 'adaptive' },
-      output_config: { effort: 'high' },
-      tools: [
-        {
-          name: 'roadmap',
-          description: 'Готовая маршрутная карта клиента',
-          input_schema: SCHEMA as unknown as Anthropic.Tool['input_schema'],
-          strict: true,
-        },
-      ],
-      tool_choice: { type: 'tool', name: 'roadmap' },
-      messages: [{ role: 'user', content: user }],
-    })
-    .finalMessage();
+  const reply = await callModel<Draft>({
+    system: SYSTEM,
+    user,
+    schema: SCHEMA,
+    toolName: 'roadmap',
+    toolDescription: 'Готовая маршрутная карта клиента',
+    validate: validateDraft,
+  });
 
-  await recordAnthropicUsage(MODEL, message.usage, 'roadmap');
-
-  const block = message.content.find((b) => b.type === 'tool_use' && b.name === 'roadmap');
-  if (!block || block.type !== 'tool_use') {
-    throw new Error(`модель не вернула карту (stop_reason: ${message.stop_reason})`);
-  }
-
-  const draft = block.input as Draft;
-  if (!draft.steps?.length || !draft.tasks?.length) {
+  const draft = reply.data;
+  if (!draft?.steps?.length || !draft?.tasks?.length) {
     throw new Error(
-      `карта пришла пустой (stop_reason: ${message.stop_reason}, поля: ${Object.keys(draft || {}).join(', ') || 'нет'}, ` +
-        `ступеней ${draft?.steps?.length ?? 0}, задач ${draft?.tasks?.length ?? 0}, вышло токенов ${message.usage.output_tokens})`,
+      `карта пришла пустой (транспорт ${reply.backend}, поля: ${Object.keys(draft || {}).join(', ') || 'нет'}, ` +
+        `ступеней ${draft?.steps?.length ?? 0}, задач ${draft?.tasks?.length ?? 0})`,
     );
   }
 
   return {
     ...assemble(draft, source, startedAt),
-    usage: { input: message.usage.input_tokens, output: message.usage.output_tokens },
+    backend: reply.backend,
+    usage: reply.usage,
   };
 }
