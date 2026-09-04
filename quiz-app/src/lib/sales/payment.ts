@@ -88,3 +88,22 @@ export function theirMove(lastClientText: string): boolean {
     t,
   );
 }
+
+/**
+ * Кто из этих чатов уже оплатил.
+ *
+ * Одним запросом на весь список: в очереди это нужно на каждой строке, а
+ * доступ ключуется тем же телеграмным id, что и чат. Нечисловые id (чат из
+ * инсты, скриншоты) просто не попадают в выборку.
+ */
+export async function paidChats(chatIds: string[]): Promise<Set<string>> {
+  const ids = chatIds.filter((id) => /^\d+$/.test(id)).map((id) => BigInt(id));
+  if (!ids.length) return new Set();
+
+  const rows = await prisma.productAccess.findMany({
+    where: { telegramId: { in: ids } },
+    select: { telegramId: true },
+    distinct: ['telegramId'],
+  });
+  return new Set(rows.map((r) => String(r.telegramId)));
+}

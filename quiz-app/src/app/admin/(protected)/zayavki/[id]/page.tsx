@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { getLeadCard, kindLabel } from '@/lib/zayavki';
 import { chatOfLead, threadOf, readySuggestion } from '@/lib/sales/dialogs';
 import SalesThread from '../../dialogi/SalesThread';
+import OutcomeButtons from '../../dialogi/OutcomeButtons';
+import { outcomeOf, wakeIn } from '@/lib/sales/outcome';
 import LeadWork from './LeadWork';
 
 export const dynamic = 'force-dynamic';
@@ -68,6 +70,9 @@ export default async function LeadCardPage({ params }: { params: Promise<{ id: s
   const chatId = await chatOfLead({ id: lead.id, username: lead.username });
   const thread = chatId ? await threadOf(chatId) : [];
   const readyStep = chatId ? await readySuggestion(chatId) : null;
+  // Чем кончился разговор. Стоит рядом с перепиской, а не со статусом заявки:
+  // статус ведёт саму заявку, а пометка — конкретный диалог в личке.
+  const outcomeMark = chatId ? await outcomeOf(chatId) : null;
 
   return (
     <div style={{ maxWidth: 900 }}>
@@ -111,6 +116,16 @@ export default async function LeadCardPage({ params }: { params: Promise<{ id: s
             )}
           </div>
         </div>
+
+        {chatId && thread.length ? (
+          <div style={{ marginBottom: 12 }}>
+            <OutcomeButtons
+              chatId={chatId}
+              outcome={outcomeMark?.outcome ?? null}
+              wakeIn={outcomeMark ? wakeIn(outcomeMark.wakeAt) : null}
+            />
+          </div>
+        ) : null}
 
         {chatId && thread.length ? (
           <SalesThread

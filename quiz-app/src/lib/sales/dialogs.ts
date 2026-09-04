@@ -30,6 +30,12 @@ export type WaitingRow = {
  *
  * Свежие реплики (моложе полутора минут) не показываем: человек ещё
  * дописывает очередь, и отвечать ему на первую фразу из пяти бессмысленно.
+ *
+ * Отложенные (`sales_outcome`) не показываются вовсе, и отсечение стоит именно
+ * здесь: этот же список кормит сборку ответов и рассылку пачкой, а помеченному
+ * «слился» нельзя не то что подсказку собрать — тем более что-то отправить.
+ * Пометка держится ровно до его следующей реплики, срок у «думает» — до даты
+ * возврата.
  */
 export async function waiting(): Promise<WaitingRow[]> {
   const rows = await prisma.$queryRaw<
@@ -59,8 +65,14 @@ export async function waiting(): Promise<WaitingRow[]> {
       FROM last_msg m
       LEFT JOIN last_us u ON u.chat_id = m.chat_id
       LEFT JOIN dwy_leads l ON l.id = m.lead_id
+      LEFT JOIN sales_outcome o ON o.chat_id = m.chat_id
      WHERE m.side = 'client'
        AND m.created_at < now() - make_interval(secs => ${FRESH_SECONDS})
+       AND (
+         o.chat_id IS NULL
+         OR m.created_at > o.marked_at
+         OR (o.outcome = 'thinking' AND o.wake_at IS NOT NULL AND o.wake_at <= now())
+       )
      ORDER BY m.created_at ASC
   `;
 

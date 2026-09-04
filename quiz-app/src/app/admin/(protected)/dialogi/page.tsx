@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { waiting, waited, heat, readySuggestion } from '@/lib/sales/dialogs';
 import { priority } from '@/lib/sales/priority';
-import { awaitingPayment } from '@/lib/sales/payment';
+import { awaitingPayment, paidChats } from '@/lib/sales/payment';
+import { paidLately, parked, wakeIn } from '@/lib/sales/outcome';
 import PrepareAll from './PrepareAll';
 import SendAll from './SendAll';
+import OutcomeButtons from './OutcomeButtons';
 
 // Очередь личных переписок: кто остался без ответа и сколько ждёт.
 //
@@ -29,6 +31,33 @@ const th: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
+const parkedHead: React.CSSProperties = {
+  fontSize: '0.72rem',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  color: 'var(--text-muted)',
+  marginBottom: 8,
+};
+
+const parkedRow: React.CSSProperties = {
+  display: 'flex',
+  gap: 12,
+  alignItems: 'baseline',
+  padding: '4px 0',
+  flexWrap: 'wrap',
+};
+
+/** Сколько ушедших показываем: список копится месяцами, а нужен он изредка. */
+const LOST_SHOWN = 15;
+
+function who(p: { name: string | null; username: string | null; chatId: string }): string {
+  return p.name || (p.username ? `@${p.username}` : p.chatId);
+}
+
+function personHref(p: { leadId: number | null; chatId: string }): string {
+  return p.leadId ? `/admin/zayavki/${p.leadId}` : `/admin/dialogi/${p.chatId}`;
+}
+
 const td: React.CSSProperties = {
   padding: '10px 12px',
   borderBottom: '1px solid rgba(255,255,255,0.05)',
@@ -36,7 +65,18 @@ const td: React.CSSProperties = {
 };
 
 export default async function DialogiPage() {
+  // Отложенных `waiting` уже не отдаёт: отсечение стоит в самом запросе,
+  // иначе помеченный «слился» попал бы и в сборку ответов, и в рассылку.
   const rows = await waiting();
+
+  const [away, paidCount, paid] = await Promise.all([
+    parked(),
+    paidLately(30),
+    paidChats(rows.map((r) => r.chatId)),
+  ]);
+  const think = away.filter((t) => t.outcome === 'thinking');
+  const lost = away.filter((t) => t.outcome === 'lost');
+
   const hot = rows.filter((r) => heat(r) === 'hot').length;
 
   // Кто уходит пачкой, а кого Саша разбирает сам — считаем здесь же, чтобы
@@ -57,15 +97,61 @@ export default async function DialogiPage() {
   return (
     <div style={{ padding: '24px 28px' }}>
       <h1 style={{ fontSize: '1.4rem', marginBottom: 6 }}>Диалоги</h1>
-      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20 }}>
+      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 6 }}>
         {rows.length
           ? `${rows.length} ждут ответа${hot ? `, из них ${hot} дольше четырёх часов` : ''}` +
             `${mineCount ? ` · ★ ${mineCount} на тебе` : ''}`
           : 'все отвечены'}
       </p>
+      <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: 20 }}>
+        оплатили за 30 дней: {paidCount}
+        {away.length ? ` · отложено: ${think.length} думают, ${lost.length} слились` : ''}
+      </p>
 
-      <PrepareAll waiting={rows.length} ready={ready.size} />
-      <SendAll />
+      {away.length ? (
+        <div
+          style={{
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 10,
+            padding: '12px 14px',
+            marginBottom: 20,
+            fontSize: '0.85rem',
+          }}
+        >
+          {think.length ? (
+            <>
+              <div style={parkedHead}>думают</div>
+              {think.map((t) => (
+                <div key={t.chatId} style={parkedRow}>
+                  <Link href={personHref(t)} style={{ color: 'var(--neon-cyan)', textDecoration: 'none' }}>
+                    {who(t)}
+                  </Link>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                    вернуться {wakeIn(t.wakeAt)}
+                  </span>
+                  <OutcomeButtons chatId={t.chatId} outcome="thinking" wakeIn={wakeIn(t.wakeAt)} />
+                </div>
+              ))}
+            </>
+          ) : null}
+
+          {lost.length ? (
+            <>
+              <div style={{ ...parkedHead, marginTop: think.length ? 14 : 0 }}>
+                слились{lost.length > LOST_SHOWN ? ` · ${lost.length}, показаны свежие` : ''}
+              </div>
+              {lost.slice(0, LOST_SHOWN).map((t) => (
+                <div key={t.chatId} style={parkedRow}>
+                  <Link href={personHref(t)} style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
+                    {who(t)}
+                  </Link>
+                  <OutcomeButtons chatId={t.chatId} outcome="lost" />
+                </div>
+              ))}
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
       {rows.length ? (
         <div style={{ overflowX: 'auto' }}>
@@ -101,6 +187,14 @@ export default async function DialogiPage() {
                         </span>
                       ) : null}
                       {r.name || '—'}
+                      {paid.has(r.chatId) ? (
+                        <span
+                          title="доступ выдан, человек уже оплатил"
+                          style={{ color: '#4ade80', marginLeft: 6, fontSize: '0.8rem' }}
+                        >
+                          ✅ клиент
+                        </span>
+                      ) : null}
                       {pay.get(r.chatId) ? (
                         <span
                           title={`ссылка на оплату отправлена ${pay.get(r.chatId)!.hours} ч назад, оплаты нет`}
@@ -132,6 +226,9 @@ export default async function DialogiPage() {
                     >
                       открыть →
                     </Link>
+                    <div style={{ marginTop: 6 }}>
+                      <OutcomeButtons chatId={r.chatId} outcome={null} />
+                    </div>
                   </td>
                 </tr>
               ))}
