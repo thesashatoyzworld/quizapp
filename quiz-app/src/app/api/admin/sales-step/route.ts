@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { suggestFromThread } from '@/lib/sales/answer';
 import { findLead, describeLead } from '@/lib/sales/tg';
 import { threadOf, readySuggestion } from '@/lib/sales/dialogs';
-import { awaitingPayment, describePayment } from '@/lib/sales/payment';
+import { awaitingPayment, describePayment, theirMove } from '@/lib/sales/payment';
 import { randomUUID } from 'node:crypto';
 
 // Собрать следующий шаг по переписке — по кнопке в кабинете, а не на каждое
@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
     rendered,
     steer: typeof steer === 'string' && steer.trim() ? steer.trim().slice(0, 500) : null,
     waitingSeconds,
+    theirMove: tail.side === 'client' && theirMove(tail.text),
   });
 
   // Кладём в базу: если Саша ушёл со страницы и вернулся, ответ уже готов.

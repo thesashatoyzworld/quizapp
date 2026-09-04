@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { suggestFromThread } from '@/lib/sales/answer';
 import { findLead, describeLead } from '@/lib/sales/tg';
 import { waiting, threadOf, readySuggestion } from '@/lib/sales/dialogs';
-import { awaitingPayment, describePayment } from '@/lib/sales/payment';
+import { awaitingPayment, describePayment, theirMove } from '@/lib/sales/payment';
 
 // Собрать ответы сразу всем, кто ждёт.
 //
@@ -76,6 +76,7 @@ export async function POST(request: Request) {
             .join('\n'),
           rendered,
           waitingSeconds: r.waitingSeconds,
+          theirMove: theirMove(r.lastText),
         });
 
         if (!step.message) return false;
