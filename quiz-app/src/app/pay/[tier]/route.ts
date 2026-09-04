@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { canBuy, PERSONAL_KEY, waitlistLink } from '@/lib/sales';
+import { prices } from '@/content/prices';
 import { CATALOG } from '@/lib/catalog';
 
 const FORM = 'https://thesashatoyz.payform.ru';
@@ -33,10 +34,15 @@ const NOTIFY = 'https://quizapp-ivory-delta.vercel.app/api/prodamus-webhook';
 // по нашему order_id, не по подписке.
 // Цена разового т1 берётся из каталога, а не дублируется здесь: именно
 // расхождение копий цены и дало оплату 3 450 вместо 5 450 (20.08).
-const TIERS: Record<string, { name: string; price: number; sub?: string }> = {
-  t1: { name: 'Тариф 1 (делаешь сам)', price: CATALOG.uroven_t1.price },
-  t2: { name: 'Тариф 2 (сам + монетизация)', price: 10000, sub: '2356023' },
-  t3: { name: 'Тариф 3 (делаем вместе)', price: 50000, sub: '2989937' },
+// Цена считается в момент запроса, а не при загрузке модуля: 13 сентября она
+// меняется сама, и тёплая лямбда не должна выдавать вчерашнюю ссылку.
+const tiers = (): Record<string, { name: string; price: number; sub?: string }> => {
+  const p = prices();
+  return {
+    t1: { name: 'Тариф 1 (делаешь сам)', price: p.t1 },
+    t2: { name: 'Тариф 2 (сам + монетизация)', price: p.t2Month, sub: '2356023' },
+    t3: { name: 'Тариф 3 (делаем вместе)', price: p.t3Month, sub: '2989937' },
+  };
 };
 
 // Кто зашёл в тариф 2 по 7 500, тот и продлевается по 7 500: цену задним числом
@@ -58,6 +64,7 @@ const LEGACY_T2: Record<string, string> = {
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ tier: string }> }) {
   const { tier: raw } = await params;
+  const TIERS = tiers();
   const tier = TIERS[raw] ? raw : 't1';
   const t = TIERS[tier];
 
