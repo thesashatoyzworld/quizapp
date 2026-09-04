@@ -215,3 +215,30 @@ export function listChatMessages(chatId: string, limit = 40): Promise<CpMessage[
 export function getChat(chatId: string): Promise<CpChat & { username: string | null }> {
   return call<CpChat & { username: string | null }>('chats_get', { chatId });
 }
+
+/**
+ * Перевести чат на оператора. Пока чат «закрыт», им управляет бот, и написать
+ * туда руками нельзя — ChatPlace принимает сообщение оператора только в
+ * открытый чат.
+ *
+ * ⚠️ Цена открытия: автоматизации этому человеку больше не отвечают, пока чат
+ * не вернут боту. Поэтому открываем не заранее, а ровно в момент отправки.
+ */
+export function openChat(chatId: string): Promise<unknown> {
+  return call('chats_open', { chatId });
+}
+
+/** Вернуть чат боту: автоматизации снова работают. */
+export function closeChat(chatId: string): Promise<unknown> {
+  return call('chats_close', { chatId });
+}
+
+/**
+ * Написать человеку в инста-директ от лица аккаунта.
+ *
+ * Идёт через официальный Instagram Messaging API, а не через userbot: это тот
+ * же канал, которым уже отвечают воронки.
+ */
+export function sendChatMessage(chatId: string, text: string): Promise<unknown> {
+  return call('chats_send_message', { chatId, text });
+}

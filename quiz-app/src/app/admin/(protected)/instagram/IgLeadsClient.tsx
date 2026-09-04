@@ -21,6 +21,120 @@ const FORM_KIND: Record<string, string> = {
   t3: 'лист ожидания, тариф 3',
 };
 
+/**
+ * Ответ прямо из кабинета.
+ *
+ * Раньше переписка была только на чтение: текст копировали руками в
+ * инстаграм. Уходит он тем же официальным каналом, которым отвечают воронки.
+ *
+ * ⚠️ Чтобы принять сообщение оператора, ChatPlace переводит чат на оператора,
+ * и пока он там, автоматизации этому человеку не отвечают. Поэтому «вернуть
+ * боту» стоит рядом, а не прячется в настройках.
+ */
+function IgSend({ chatId, onSent }: { chatId: string; onSent: (text: string) => void }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [opened, setOpened] = useState(false);
+
+  async function send() {
+    const message = text.trim();
+    if (!message) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const res = await fetch('/api/admin/ig-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, text: message }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNote(data.error || 'не ушло');
+        return;
+      }
+      setText('');
+      setOpened(true);
+      onSent(message);
+      setNote(data.opened ? 'ушло · чат забрали у бота' : 'ушло');
+    } catch {
+      setNote('не ушло');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function backToBot() {
+    setBusy(true);
+    await fetch('/api/admin/ig-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, close: true }),
+    });
+    setBusy(false);
+    setOpened(false);
+    setNote('чат вернули боту');
+  }
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="ответить в директ…"
+        rows={3}
+        style={{
+          width: '100%',
+          background: 'var(--bg-primary)',
+          color: 'var(--text-secondary)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 8,
+          padding: '8px 10px',
+          fontSize: '0.85rem',
+          fontFamily: 'inherit',
+          resize: 'vertical',
+        }}
+      />
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 6 }}>
+        <button
+          onClick={send}
+          disabled={busy || !text.trim()}
+          style={{
+            padding: '7px 14px',
+            borderRadius: 8,
+            border: '1px solid rgba(0,240,255,0.35)',
+            background: 'transparent',
+            color: 'var(--neon-cyan)',
+            cursor: busy || !text.trim() ? 'default' : 'pointer',
+            opacity: busy || !text.trim() ? 0.5 : 1,
+            fontSize: '0.82rem',
+          }}
+        >
+          {busy ? 'отправляю…' : 'отправить'}
+        </button>
+        {opened && (
+          <button
+            onClick={backToBot}
+            disabled={busy}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              color: 'var(--text-muted)',
+              fontSize: '0.76rem',
+              textDecoration: 'underline dotted',
+              cursor: 'pointer',
+            }}
+          >
+            вернуть боту
+          </button>
+        )}
+        {note && <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem' }}>{note}</span>}
+      </div>
+    </div>
+  );
+}
+
 const CHAT_STATE: Record<string, { label: string; color: string }> = {
   active: { label: 'диалог живой', color: '#06d6a0' },
   stopped: { label: 'молчит', color: '#8a94a6' },
@@ -373,6 +487,20 @@ export default function IgLeadsClient({
                             <span style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{m.text}</span>
                           </div>
                         ))}
+                        {l.chatId && thread !== 'loading' && thread !== 'error' && (
+                          <IgSend
+                            chatId={l.chatId}
+                            onSent={(text) =>
+                              setThreads((t) => ({
+                                ...t,
+                                [l.id]: [
+                                  ...(Array.isArray(t[l.id]) ? (t[l.id] as IgMessage[]) : []),
+                                  { at: new Date().toISOString(), side: 'bot', text },
+                                ],
+                              }))
+                            }
+                          />
+                        )}
                       </td>
                     </tr>
                   )}
