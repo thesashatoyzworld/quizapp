@@ -40,6 +40,21 @@ export const INCOME_OPTIONS = ['до 50к', '50–150к', '150–500к', '500к+
 
 export const HOURS_OPTIONS = ['до 2 часов', '2–5 часов', '5–10 часов', '10+ часов'];
 
+// Сколько человек уже читает Сашу. Ответ снимает вопрос «а ты мои материалы
+// смотрел?», который иначе задаётся всем подряд, и сразу показывает, кто
+// пришёл тёплым, а кто увидел один рилс.
+export const FOLLOWING_OPTIONS = [
+  'ещё не подписан(-а)',
+  'меньше месяца',
+  'несколько месяцев',
+  'больше года',
+];
+
+// Насколько человек готов платить. Нужно, чтобы понимать, с какой скоростью
+// идти к продаже: готовому не пересказывают ценность, сомневающегося не гонят
+// к ссылке на оплату.
+export const READINESS_OPTIONS = ['ещё не готов(-а)', 'пока думаю', 'вполне готов(-а)'];
+
 export const DWY_THANKS = [
   'анкета у меня',
   'посмотрю и напишу лично, если вы подходите',
@@ -57,8 +72,8 @@ export type DwyKind = (typeof DWY_KINDS)[number];
 
 /** Все поля анкеты в порядке формы. */
 export const DWY_FIELDS = [
-  'name', 'contact', 'phone', 'instagram',
-  'who', 'hasProduct', 'level', 'tried', 'want', 'income', 'hours',
+  'name', 'contact', 'phone', 'instagram', 'following',
+  'who', 'hasProduct', 'level', 'tried', 'want', 'income', 'hours', 'readiness',
 ] as const;
 export type DwyField = (typeof DWY_FIELDS)[number];
 
@@ -103,7 +118,8 @@ export type DwyMode = {
 // с опечатками, но номер на холодном трафике отдают неохотно — теряем
 // больше, чем страхуем.
 const MENTOR_REQUIRED = [
-  'name', 'contact', 'who', 'hasProduct', 'level', 'tried', 'want', 'income', 'hours',
+  'name', 'contact', 'following',
+  'who', 'hasProduct', 'level', 'tried', 'want', 'income', 'hours', 'readiness',
 ] as const;
 
 // У листа ожидания цена входа другая: человек просит напомнить о наборе,

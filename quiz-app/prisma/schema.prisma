@@ -304,6 +304,10 @@ model DwyLead {
   want       String?
   income     String?
   hours      String?
+  /** Как давно читает Сашу: снимает вопрос «а материалы мои смотрел?». */
+  following  String?
+  /** Насколько готов платить: с какой скоростью идти к продаже. */
+  readiness  String?
   contact    String?
   phone      String?
   instagram  String?

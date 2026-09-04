@@ -206,6 +206,7 @@ export type LeadCard = {
 function buildAnswers(l: {
   who: string | null; hasProduct: string | null; product: string | null; level: number | null;
   tried: string | null; want: string | null; income: string | null; hours: string | null;
+  following: string | null; readiness: string | null;
 }): LeadAnswer[] {
   const out: LeadAnswer[] = [];
   if (l.who) out.push({ label: 'кем себя считает', value: l.who });
@@ -215,6 +216,15 @@ function buildAnswers(l: {
   if (l.level) out.push({ label: 'уровень', value: `${l.level} · ${LEVELS[l.level - 1] || ''}`.trim() });
   if (l.income) out.push({ label: 'доход', value: l.income });
   if (l.hours) out.push({ label: 'часов в неделю', value: l.hours });
+  if (l.following) out.push({ label: 'подписан на Сашу', value: l.following });
+  // Готовность стоит рядом с деньгами, а не в хвосте свободных ответов:
+  // по ней решают, с какой скоростью идти к цене.
+  if (l.readiness) {
+    out.push({
+      label: 'готов к покупке',
+      value: l.readiness.startsWith('вполне') ? `🔥 ${l.readiness}` : l.readiness,
+    });
+  }
   if (l.tried) out.push({ label: 'что пробовал', value: l.tried });
   if (l.want) out.push({ label: 'что хочет через 3 месяца', value: l.want });
   return out;
