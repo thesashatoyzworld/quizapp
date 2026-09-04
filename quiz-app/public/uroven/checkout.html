@@ -65,6 +65,7 @@ h1 {
 .incl li.prev::before { background: oklch(0.82 0.02 52); }
 .price-wrap { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 14px; padding: 22px 20px; margin-bottom: 18px; }
 .price { font-family: var(--font-display); font-weight: 900; font-size: 40px; letter-spacing: -.02em; color: var(--c-text); }
+.price-soon { margin-top: 6px; font-size: 13px; color: var(--c-muted, #8a8a8a); }
 .per { font-size: 13px; color: var(--c-muted); margin-top: 4px; }
 .deadline { font-size: 13px; color: var(--c-muted); margin-top: 8px; }
 .deadline b { color: var(--c-accent); }
@@ -168,6 +169,21 @@ h1 {
     var t = TIERS[tier];
     document.getElementById('tierName').textContent = t.name;
     document.getElementById('price').innerHTML = t.price.toLocaleString('ru-RU') + '&nbsp;₽';
+    // Цифры выше это запасной вариант на случай, если запрос не дошёл.
+    // Правда живёт на сервере: 13 сентября цены меняются сами, и страница,
+    // пролежавшая в кэше со вчера, не должна показывать вчерашнюю цену.
+    fetch('/api/prices', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (live) {
+      var key = tier === 't1' ? 't1' : tier === 't2' ? 't2Month' : 't3Month';
+      if (typeof live[key] === 'number') {
+        document.getElementById('price').innerHTML = live[key].toLocaleString('ru-RU') + '&nbsp;₽';
+      }
+      if (live.change && typeof live.change[key] === 'number') {
+        var note = document.createElement('div');
+        note.className = 'price-soon';
+        note.textContent = 'с ' + live.change.label + ' ' + live.change[key].toLocaleString('ru-RU') + ' ₽';
+        document.getElementById('price').parentNode.appendChild(note);
+      }
+    }).catch(function () { /* показываем запасную цену */ });
     document.getElementById('per').textContent = t.per;
     var idx = ORDER.indexOf(tier);
     var html = '';
