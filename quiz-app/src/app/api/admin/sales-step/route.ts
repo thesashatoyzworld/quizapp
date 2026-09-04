@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
 import { suggestFromThread } from '@/lib/sales/answer';
-import { findLead, describeLead } from '@/lib/sales/tg';
+import { leadOfChat, describeLead, describeAccess } from '@/lib/sales/tg';
 import { threadOf, readySuggestion } from '@/lib/sales/dialogs';
 import { awaitingPayment, describePayment, theirMove } from '@/lib/sales/payment';
 import { randomUUID } from 'node:crypto';
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     orderBy: { createdAt: 'desc' },
     select: { username: true, name: true },
   });
-  const lead = await findLead('', last?.username ?? null);
+  const lead = await leadOfChat(chatId, last?.username ?? null);
 
   const rendered = rows
     .map((r) => {
@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       last?.name ? `имя в телеграме: ${last.name}` : null,
       'канал: личка в телеграме, не инстаграм',
       another ? 'предыдущий вариант не подошёл — дай другой ход, не переписывай тот же' : null,
+      await describeAccess(chatId),
       describePayment(await awaitingPayment(chatId)),
       describeLead(lead),
     ]
