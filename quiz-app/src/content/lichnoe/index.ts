@@ -38,6 +38,17 @@ export interface LichnyMaterial {
 
 export const LICHNOE: LichnyMaterial[] = [
   {
+    slug: 'lichnyy-sozvon-evgeniya-2026-09-04',
+    telegramIds: [934091008, 788334680],
+    title: "Личный созвон 4 сентября",
+    subtitle: "Первая продажа на новом чеке, отстройка через травмы и задачи на неделю",
+    date: '2026-09-04',
+    duration: "72 мин",
+    tags: ["созвон", "кейсы", "контент", "позиционирование"],
+    kinescopeId: 'gudD6LY6DwXGX7AdK4KGte',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_04,
+  },
+  {
     slug: 'lichnyy-sozvon-evgeniya-2026-08-28',
     // Саша видит свои же созвоны: это его записи, он их и вёл.
     telegramIds: [934091008, 788334680],
