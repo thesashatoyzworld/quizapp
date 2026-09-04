@@ -230,6 +230,44 @@ function cameFrom(source: string | null): string | null {
   return source;
 }
 
+/**
+ * Как давно человек читает Сашу.
+ *
+ * Вопрос «а какие-то мои материалы ты уже смотрел?» задаётся по методичке
+ * всем подряд. Тому, кто читает год, он показывает, что мы его не знаем, и
+ * тратит ход. Тому, кто пришёл с одного рилса, наоборот, кейс нужен раньше
+ * любого разговора о деньгах.
+ */
+function following(value: string | null): string {
+  if (!value) return '';
+  const line = `  подписан на Сашу: ${value}`;
+  if (value.startsWith('больше года') || value.startsWith('несколько')) {
+    return `${line} — ТЁПЛЫЙ. Не спрашивай, смотрел ли он материалы: смотрел. Опирайся на них как на общее знание`;
+  }
+  if (value.startsWith('ещё не')) {
+    return `${line} — ХОЛОДНЫЙ, Сашу почти не знает. Кейс под его нишу нужен раньше разговора о деньгах`;
+  }
+  return line;
+}
+
+/**
+ * Насколько человек готов платить — его собственный ответ в анкете.
+ *
+ * Это не разрешение продавать в лоб: человек отвечал до разговора и мог
+ * ошибиться в обе стороны. Но темп он задаёт честнее, чем догадка по тону.
+ */
+function readiness(value: string | null): string {
+  if (!value) return '';
+  const line = `  готовность к покупке (сам отметил в анкете): ${value}`;
+  if (value.startsWith('вполне')) {
+    return `${line} — ГОТОВ. Не пересказывай ценность и не грей: выясни факты, назови формат и цену`;
+  }
+  if (value.startsWith('ещё не')) {
+    return `${line} — НЕ ГОТОВ. К цене не веди, пока он сам о ней не заговорит`;
+  }
+  return line;
+}
+
 /** Анкета человека строками для промпта. Нужна и личке, и скриншотам. */
 export function describeLead(lead: Awaited<ReturnType<typeof findLead>>): string {
   if (!lead) return 'анкеты не нашёл — человек пришёл не с формы или писал с другого аккаунта';
@@ -243,6 +281,8 @@ export function describeLead(lead: Awaited<ReturnType<typeof findLead>>): string
     lead.want ? `  что хочет через 3 месяца: ${lead.want}` : '',
     lead.income ? `  доход: ${lead.income}` : '',
     lead.hours ? `  часов в неделю: ${lead.hours}` : '',
+    following(lead.following),
+    readiness(lead.readiness),
     lead.instagram ? `  инстаграм: ${lead.instagram}` : '',
     cameFrom(lead.source) ? `  пришёл: ${cameFrom(lead.source)}` : '',
   ]

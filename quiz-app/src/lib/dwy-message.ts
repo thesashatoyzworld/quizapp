@@ -22,6 +22,10 @@ export type DwyLeadInput = {
   want: string | null;
   income: string | null;
   hours: string | null;
+  /** Как давно читает Сашу. */
+  following: string | null;
+  /** Насколько готов платить. */
+  readiness: string | null;
   source: string | null;
 };
 
@@ -142,6 +146,13 @@ export function buildDwyMessage(lead: DwyLeadInput, prior?: DwyPrior | null): st
   }
   if (lead.income) facts.push(`<b>Доход:</b> ${escape(lead.income)}`);
   if (lead.hours) facts.push(`<b>Часов в неделю:</b> ${escape(lead.hours)}`);
+  if (lead.following) facts.push(`<b>Подписан:</b> ${escape(lead.following)}`);
+  // Готовность идёт последней и с меткой: по ней решают, звонить сегодня или
+  // сначала греть, и в длинном сообщении она не должна теряться среди фактов.
+  if (lead.readiness) {
+    const hot = lead.readiness.startsWith('вполне') ? '🔥 ' : '';
+    facts.push(`<b>Готов к покупке:</b> ${hot}${escape(lead.readiness)}`);
+  }
   if (facts.length) lines.push('', ...facts);
 
   if (lead.tried) lines.push('', '<b>Что пробовал:</b>', escape(lead.tried));

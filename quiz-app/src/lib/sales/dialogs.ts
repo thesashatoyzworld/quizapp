@@ -17,6 +17,10 @@ export type WaitingRow = {
   leadId: number | null;
   /** Доход из анкеты — по нему видно, кто тянет на большой формат. */
   income: string | null;
+  /** Насколько сам себя оценил в анкете: с какой скоростью идти к цене. */
+  readiness: string | null;
+  /** Как давно читает Сашу: тёплому кейс второй раз не нужен. */
+  following: string | null;
   /** Последнее, что человек написал. */
   lastText: string;
   lastAt: Date;
@@ -45,6 +49,8 @@ export async function waiting(): Promise<WaitingRow[]> {
       username: string | null;
       lead_id: number | null;
       income: string | null;
+      readiness: string | null;
+      following: string | null;
       text: string;
       created_at: Date;
       unanswered: bigint;
@@ -58,7 +64,8 @@ export async function waiting(): Promise<WaitingRow[]> {
       SELECT DISTINCT ON (chat_id) chat_id, side, text, created_at, name, username, lead_id
         FROM tg_business_msg ORDER BY chat_id, created_at DESC
     )
-    SELECT m.chat_id, m.name, m.username, m.lead_id, l.income, m.text, m.created_at,
+    SELECT m.chat_id, m.name, m.username, m.lead_id,
+           l.income, l.readiness, l.following, m.text, m.created_at,
            (SELECT count(*) FROM tg_business_msg t
              WHERE t.chat_id = m.chat_id AND t.side = 'client'
                AND t.created_at > coalesce(u.at, '-infinity'::timestamp)) AS unanswered
@@ -82,6 +89,8 @@ export async function waiting(): Promise<WaitingRow[]> {
     username: r.username,
     leadId: r.lead_id,
     income: r.income,
+    readiness: r.readiness,
+    following: r.following,
     lastText: r.text,
     lastAt: r.created_at,
     unanswered: Number(r.unanswered),

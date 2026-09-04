@@ -4,7 +4,8 @@ import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   WHO_OPTIONS, HAS_PRODUCT_OPTIONS, LEVELS,
-  INCOME_OPTIONS, HOURS_OPTIONS, DWY_MODES, DWY_FIELDS, isDwyKind, type DwyField,
+  INCOME_OPTIONS, HOURS_OPTIONS, FOLLOWING_OPTIONS, READINESS_OPTIONS,
+  DWY_MODES, DWY_FIELDS, isDwyKind, type DwyField,
 } from '@/content/dwy';
 
 // Telegram Login Widget убран намеренно: в мобильном браузере он не видит
@@ -65,6 +66,8 @@ function DwyInner() {
   const [want, setWant] = useState('');
   const [income, setIncome] = useState('');
   const [hours, setHours] = useState('');
+  const [following, setFollowing] = useState('');
+  const [readiness, setReadiness] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
@@ -78,6 +81,7 @@ function DwyInner() {
   const values: Record<DwyField, string> = {
     name, contact, phone, instagram, who, hasProduct,
     level: level ? String(level) : '', tried, want, income, hours,
+    following, readiness,
   };
   const need = (f: DwyField) => mode.required.includes(f);
   const ready = contact.trim().length >= 3
@@ -184,6 +188,18 @@ function DwyInner() {
             <Chips options={HOURS_OPTIONS} value={hours} onChange={setHours} />
           </Field>
         );
+      case 'following':
+        return (
+          <Field key={f} label="Как давно вы на меня подписаны" optional={optional}>
+            <Chips options={FOLLOWING_OPTIONS} value={following} onChange={setFollowing} />
+          </Field>
+        );
+      case 'readiness':
+        return (
+          <Field key={f} label="Насколько вы готовы к покупке" optional={optional}>
+            <Chips options={READINESS_OPTIONS} value={readiness} onChange={setReadiness} />
+          </Field>
+        );
     }
   }
 
@@ -201,6 +217,7 @@ function DwyInner() {
           answers: {
             name, contact, phone, instagram,
             who, hasProduct, product, level, tried, want, income, hours,
+            following, readiness,
           },
         }),
       });

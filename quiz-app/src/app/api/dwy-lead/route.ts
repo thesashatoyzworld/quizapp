@@ -94,6 +94,8 @@ export async function POST(req: NextRequest) {
       want: optional(answers.want),
       income: optional(answers.income),
       hours: optional(answers.hours),
+      following: optional(answers.following),
+      readiness: optional(answers.readiness),
       source: typeof source === 'string' && source ? source.slice(0, 64) : 'direct',
     };
 
@@ -120,6 +122,8 @@ export async function POST(req: NextRequest) {
         want: lead.want,
         income: lead.income,
         hours: lead.hours,
+        following: lead.following,
+        readiness: lead.readiness,
         contact: lead.contact,
         phone: lead.phone,
         instagram: lead.instagramHandle ? `@${lead.instagramHandle}` : lead.instagram,

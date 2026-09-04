@@ -160,7 +160,7 @@ export default async function DialogiPage() {
               <tr>
                 <th style={th}>Ждёт</th>
                 <th style={th}>Кто</th>
-                <th style={th}>Доход</th>
+                <th style={th}>Из анкеты</th>
                 <th style={th}>Последнее сообщение</th>
                 <th style={th} />
               </tr>
@@ -209,7 +209,24 @@ export default async function DialogiPage() {
                       {r.leadId ? ` · анкета №${r.leadId}` : ' · анкеты нет'}
                     </div>
                   </td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{r.income || '—'}</td>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                    {r.income || '—'}
+                    {r.readiness ? (
+                      <div
+                        style={{
+                          fontSize: '0.72rem',
+                          color: r.readiness.startsWith('вполне') ? '#ffb547' : 'var(--text-muted)',
+                        }}
+                      >
+                        {r.readiness.startsWith('вполне') ? '🔥 готов' : r.readiness}
+                      </div>
+                    ) : null}
+                    {r.following ? (
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        подписан {r.following}
+                      </div>
+                    ) : null}
+                  </td>
                   <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                     {r.lastText.replace(/\n/g, ' ').slice(0, 120)}
                     {r.lastText.length > 120 ? '…' : ''}
