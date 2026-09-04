@@ -110,6 +110,24 @@ export const DWY_FIELDS = [
 ] as const;
 export type DwyField = (typeof DWY_FIELDS)[number];
 
+/** Короткие имена вопросов — для строки «остались вопросы» под кнопкой. */
+export const FIELD_LABEL: Record<DwyField, string> = {
+  name: 'имя',
+  contact: 'контакт',
+  phone: 'телефон',
+  instagram: 'инстаграм',
+  followers: 'подписчики',
+  following: 'давно ли подписаны',
+  who: 'кто вы',
+  hasProduct: 'продукт',
+  level: 'уровень',
+  tried: 'что пробовали',
+  want: 'что хотите через 3 месяца',
+  income: 'доход',
+  hours: 'часы в неделю',
+  readiness: 'готовность',
+};
+
 export type DwyMode = {
   title: string;
   argument: string[];

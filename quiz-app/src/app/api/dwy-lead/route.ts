@@ -5,7 +5,7 @@ import {
   buildDwyMessage, normalizeTelegramUsername, normalizePhone,
   normalizeInstagram, type DwyLeadInput, type DwyPrior,
 } from '@/lib/dwy-message';
-import { isDwyKind, DWY_MODES } from '@/content/dwy';
+import { isDwyKind } from '@/content/dwy';
 import { notifyAdminDetailed } from '@/lib/telegram';
 import { leadKeyboard } from '@/lib/lead-keyboard';
 import { matchFormFilled } from '@/lib/ig-leads';
@@ -48,16 +48,21 @@ export async function POST(req: NextRequest) {
     // Неизвестный режим не роняем в 400: анкета всё равно ценна, просто
     // считаем её менторством — как было до листов ожидания.
     const kind = isDwyKind(rawKind) ? rawKind : 'mentor';
-    const mode = DWY_MODES[kind];
 
     if (!answers || typeof answers !== 'object') {
       return NextResponse.json({ error: 'bad payload' }, { status: 400 });
     }
 
-    // Что обязательно — решает режим. У менторства это девять вопросов,
-    // у листа ожидания только имя и контакт: человек просит напомнить
-    // о наборе, а не проходит отбор.
-    for (const field of mode.required) {
+    // Здесь обязательны только имя и контакт — то, без чего заявка бесполезна.
+    // Остальное спрашивает форма и она же не пускает дальше, пока не ответят.
+    //
+    // ⚠️ Раньше сервер проверял весь mode.required, и это стоило живых заявок:
+    // 04.09 в анкету добавились три вопроса, а у всех, у кого страница была
+    // открыта до деплоя, отправка стала возвращать 400 «missing field». Со
+    // стороны человека это «анкета не отправляется», и повторные попытки не
+    // помогают — старый код в его вкладке новых полей не знает. Заявку нельзя
+    // терять из-за неотвеченного вопроса: недозаполненная лучше, чем никакой.
+    for (const field of ['name', 'contact'] as const) {
       if (!cap(answers[field])) {
         return NextResponse.json({ error: `missing field: ${field}` }, { status: 400 });
       }
