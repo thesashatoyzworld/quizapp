@@ -700,6 +700,31 @@ model ServiceUsageDaily {
   @@map("service_usage_daily")
 }
 
+// Расход на Claude в разрезе «кто сжёг». Общая сумма живёт в
+// ServiceUsageDaily и попадает в итог месяца, здесь — разбивка по потребителям
+// и моделям: сколько было вызовов, сколько стоил один и сколько взял кэш.
+model AnthropicUsageDaily {
+  id       String   @id @default(uuid())
+  date     DateTime @db.Date
+  consumer String // sales | kb | roadmap | zoom | other
+  model    String
+
+  calls            Int   @default(0)
+  inputTokens      Float @default(0) @map("input_tokens")
+  outputTokens     Float @default(0) @map("output_tokens")
+  cacheReadTokens  Float @default(0) @map("cache_read_tokens")
+  cacheWriteTokens Float @default(0) @map("cache_write_tokens")
+  /// Доллары.
+  cost             Float @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([date, consumer, model])
+  @@index([date])
+  @@map("anthropic_usage_daily")
+}
+
 // Курс на день списания. Нужен, чтобы сумма месяца сходилась с выпиской банка,
 // а не пересчитывалась задним числом по сегодняшнему курсу.
 model FxRateDaily {

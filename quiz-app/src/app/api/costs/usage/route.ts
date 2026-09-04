@@ -11,11 +11,16 @@
 // Пример:
 //   curl -X POST https://world.thesashatoyz.com/api/costs/usage \
 //     -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" \
-//     -d '{"model":"claude-opus-5","usage":{"input_tokens":1200,"output_tokens":800}}'
+//     -d '{"model":"claude-opus-5","consumer":"zoom","usage":{"input_tokens":1200,"output_tokens":800}}'
+//
+// consumer необязателен и нужен только для разбивки «кто сжёг» в кабинете.
 // ─────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from 'next/server';
-import { recordAnthropicUsage } from '@/lib/costs/anthropic';
+import { recordAnthropicUsage, type CostConsumer } from '@/lib/costs/anthropic';
+
+/** Кого сюда пускаем в разбивку. Незнакомое имя падает в «прочее». */
+const CONSUMERS: CostConsumer[] = ['sales', 'kb', 'roadmap', 'zoom', 'other'];
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -26,6 +31,7 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => null)) as {
     model?: string;
+    consumer?: string;
     usage?: {
       input_tokens?: number;
       output_tokens?: number;
@@ -44,12 +50,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'токены должны быть числами' }, { status: 400 });
   }
 
-  await recordAnthropicUsage(body.model, {
-    input_tokens: input,
-    output_tokens: output,
-    cache_read_input_tokens: Number(body.usage.cache_read_input_tokens ?? 0),
-    cache_creation_input_tokens: Number(body.usage.cache_creation_input_tokens ?? 0),
-  });
+  const consumer = CONSUMERS.find((c) => c === body.consumer) ?? 'other';
+
+  await recordAnthropicUsage(
+    body.model,
+    {
+      input_tokens: input,
+      output_tokens: output,
+      cache_read_input_tokens: Number(body.usage.cache_read_input_tokens ?? 0),
+      cache_creation_input_tokens: Number(body.usage.cache_creation_input_tokens ?? 0),
+    },
+    consumer,
+  );
 
   return NextResponse.json({ ok: true });
 }

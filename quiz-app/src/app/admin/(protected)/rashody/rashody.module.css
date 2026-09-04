@@ -170,6 +170,51 @@
   text-align: right;
 }
 
+/* Разбивка «кто сжёг Claude»: помощник, бот по материалам, карты. */
+.consumers {
+  margin-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.consumersHead {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.consumer {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.consumerName {
+  color: var(--text-primary, #e8e8e8);
+}
+
+.consumerCalls {
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.consumerCost {
+  color: var(--text-primary, #e8e8e8);
+  text-align: right;
+}
+
+/* Кэш ниже половины входа — почти всегда сломанный порядок промпта. */
+.cacheWeak {
+  color: #ff9a62;
+}
+
 .note {
   margin-top: 12px;
   font-size: 0.76rem;

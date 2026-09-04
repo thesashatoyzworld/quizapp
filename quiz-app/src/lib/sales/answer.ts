@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
+import { recordAnthropicUsage } from "@/lib/costs/anthropic";
 import { SALES_KB } from "@/content/sales-kb";
 import { findThread, renderThread, type SalesThread } from "./lead";
 
@@ -7,6 +8,9 @@ import { findThread, renderThread, type SalesThread } from "./lead";
 // дальше. Не отправляет сам — решение и отправка остаются за человеком.
 
 const anthropic = new Anthropic();
+
+/** Одно место на файл: по этой же строке считается цена вызова. */
+const MODEL = "claude-sonnet-5";
 
 /** Один следующий шаг: что отправить, почему и где человек стоит. */
 export type SalesStep = {
@@ -451,7 +455,7 @@ export async function suggestFromThread(params: {
 
   async function ask(): Promise<SalesStep> {
     const res = await anthropic.messages.create({
-      model: "claude-sonnet-5",
+      model: MODEL,
       max_tokens: 6000,
       // ⚠️ Порядок здесь стоит денег. Кэш совпадает по префиксу: всё, что стоит
       // ДО метки, входит в ключ. Пока изменчивый SYSTEM шёл первым, каждая
@@ -495,6 +499,8 @@ ${params.steer}
       ],
       output_config: { format: { type: "json_schema", schema: SCHEMA } },
     });
+
+    await recordAnthropicUsage(MODEL, res.usage, "sales");
 
     if (process.env.SALES_DEBUG) {
       console.error(

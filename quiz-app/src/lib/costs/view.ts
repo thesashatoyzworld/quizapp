@@ -35,6 +35,17 @@ export type ServiceMonth = {
   hasUsage: boolean;
 };
 
+/** Сколько сжёг один потребитель Claude за месяц. */
+export type ConsumerLine = {
+  consumer: string;
+  title: string;
+  /** Доллары. */
+  cost: number;
+  calls: number;
+  /** Доля входных токенов, взятых из кэша. null — входа не было вовсе. */
+  cacheShare: number | null;
+};
+
 export type CostsReport = {
   month: string; // YYYY-MM
   monthLabel: string;
@@ -46,6 +57,8 @@ export type CostsReport = {
   totalRub: number;
   totalUsd: number;
   projectionRub: number;
+  /** Кто сжёг Claude в этом месяце. Пусто, если разбивки ещё нет. */
+  consumers: ConsumerLine[];
   /** Расход по дням в рублях, для графика. */
   daily: { date: string; rub: number }[];
   lastCollectedAt: string | null;
@@ -62,6 +75,14 @@ export const METRIC_LABEL: Record<string, string> = {
   output_tokens: 'выходные токены',
   cache_read_tokens: 'токены из кэша',
   cache_write_tokens: 'запись в кэш',
+};
+
+export const CONSUMER_LABEL: Record<string, string> = {
+  sales: 'помощник в продажах',
+  kb: 'бот по материалам',
+  roadmap: 'маршрутные карты',
+  zoom: 'конвейер созвонов',
+  other: 'прочее',
 };
 
 /** Человеческий вид значения метрики: байты в гигабайтах, секунды в минутах. */

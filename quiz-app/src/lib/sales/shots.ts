@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/prisma';
+import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { sendBotMessage, getTelegramFilePath, downloadTelegramFile } from '@/lib/telegram';
 import { suggestFromThread } from './answer';
 import { findLead, describeLead, helpers } from './tg';
@@ -15,6 +16,9 @@ import { findLead, describeLead, helpers } from './tg';
 // собираются через tg_shot: первый апдейт ждёт остальных и разбирает пачку.
 
 const anthropic = new Anthropic();
+
+/** Одно место на файл: по этой же строке считается цена вызова. */
+const MODEL = 'claude-sonnet-5';
 
 /** Сколько ждём остальные картинки альбома. */
 const ALBUM_WAIT_MS = 4000;
@@ -80,7 +84,7 @@ async function readShots(fileIds: string[]): Promise<ReadResult> {
   for (const id of fileIds) images.push(await asImageBlock(id));
 
   const res = await anthropic.messages.create({
-    model: 'claude-sonnet-5',
+    model: MODEL,
     max_tokens: 4000,
     system: READ_SYSTEM,
     messages: [
@@ -91,6 +95,8 @@ async function readShots(fileIds: string[]): Promise<ReadResult> {
     ],
     output_config: { format: { type: 'json_schema', schema: READ_SCHEMA } },
   });
+
+  await recordAnthropicUsage(MODEL, res.usage, 'sales');
 
   const block = res.content.find((b) => b.type === 'text');
   if (!block || block.type !== 'text') return { who: null, handle: null, messages: [] };
