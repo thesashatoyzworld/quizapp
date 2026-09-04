@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { suggestFromThread } from '@/lib/sales/answer';
 import { findLead, describeLead } from '@/lib/sales/tg';
 import { threadOf, readySuggestion } from '@/lib/sales/dialogs';
+import { awaitingPayment, describePayment } from '@/lib/sales/payment';
 import { randomUUID } from 'node:crypto';
 
 // Собрать следующий шаг по переписке — по кнопке в кабинете, а не на каждое
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
       last?.name ? `имя в телеграме: ${last.name}` : null,
       'канал: личка в телеграме, не инстаграм',
       another ? 'предыдущий вариант не подошёл — дай другой ход, не переписывай тот же' : null,
+      describePayment(await awaitingPayment(chatId)),
       describeLead(lead),
     ]
       .filter(Boolean)

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { waiting, waited, heat, readySuggestion } from '@/lib/sales/dialogs';
 import { priority } from '@/lib/sales/priority';
+import { awaitingPayment } from '@/lib/sales/payment';
 import PrepareAll from './PrepareAll';
 import SendAll from './SendAll';
 
@@ -45,6 +46,12 @@ export default async function DialogiPage() {
   );
   const ready = new Set([...steps].filter(([, v]) => v).map(([k]) => k));
   const mine = new Map(rows.map((r) => [r.chatId, priority(r, steps.get(r.chatId) ?? null)]));
+
+  // Кому отправили ссылку и кто до сих пор не оплатил: самая дорогая точка,
+  // её видно отдельным значком.
+  const pay = new Map(
+    await Promise.all(rows.map(async (r) => [r.chatId, await awaitingPayment(r.chatId)] as const)),
+  );
   const mineCount = [...mine.values()].filter((p) => p.manual).length;
 
   return (
@@ -94,6 +101,14 @@ export default async function DialogiPage() {
                         </span>
                       ) : null}
                       {r.name || '—'}
+                      {pay.get(r.chatId) ? (
+                        <span
+                          title={`ссылка на оплату отправлена ${pay.get(r.chatId)!.hours} ч назад, оплаты нет`}
+                          style={{ color: '#ffb547', marginLeft: 6, fontSize: '0.8rem' }}
+                        >
+                          💳 {pay.get(r.chatId)!.hours} ч
+                        </span>
+                      ) : null}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       {r.username ? `@${r.username}` : 'без ника'}
