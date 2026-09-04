@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   WHO_OPTIONS, HAS_PRODUCT_OPTIONS, LEVELS,
   INCOME_OPTIONS, HOURS_OPTIONS, FOLLOWING_OPTIONS, READINESS_OPTIONS,
-  FOLLOWERS_SCALE, formatFollowers,
+  FOLLOWERS_SCALE, formatFollowers, FIELD_LABEL,
   DWY_MODES, DWY_FIELDS, isDwyKind, type DwyField,
 } from '@/content/dwy';
 
@@ -129,8 +129,11 @@ function DwyInner() {
     followers: followersSet ? String(followers) : '',
   };
   const need = (f: DwyField) => mode.required.includes(f);
-  const ready = contact.trim().length >= 3
-    && mode.required.every((f) => values[f].trim().length > 0);
+  // Что осталось без ответа. Раньше кнопка просто гасла, и человек не знал,
+  // чего от него хотят: на длинной анкете один пропущенный вопрос читается
+  // как «форма сломана». Особенно ползунок — он выглядит отвеченным всегда.
+  const left = mode.required.filter((f) => !values[f].trim());
+  const ready = contact.trim().length >= 3 && left.length === 0;
 
   const hidden = DWY_FIELDS.filter((f) => !mode.visible.includes(f));
 
@@ -353,6 +356,12 @@ function DwyInner() {
             <button className="dwy-submit" type="submit" disabled={!ready || sending}>
               {sending ? 'Отправляю…' : mode.submitLabel}
             </button>
+
+            {left.length > 0 && (
+              <p className="dwy-left">
+                Остались вопросы: {left.map((f) => FIELD_LABEL[f]).join(', ')}
+              </p>
+            )}
           </form>
         </>
       )}
@@ -467,6 +476,12 @@ function DwyInner() {
         }
         .dwy-submit:disabled { opacity: .4; cursor: default; }
         .dwy-submit:not(:disabled):active { transform: translateY(1px); }
+        /* Почему кнопка серая. Без этой строки человек с одним пропущенным
+           вопросом считает, что сломана форма, а не что он чего-то не ответил. */
+        .dwy-left {
+          font-size: 13px; color: var(--mut); line-height: 1.45;
+          margin: 10px 0 0; text-align: center;
+        }
         .dwy-done { padding: 60px 0; }
         .dwy-done-h { font-size: 25px; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.02em; }
         .dwy-done-p { font-size: 18px; color: var(--mut); margin: 0; line-height: 1.5; }
