@@ -136,6 +136,74 @@ export async function findLead(text: string, username?: string | null) {
 }
 
 /**
+ * Анкета человека по чату — всё, что о нём известно, а не только ник.
+ *
+ * `findLead` по нику мимо тех, у кого ника в телеграме нет вовсе: анкета
+ * редиректит человека в личку, и ник там не обязателен. 04.09 на таком
+ * человеке помощник написал «у меня почему-то не открывается сама анкета» —
+ * вранье в лицо, притом что номер анкеты стоял в первой же его реплике,
+ * а привязка уже лежала в базе.
+ *
+ * Порядок: привязка, поставленная при разборе сообщений → номер #NNN из его
+ * реплик → ник.
+ */
+export async function leadOfChat(chatId: string, username?: string | null) {
+  const linked = await prisma.tgBusinessMsg.findFirst({
+    where: { chatId, leadId: { not: null } },
+    orderBy: { createdAt: 'desc' },
+    select: { leadId: true },
+  });
+  if (linked?.leadId) {
+    const byLink = await prisma.dwyLead.findUnique({ where: { id: linked.leadId } });
+    if (byLink) return byLink;
+  }
+
+  const said = await prisma.tgBusinessMsg.findMany({
+    where: { chatId, side: 'client' },
+    orderBy: { createdAt: 'asc' },
+    take: 20,
+    select: { text: true },
+  });
+  const marker = said.map((m) => m.text.match(/#(\d{1,7})\b/)?.[1]).find(Boolean);
+  if (marker) {
+    const byId = await prisma.dwyLead.findUnique({ where: { id: Number(marker) } });
+    if (byId) return byId;
+  }
+
+  return username ? findLead('', username) : null;
+}
+
+/**
+ * Человек уже заплатил.
+ *
+ * Без этой строки помощник продаёт заново тому, кто вчера оплатил и пришёл с
+ * вопросом: в переписке про оплату может не быть ни слова, деньги приходят
+ * мимо чата. Доступ создаётся только платежом, поэтому факт железный.
+ */
+const PRODUCT_TITLE: Record<string, string> = {
+  'uroven-t1': 'тариф 1, курс «Новый уровень контента»',
+  'uroven-t2': 'тариф 2, курс плюс обратная связь',
+  'uroven-t3': 'тариф 3, курс плюс личная работа',
+  'workshop-soldout': 'воркшоп «Солдаут»',
+  'mk-dengi': 'мастер-класс «Разрешение быстрых денег»',
+};
+
+export async function describeAccess(chatId: string): Promise<string | null> {
+  if (!/^\d+$/.test(chatId)) return null;
+  const rows = await prisma.productAccess.findMany({
+    where: { telegramId: BigInt(chatId), status: 'active' },
+    orderBy: { grantedAt: 'desc' },
+    select: { productSlug: true, grantedAt: true },
+  });
+  if (!rows.length) return null;
+
+  const what = rows
+    .map((r) => `${PRODUCT_TITLE[r.productSlug] ?? r.productSlug} (${r.grantedAt.toISOString().slice(0, 10)})`)
+    .join(', ');
+  return `✅ УЖЕ КЛИЕНТ, оплачено: ${what}. Продавать это заново не надо ни при каких словах в переписке. Помоги с тем, о чём он спрашивает, а следующую ступень предлагай только если он сам заговорит о ней или явно упрётся в потолок купленного.`;
+}
+
+/**
  * Откуда человек пришёл. В анкете это `source` из адреса страницы.
  *
  * Важно для первого шага: пришедший со страницы кейса уже его прочитал, и
@@ -390,7 +458,7 @@ export async function regenerate(chatId: string): Promise<boolean> {
 
   const last = rows[rows.length - 1];
   const conn = await prisma.tgBusinessConn.findFirst({ orderBy: { connectedAt: 'desc' } });
-  const lead = await findLead('', last.username);
+  const lead = await leadOfChat(chatId, last.username);
 
   const step = await suggestFromThread({
     about: [
@@ -398,6 +466,7 @@ export async function regenerate(chatId: string): Promise<boolean> {
       last.name ? `имя в телеграме: ${last.name}` : null,
       'канал: личка в телеграме, не инстаграм',
       'предыдущий вариант не подошёл — дай другой ход, не переписывай тот же',
+      await describeAccess(chatId),
       describeLead(lead),
     ]
       .filter(Boolean)

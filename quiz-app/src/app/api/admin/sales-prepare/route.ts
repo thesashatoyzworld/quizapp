@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { getAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
 import { suggestFromThread } from '@/lib/sales/answer';
-import { findLead, describeLead } from '@/lib/sales/tg';
+import { leadOfChat, describeLead, describeAccess } from '@/lib/sales/tg';
 import { waiting, threadOf, readySuggestion } from '@/lib/sales/dialogs';
 import { awaitingPayment, describePayment, theirMove } from '@/lib/sales/payment';
 
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         const thread = await threadOf(r.chatId, 60);
         if (!thread.length) return false;
 
-        const lead = await findLead('', r.username);
+        const lead = await leadOfChat(r.chatId, r.username);
         const rendered = thread
           .map((m) => {
             const when = m.createdAt.toISOString().slice(0, 16).replace('T', ' ');
@@ -75,6 +75,7 @@ export async function POST(request: Request) {
             r.username ? `ник: @${r.username}` : null,
             r.name ? `имя в телеграме: ${r.name}` : null,
             'канал: личка в телеграме, не инстаграм',
+            await describeAccess(r.chatId),
             describePayment(await awaitingPayment(r.chatId)),
             describeLead(lead),
           ]
