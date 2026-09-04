@@ -293,7 +293,7 @@ export async function generateRoadmap(source: RoadmapSource, startedAt: Date, ac
     })
     .finalMessage();
 
-  await recordAnthropicUsage(MODEL, message.usage);
+  await recordAnthropicUsage(MODEL, message.usage, 'roadmap');
 
   const block = message.content.find((b) => b.type === 'tool_use' && b.name === 'roadmap');
   if (!block || block.type !== 'tool_use') {

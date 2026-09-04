@@ -54,7 +54,7 @@ export interface KbUsage {
 export const ZERO_USAGE: KbUsage = { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 };
 
 async function addUsage(a: KbUsage, m: Anthropic.Message): Promise<KbUsage> {
-  await recordAnthropicUsage(MODEL, m.usage);
+  await recordAnthropicUsage(MODEL, m.usage, 'kb');
   return {
     input: a.input + m.usage.input_tokens,
     cacheRead: a.cacheRead + (m.usage.cache_read_input_tokens ?? 0),

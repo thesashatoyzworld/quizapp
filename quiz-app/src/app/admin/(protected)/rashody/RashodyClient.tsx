@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import type { CostsReport, ServiceMonth } from '@/lib/costs/view';
+import type { ConsumerLine, CostsReport, ServiceMonth } from '@/lib/costs/view';
 import { METRIC_LABEL, formatMetric } from '@/lib/costs/view';
 import styles from './rashody.module.css';
 
@@ -22,6 +22,36 @@ function shiftMonth(month: string, delta: number): string {
   const [y, m] = month.split('-').map(Number);
   const d = new Date(Date.UTC(y, m - 1 + delta, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Кто сжёг Claude. Общая сумма ничего не говорит: 04.09 баланс кончился за
+ * день, и по одной цифре было не видно ни кто это был, ни что кэш перестал
+ * работать. Поэтому рядом с деньгами стоят вызовы, цена одного и доля кэша.
+ */
+function Consumers({ lines }: { lines: ConsumerLine[] }) {
+  return (
+    <div className={styles.consumers}>
+      <div className={styles.consumersHead}>кто сжёг</div>
+      {lines.map((c) => (
+        <div key={c.consumer} className={styles.consumer}>
+          <span className={styles.consumerName}>{c.title}</span>
+          <span className={styles.consumerCalls}>
+            {c.calls.toLocaleString('ru-RU')} × ${(c.cost / Math.max(1, c.calls)).toFixed(3)}
+            {c.cacheShare !== null && (
+              <>
+                {' · кэш '}
+                <span className={c.cacheShare < 0.5 ? styles.cacheWeak : undefined}>
+                  {Math.round(c.cacheShare * 100)}%
+                </span>
+              </>
+            )}
+          </span>
+          <span className={styles.consumerCost}>${c.cost.toFixed(2)}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function PlanForm({ service, onDone }: { service: ServiceMonth; onDone: () => void }) {
@@ -162,6 +192,10 @@ export default function RashodyClient({ report }: { report: CostsReport }) {
                   </div>
                 ))}
               </div>
+            )}
+
+            {s.service === 'anthropic_api' && report.consumers.length > 0 && (
+              <Consumers lines={report.consumers} />
             )}
 
             {s.note && <div className={styles.note}>{s.note}</div>}

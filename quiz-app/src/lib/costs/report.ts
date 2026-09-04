@@ -5,9 +5,10 @@
 // рублях и в долларах, по курсу ЦБ на последний собранный день.
 
 import { prisma } from '@/lib/prisma';
-import type { CostsReport, MetricLine, ServiceMonth } from './view';
+import type { ConsumerLine, CostsReport, MetricLine, ServiceMonth } from './view';
+import { CONSUMER_LABEL } from './view';
 
-export type { CostsReport, MetricLine, Pricing, ServiceMonth } from './view';
+export type { ConsumerLine, CostsReport, MetricLine, Pricing, ServiceMonth } from './view';
 
 const MONTHS = [
   'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
@@ -43,14 +44,41 @@ export async function getCostsReport(month?: string): Promise<CostsReport> {
   const key = month ?? iso(now).slice(0, 7);
   const { from, to, days } = monthRange(key);
 
-  const [plans, usage, fx] = await Promise.all([
+  const [plans, usage, fx, burn] = await Promise.all([
     prisma.serviceCostPlan.findMany({ where: { active: true } }),
     prisma.serviceUsageDaily.findMany({
       where: { date: { gte: from, lte: to } },
       orderBy: { date: 'asc' },
     }),
     prisma.fxRateDaily.findFirst({ orderBy: { date: 'desc' } }),
+    // Разбивка «кто сжёг Claude». Общая сумма уже лежит в usage, эти строки
+    // только объясняют, из кого она сложилась.
+    prisma.anthropicUsageDaily.findMany({ where: { date: { gte: from, lte: to } } }),
   ]);
+
+  const perConsumer = new Map<string, ConsumerLine & { input: number; cached: number }>();
+  for (const row of burn) {
+    const line = perConsumer.get(row.consumer) ?? {
+      consumer: row.consumer,
+      title: CONSUMER_LABEL[row.consumer] ?? row.consumer,
+      cost: 0,
+      calls: 0,
+      cacheShare: null,
+      input: 0,
+      cached: 0,
+    };
+    line.cost += row.cost;
+    line.calls += row.calls;
+    line.input += row.inputTokens + row.cacheReadTokens + row.cacheWriteTokens;
+    line.cached += row.cacheReadTokens;
+    perConsumer.set(row.consumer, line);
+  }
+  const consumers: ConsumerLine[] = [...perConsumer.values()]
+    .map(({ input, cached, ...line }) => ({
+      ...line,
+      cacheShare: input > 0 ? cached / input : null,
+    }))
+    .sort((a, b) => b.cost - a.cost);
 
   const usdRub = fx?.usdRub ?? null;
   const toRub = (value: number, currency: string) =>
@@ -130,6 +158,7 @@ export async function getCostsReport(month?: string): Promise<CostsReport> {
     totalRub,
     totalUsd,
     projectionRub,
+    consumers,
     daily,
     lastCollectedAt: last ? iso(last.date) : null,
   };
