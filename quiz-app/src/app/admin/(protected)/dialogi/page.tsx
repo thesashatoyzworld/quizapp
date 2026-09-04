@@ -1,6 +1,8 @@
 import Link from 'next/link';
-import { waiting, waited, heat, readyChats } from '@/lib/sales/dialogs';
+import { waiting, waited, heat, readySuggestion } from '@/lib/sales/dialogs';
+import { priority } from '@/lib/sales/priority';
 import PrepareAll from './PrepareAll';
+import SendAll from './SendAll';
 
 // Очередь личных переписок: кто остался без ответа и сколько ждёт.
 //
@@ -35,18 +37,28 @@ const td: React.CSSProperties = {
 export default async function DialogiPage() {
   const rows = await waiting();
   const hot = rows.filter((r) => heat(r) === 'hot').length;
-  const ready = await readyChats(rows.map((r) => r.chatId));
+
+  // Кто уходит пачкой, а кого Саша разбирает сам — считаем здесь же, чтобы
+  // в списке было видно до всякой рассылки.
+  const steps = new Map(
+    await Promise.all(rows.map(async (r) => [r.chatId, await readySuggestion(r.chatId)] as const)),
+  );
+  const ready = new Set([...steps].filter(([, v]) => v).map(([k]) => k));
+  const mine = new Map(rows.map((r) => [r.chatId, priority(r, steps.get(r.chatId) ?? null)]));
+  const mineCount = [...mine.values()].filter((p) => p.manual).length;
 
   return (
     <div style={{ padding: '24px 28px' }}>
       <h1 style={{ fontSize: '1.4rem', marginBottom: 6 }}>Диалоги</h1>
       <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20 }}>
         {rows.length
-          ? `${rows.length} ждут ответа${hot ? `, из них ${hot} дольше четырёх часов` : ''}`
+          ? `${rows.length} ждут ответа${hot ? `, из них ${hot} дольше четырёх часов` : ''}` +
+            `${mineCount ? ` · ★ ${mineCount} на тебе` : ''}`
           : 'все отвечены'}
       </p>
 
       <PrepareAll waiting={rows.length} ready={ready.size} />
+      <SendAll />
 
       {rows.length ? (
         <div style={{ overflowX: 'auto' }}>
@@ -72,7 +84,17 @@ export default async function DialogiPage() {
                     ) : null}
                   </td>
                   <td style={td}>
-                    <div>{r.name || '—'}</div>
+                    <div>
+                      {mine.get(r.chatId)?.manual ? (
+                        <span
+                          title={mine.get(r.chatId)?.reason || ''}
+                          style={{ color: '#ffb547', marginRight: 6 }}
+                        >
+                          ★
+                        </span>
+                      ) : null}
+                      {r.name || '—'}
+                    </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       {r.username ? `@${r.username}` : 'без ника'}
                       {r.leadId ? ` · анкета №${r.leadId}` : ' · анкеты нет'}
