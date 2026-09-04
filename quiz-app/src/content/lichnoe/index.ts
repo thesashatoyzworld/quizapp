@@ -15,6 +15,8 @@ import { LICHNOE_LICHNYY_SOZVON_KONSTANTIN_2026_08_05 } from './lichnyy-sozvon-k
 
 import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_08_28 } from './lichnyy-sozvon-evgeniya-2026-08-28';
 
+import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_04 } from './lichnyy-sozvon-evgeniya-2026-09-04';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
