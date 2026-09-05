@@ -5,10 +5,9 @@ import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { floorPrice } from '@/content/prices';
 import { grantAccess } from '@/lib/access';
-import { ensureIntake, sendPreamble, intakeTotal, withCount } from '@/lib/intake';
-import { sendWelcomeT2 } from '@/lib/onboarding';
-import { sendBotMessage, notifyAdmin } from '@/lib/telegram';
-import { INTAKE_INVITE, INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
+import { sendWelcomeT2, startIntake } from '@/lib/onboarding';
+import { notifyAdmin } from '@/lib/telegram';
+import { INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
 import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
@@ -566,13 +565,7 @@ export async function POST(request: NextRequest) {
         // Тариф 3 = групповое менторство: сразу зовём собрать досье до созвона 1-1.
         // Момент максимальной мотивации, человек только что заплатил.
         if (product.slug === INTAKE_PRODUCT_SLUG) {
-          try {
-            const intake = await ensureIntake(tgUserId);
-            await sendBotMessage(tgUserId, withCount(INTAKE_INVITE, intakeTotal(intake)));
-            await sendPreamble(tgUserId, intake);
-          } catch (e) {
-            console.error('[Prodamus Webhook] intake invite failed:', e);
-          }
+          await startIntake(tgUserId, 't3');
         }
 
         await notifyAdminUroven(product.name, amount, `TG user ${tgUserId}`, orderId as string);

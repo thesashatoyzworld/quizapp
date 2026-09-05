@@ -237,6 +237,56 @@ check('17. личная анкета закрылась на своём посл
 await db.query(`DELETE FROM intakes WHERE invite_token = $1`, [customToken]);
 await db.query('DELETE FROM users WHERE telegram_id = $1', [TG_CUSTOM]);
 
+// ── Редим `/start paid_<token>`: доступ т3 и следом интервью ──
+// Дверь для всех, кому доступ открыли мимо оплаты картой (крипта, рассрочка,
+// партнёрство). Раньше анкету таким запускали руками через /anketa_send, и о
+// ней забывали. Проверяем, что теперь она заводится сама и что повторный клик
+// по своей же ссылке не сбрасывает уже начатую.
+
+const TG_REDEEM = 999000005;
+const redeemToken = 'probredeemt3';
+const redeemOrder = `uroven_t3_web_${redeemToken}`;
+
+await db.query('DELETE FROM intakes WHERE telegram_id = $1', [TG_REDEEM]);
+await db.query('DELETE FROM product_access WHERE source = $1', [redeemOrder]);
+await db.query('DELETE FROM users WHERE telegram_id = $1', [TG_REDEEM]);
+await db.query(`DELETE FROM events WHERE metadata->>'token' = $1`, [redeemToken]);
+
+await db.query(
+  `INSERT INTO events (id, type, source, product_slug, metadata)
+   VALUES ($1, 'web_paid', 'manual', 'uroven-t3', $2::jsonb)`,
+  [`evt_probe_${redeemToken}`, JSON.stringify({
+    token: redeemToken, email: '', phone: '', amount: 0,
+    orderId: redeemOrder, consumed: false, manual: true, forUsername: 'probe_redeem',
+  })],
+);
+
+await send({ message: { chat: { id: TG_REDEEM }, from: from(TG_REDEEM), text: `/start paid_${redeemToken}` } });
+
+const access = (await db.query(
+  `SELECT * FROM product_access WHERE telegram_id = $1 AND product_slug = 'uroven-t3'`, [TG_REDEEM],
+)).rows[0];
+check('18. редим выдал доступ т3', Boolean(access), access ? access.status : 'строки нет');
+
+let redeem = await intakeOf(TG_REDEEM);
+check('19. редим т3 завёл анкету на менторском треке',
+  redeem !== null && redeem.status === 'invited' && redeem.track === 't3',
+  redeem ? `${redeem.status}/${redeem.track}` : 'анкеты нет');
+
+// Начатую анкету повторный клик не трогает: иначе человек получит приглашение
+// второй раз и потеряет место, на котором остановился.
+await press(TG_REDEEM, 'intake:start');
+await send({ message: { chat: { id: TG_REDEEM }, from: from(TG_REDEEM), text: `/start paid_${redeemToken}` } });
+redeem = await intakeOf(TG_REDEEM);
+check('20. повторный клик не сбросил начатую анкету',
+  redeem.status === 'in_progress', redeem.status);
+
+await db.query('DELETE FROM intakes WHERE telegram_id = $1', [TG_REDEEM]);
+await db.query('DELETE FROM product_access WHERE source = $1', [redeemOrder]);
+await db.query('DELETE FROM purchases WHERE prodamus_order_id = $1', [`paid_${redeemToken}`]);
+await db.query('DELETE FROM users WHERE telegram_id = $1', [TG_REDEEM]);
+await db.query(`DELETE FROM events WHERE metadata->>'token' = $1`, [redeemToken]);
+
 // Уборка
 await db.query('DELETE FROM intakes WHERE telegram_id = ANY($1)', [[TG_WITH_ACCESS, TG_NO_ACCESS]]);
 await db.query('DELETE FROM product_access WHERE source = $1', ['verify-intake-script']);
