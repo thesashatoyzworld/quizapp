@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { href: '/admin/campaigns', label: 'Кампании' },
   { href: '/admin/users', label: 'Пользователи' },
   { href: '/admin/payments', label: 'Оплаты' },
+  { href: '/admin/revenue', label: 'Выручка' },
   { href: '/admin/rashody', label: 'Расходы' },
   { href: '/admin/broadcasts', label: 'Рассылки' },
   { href: '/admin/instagram', label: 'Instagram' },
