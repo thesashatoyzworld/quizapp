@@ -139,6 +139,8 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
   const td: React.CSSProperties = {
     padding: '9px 12px', fontSize: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.05)', verticalAlign: 'top',
   };
+  // Суммы не переносим: «439 300 ₽» с рублём на второй строке читается как две цифры.
+  const tdNum: React.CSSProperties = { ...td, textAlign: 'right', whiteSpace: 'nowrap' };
 
   return (
     <div style={{ maxWidth: 1180 }}>
@@ -267,14 +269,14 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
               <td style={{ ...td, whiteSpace: 'nowrap' }}>{e.paidAt.slice(8)}.{e.paidAt.slice(5, 7)}</td>
               <td style={td}>{e.who || '—'}</td>
               <td style={td}>{e.product || '—'}</td>
-              <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-display)' }}>{money(e.amount)}</td>
-              <td style={{ ...td, textAlign: 'right', color: 'var(--text-muted)' }}>{e.payout == null ? '—' : money(e.payout)}</td>
+              <td style={{ ...tdNum, fontFamily: 'var(--font-display)' }}>{money(e.amount)}</td>
+              <td style={{ ...tdNum, color: 'var(--text-muted)' }}>{e.payout == null ? '—' : money(e.payout)}</td>
               <td style={{ ...td, color: 'var(--text-muted)' }}>{CHANNELS[e.channel] || e.channel}</td>
               <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.78rem' }}>{e.note}</td>
               <td style={{ ...td, whiteSpace: 'nowrap', textAlign: 'right' }}>
                 <button onClick={() => startEdit(e)} style={{ background: 'none', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', fontSize: '0.78rem' }}>править</button>
                 <button onClick={() => { if (confirm('удалить запись?')) send({ action: 'delete', id: e.id }); }}
-                  style={{ background: 'none', border: 'none', color: '#ef476f', cursor: 'pointer', fontSize: '0.78rem' }}>удалить</button>
+                  style={{ background: 'none', border: 'none', color: '#ef476f', cursor: 'pointer', fontSize: '0.78rem', marginLeft: 10 }}>удалить</button>
               </td>
             </tr>
           ))}
@@ -286,8 +288,8 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
           <tfoot>
             <tr>
               <td style={{ ...td, fontWeight: 600 }} colSpan={3}>итого {report.entries.length}</td>
-              <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-display)', color: 'var(--neon-cyan)' }}>{money(t.gross)}</td>
-              <td style={{ ...td, textAlign: 'right', color: 'var(--text-muted)' }}>{money(t.net)}</td>
+              <td style={{ ...tdNum, fontFamily: 'var(--font-display)', color: 'var(--neon-cyan)' }}>{money(t.gross)}</td>
+              <td style={{ ...tdNum, color: 'var(--text-muted)' }}>{money(t.net)}</td>
               <td style={td} colSpan={3} />
             </tr>
           </tfoot>
