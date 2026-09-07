@@ -20,11 +20,18 @@ interface GrantParams {
   userId?: string | null;
   /** order_id Продамуса или subscription id — для аудита и привязки по токену */
   source: string;
+  /**
+   * Срок в днях вместо каталожного периода. Нужен сделкам: там срок задаёт
+   * договорённость («три месяца за 25 000»), а не карточка продукта.
+   * Считается от текущего окончания доступа, если оно ещё не наступило,
+   * поэтому доплата продлевает, а не обнуляет.
+   */
+  days?: number | null;
 }
 
 /** Выдать или продлить доступ. Возвращает id записи ProductAccess. */
 export async function grantAccess(params: GrantParams): Promise<string> {
-  const { product, telegramId, userId, source } = params;
+  const { product, telegramId, userId, source, days } = params;
   const now = new Date();
 
   // Ищем существующий доступ этого человека к этому продукту.
@@ -38,6 +45,34 @@ export async function grantAccess(params: GrantParams): Promise<string> {
         where: { source, productSlug: product.slug },
         orderBy: { createdAt: 'desc' },
       });
+
+  // Сделка: срок известен точно, продукт каталога даёт только slug и роль.
+  if (days && days > 0) {
+    const base = existing?.expiresAt && existing.expiresAt > now ? existing.expiresAt : now;
+    const nextExpires = new Date(base);
+    nextExpires.setDate(nextExpires.getDate() + days);
+
+    if (existing) {
+      await prisma.productAccess.update({
+        where: { id: existing.id },
+        data: { expiresAt: nextExpires, status: 'active', source, role: product.role },
+      });
+      return existing.id;
+    }
+    const created = await prisma.productAccess.create({
+      data: {
+        userId: userId ?? null,
+        telegramId: telegramId ? BigInt(telegramId) : null,
+        productSlug: product.slug,
+        role: product.role,
+        expiresAt: nextExpires,
+        status: 'active',
+        period: null,
+        source,
+      },
+    });
+    return created.id;
+  }
 
   if (product.type === 'subscription') {
     // Продление: считаем от max(текущий срок, сейчас).

@@ -9,6 +9,7 @@ import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { canBuy, isOnSale, PERSONAL_KEY, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
+import { getDeal, formatPrice, formatDays } from '@/lib/deals';
 import { handleKbQuestion } from '@/lib/kb/ask';
 import { handleSalesQuestion } from '@/lib/sales/ask';
 import {
@@ -1225,6 +1226,41 @@ export async function POST(request: NextRequest) {
           username: username || undefined,
           first_name: fullName || undefined,
           utm_source: startParam,
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Прайс-ссылка: цена и срок вне каталога.
+      // t.me/testtoyzbot?start=deal_<id> — многоразовая, одна на позицию прайса.
+      // Показываем ровно то, о чём договорились, и уводим на оплату с ?u=<tgId>,
+      // чтобы вебхук открыл доступ прямо на этот телеграм.
+      if (startParam.startsWith('deal_')) {
+        const dealId = startParam.slice('deal_'.length);
+        const deal = await getDeal(dealId);
+
+        if (!deal || deal.status !== 'active') {
+          await sendMessage(chatId, `${firstName}, ссылка не открылась, напиши мне, вышлю новую.`);
+          return NextResponse.json({ ok: true });
+        }
+
+        const payUrl = `${WEBAPP_URL}/pay/deal/${deal.id}?u=${chatId}`;
+        await sendMessage(
+          chatId,
+          `${firstName}, держи оплату ⚡
+
+<b>${deal.title}</b>
+${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
+          { inline_keyboard: [[{ text: `Оплатить ${formatPrice(deal.price)}`, url: payUrl }]] },
+        );
+
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'uroven_deal',
+          metadata: { product: 'uroven', deal: deal.id, tier: deal.tier, price: deal.price, days: deal.days, startParam },
         });
 
         return NextResponse.json({ ok: true });

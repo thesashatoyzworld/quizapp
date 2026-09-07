@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { floorPrice } from '@/content/prices';
 import { grantAccess } from '@/lib/access';
+import { getDeal, countPayment, dealProduct, parseDealOrderId, alreadyProcessed } from '@/lib/deals';
 import { sendWelcomeT2, startIntake } from '@/lib/onboarding';
 import { notifyAdmin } from '@/lib/telegram';
 import { INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
@@ -418,8 +419,117 @@ export async function POST(request: NextRequest) {
     const isConnectors = typeof orderId === 'string' && orderId.startsWith('conn_');
     const isMkDengi = typeof orderId === 'string' && orderId.startsWith('mkdengi');
     const isUroven = typeof orderId === 'string' && orderId.startsWith('uroven_');
+    const isDeal = typeof orderId === 'string' && orderId.startsWith('deal_');
 
-    if (isMkDengi) {
+    if (isDeal) {
+      // Прайс-ссылка: цена и срок вне каталога.
+      // order_id = deal_<id>_<tgId>_<хвост>. Строка прайса — источник правды и для
+      // суммы, и для срока: ни форма, ни браузер задать их не могут.
+      const parsed = parseDealOrderId(orderId as string);
+      const deal = parsed ? await getDeal(parsed.id) : null;
+      if (!deal) {
+        console.error('[Prodamus Webhook] deal: позиция прайса не найдена по order', orderId);
+        return NextResponse.json({ success: true });
+      }
+
+      const product = dealProduct(deal.tier);
+      if (!product) {
+        console.error('[Prodamus Webhook] deal: тариф не опознан', deal.id, deal.tier);
+        return NextResponse.json({ success: true });
+      }
+
+      const products = body.products as Record<string, Record<string, string>> | undefined;
+      const paidRaw = products?.['0']?.sum ?? products?.['0']?.price;
+      const amount = parseInt(String(paidRaw ?? deal.price), 10) || deal.price;
+      // Кто платит, знает только order_id: ссылка многоразовая, за позицией
+      // прайса конкретный человек не закреплён.
+      const tgUserId = parsed?.telegramId ?? null;
+
+      const email = (body.customer_email || body.email || '') as string;
+      const phone = (body.customer_phone || body.phone || '') as string;
+      const contact = tgUserId
+        ? `TG user ${tgUserId}`
+        : [email, phone].filter(Boolean).join(' · ') || 'нет контакта';
+
+      // Недоплата: доступ не открываем, решает Саша. Тот же порядок, что у тарифов.
+      if (paidRaw !== undefined && amount < deal.price) {
+        await prisma.event.create({
+          data: {
+            type: 'underpaid',
+            source: 'thesasha',
+            productSlug: product.slug,
+            telegramId: tgUserId ? BigInt(tgUserId) : null,
+            metadata: {
+              deal: deal.id, expected: deal.price, paid: amount,
+              email, phone, orderId: String(orderId), granted: false,
+            },
+          },
+        }).catch((e) => console.error('[Supabase] deal underpaid event insert failed:', e));
+
+        await notifyAdminUnderpaid(deal.title, deal.price, amount, contact, orderId as string);
+        console.warn(`[Prodamus Webhook] deal underpaid: ${orderId} paid ${amount} of ${deal.price}`);
+        return NextResponse.json({ success: true });
+      }
+
+      // Повторный вебхук по той же оплате: срок не двигаем. Ключ — наш order_id,
+      // у каждой оплаты он свой, поэтому законная повторная покупка по той же
+      // ссылке проходит, а дубль отсекается.
+      if (await alreadyProcessed(String(orderId))) {
+        console.log('[Prodamus Webhook] deal: повторный вебхук, пропускаем', orderId);
+        return NextResponse.json({ success: true });
+      }
+
+      await prisma.product.upsert({
+        where: { slug: product.slug },
+        create: { slug: product.slug, name: product.name, price: product.price, type: product.type },
+        update: { name: product.name },
+      });
+
+      if (tgUserId && tgUserId > 1000) {
+        await Promise.all([
+          createPurchase(tgUserId, product.slug, amount, 'uroven', orderId as string),
+          grantAccess({ product, telegramId: tgUserId, source: orderId as string, days: deal.days })
+            .catch((e) => console.error('[Access] deal grant failed:', e)),
+        ]);
+
+        // Дальше человек идёт тем же путём, что и обычная оплата тарифа:
+        // приветственный пакет т2 или досье т3.
+        const welcomed = product.slug === T2_PRODUCT_SLUG ? await sendWelcomeT2(tgUserId) : false;
+
+        if (!welcomed && BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: tgUserId,
+              text: `готово ⚡
+
+оплата принята: <b>${deal.title}</b>.
+
+все материалы в кабинете, жми кнопку ниже.`,
+              parse_mode: 'HTML',
+              reply_markup: { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
+            }),
+          }).catch(() => {});
+        }
+
+        if (product.slug === INTAKE_PRODUCT_SLUG) {
+          await startIntake(tgUserId, 't3');
+        }
+      } else {
+        // Телеграма нет: платили не из бота. Доступ вешаем
+        // на order_id, привяжется при входе в бота, и зовём Сашу разобраться.
+        await grantAccess({ product, telegramId: null, source: orderId as string, days: deal.days })
+          .catch((e) => console.error('[Access] deal web grant failed:', e));
+      }
+
+      await countPayment(deal.id);
+      await notifyAdminUroven(
+        `${deal.title} (прайс ${deal.id}, ${deal.days} дн.)`,
+        amount, contact, orderId as string,
+      );
+      console.log(`[Prodamus Webhook] deal ${deal.id} paid, ${amount} ₽, tg ${tgUserId ?? 'нет'}`);
+    } else if (isMkDengi) {
       // order_id: "mkdengi_<tgUserId>" — оплата из мини-аппа (привязка к Telegram)
       //           "mkdengi_web_<ts>"   — оплата с веб-лендинга (без Telegram)
       const parts = (orderId as string).split('_');
