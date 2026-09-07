@@ -2,6 +2,8 @@
 // «Новый уровень контента» — основной курс в кабинете.
 //
 // Один урок = запись (Kinescope) + статья с картинками и интерактивами.
+// Практикум (10) — исключение: записи нет, только текст, поэтому
+// kinescopeId и duration пустые, а плеер в статье не рисуется.
 // Статья лежит рядом отдельным модулем, его генерирует
 // GSD-BRAND/scripts/kurs-to-ts.mjs из деки курса. Здесь только метаданные.
 //
@@ -20,6 +22,7 @@ import { UROVEN_5_06 } from './06-uroven-5';
 import { OBSHAYA_FORMULA_07 } from './07-obshaya-formula';
 import { UROVEN_6_08 } from './08-uroven-6';
 import { FINAL_09 } from './09-final';
+import { PRAKTIKUM_UPAKOVKA_10 } from './10-praktikum-upakovka';
 
 /** Курс открыт на всех тарифах «Нового уровня контента». */
 export const KURS_ROLE = 'uroven';
@@ -142,6 +145,16 @@ export const LESSONS: Lesson[] = [
     duration: '8 мин',
     kinescopeId: 'gBmYGfLYA5AYuxiHwd3xER',
     html: FINAL_09,
+  },
+  {
+    slug: '10-praktikum-upakovka',
+    badge: 'Практикум',
+    title: 'Три способа найти упаковку',
+    subtitle: 'Поток спроса, нейронка и сегмент: один смысл разложен тремя инструментами на живых ролях — тренер, психолог, коуч по отношениям',
+    task: 'собрать три захода к одному своему смыслу',
+    duration: '',
+    kinescopeId: '',
+    html: PRAKTIKUM_UPAKOVKA_10,
   },
 ];
 
