@@ -1,4 +1,4 @@
-// Сквозная проверка сделок: ссылка → оплата → доступ на срок → повтор.
+// Сквозная проверка прайс-ссылок: ссылка → оплата → доступ на срок → повтор.
 //
 // Бьёт по настоящим роутам теми же телами, что шлют Telegram и Продамус,
 // и сверяет результат по базе. Сообщения реально уходят, поэтому telegram_id
@@ -20,6 +20,7 @@ const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 const PRODAMUS = process.env.PRODAMUS_SECRET_KEY || '';
 
 const TG_PAYS = 999000101; // платит полностью
+const TG_AGAIN = 999000103; // платит по той же ссылке следом за первым
 const TG_UNDER = 999000102; // недоплачивает
 
 const db = new pg.Client({
@@ -65,7 +66,7 @@ const pay = (orderId, sum) => {
     payment_status_description: 'Успешная оплата',
     payment_init: 'manual',
     customer_email: 'probe@example.com',
-    products: { 0: { name: 'Проверка сделки', price: String(sum), quantity: '1', sum: String(sum) } },
+    products: { 0: { name: 'Проверка прайса', price: String(sum), quantity: '1', sum: String(sum) } },
   };
   const plain = JSON.stringify(sortDeep(body));
   const sign = crypto.createHmac('sha256', PRODAMUS).update(plain).digest('hex');
@@ -74,6 +75,14 @@ const pay = (orderId, sum) => {
     headers: { 'Content-Type': 'application/json', Sign: sign },
     body: JSON.stringify(body),
   });
+};
+
+// Ссылка на оплату, как её отдаёт бот, и order_id из неё.
+const payLink = async (dealId, tg) => {
+  const r = await fetch(`${BASE}/pay/deal/${dealId}?u=${tg}`, { redirect: 'manual' });
+  const loc = r.headers.get('location') || '';
+  const order = decodeURIComponent((loc.match(/order_id=([^&]+)/) || [])[1] || '');
+  return { loc, order };
 };
 
 const dealRow = async (id) => (await db.query('SELECT * FROM deals WHERE id = $1', [id])).rows[0] || null;
@@ -104,34 +113,22 @@ const wipe = async (tg) => {
 
 await db.connect();
 await db.query("DELETE FROM deals WHERE id LIKE 'probe%'");
-await wipe(TG_PAYS);
-await wipe(TG_UNDER);
+for (const tg of [TG_PAYS, TG_AGAIN, TG_UNDER]) await wipe(tg);
 
 // ── 1. Ссылка в боте ────────────────────────────────────────────
 const dealId = await newDeal('t2', 25000, 90, 'Проверка: тариф 2 на 90 дней');
 const r1 = await start(TG_PAYS, `deal_${dealId}`);
 check('бот принял /start deal_<id>', r1.ok, `HTTP ${r1.status}`);
 
-let d = await dealRow(dealId);
-check('сделка запомнила, кто открыл ссылку', String(d.telegram_id) === String(TG_PAYS), `telegram_id=${d.telegram_id}`);
-check('сделка ещё не оплачена', d.status === 'new', d.status);
-
 // ── 2. Форма оплаты ─────────────────────────────────────────────
-const r2 = await fetch(`${BASE}/pay/deal/${dealId}?u=${TG_PAYS}`, { redirect: 'manual' });
-const loc = r2.headers.get('location') || '';
+const { loc, order } = await payLink(dealId, TG_PAYS);
 check('/pay/deal редиректит на форму Продамуса', loc.startsWith('https://thesashatoyz.payform.ru'), loc.slice(0, 60));
-check('order_id несёт сделку и телеграм', loc.includes(`order_id=deal_${dealId}_${TG_PAYS}`), loc.slice(0, 200));
-// Ключи полей в форму уходят как есть, кодируются только значения — так же,
-// как у /pay/<tier>. Ищем ровно то, что реально стоит в ссылке.
-check('цена приехала из сделки, не из ссылки', loc.includes('products[0][price]=25000'), loc.slice(0, 200));
+check('order_id несёт позицию и телеграм', order.startsWith(`deal_${dealId}_${TG_PAYS}_`), order);
+check('цена приехала из прайса, не из ссылки', loc.includes('products[0][price]=25000'), loc.slice(0, 200));
 
 // ── 3. Оплата ───────────────────────────────────────────────────
-const r3 = await pay(`deal_${dealId}_${TG_PAYS}`, 25000);
-check('вебхук принял оплату сделки', r3.ok, `HTTP ${r3.status}`);
-
-d = await dealRow(dealId);
-check('сделка помечена оплаченной', d.status === 'paid', d.status);
-check('в сделке записана сумма', d.paid_amount === 25000, String(d.paid_amount));
+const r3 = await pay(order, 25000);
+check('вебхук принял оплату', r3.ok, `HTTP ${r3.status}`);
 
 const acc = await accessOf(TG_PAYS);
 check('доступ выдан', acc.length === 1, `записей: ${acc.length}`);
@@ -142,44 +139,56 @@ check('срок ровно 90 дней, а не месяц', days === 90, `${day
 
 const pur = await purchasesOf(TG_PAYS);
 check('покупка попала в purchases', pur.length === 1 && pur[0].amount === 25000, JSON.stringify(pur.map((p) => p.amount)));
+check('оплата посчиталась в прайсе', (await dealRow(dealId)).paid_count === 1, String((await dealRow(dealId)).paid_count));
 
-// ── 4. Повторный вебхук ─────────────────────────────────────────
+// ── 4. Повторный вебхук по той же оплате ────────────────────────
 const expiresBefore = acc[0]?.expires_at;
-await pay(`deal_${dealId}_${TG_PAYS}`, 25000);
+await pay(order, 25000);
 const acc2 = await accessOf(TG_PAYS);
-check('повтор не продлил доступ', String(acc2[0]?.expires_at) === String(expiresBefore), String(acc2[0]?.expires_at));
-const pur2 = await purchasesOf(TG_PAYS);
-check('повтор не удвоил покупку', pur2.length === 1, `записей: ${pur2.length}`);
+check('дубль вебхука не продлил доступ', String(acc2[0]?.expires_at) === String(expiresBefore), String(acc2[0]?.expires_at));
+check('дубль вебхука не удвоил покупку', (await purchasesOf(TG_PAYS)).length === 1);
 
-// ── 5. Оплаченная ссылка ────────────────────────────────────────
-const r5 = await fetch(`${BASE}/pay/deal/${dealId}?u=${TG_PAYS}`, { redirect: 'manual' });
-const loc5 = r5.headers.get('location') || '';
-check('оплаченная ссылка больше не ведёт на форму', !loc5.includes('payform'), loc5.slice(0, 60));
+// ── 5. Тот же человек продлевается той же ссылкой ───────────────
+const second = await payLink(dealId, TG_PAYS);
+check('вторая оплата получила свой order_id', second.order !== order, second.order);
+await pay(second.order, 25000);
+const acc3 = await accessOf(TG_PAYS);
+const days3 = acc3[0] ? Math.round((new Date(acc3[0].expires_at) - new Date(acc3[0].granted_at)) / 86400000) : 0;
+check('продление добавило ещё 90 дней', days3 === 180, `${days3} дн.`);
+check('вторая покупка записана', (await purchasesOf(TG_PAYS)).length === 2);
 
-const r5b = await start(TG_PAYS, `deal_${dealId}`);
-check('бот на оплаченной сделке не падает', r5b.ok, `HTTP ${r5b.status}`);
+// ── 6. Та же ссылка, другой человек ─────────────────────────────
+await start(TG_AGAIN, `deal_${dealId}`);
+const other = await payLink(dealId, TG_AGAIN);
+await pay(other.order, 25000);
+const accB = await accessOf(TG_AGAIN);
+check('ссылка многоразовая: второй человек тоже получил доступ', accB.length === 1, `записей: ${accB.length}`);
+check('оплат по позиции стало три', (await dealRow(dealId)).paid_count === 3, String((await dealRow(dealId)).paid_count));
 
-// ── 6. Недоплата ────────────────────────────────────────────────
+// ── 7. Недоплата ────────────────────────────────────────────────
 const underId = await newDeal('t2', 25000, 90, 'Проверка: недоплата');
 await start(TG_UNDER, `deal_${underId}`);
-const r6 = await pay(`deal_${underId}_${TG_UNDER}`, 5000);
-check('вебхук принял недоплату', r6.ok, `HTTP ${r6.status}`);
-
-const accU = await accessOf(TG_UNDER);
-check('на недоплату доступ НЕ выдан', accU.length === 0, `записей: ${accU.length}`);
-const under = await dealRow(underId);
-check('сделка осталась неоплаченной', under.status === 'new', under.status);
+const under = await payLink(underId, TG_UNDER);
+const r7 = await pay(under.order, 5000);
+check('вебхук принял недоплату', r7.ok, `HTTP ${r7.status}`);
+check('на недоплату доступ НЕ выдан', (await accessOf(TG_UNDER)).length === 0);
 const ev = await db.query("SELECT * FROM events WHERE telegram_id = $1 AND type = 'underpaid'", [TG_UNDER]);
 check('недоплата записана событием', ev.rows.length === 1, `событий: ${ev.rows.length}`);
 
-// ── 7. Мусорная ссылка ──────────────────────────────────────────
-const r7 = await start(TG_PAYS, 'deal_netakoy');
-check('бот не падает на несуществующей сделке', r7.ok, `HTTP ${r7.status}`);
+// ── 8. Закрытая позиция ─────────────────────────────────────────
+await db.query("UPDATE deals SET status = 'off' WHERE id = $1", [dealId]);
+const closed = await payLink(dealId, TG_PAYS);
+check('закрытая ссылка не ведёт на форму', !closed.loc.includes('payform'), closed.loc.slice(0, 60));
+const r8 = await start(TG_PAYS, `deal_${dealId}`);
+check('бот на закрытой позиции не падает', r8.ok, `HTTP ${r8.status}`);
+
+// ── 9. Мусорная ссылка ──────────────────────────────────────────
+const r9 = await start(TG_PAYS, 'deal_netakoy');
+check('бот не падает на несуществующей позиции', r9.ok, `HTTP ${r9.status}`);
 
 // ── Уборка ──────────────────────────────────────────────────────
 await db.query("DELETE FROM deals WHERE id LIKE 'probe%'");
-await wipe(TG_PAYS);
-await wipe(TG_UNDER);
+for (const tg of [TG_PAYS, TG_AGAIN, TG_UNDER]) await wipe(tg);
 await db.end();
 
 console.log('');

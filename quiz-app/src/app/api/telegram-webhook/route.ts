@@ -9,7 +9,7 @@ import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { canBuy, isOnSale, PERSONAL_KEY, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
-import { getDeal, attachTelegram, formatPrice } from '@/lib/deals';
+import { getDeal, formatPrice, formatDays } from '@/lib/deals';
 import { handleKbQuestion } from '@/lib/kb/ask';
 import { handleSalesQuestion } from '@/lib/sales/ask';
 import {
@@ -1231,27 +1231,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // Сделка: цена и срок вне каталога, ссылка именная.
-      // t.me/testtoyzbot?start=deal_<id> — выписывается scripts/deal-link.mjs.
+      // Прайс-ссылка: цена и срок вне каталога.
+      // t.me/testtoyzbot?start=deal_<id> — многоразовая, одна на позицию прайса.
       // Показываем ровно то, о чём договорились, и уводим на оплату с ?u=<tgId>,
       // чтобы вебхук открыл доступ прямо на этот телеграм.
       if (startParam.startsWith('deal_')) {
         const dealId = startParam.slice('deal_'.length);
         const deal = await getDeal(dealId);
 
-        if (!deal) {
+        if (!deal || deal.status !== 'active') {
           await sendMessage(chatId, `${firstName}, ссылка не открылась, напиши мне, вышлю новую.`);
           return NextResponse.json({ ok: true });
         }
-
-        if (deal.status !== 'new') {
-          await sendMessage(chatId, `${firstName}, эта оплата уже прошла ⚡`, {
-            inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]],
-          });
-          return NextResponse.json({ ok: true });
-        }
-
-        await attachTelegram(dealId, chatId);
 
         const payUrl = `${WEBAPP_URL}/pay/deal/${deal.id}?u=${chatId}`;
         await sendMessage(
@@ -1259,7 +1250,7 @@ export async function POST(request: NextRequest) {
           `${firstName}, держи оплату ⚡
 
 <b>${deal.title}</b>
-${formatPrice(deal.price)} · доступ на ${deal.days} дней`,
+${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
           { inline_keyboard: [[{ text: `Оплатить ${formatPrice(deal.price)}`, url: payUrl }]] },
         );
 

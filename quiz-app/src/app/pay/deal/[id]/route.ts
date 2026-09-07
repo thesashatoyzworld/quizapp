@@ -1,13 +1,13 @@
 // ─────────────────────────────────────────────────────────────
-// Оплата сделки: /pay/deal/<id> → форма Продамуса с ценой сделки.
+// Оплата по прайс-ссылке: /pay/deal/<id> → форма Продамуса с её ценой.
 //
 // Кнопка в боте ведёт сюда с ?u=<tgId>, поэтому order_id получается
-// deal_<id>_<tgId>, и вебхук открывает доступ прямо на этот телеграм.
-// Цену собирает сервер из строки сделки: страница её задать не может,
-// как не может и у каталожных тарифов (после оплаты 3 450 вместо 5 450).
+// deal_<id>_<tgId>_<хвост>, и вебхук открывает доступ прямо на этот телеграм.
+// Цену собирает сервер из строки прайса: страница её задать не может, как не
+// может и у каталожных тарифов (после оплаты 3 450 вместо 5 450).
 //
-// Сделка одноразовая: оплаченная ссылка больше не ведёт на форму, чтобы
-// человек не заплатил второй раз по той же переписке.
+// Ссылка многоразовая: по ней платят разные люди и один человек не один раз.
+// Закрывается не удалением, а статусом off.
 // ─────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,13 +22,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const deal = await getDeal(id);
 
-  // Нет такой сделки или она уже оплачена — не показываем форму, уводим в бота.
-  if (!deal || deal.status !== 'new') {
+  // Нет такой позиции или она закрыта — не показываем форму, уводим в бота.
+  if (!deal || deal.status !== 'active') {
     return NextResponse.redirect(`${BOT}?start=kabinet`, 302);
   }
 
   const uid = (request.nextUrl.searchParams.get('u') || '').replace(/\D/g, '').slice(0, 15);
-  const telegramId = uid.length >= 3 ? parseInt(uid, 10) : deal.telegramId ? Number(deal.telegramId) : null;
+  const telegramId = uid.length >= 3 ? parseInt(uid, 10) : null;
 
   const orderId = dealOrderId(deal.id, telegramId);
   const bind = `${BOT}?start=kabinet`;
@@ -39,9 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     'products[0][name]': deal.title,
     'products[0][price]': String(deal.price),
     'products[0][quantity]': '1',
-    paid_content:
-      `Оплата принята: «${deal.title}». ` +
-      `Открой доступ в Telegram: ${bind}`,
+    paid_content: `Оплата принята: «${deal.title}». Открой доступ в Telegram: ${bind}`,
     urlNotification: NOTIFY,
     urlSuccess: bind,
   };

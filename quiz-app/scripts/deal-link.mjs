@@ -1,68 +1,70 @@
-// Сделка: продажа вне каталога одной ссылкой в бота.
+// Прайс-ссылки: цена и срок вне каталога, одна ссылка на позицию.
 //
-//   node scripts/deal-link.mjs <t1|t2|t3> <цена> <дней> [@username] [заметка]
-//   node scripts/deal-link.mjs t2 25000 90 @lyutov_fit "тариф изи"
-//   node scripts/deal-link.mjs t3 130000 99 @Dmitrii_Poshin "групповой до 13.12" --title "Менторство, групповой"
+//   node scripts/deal-link.mjs list
+//   node scripts/deal-link.mjs add <t1|t2|t3> <цена> <дней> "<название>" [заметка]
+//   node scripts/deal-link.mjs off <id>
+//   node scripts/deal-link.mjs on <id>
 //
-// Печатает ссылку t.me/testtoyzbot?start=deal_<id>. По ней человек видит свою
-// цену, платит, и доступ открывается ровно на указанный срок: покупка попадает
-// в purchases и в /admin/revenue, приветствие и интервью запускаются сами.
+// Ссылка МНОГОРАЗОВАЯ: кидается кому угодно и сколько угодно раз. Человек
+// открывает её в боте, видит цену и срок, платит. Доступ, покупка в
+// /admin/revenue, приветствие и интервью отрабатывают сами.
 //
-// Раньше такая продажа шла счётом руками из кабинета Продамуса. Такой счёт
-// приходит с ПУСТЫМ order_num, вебхук не понимает, чей платёж, и доступ
-// открывался руками. Счета руками больше не выставлять.
+// Счета руками из кабинета Продамуса больше не выставлять: у них пустой
+// order_num, вебхук не понимает, чей платёж, и деньги идут мимо системы.
 //
-// ⚠️ Автопродления у сделки нет: карточка подписки в Продамусе фиксирует сумму,
-// произвольную под каждого выставить нельзя. Следующий срок = новая сделка.
+// ⚠️ Автопродления нет: карточка подписки в Продамусе фиксирует сумму,
+// произвольную под каждого не выставить. Следующий срок продаётся той же
+// ссылкой ещё раз. Помесячный тариф 2 (10 000) и разовый тариф 1 (5 450)
+// живут в каталоге со своими ссылками.
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 import pg from 'pg';
 
-const TIERS = {
-  t1: 'Тариф 1 (делаешь сам)',
-  t2: 'Тариф 2 (сам + монетизация)',
-  t3: 'Тариф 3 (делаем вместе)',
-};
+const TIERS = { t1: 'Тариф 1', t2: 'Тариф 2', t3: 'Тариф 3' };
+const BOT = 'https://t.me/testtoyzbot';
 
-const argv = process.argv.slice(2);
-const titleIdx = argv.indexOf('--title');
-const titleOverride = titleIdx >= 0 ? argv[titleIdx + 1] : null;
-const args = titleIdx >= 0 ? argv.filter((_, i) => i !== titleIdx && i !== titleIdx + 1) : argv;
+const [cmd, ...args] = process.argv.slice(2);
 
-const tier = (args[0] || '').toLowerCase();
-const price = parseInt(args[1], 10);
-const days = parseInt(args[2], 10);
-const forUser = (args[3] || '').startsWith('@') ? args[3] : null;
-const note = (forUser ? args[4] : args[3]) || null;
-
-if (!TIERS[tier] || !price || !days) {
-  console.error('usage: node scripts/deal-link.mjs <t1|t2|t3> <цена> <дней> [@username] [заметка] [--title "..."]');
-  process.exit(1);
-}
-
-const title = titleOverride || `Новый уровень контента — ${TIERS[tier]}, ${days} дн.`;
-
-// base36 без «_»: подчёркивание разделяет части order_id (deal_<id>_<tgId>).
-const id = (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)).replace(/_/g, '');
-
-const c = new pg.Client({
+const db = new pg.Client({
   connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
-await c.connect();
+await db.connect();
 
-await c.query(
-  `INSERT INTO deals (id, tier, price, days, title, for_user, note)
-   VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-  [id, tier, price, days, title, forUser, note],
-);
-await c.end();
+const newId = () => (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)).replace(/_/g, '');
 
-console.log('');
-console.log('  Сделка заведена:', id);
-console.log('  ', title);
-console.log('  ', `${price.toLocaleString('ru-RU')} ₽ · доступ на ${days} дней`, forUser ? `· ${forUser}` : '');
-console.log('');
-console.log('  Ссылка человеку:');
-console.log(`  https://t.me/testtoyzbot?start=deal_${id}`);
-console.log('');
+if (cmd === 'add') {
+  const [tier, priceRaw, daysRaw, title, note] = args;
+  const price = parseInt(priceRaw, 10);
+  const days = parseInt(daysRaw, 10);
+  if (!TIERS[tier] || !price || !days || !title) {
+    console.error('usage: node scripts/deal-link.mjs add <t1|t2|t3> <цена> <дней> "<название>" [заметка]');
+    process.exit(1);
+  }
+  const id = newId();
+  await db.query(
+    'INSERT INTO deals (id, tier, price, days, title, note) VALUES ($1,$2,$3,$4,$5,$6)',
+    [id, tier, price, days, title, note || null],
+  );
+  console.log(`${BOT}?start=deal_${id}  ${title}  ${price.toLocaleString('ru-RU')} ₽`);
+} else if (cmd === 'off' || cmd === 'on') {
+  const [id] = args;
+  const r = await db.query('UPDATE deals SET status = $2, updated_at = now() WHERE id = $1', [
+    id,
+    cmd === 'off' ? 'off' : 'active',
+  ]);
+  console.log(r.rowCount ? `${id}: ${cmd === 'off' ? 'закрыта' : 'открыта'}` : `нет такой позиции: ${id}`);
+} else {
+  const r = await db.query('SELECT * FROM deals ORDER BY tier DESC, price DESC');
+  if (!r.rows.length) console.log('прайс пуст');
+  for (const d of r.rows) {
+    const flag = d.status === 'active' ? ' ' : '×';
+    const paid = d.paid_count ? `  оплат: ${d.paid_count}` : '';
+    console.log(
+      `${flag} ${String(d.price).padStart(7)} ₽  ${String(d.days).padStart(3)} дн.  ${TIERS[d.tier]}  ${d.title}`,
+    );
+    console.log(`  ${BOT}?start=deal_${d.id}${paid}`);
+  }
+}
+
+await db.end();

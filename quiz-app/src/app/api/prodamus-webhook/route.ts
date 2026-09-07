@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { floorPrice } from '@/content/prices';
 import { grantAccess } from '@/lib/access';
-import { getDeal, markPaid, dealProduct, parseDealOrderId } from '@/lib/deals';
+import { getDeal, countPayment, dealProduct, parseDealOrderId, alreadyProcessed } from '@/lib/deals';
 import { sendWelcomeT2, startIntake } from '@/lib/onboarding';
 import { notifyAdmin } from '@/lib/telegram';
 import { INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
@@ -422,13 +422,13 @@ export async function POST(request: NextRequest) {
     const isDeal = typeof orderId === 'string' && orderId.startsWith('deal_');
 
     if (isDeal) {
-      // Сделка: цена и срок вне каталога. order_id = deal_<id>_<tgId>.
-      // Строка сделки — источник правды и для суммы, и для срока: ни форма,
-      // ни браузер задать их не могут.
+      // Прайс-ссылка: цена и срок вне каталога.
+      // order_id = deal_<id>_<tgId>_<хвост>. Строка прайса — источник правды и для
+      // суммы, и для срока: ни форма, ни браузер задать их не могут.
       const parsed = parseDealOrderId(orderId as string);
       const deal = parsed ? await getDeal(parsed.id) : null;
       if (!deal) {
-        console.error('[Prodamus Webhook] deal: сделка не найдена по order', orderId);
+        console.error('[Prodamus Webhook] deal: позиция прайса не найдена по order', orderId);
         return NextResponse.json({ success: true });
       }
 
@@ -441,7 +441,9 @@ export async function POST(request: NextRequest) {
       const products = body.products as Record<string, Record<string, string>> | undefined;
       const paidRaw = products?.['0']?.sum ?? products?.['0']?.price;
       const amount = parseInt(String(paidRaw ?? deal.price), 10) || deal.price;
-      const tgUserId = parsed?.telegramId ?? (deal.telegramId ? Number(deal.telegramId) : null);
+      // Кто платит, знает только order_id: ссылка многоразовая, за позицией
+      // прайса конкретный человек не закреплён.
+      const tgUserId = parsed?.telegramId ?? null;
 
       const email = (body.customer_email || body.email || '') as string;
       const phone = (body.customer_phone || body.phone || '') as string;
@@ -469,10 +471,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true });
       }
 
-      // Повторный вебхук: сделка уже оплачена, второй раз доступ не продлеваем.
-      const claimed = await markPaid(deal.id, String(orderId), amount);
-      if (claimed.count === 0) {
-        console.log('[Prodamus Webhook] deal: повторный вебхук, пропускаем', deal.id);
+      // Повторный вебхук по той же оплате: срок не двигаем. Ключ — наш order_id,
+      // у каждой оплаты он свой, поэтому законная повторная покупка по той же
+      // ссылке проходит, а дубль отсекается.
+      if (await alreadyProcessed(String(orderId))) {
+        console.log('[Prodamus Webhook] deal: повторный вебхук, пропускаем', orderId);
         return NextResponse.json({ success: true });
       }
 
@@ -514,14 +517,15 @@ export async function POST(request: NextRequest) {
           await startIntake(tgUserId, 't3');
         }
       } else {
-        // Телеграма нет: сделка оплачена не по нашей ссылке. Доступ вешаем
+        // Телеграма нет: платили не из бота. Доступ вешаем
         // на order_id, привяжется при входе в бота, и зовём Сашу разобраться.
         await grantAccess({ product, telegramId: null, source: orderId as string, days: deal.days })
           .catch((e) => console.error('[Access] deal web grant failed:', e));
       }
 
+      await countPayment(deal.id);
       await notifyAdminUroven(
-        `${deal.title} (сделка ${deal.id}, ${deal.days} дн.)`,
+        `${deal.title} (прайс ${deal.id}, ${deal.days} дн.)`,
         amount, contact, orderId as string,
       );
       console.log(`[Prodamus Webhook] deal ${deal.id} paid, ${amount} ₽, tg ${tgUserId ?? 'нет'}`);
