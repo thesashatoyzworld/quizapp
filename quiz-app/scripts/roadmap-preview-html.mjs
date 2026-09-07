@@ -24,9 +24,9 @@ await c.connect();
 
 const map = (await c.query(`SELECT * FROM roadmaps WHERE slug=$1`, [slug])).rows[0];
 if (!map) throw new Error(`карта ${slug} не найдена`);
-const metrics = (await c.query(`SELECT * FROM roadmap_metrics WHERE roadmap_id=$1 ORDER BY position`, [map.id])).rows;
+const metrics = (await c.query(`SELECT * FROM roadmap_metrics WHERE roadmap_id=$1 AND key <> 'revenue' ORDER BY position`, [map.id])).rows;
 const steps = (await c.query(`SELECT * FROM roadmap_steps WHERE roadmap_id=$1 ORDER BY position`, [map.id])).rows;
-const tasks = (await c.query(`SELECT * FROM roadmap_tasks WHERE roadmap_id=$1 ORDER BY position`, [map.id])).rows;
+const tasks = (await c.query(`SELECT * FROM roadmap_tasks WHERE roadmap_id=$1 AND owner='client' ORDER BY position`, [map.id])).rows;
 await c.end();
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -134,8 +134,9 @@ const html = `<title>Карта · ${esc(map.client_name)}</title>
 <div class="context">
   <div class="eyebrow">Предпросмотр · вид клиента</div>
   <div class="lede">
-    Ровно то, что он увидит в кабинете, если карту открыть.
-    <b>Сейчас карта закрыта</b> — этот файл её не открывает, только показывает.
+    ${map.client_visible
+      ? '<b>Карта открыта</b> — ровно это он видит в кабинете прямо сейчас.'
+      : 'Ровно то, что он увидит в кабинете, если карту открыть. <b>Сейчас карта закрыта</b> — этот файл её не открывает, только показывает.'}
     ${esc(map.tier?.replace('uroven-t', 'Тариф '))} · @${esc(map.username)} · доступ ${short(map.started_at)}–${short(map.access_until)}.
   </div>
 </div>
