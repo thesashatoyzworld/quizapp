@@ -17,6 +17,8 @@ import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_08_28 } from './lichnyy-sozvon-evg
 
 import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_04 } from './lichnyy-sozvon-evgeniya-2026-09-04';
 
+import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_07 } from './lichnyy-sozvon-daniel-2026-09-07';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -37,6 +39,17 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-daniel-2026-09-07',
+    telegramIds: [397715074],
+    title: "Собираем оффер под корпоративы",
+    subtitle: "Твои этапы работы это и есть продукт. Плюс вопрос про бюджет в анкету и проблемы клиента как источник денег.",
+    date: '2026-09-07',
+    duration: "75 мин",
+    tags: ["оффер", "корпоративы", "контент"],
+    kinescopeId: 'icuMB5Z1rZGHu5QmiL4uEa',
+    html: LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_07,
+  },
   {
     slug: 'lichnyy-sozvon-evgeniya-2026-09-04',
     telegramIds: [934091008, 788334680],
