@@ -37,6 +37,8 @@ export type LeadRow = {
   inBot: boolean;
   /** Что-то покупал. */
   paid: boolean;
+  /** Статус проставила машина, а не человек. */
+  auto: boolean;
 };
 
 export type LeadFilters = {
@@ -134,6 +136,7 @@ export async function listLeads(filters: LeadFilters = {}): Promise<LeadRow[]> {
       formsCount: key ? countByName.get(key) || 1 : 1,
       inBot: !!userId,
       paid: !!userId && paidUserIds.has(userId),
+      auto: l.updatedBy === 'auto',
     };
   });
 }

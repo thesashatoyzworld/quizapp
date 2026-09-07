@@ -9,6 +9,7 @@ import { sendWelcomeT2, startIntake } from '@/lib/onboarding';
 import { notifyAdmin } from '@/lib/telegram';
 import { INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
 import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
+import { refreshLeadsOfUser } from '@/lib/zayavki/auto-status';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -103,6 +104,10 @@ async function createPurchase(tgUserId: number, productSlug: string, amount: num
         prodamusOrderId: orderId,
       },
     });
+
+    // Оплата закрывает заявку с сайта: статус «клиент» проставится сам, и
+    // человек перестанет висеть в списке как неотвеченный.
+    await refreshLeadsOfUser(user.id);
 
     console.log(`[Supabase] Purchase created: ${productSlug} for user ${tgUserId}`);
   } catch (error) {

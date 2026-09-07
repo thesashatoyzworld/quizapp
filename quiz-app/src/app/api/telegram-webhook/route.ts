@@ -3,6 +3,7 @@ import { after } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { notifyAdmin, sendBotMessage, editAdminMarkup, type NotifyRef } from '@/lib/telegram';
 import { leadKeyboard, parseLeadCallback } from '@/lib/lead-keyboard';
+import { refreshLeadsOfUser } from '@/lib/zayavki/auto-status';
 import { STATUS_LABEL, type LeadStatus } from '@/content/lead-status';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
@@ -921,6 +922,8 @@ export async function POST(request: NextRequest) {
               await prisma.purchase.create({
                 data: { userId: user.id, productId: dbProduct.id, amount, source: 'web_redeem', prodamusOrderId: `paid_${token}` },
               });
+              // Оплата закрывает заявку с сайта: статус «клиент» проставится сам.
+              await refreshLeadsOfUser(user.id);
             }
           }
 

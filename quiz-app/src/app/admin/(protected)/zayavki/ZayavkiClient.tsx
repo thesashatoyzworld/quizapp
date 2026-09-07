@@ -23,6 +23,7 @@ export type LeadRowDto = {
   formsCount: number;
   inBot: boolean;
   paid: boolean;
+  auto: boolean;
 };
 
 export type Facets = {
@@ -77,7 +78,9 @@ export default function ZayavkiClient({
 
   async function save(lead: LeadRowDto, patch: { status?: LeadStatus; note?: string }) {
     setSaving((s) => ({ ...s, [lead.id]: true }));
-    setLeads((ls) => ls.map((x) => (x.id === lead.id ? { ...x, ...patch } : x)));
+    setLeads((ls) =>
+      ls.map((x) => (x.id === lead.id ? { ...x, ...patch, ...(patch.status ? { auto: false } : {}) } : x)),
+    );
     try {
       await fetch('/api/admin/dwy-lead-status', {
         method: 'POST',
@@ -224,6 +227,17 @@ export default function ZayavkiClient({
                   {fmt(l.createdAt)}
                 </td>
                 <td style={td}>
+                  {/* Точка = статус проставила машина по переписке. Где точки нет,
+                      там решение человека, и машина его не трогает. */}
+                  {l.auto && (
+                    <span
+                      title="статус проставлен автоматически по переписке"
+                      style={{
+                        display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
+                        background: STATUS_COLOR[l.status], marginRight: 6, verticalAlign: 'middle',
+                      }}
+                    />
+                  )}
                   <select
                     value={l.status}
                     onChange={(e) => save(l, { status: e.target.value as LeadStatus })}
