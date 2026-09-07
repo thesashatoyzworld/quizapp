@@ -125,6 +125,28 @@ export async function refreshLeadStatus(
 }
 
 /**
+ * Пересчитать заявки человека после оплаты.
+ *
+ * Ищем по нику пользователя бота: telegram_id в анкете с сайта нет ни у кого,
+ * человек приходит из шапки профиля без Telegram-логина. Одна и та же анкета
+ * могла прийти дважды — двигаем обе, это две разные заявки со своей судьбой.
+ */
+export async function refreshLeadsOfUser(userId: string): Promise<void> {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
+    if (!user?.username) return;
+
+    const leads = await prisma.dwyLead.findMany({
+      where: { username: { equals: user.username, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    for (const lead of leads) await refreshLeadStatus(lead.id);
+  } catch (e) {
+    console.error('[auto-status] не пересчитались заявки после оплаты', userId, e);
+  }
+}
+
+/**
  * Куда бот отправил уведомление об этой заявке.
  *
  * Читаем терпимо: jsonb через драйвер приходит массивом, но заявки писались

@@ -5,6 +5,7 @@ import { sendBotMessage } from '@/lib/telegram';
 import { transcribeTgVoice, TG_FILE_LIMIT_BYTES } from '@/lib/whisper';
 import { suggestFromThread, type SalesStep } from './answer';
 import { pushDigest } from './digest';
+import { refreshLeadStatus } from '@/lib/zayavki/auto-status';
 
 // Личка рабочего аккаунта.
 //
@@ -415,6 +416,12 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
   } catch {
     return;
   }
+
+  // Статус заявки двигаем прямо здесь: и наша реплика, и его ответ меняют
+  // картину, а раздел «Заявки» иначе показывает «новая» тем, с кем разговор
+  // идёт вторую неделю. Ждать текста голосового незачем — статус зависит от
+  // того, кто написал, а не от того, что сказал.
+  if (lead) await refreshLeadStatus(lead.id, { chatId: String(msg.chat.id) });
 
   let text = said;
   let voiceFailed = false;
