@@ -6,8 +6,13 @@
 //
 // Правки копирайта — только сюда. НЕ ставить длинное тире.
 
-/** Ссылка в группу приходит из окружения: она меняется чаще, чем текст. */
-export const GROUP_INVITE = process.env.UROVEN_GROUP_INVITE || '';
+/**
+ * Ссылка в группу. Переопределяется через UROVEN_GROUP_INVITE, если группа
+ * переедет; по умолчанию «Коннекторы». Полтора месяца переменная стояла пустой,
+ * и пункт про группу молча выпадал из приветствия — поэтому значение зашито.
+ */
+export const GROUP_INVITE =
+  process.env.UROVEN_GROUP_INVITE || 'https://t.me/+w6Ic-R5Eodk3NzI6';
 
 export function welcomeText(): string {
   const items = [
