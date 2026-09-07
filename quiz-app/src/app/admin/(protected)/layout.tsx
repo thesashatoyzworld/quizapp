@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: '/admin/queue', label: 'Очередь' },
   { href: '/admin/campaigns', label: 'Кампании' },
   { href: '/admin/users', label: 'Пользователи' },
+  { href: '/admin/ssylki', label: 'Ссылки для оплаты' },
   { href: '/admin/payments', label: 'Оплаты' },
   { href: '/admin/revenue', label: 'Выручка' },
   { href: '/admin/rashody', label: 'Расходы' },

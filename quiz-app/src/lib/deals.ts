@@ -96,3 +96,91 @@ export function formatDays(days: number): string {
   const word = teen || last === 0 || last >= 5 ? 'дней' : last === 1 ? 'день' : 'дня';
   return `${days} ${word}`;
 }
+
+// ── Прайс в кабинете ────────────────────────────────────────────
+
+export interface DealRow {
+  id: string;
+  tier: string;
+  price: number;
+  days: number;
+  title: string;
+  note: string | null;
+  status: string;
+  paidCount: number;
+  lastPaidAt: string | null;
+  link: string;
+}
+
+/** Весь прайс: дорогое сверху, закрытые позиции вместе с открытыми. */
+export async function listDeals(): Promise<DealRow[]> {
+  const rows = await prisma.deal.findMany({ orderBy: [{ tier: 'desc' }, { price: 'desc' }] });
+  return rows.map((d) => ({
+    id: d.id,
+    tier: d.tier,
+    price: d.price,
+    days: d.days,
+    title: d.title,
+    note: d.note,
+    status: d.status,
+    paidCount: d.paidCount,
+    lastPaidAt: d.lastPaidAt ? d.lastPaidAt.toISOString() : null,
+    link: dealLink(d.id),
+  }));
+}
+
+export interface NewDeal {
+  tier: DealTier;
+  price: number;
+  days: number;
+  title: string;
+  note?: string | null;
+}
+
+/** Идентификатор без «_»: подчёркивание разделяет части order_id. */
+function newDealId(): string {
+  return (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)).replace(/_/g, '');
+}
+
+export async function createDeal(input: NewDeal): Promise<DealRow[]> {
+  await prisma.deal.create({
+    data: {
+      id: newDealId(),
+      tier: input.tier,
+      price: input.price,
+      days: input.days,
+      title: input.title,
+      note: input.note ?? null,
+    },
+  });
+  return listDeals();
+}
+
+/** Позицию не удаляем: разосланная ссылка должна перестать продавать, а не отвалиться. */
+export async function setDealStatus(id: string, status: 'active' | 'off'): Promise<DealRow[]> {
+  await prisma.deal.update({ where: { id }, data: { status } });
+  return listDeals();
+}
+
+/**
+ * Правка позиции. Цену и срок меняем только у той, по которой ещё не платили:
+ * иначе прошлые оплаты в отчётах разъедутся с тем, что написано в строке.
+ */
+export async function updateDeal(
+  id: string,
+  patch: Partial<Pick<NewDeal, 'price' | 'days' | 'title' | 'note'>>,
+): Promise<DealRow[]> {
+  const deal = await prisma.deal.findUnique({ where: { id } });
+  if (!deal) throw new Error('нет такой позиции');
+
+  const data: Record<string, unknown> = {};
+  if (patch.title !== undefined) data.title = patch.title;
+  if (patch.note !== undefined) data.note = patch.note;
+  if (deal.paidCount === 0) {
+    if (patch.price !== undefined) data.price = patch.price;
+    if (patch.days !== undefined) data.days = patch.days;
+  }
+
+  await prisma.deal.update({ where: { id }, data });
+  return listDeals();
+}
