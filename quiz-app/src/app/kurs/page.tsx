@@ -21,6 +21,7 @@ interface Card {
   duration: string;
   kinescopeId: string;
   ready: boolean;
+  isNew?: boolean;
 }
 
 const BOT_URL = 'https://t.me/testtoyzbot';
@@ -227,9 +228,11 @@ function KursInner() {
 
       {state === 'ok' && items.map((c, i) => {
         const isDone = done.includes(c.slug);
+        // «Новое» снимается само, как только человек прошёл часть.
+        const fresh = !!c.isNew && !isDone;
         return (
           <button
-            className={`kr-card kr-item${c.ready ? '' : ' kr-soon'}${isDone ? ' kr-passed' : ''}`}
+            className={`kr-card kr-item${c.ready ? '' : ' kr-soon'}${isDone ? ' kr-passed' : ''}${fresh ? ' kr-fresh' : ''}`}
             key={c.slug}
             onClick={() => openLesson(c)}
             disabled={!c.ready}
@@ -237,6 +240,7 @@ function KursInner() {
             <div className="kr-item-head">
               <span className="kr-num">{String(i).padStart(2, '0')}</span>
               <span className="kr-badge">{c.badge}</span>
+              {fresh && <span className="kr-new">новое</span>}
               {isDone && <span className="kr-done">✓ пройдено</span>}
               <span className="kr-meta">
                 {c.ready ? `🎥 запись ${c.duration} + текст` : 'скоро'}
@@ -317,6 +321,14 @@ function KursInner() {
         .kr-done {
           font-size: 11.5px; font-weight: 700; color: oklch(0.52 0.14 150);
           background: oklch(0.94 0.05 150); padding: 4px 9px; border-radius: 999px;
+        }
+        .kr-new {
+          font-size: 11.5px; font-weight: 800; background: var(--kr-accent);
+          color: oklch(1 0 0); padding: 4px 9px; border-radius: 999px; letter-spacing: 0.02em;
+        }
+        .kr-fresh {
+          border-color: var(--kr-accent);
+          box-shadow: 0 0 0 3px var(--kr-accent-soft);
         }
         .kr-meta { font-size: 12px; color: var(--kr-muted); margin-left: auto; }
         .kr-passed { border-color: oklch(0.85 0.06 150); }

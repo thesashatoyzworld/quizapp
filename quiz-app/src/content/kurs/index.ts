@@ -41,6 +41,8 @@ export interface Lesson {
   kinescopeId: string;
   /** полный HTML статьи для iframe. Пусто = статья ещё не выложена */
   html: string;
+  /** свежая часть: карточка подсвечена и помечена «новое», пока человек её не прошёл */
+  isNew?: boolean;
 }
 
 export const LESSONS: Lesson[] = [
@@ -153,6 +155,7 @@ export const LESSONS: Lesson[] = [
     duration: '42 мин',
     kinescopeId: 'msXsGVMTLT1Yqmpbpxq6rS',
     html: PRAKTIKUM_UPAKOVKA_10,
+    isNew: true,
   },
 ];
 
