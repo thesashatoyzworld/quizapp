@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       identified: true,
-      items: forTelegram(telegramId).map(toCard),
+      items: forTelegram(telegramId).map((m) => toCard(m, telegramId)),
     });
   } catch (error) {
     console.error('[Cabinet] lichnoe error:', error);
