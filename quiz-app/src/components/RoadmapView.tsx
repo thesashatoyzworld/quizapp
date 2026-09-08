@@ -117,13 +117,26 @@ export default function RoadmapView({
         <section className="km-card">
           <div className="km-label">Было · стало</div>
           <div className="km-metrics">
-            {card.metrics.map((m) => {
+            {/* сначала цифры плиткой, потом значения словами: иначе широкая
+                строка разрывает сетку и рядом с ней остаются дыры */}
+            {[...card.metrics]
+              .sort((a, b) => {
+                const len = (m: RoadmapMetricView) => (m.currentValue || m.startValue || '').length;
+                return (len(a) > 14 ? 1 : 0) - (len(b) > 14 ? 1 : 0);
+              })
+              .map((m) => {
               // Пока цифра не сдвинулась, «200-300 → 200-300» с зачёркнутым
               // началом читается как ошибка вёрстки. На свежей карте так со
               // всеми метриками сразу, поэтому показываем одно значение.
               const moved = Boolean(m.startValue) && m.startValue !== m.currentValue;
+              // Не всякая «цифра» это цифра: сборщик кладёт сюда и фразы вроде
+              // «не считал, поток из зала». Крупным жирным шрифтом такая фраза
+              // ломается на три строки по два слова и читается как каша,
+              // поэтому длинное значение верстаем обычным текстом во всю ширину.
+              const value = m.currentValue || m.startValue || '—';
+              const wordy = value.length > 14;
               return (
-                <div className="km-metric" key={m.key}>
+                <div className={`km-metric${wordy ? ' km-metric-wordy' : ''}`} key={m.key}>
                   <div className="km-metric-label">{m.label}</div>
                   <div className="km-metric-row">
                     {moved && (
@@ -132,7 +145,7 @@ export default function RoadmapView({
                         <span className="km-metric-arr">→</span>
                       </>
                     )}
-                    <span className="km-metric-now">{m.currentValue || m.startValue || '—'}</span>
+                    <span className="km-metric-now">{value}</span>
                     {m.unit && <span className="km-metric-unit">{m.unit}</span>}
                   </div>
                 </div>
@@ -295,6 +308,10 @@ export const ROADMAP_VIEW_CSS = `
   .km-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
   .km-metric { background: var(--km-bg); border-radius: 12px; padding: 11px 12px; }
   .km-metric-label { font-size: 12px; color: var(--km-muted); margin-bottom: 4px; }
+  /* значение словами, а не числом: во всю ширину и обычным текстом */
+  .km-metric-wordy { grid-column: 1 / -1; }
+  .km-metric-wordy .km-metric-now { font-size: 14px; font-weight: 600; line-height: 1.4; }
+  .km-metric-wordy .km-metric-was { font-size: 13px; }
   .km-metric-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
   .km-metric-was { font-size: 14px; color: var(--km-muted); text-decoration: line-through; }
   .km-metric-arr { font-size: 12px; color: var(--km-muted); }
