@@ -45,6 +45,17 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
   const ahead = t.delta >= 0;
   const maxDay = useMemo(() => Math.max(...t.byDay.map((d) => d.amount), 1), [t.byDay]);
 
+  // Прогресс к цели месяца. Цель может быть нулевой (месяц без плана) — тогда
+  // ни процента, ни засечки не считаем, иначе делим на ноль.
+  // Сироты делятся надвое: чистые идут в импорт, похожие на уже внесённые — нет.
+  const fresh = report.orphans.filter((o) => !o.duplicateOf);
+  const dupes = report.orphans.filter((o) => o.duplicateOf);
+
+  const hasTarget = t.target > 0;
+  const donePct = hasTarget ? (t.gross / t.target) * 100 : 0;
+  const planPct = hasTarget ? Math.min((t.planToDate / t.target) * 100, 100) : 0;
+  const overshoot = t.gross - t.target;
+
   async function send(payload: Record<string, unknown>) {
     setBusy(true);
     setErr('');
@@ -161,6 +172,76 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
         <button style={btn} disabled={busy} onClick={() => send({ action: 'goal', target: Number(goalDraft) })}>сохранить</button>
       </div>
 
+      {hasTarget && (
+        <div style={{
+          background: 'var(--bg-secondary)', border: '1px solid rgba(0,240,255,0.15)',
+          borderRadius: 10, padding: '16px 18px 18px', marginBottom: 18,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', lineHeight: 1, color: 'var(--neon-cyan)' }}>
+              {Math.round(donePct)}%
+            </div>
+            <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+              {money(t.gross)} из {money(t.target)}
+            </div>
+            <span style={{ flex: 1 }} />
+            {/* Пока цель не взята, справа висит разрыв с планом. После взятия
+                там уже нечего догонять, и цифра сверх цели живёт под баром. */}
+            {donePct < 100 && (
+              <div style={{ fontSize: '0.8rem', color: ahead ? '#06d6a0' : '#ef476f' }}>
+                {ahead ? 'опережение' : 'отставание'} {money(Math.abs(t.delta))}
+              </div>
+            )}
+          </div>
+
+          {/* Полоса заполнения. Засечка — где надо быть сегодня по ровному
+              дневному плану: без неё процент не отвечает на вопрос «успеваем ли». */}
+          <div style={{
+            position: 'relative', height: 18, borderRadius: 9, overflow: 'hidden',
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <div style={{
+              width: `${Math.min(donePct, 100)}%`, height: '100%', borderRadius: 9,
+              background: donePct >= 100
+                ? 'linear-gradient(90deg, #06d6a0, #7ef2c8)'
+                : 'linear-gradient(90deg, rgba(0,240,255,0.55), var(--neon-cyan))',
+              transition: 'width 0.4s ease',
+            }} />
+            {donePct < 100 && (
+              <div
+                title={`план на сегодня: ${money(t.planToDate)}`}
+                style={{
+                  position: 'absolute', top: -2, bottom: -2, left: `${planPct}%`,
+                  width: 2, marginLeft: -1,
+                  background: ahead ? '#ffffff' : '#ef476f',
+                  // Засечка ложится и на залитую часть, и на пустую: без обводки
+                  // белая полоса пропадает на ярком циане.
+                  boxShadow: '0 0 0 1px rgba(0,0,0,0.65)',
+                }}
+              />
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            {donePct >= 100 ? (
+              <span style={{ color: '#06d6a0' }}>
+                цель взята, сверху {money(overshoot)}
+              </span>
+            ) : (
+              <>
+                <span>засечка — план на {t.daysPassed} {t.daysPassed === 1 ? 'день' : 'дней'}: {money(t.planToDate)}</span>
+                <span style={{ opacity: 0.5 }}>·</span>
+                <span>
+                  {t.perDayNeeded > 0
+                    ? `осталось ${money(t.remain)}, это ${money(t.perDayNeeded)} в день`
+                    : `осталось ${money(t.remain)}, месяц закрыт`}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
         <div style={card}>
           <div style={cardLabel}>собрано</div>
@@ -238,15 +319,45 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
 
       {report.orphans.length > 0 && (
         <div style={{ background: 'rgba(255,209,102,0.08)', border: '1px solid rgba(255,209,102,0.35)', borderRadius: 10, padding: 16, marginBottom: 18 }}>
-          <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
-            В базе есть {report.orphans.length} {report.orphans.length === 1 ? 'оплата' : 'оплат'} на {money(report.orphans.reduce((s, o) => s + o.amount, 0))}, которых нет в реестре.
-          </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 10 }}>
-            {report.orphans.slice(0, 6).map((o) => `${o.paidAt.slice(8)}.${o.paidAt.slice(5, 7)} · ${money(o.amount)}`).join('   ')}
-            {report.orphans.length > 6 ? '   …' : ''}
-          </div>
-          <button style={{ ...btn, borderColor: '#ffd166', background: 'rgba(255,209,102,0.15)', color: '#ffd166' }}
-            disabled={busy} onClick={() => send({ action: 'import' })}>забрать в реестр</button>
+          {fresh.length > 0 && (
+            <>
+              <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
+                В базе есть {fresh.length} {fresh.length === 1 ? 'оплата' : 'оплат'} на {money(fresh.reduce((s, o) => s + o.amount, 0))}, {fresh.length === 1 ? 'которой' : 'которых'} нет в реестре.
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 10 }}>
+                {fresh.slice(0, 6).map((o) => `${o.paidAt.slice(8)}.${o.paidAt.slice(5, 7)} · ${money(o.amount)}`).join('   ')}
+                {fresh.length > 6 ? '   …' : ''}
+              </div>
+              <button style={{ ...btn, borderColor: '#ffd166', background: 'rgba(255,209,102,0.15)', color: '#ffd166' }}
+                disabled={busy} onClick={() => send({ action: 'import' })}>забрать в реестр</button>
+            </>
+          )}
+
+          {/* Один платёж приходит под двумя номерами: счёт Продамуса и
+              идентификатор прайс-ссылки. По order_id они не сходятся, поэтому
+              такие показываем отдельно и в импорт не берём — иначе сумма
+              месяца вырастет на пустом месте. */}
+          {dupes.length > 0 && (
+            <div style={{ marginTop: fresh.length > 0 ? 14 : 0, paddingTop: fresh.length > 0 ? 14 : 0, borderTop: fresh.length > 0 ? '1px solid rgba(255,209,102,0.25)' : 'none' }}>
+              <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
+                {fresh.length > 0 ? 'Ещё ' : ''}{dupes.length} {dupes.length === 1 ? 'оплата висит' : 'оплат висят'} с чужим номером, но {dupes.length === 1 ? 'она похожа' : 'они похожи'} на уже внесённые. В импорт {dupes.length === 1 ? 'не берётся' : 'не берутся'}.
+              </div>
+              {dupes.map((o) => (
+                <div key={o.orderId} style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                  {o.paidAt.slice(8)}.{o.paidAt.slice(5, 7)} · {money(o.amount)} · {o.source}
+                  {' → в реестре: '}
+                  <span style={{ color: 'var(--text-primary)' }}>
+                    {o.duplicateOf!.paidAt.slice(8)}.{o.duplicateOf!.paidAt.slice(5, 7)}
+                    {o.duplicateOf!.who ? ` · ${o.duplicateOf!.who}` : ''}
+                    {o.duplicateOf!.product ? ` · ${o.duplicateOf!.product}` : ''}
+                  </span>
+                </div>
+              ))}
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 8, opacity: 0.8 }}>
+                Если это всё-таки разные оплаты — впишите её руками формой ниже.
+              </div>
+            </div>
+          )}
         </div>
       )}
 

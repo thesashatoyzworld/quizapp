@@ -34,6 +34,13 @@ export interface OrphanPayment {
   paidAt: string;
   amount: number;
   source: string;
+  /**
+   * Похожая строка реестра: та же сумма в пределах трёх дней. Одна и та же
+   * оплата приходит к нам под разными номерами (счёт Продамуса против
+   * идентификатора прайс-ссылки), и по order_id они не сходятся. Такую
+   * «сироту» массовый импорт не берёт, иначе сумма месяца задвоится.
+   */
+  duplicateOf?: { paidAt: string; who: string; product: string };
 }
 
 export interface MonthTotals {
@@ -63,8 +70,15 @@ function monthRange(month: string): { from: Date; to: Date } {
   return { from: new Date(Date.UTC(y, m - 1, 1)), to: new Date(Date.UTC(y, m, 1)) };
 }
 
+// Реестр ведётся по московским суткам: платёж в час ночи должен лечь в этот
+// день, а не во вчерашний. Лямбда живёт в UTC, поэтому сдвигаем сами.
+function msk(now: Date): Date {
+  return new Date(now.getTime() + 3 * 3600_000);
+}
+
 export function currentMonth(now = new Date()): string {
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  const d = msk(now);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 function num(v: unknown): number {
@@ -72,7 +86,12 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Колонку `date` драйвер отдаёт объектом Date по зоне машины, и полночь
+// уезжает на сутки назад: 2026-09-05 в базе показывалась как 04.09 и деньги
+// попадали не в тот столбик графика. Поэтому даты тянем из SQL строкой
+// (`paid_at::text`), а тут отрезаем день без часовых поясов.
 function isoDay(v: unknown): string {
+  if (typeof v === 'string') return v.slice(0, 10);
   const d = v instanceof Date ? v : new Date(String(v));
   return d.toISOString().slice(0, 10);
 }
@@ -93,7 +112,7 @@ export async function setTarget(month: string, target: number): Promise<void> {
 export async function listEntries(month: string): Promise<RevenueEntry[]> {
   const { from, to } = monthRange(month);
   const rows = await prisma.$queryRaw<Record<string, unknown>[]>`
-    SELECT id, paid_at, amount::text AS amount, payout::text AS payout,
+    SELECT id, paid_at::text AS paid_at, amount::text AS amount, payout::text AS payout,
            who, product, channel, order_id, note
       FROM revenue_entries
      WHERE paid_at >= ${from} AND paid_at < ${to}
@@ -119,8 +138,20 @@ export async function listEntries(month: string): Promise<RevenueEntry[]> {
 export async function listOrphans(month: string): Promise<OrphanPayment[]> {
   const { from, to } = monthRange(month);
   const rows = await prisma.$queryRaw<Record<string, unknown>[]>`
-    SELECT p.prodamus_order_id AS order_id, p.created_at, p.amount, p.source
+    SELECT p.prodamus_order_id AS order_id,
+           (p.created_at AT TIME ZONE 'Europe/Moscow')::date::text AS paid_day,
+           p.amount, p.source,
+           d.paid_at::text AS dup_paid_at, d.who AS dup_who, d.product AS dup_product
       FROM purchases p
+      LEFT JOIN LATERAL (
+        SELECT e.paid_at, e.who, e.product
+          FROM revenue_entries e
+         WHERE e.amount = p.amount
+           AND e.paid_at BETWEEN ((p.created_at AT TIME ZONE 'Europe/Moscow')::date - 3)
+                             AND ((p.created_at AT TIME ZONE 'Europe/Moscow')::date + 3)
+         ORDER BY abs(e.paid_at - (p.created_at AT TIME ZONE 'Europe/Moscow')::date)
+         LIMIT 1
+      ) d ON true
      WHERE p.created_at >= ${from} AND p.created_at < ${to}
        AND p.prodamus_order_id IS NOT NULL
        AND NOT EXISTS (
@@ -129,9 +160,16 @@ export async function listOrphans(month: string): Promise<OrphanPayment[]> {
      ORDER BY p.created_at DESC`;
   return rows.map((r) => ({
     orderId: String(r.order_id),
-    paidAt: isoDay(r.created_at),
+    paidAt: isoDay(r.paid_day),
     amount: num(r.amount),
     source: (r.source as string) || '',
+    duplicateOf: r.dup_paid_at
+      ? {
+        paidAt: isoDay(r.dup_paid_at),
+        who: (r.dup_who as string) || '',
+        product: (r.dup_product as string) || '',
+      }
+      : undefined,
   }));
 }
 
@@ -144,7 +182,7 @@ export function computeTotals(
   const [y, m] = month.split('-').map(Number);
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const isCurrent = currentMonth(now) === month;
-  const daysPassed = isCurrent ? Math.min(now.getUTCDate(), daysInMonth) : daysInMonth;
+  const daysPassed = isCurrent ? Math.min(msk(now).getUTCDate(), daysInMonth) : daysInMonth;
 
   const gross = entries.reduce((s, e) => s + e.amount, 0);
   const net = entries.reduce((s, e) => s + (e.payout ?? e.amount), 0);
@@ -227,7 +265,7 @@ export async function deleteEntry(id: string): Promise<void> {
 
 /** Забрать в реестр оплаты, которые система записала сама. */
 export async function importOrphans(month: string): Promise<number> {
-  const orphans = await listOrphans(month);
+  const orphans = (await listOrphans(month)).filter((o) => !o.duplicateOf);
   for (const o of orphans) {
     await createEntry({
       paidAt: o.paidAt,
