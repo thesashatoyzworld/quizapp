@@ -513,7 +513,10 @@ export async function POST(request: NextRequest) {
           }).catch(() => {});
         }
 
-        if (product.slug === INTAKE_PRODUCT_SLUG) {
+        // Интервью зовём и с полного тарифа 3, и с позиций, помеченных
+        // «запускает интервью»: предоплата открывает только предобучение,
+        // но разговор с человеком начинать надо сразу, а не после доплаты.
+        if (product.slug === INTAKE_PRODUCT_SLUG || deal.startsIntake) {
           await startIntake(tgUserId, 't3');
         }
       } else {

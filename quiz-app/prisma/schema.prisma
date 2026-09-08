@@ -895,6 +895,12 @@ model Deal {
   note       String? // заметка себе
   /** active — ссылка работает, off — отвечает «напиши мне». Цены не удаляем. */
   status     String    @default("active")
+  /**
+   * Запускать интервью после оплаты. Нужно предоплатам: они открывают
+   * предобучение по тарифу 1, а интервью висит на полном тарифе 3, поэтому
+   * после брони места человека иначе никто ни о чём не спрашивает.
+   */
+  startsIntake Boolean @default(false) @map("starts_intake")
   paidCount  Int       @default(0) @map("paid_count")
   lastPaidAt DateTime? @map("last_paid_at")
   createdAt  DateTime  @default(now()) @map("created_at")

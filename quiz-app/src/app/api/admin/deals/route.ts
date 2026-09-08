@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
         days: Math.round(days),
         title,
         note: String(body.note || '').trim() || null,
+        startsIntake: body.startsIntake === true,
       });
       return NextResponse.json({ deals });
     }
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
         patch.title = title;
       }
       if (body.note !== undefined) patch.note = String(body.note).trim() || null;
+      if (body.startsIntake !== undefined) patch.startsIntake = body.startsIntake === true;
       if (body.price !== undefined) {
         const price = Number(body.price);
         if (!Number.isFinite(price) || price <= 0) return bad('цена должна быть положительным числом');
