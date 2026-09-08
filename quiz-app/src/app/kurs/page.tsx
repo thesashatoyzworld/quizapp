@@ -239,7 +239,7 @@ function KursInner() {
               <span className="kr-badge">{c.badge}</span>
               {isDone && <span className="kr-done">✓ пройдено</span>}
               <span className="kr-meta">
-                {!c.ready ? 'скоро' : c.duration ? `🎥 запись ${c.duration} + текст` : '📄 текстом'}
+                {c.ready ? `🎥 запись ${c.duration} + текст` : 'скоро'}
               </span>
             </div>
             <h2 className="kr-item-title">{c.title}</h2>
