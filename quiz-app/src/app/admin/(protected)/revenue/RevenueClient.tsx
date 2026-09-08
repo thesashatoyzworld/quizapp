@@ -47,6 +47,10 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
 
   // Прогресс к цели месяца. Цель может быть нулевой (месяц без плана) — тогда
   // ни процента, ни засечки не считаем, иначе делим на ноль.
+  // Сироты делятся надвое: чистые идут в импорт, похожие на уже внесённые — нет.
+  const fresh = report.orphans.filter((o) => !o.duplicateOf);
+  const dupes = report.orphans.filter((o) => o.duplicateOf);
+
   const hasTarget = t.target > 0;
   const donePct = hasTarget ? (t.gross / t.target) * 100 : 0;
   const planPct = hasTarget ? Math.min((t.planToDate / t.target) * 100, 100) : 0;
@@ -315,15 +319,45 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
 
       {report.orphans.length > 0 && (
         <div style={{ background: 'rgba(255,209,102,0.08)', border: '1px solid rgba(255,209,102,0.35)', borderRadius: 10, padding: 16, marginBottom: 18 }}>
-          <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
-            В базе есть {report.orphans.length} {report.orphans.length === 1 ? 'оплата' : 'оплат'} на {money(report.orphans.reduce((s, o) => s + o.amount, 0))}, которых нет в реестре.
-          </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 10 }}>
-            {report.orphans.slice(0, 6).map((o) => `${o.paidAt.slice(8)}.${o.paidAt.slice(5, 7)} · ${money(o.amount)}`).join('   ')}
-            {report.orphans.length > 6 ? '   …' : ''}
-          </div>
-          <button style={{ ...btn, borderColor: '#ffd166', background: 'rgba(255,209,102,0.15)', color: '#ffd166' }}
-            disabled={busy} onClick={() => send({ action: 'import' })}>забрать в реестр</button>
+          {fresh.length > 0 && (
+            <>
+              <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
+                В базе есть {fresh.length} {fresh.length === 1 ? 'оплата' : 'оплат'} на {money(fresh.reduce((s, o) => s + o.amount, 0))}, {fresh.length === 1 ? 'которой' : 'которых'} нет в реестре.
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 10 }}>
+                {fresh.slice(0, 6).map((o) => `${o.paidAt.slice(8)}.${o.paidAt.slice(5, 7)} · ${money(o.amount)}`).join('   ')}
+                {fresh.length > 6 ? '   …' : ''}
+              </div>
+              <button style={{ ...btn, borderColor: '#ffd166', background: 'rgba(255,209,102,0.15)', color: '#ffd166' }}
+                disabled={busy} onClick={() => send({ action: 'import' })}>забрать в реестр</button>
+            </>
+          )}
+
+          {/* Один платёж приходит под двумя номерами: счёт Продамуса и
+              идентификатор прайс-ссылки. По order_id они не сходятся, поэтому
+              такие показываем отдельно и в импорт не берём — иначе сумма
+              месяца вырастет на пустом месте. */}
+          {dupes.length > 0 && (
+            <div style={{ marginTop: fresh.length > 0 ? 14 : 0, paddingTop: fresh.length > 0 ? 14 : 0, borderTop: fresh.length > 0 ? '1px solid rgba(255,209,102,0.25)' : 'none' }}>
+              <div style={{ fontSize: '0.85rem', marginBottom: 8 }}>
+                {fresh.length > 0 ? 'Ещё ' : ''}{dupes.length} {dupes.length === 1 ? 'оплата висит' : 'оплат висят'} с чужим номером, но {dupes.length === 1 ? 'она похожа' : 'они похожи'} на уже внесённые. В импорт {dupes.length === 1 ? 'не берётся' : 'не берутся'}.
+              </div>
+              {dupes.map((o) => (
+                <div key={o.orderId} style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                  {o.paidAt.slice(8)}.{o.paidAt.slice(5, 7)} · {money(o.amount)} · {o.source}
+                  {' → в реестре: '}
+                  <span style={{ color: 'var(--text-primary)' }}>
+                    {o.duplicateOf!.paidAt.slice(8)}.{o.duplicateOf!.paidAt.slice(5, 7)}
+                    {o.duplicateOf!.who ? ` · ${o.duplicateOf!.who}` : ''}
+                    {o.duplicateOf!.product ? ` · ${o.duplicateOf!.product}` : ''}
+                  </span>
+                </div>
+              ))}
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 8, opacity: 0.8 }}>
+                Если это всё-таки разные оплаты — впишите её руками формой ниже.
+              </div>
+            </div>
+          )}
         </div>
       )}
 
