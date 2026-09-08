@@ -17,6 +17,8 @@ interface Card {
   duration: string;
   tags: string[];
   hasVideo: boolean;
+  /** Имя клиента. API отдаёт его только тому, кто смотрит чужой материал. */
+  client?: string;
 }
 
 const BOT_URL = 'https://t.me/testtoyzbot';
@@ -144,6 +146,7 @@ function LichnoeInner() {
             <span className="rz-item-kind">{c.hasVideo ? '🎥 запись + конспект' : '📝 конспект'}</span>
             <span className="rz-item-date">{ru(c.date)} · {c.duration}</span>
           </div>
+          {c.client && <span className="rz-item-who">{c.client}</span>}
           <h2 className="rz-item-title">{c.title}</h2>
           <p className="rz-item-sub">{c.subtitle}</p>
           <div className="rz-tags">
@@ -205,6 +208,12 @@ function LichnoeInner() {
           color: var(--rz-accent); padding: 4px 9px; border-radius: 999px;
         }
         .rz-item-date { font-size: 12px; color: var(--rz-muted); }
+        /* Имя клиента: приходит только Саше, клиенту своё имя не показываем. */
+        .rz-item-who {
+          display: inline-block; margin-top: 10px; padding: 3px 10px;
+          border-radius: 999px; background: rgba(255,255,255,.08);
+          font-size: 12px; font-weight: 700; letter-spacing: .01em;
+        }
         .rz-item-title {
           font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 19px;
           letter-spacing: -0.02em; line-height: 1.18; margin: 11px 0 0;

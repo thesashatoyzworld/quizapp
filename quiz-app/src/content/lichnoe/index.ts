@@ -23,6 +23,8 @@ export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
   telegramIds: number[];
+  /** Чей это созвон. Уходит только не-владельцу карточки: клиенту своё имя ни к чему. */
+  client: string;
   title: string;
   /** одна строка: о чём созвон */
   subtitle: string;
@@ -42,6 +44,7 @@ export const LICHNOE: LichnyMaterial[] = [
   {
     slug: 'lichnyy-sozvon-daniel-2026-09-07',
     telegramIds: [397715074, 788334680],
+    client: 'Даниэл Осипов',
     title: "Собираем оффер под корпоративы",
     subtitle: "Твои этапы работы это и есть продукт. Плюс вопрос про бюджет в анкету и проблемы клиента как источник денег.",
     date: '2026-09-07',
@@ -53,6 +56,7 @@ export const LICHNOE: LichnyMaterial[] = [
   {
     slug: 'lichnyy-sozvon-evgeniya-2026-09-04',
     telegramIds: [934091008, 788334680],
+    client: 'Женя Сокольчик',
     title: "Личный созвон 4 сентября",
     subtitle: "Первая продажа на новом чеке, отстройка через травмы и задачи на неделю",
     date: '2026-09-04',
@@ -65,6 +69,7 @@ export const LICHNOE: LichnyMaterial[] = [
     slug: 'lichnyy-sozvon-evgeniya-2026-08-28',
     // Саша видит свои же созвоны: это его записи, он их и вёл.
     telegramIds: [934091008, 788334680],
+    client: 'Женя Сокольчик',
     title: "Личный созвон 28 августа",
     subtitle: "Оффер на созвон, база тех, кто уже касался, и кейсы через ситуацию",
     date: '2026-08-28',
@@ -77,6 +82,7 @@ export const LICHNOE: LichnyMaterial[] = [
     slug: 'lichnyy-sozvon-konstantin-2026-08-05',
     // Саша (788334680) видит свои же созвоны: это его записи, он их и вёл.
     telegramIds: [309034389, 788334680],
+    client: 'Константин Бобров',
     title: "Что для тебя очевидно, для покупателя козырь",
     subtitle: "Разобрали сегмент, собрали карту из шести смыслов и договорились с чего начинается контент: чужой рабочий заход и пинг-понг",
     date: '2026-08-05',
@@ -88,6 +94,7 @@ export const LICHNOE: LichnyMaterial[] = [
   {
     slug: 'lichnyy-sozvon-2026-08-05',
     telegramIds: [866228378, 788334680],
+    client: 'Дарья Басина',
     title: "Как вытащить себя из круга «почистила, полежала, деньги кончились»",
     subtitle: "Разложили продукты, собрали тарифную сетку 30/60/100 и план: список покупателей, два оффера, две анкеты",
     date: '2026-08-05',
@@ -109,11 +116,20 @@ export function findForTelegram(slug: string, telegramId: number): LichnyMateria
 }
 
 /** Карточка для списка: всё, кроме тяжёлого HTML и списка получателей. */
-export type LichnyCard = Omit<LichnyMaterial, 'html' | 'telegramIds'> & { hasVideo: boolean };
+export type LichnyCard = Omit<LichnyMaterial, 'html' | 'telegramIds' | 'client'> & {
+  hasVideo: boolean;
+  /** Имя клиента. Приходит только тому, кто смотрит чужой материал, то есть Саше. */
+  client?: string;
+};
 
-export function toCard(m: LichnyMaterial): LichnyCard {
-  const { html: _html, telegramIds: _ids, ...rest } = m;
+/**
+ * Владелец материала это первый telegram id в списке: тот, для кого созвон.
+ * Остальным (Саше) карточка отдаёт имя клиента, иначе список из пяти «личных
+ * созвонов» не различить. Сам клиент своё имя на карточке не видит.
+ */
+export function toCard(m: LichnyMaterial, viewerId?: number): LichnyCard {
+  const { html: _html, telegramIds, client, ...rest } = m;
   void _html;
-  void _ids;
-  return { ...rest, hasVideo: !!m.kinescopeId };
+  const isOwner = viewerId !== undefined && telegramIds[0] === viewerId;
+  return { ...rest, hasVideo: !!m.kinescopeId, ...(isOwner ? {} : { client }) };
 }
