@@ -25,6 +25,31 @@ export interface RoadmapCard {
   notes: RoadmapNoteView[];
 }
 
+/**
+ * Саша просит, чтобы в кабинете текст шёл строка на мысль и через пропуск,
+ * а не сплошным абзацем: сплошняк в телефоне слипается и его не читают.
+ * Если сборщик уже расставил переносы, идём по ним; если нет (а в старых
+ * картах текст лежит одним куском), режем по границам предложений.
+ */
+function toLines(text: string): string[] {
+  const raw = /\n/.test(text)
+    ? text.split(/\n+/)
+    : text.split(/(?<=[.!?…])\s+(?=[«"(A-ZА-ЯЁ\d])/);
+  return raw.map((l) => l.trim()).filter(Boolean);
+}
+
+/** Абзац строками через пропуск. Рендерится в span, чтобы влезать и внутрь span. */
+function Lines({ text, className }: { text: string; className?: string }) {
+  const lines = toLines(text);
+  return (
+    <span className={className ? `km-lines ${className}` : 'km-lines'}>
+      {lines.map((line, i) => (
+        <span className="km-line" key={i}>{line}</span>
+      ))}
+    </span>
+  );
+}
+
 const STEP_MARK: Record<string, string> = { done: '✓', partial: '◐', blocked: '!', todo: '' };
 const STEP_NOTE: Record<string, string> = {
   done: 'пройдено', partial: 'наполовину', blocked: 'здесь стоим', todo: 'впереди',
@@ -46,15 +71,20 @@ export default function RoadmapView({
     <>
       {card.intro && (
         <div className="km-card km-intro">
-          <p>{card.intro}</p>
+          <Lines text={card.intro} />
         </div>
       )}
 
       {card.periodGoal && (
         <section className="km-card km-goal">
           <div className="km-label">Цель периода</div>
-          <p className="km-goal-text">{card.periodGoal}</p>
-          {card.goal && <p className="km-goal-big">Большая цель: {card.goal}</p>}
+          <Lines className="km-goal-text" text={card.periodGoal} />
+          {card.goal && (
+            <span className="km-goal-big">
+              <span className="km-goal-big-label">Большая цель</span>
+              <Lines text={card.goal} />
+            </span>
+          )}
         </section>
       )}
 
@@ -102,9 +132,10 @@ export default function RoadmapView({
                   <span className="km-step-body">
                     <span className="km-step-title">{s.title}</span>
                     {here && <span className="km-step-here-tag">ты здесь</span>}
-                    <span className="km-step-note">
-                      {s.evidence || STEP_NOTE[s.status] || ''}
-                    </span>
+                    <Lines
+                      className="km-step-note"
+                      text={s.evidence || STEP_NOTE[s.status] || ''}
+                    />
                   </span>
                 </li>
               );
@@ -133,7 +164,7 @@ export default function RoadmapView({
                 </button>
                 <span className="km-task-body">
                   <span className="km-task-title">{t.title}</span>
-                  {t.why && <span className="km-task-why">{t.why}</span>}
+                  {t.why && <Lines className="km-task-why" text={t.why} />}
                   {t.linkUrl && (
                     <a className="km-task-link" href={t.linkUrl} target="_blank" rel="noopener noreferrer">
                       {t.linkLabel || 'Открыть материал'} →
@@ -157,7 +188,7 @@ export default function RoadmapView({
                 <span className="km-check km-check-static">{t.status === 'done' ? '✓' : ''}</span>
                 <span className="km-task-body">
                   <span className="km-task-title">{t.title}</span>
-                  {t.why && <span className="km-task-why">{t.why}</span>}
+                  {t.why && <Lines className="km-task-why" text={t.why} />}
                   {t.linkUrl && (
                     <a className="km-task-link" href={t.linkUrl} target="_blank" rel="noopener noreferrer">
                       {t.linkLabel || 'Открыть материал'} →
@@ -176,7 +207,7 @@ export default function RoadmapView({
           <ul className="km-notes">
             {card.notes.map((n, i) => (
               <li className="km-note" key={i}>
-                <span className="km-note-body">{n.body}</span>
+                <Lines className="km-note-body" text={n.body} />
                 {n.happenedOn && <span className="km-note-date">{n.happenedOn}</span>}
               </li>
             ))}
@@ -220,13 +251,21 @@ export const ROADMAP_VIEW_CSS = `
   }
   .km-count { font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--km-accent); }
 
-  .km-intro p { margin: 0; font-size: 14.5px; line-height: 1.5; }
+  /* строка на мысль и пропуск между: сплошной абзац в телефоне слипается */
+  .km-lines { display: flex; flex-direction: column; gap: 0.6em; }
+  .km-line { display: block; }
+
+  .km-intro { font-size: 14.5px; line-height: 1.5; }
   .km-goal { border-color: var(--km-accent); }
   .km-goal-text {
-    margin: 0; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800;
-    font-size: 17px; line-height: 1.3; letter-spacing: -0.015em;
+    font-family: 'Archivo', system-ui, sans-serif; font-weight: 800;
+    font-size: 17px; line-height: 1.3; letter-spacing: -0.015em; gap: 0.5em;
   }
-  .km-goal-big { margin: 10px 0 0; font-size: 13px; color: var(--km-muted); line-height: 1.45; }
+  .km-goal-big { display: block; margin-top: 14px; font-size: 13px; color: var(--km-muted); line-height: 1.45; }
+  .km-goal-big-label {
+    display: block; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800;
+    font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px;
+  }
 
   .km-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
   .km-metric { background: var(--km-bg); border-radius: 12px; padding: 11px 12px; }
