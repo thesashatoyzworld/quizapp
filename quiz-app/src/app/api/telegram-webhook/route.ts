@@ -37,7 +37,7 @@ import {
   syncUsername,
   transcribePending,
 } from '@/lib/intake';
-import { sendWelcomeT2, startIntake } from '@/lib/onboarding';
+import { sendWelcomeT2, startIntake, adminWelcomeT2 } from '@/lib/onboarding';
 import { findIntakeFor, rebuildRoadmap } from '@/lib/roadmap/build';
 import { approveAndSend } from '@/lib/roadmap/review';
 import { scheduleRoadmapBuild } from '@/lib/qstash';
@@ -656,6 +656,21 @@ export async function POST(request: NextRequest) {
       // Сборка идёт минуты, вебхук столько не живёт: уводим в очередь.
       await scheduleRoadmapBuild(intakeId, 1);
       await sendBotMessage(chatId, `собираю карту ${arg}, черновик пришлю сюда через пару минут`, undefined, null);
+      return NextResponse.json({ ok: true });
+    }
+
+    // `/welcome @username` — запустить онбординг руками, когда оплата прошла
+    // мимо системы: доступ выдан руками, а приветствие, ссылка в группу и
+    // интервью висят на вебхуке оплаты и сами не случаются.
+    if (
+      update.message?.text?.trim().startsWith('/welcome') &&
+      String(update.message.chat.id) === (process.env.ADMIN_CHAT_ID || '').trim()
+    ) {
+      const chatId = update.message.chat.id;
+      const arg = update.message.text.trim().split(/\s+/)[1] || '';
+      const reply = arg ? await adminWelcomeT2(arg) : 'кому: /welcome @username';
+      // Без parse_mode: подчёркивание в юзернейме Markdown принимает за курсив.
+      await sendBotMessage(chatId, reply, undefined, null);
       return NextResponse.json({ ok: true });
     }
 

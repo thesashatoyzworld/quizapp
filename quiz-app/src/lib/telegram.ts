@@ -330,3 +330,43 @@ export async function editAdminMarkup(ref: NotifyRef, replyMarkup: object): Prom
     console.error('[editAdminMarkup] упало:', error);
   }
 }
+
+/**
+ * Персональная ссылка-приглашение в группу «Коннекторы».
+ *
+ * Одна ссылка на человека и ровно на одно вступление: общая расходится по
+ * перепискам, а эту после использования уже не переиспользовать. Бот в группе
+ * администратор с правом приглашать, chat id живёт в env, чтобы группу можно
+ * было сменить без выката.
+ *
+ * Возвращает null, если ссылку выдать не удалось: приветствие тогда просто
+ * уходит без пункта про группу, а не падает целиком.
+ */
+export async function createGroupInvite(
+  telegramId: number,
+  label = 'uroven t2',
+): Promise<string | null> {
+  const chatId = (process.env.UROVEN_GROUP_CHAT_ID || '-1002115856669').trim();
+  if (!BOT_TOKEN || !chatId) return null;
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createChatInviteLink`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        name: `${label} ${telegramId}`.slice(0, 32),
+        member_limit: 1,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok !== true) {
+      console.error('[createGroupInvite] telegram отказал', data.error_code, data.description);
+      return null;
+    }
+    return data.result?.invite_link || null;
+  } catch (error) {
+    console.error('[createGroupInvite] упало:', error);
+    return null;
+  }
+}
