@@ -32,10 +32,35 @@ export interface RoadmapCard {
  * картах текст лежит одним куском), режем по границам предложений.
  */
 function toLines(text: string): string[] {
-  const raw = /\n/.test(text)
-    ? text.split(/\n+/)
-    : text.split(/(?<=[.!?…])\s+(?=[«"(A-ZА-ЯЁ\d])|(?<=;)\s+/);
-  return raw.map((l) => l.trim()).filter(Boolean);
+  if (/\n/.test(text)) {
+    return text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  }
+  const sentences = text
+    .split(/(?<=[.!?…])\s+(?=[«"(A-ZА-ЯЁ\d])/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  // Цели написаны перечислением через «;» и висят одной простынёй. Режем и по
+  // ним, но только когда куски самостоятельные: «стресс и депрессия;» посреди
+  // мысли отдельной строкой читается как обрывок, а не как пункт.
+  const MIN_PART = 40;
+  const out: string[] = [];
+  for (const sentence of sentences) {
+    const parts = sentence.split(/(?<=;)\s+/).map((p) => p.trim()).filter(Boolean);
+    let buf = '';
+    for (const part of parts) {
+      buf = buf ? `${buf} ${part}` : part;
+      if (buf.length >= MIN_PART && part.length >= MIN_PART) {
+        out.push(buf);
+        buf = '';
+      }
+    }
+    if (buf) {
+      if (out.length && buf.length < MIN_PART && parts.length > 1) out[out.length - 1] += ` ${buf}`;
+      else out.push(buf);
+    }
+  }
+  return out;
 }
 
 /** Абзац строками через пропуск. Рендерится в span, чтобы влезать и внутрь span. */
