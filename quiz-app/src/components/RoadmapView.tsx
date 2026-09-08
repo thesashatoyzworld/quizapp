@@ -34,7 +34,7 @@ export interface RoadmapCard {
 function toLines(text: string): string[] {
   const raw = /\n/.test(text)
     ? text.split(/\n+/)
-    : text.split(/(?<=[.!?…])\s+(?=[«"(A-ZА-ЯЁ\d])/);
+    : text.split(/(?<=[.!?…])\s+(?=[«"(A-ZА-ЯЁ\d])|(?<=;)\s+/);
   return raw.map((l) => l.trim()).filter(Boolean);
 }
 
