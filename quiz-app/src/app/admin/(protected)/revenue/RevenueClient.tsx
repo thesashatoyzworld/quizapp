@@ -45,6 +45,13 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
   const ahead = t.delta >= 0;
   const maxDay = useMemo(() => Math.max(...t.byDay.map((d) => d.amount), 1), [t.byDay]);
 
+  // Прогресс к цели месяца. Цель может быть нулевой (месяц без плана) — тогда
+  // ни процента, ни засечки не считаем, иначе делим на ноль.
+  const hasTarget = t.target > 0;
+  const donePct = hasTarget ? (t.gross / t.target) * 100 : 0;
+  const planPct = hasTarget ? Math.min((t.planToDate / t.target) * 100, 100) : 0;
+  const overshoot = t.gross - t.target;
+
   async function send(payload: Record<string, unknown>) {
     setBusy(true);
     setErr('');
@@ -160,6 +167,76 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
         <input style={{ ...input, width: 120 }} value={goalDraft} onChange={(e) => setGoalDraft(e.target.value)} />
         <button style={btn} disabled={busy} onClick={() => send({ action: 'goal', target: Number(goalDraft) })}>сохранить</button>
       </div>
+
+      {hasTarget && (
+        <div style={{
+          background: 'var(--bg-secondary)', border: '1px solid rgba(0,240,255,0.15)',
+          borderRadius: 10, padding: '16px 18px 18px', marginBottom: 18,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', lineHeight: 1, color: 'var(--neon-cyan)' }}>
+              {Math.round(donePct)}%
+            </div>
+            <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+              {money(t.gross)} из {money(t.target)}
+            </div>
+            <span style={{ flex: 1 }} />
+            {/* Пока цель не взята, справа висит разрыв с планом. После взятия
+                там уже нечего догонять, и цифра сверх цели живёт под баром. */}
+            {donePct < 100 && (
+              <div style={{ fontSize: '0.8rem', color: ahead ? '#06d6a0' : '#ef476f' }}>
+                {ahead ? 'опережение' : 'отставание'} {money(Math.abs(t.delta))}
+              </div>
+            )}
+          </div>
+
+          {/* Полоса заполнения. Засечка — где надо быть сегодня по ровному
+              дневному плану: без неё процент не отвечает на вопрос «успеваем ли». */}
+          <div style={{
+            position: 'relative', height: 18, borderRadius: 9, overflow: 'hidden',
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <div style={{
+              width: `${Math.min(donePct, 100)}%`, height: '100%', borderRadius: 9,
+              background: donePct >= 100
+                ? 'linear-gradient(90deg, #06d6a0, #7ef2c8)'
+                : 'linear-gradient(90deg, rgba(0,240,255,0.55), var(--neon-cyan))',
+              transition: 'width 0.4s ease',
+            }} />
+            {donePct < 100 && (
+              <div
+                title={`план на сегодня: ${money(t.planToDate)}`}
+                style={{
+                  position: 'absolute', top: -2, bottom: -2, left: `${planPct}%`,
+                  width: 2, marginLeft: -1,
+                  background: ahead ? '#ffffff' : '#ef476f',
+                  // Засечка ложится и на залитую часть, и на пустую: без обводки
+                  // белая полоса пропадает на ярком циане.
+                  boxShadow: '0 0 0 1px rgba(0,0,0,0.65)',
+                }}
+              />
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            {donePct >= 100 ? (
+              <span style={{ color: '#06d6a0' }}>
+                цель взята, сверху {money(overshoot)}
+              </span>
+            ) : (
+              <>
+                <span>засечка — план на {t.daysPassed} {t.daysPassed === 1 ? 'день' : 'дней'}: {money(t.planToDate)}</span>
+                <span style={{ opacity: 0.5 }}>·</span>
+                <span>
+                  {t.perDayNeeded > 0
+                    ? `осталось ${money(t.remain)}, это ${money(t.perDayNeeded)} в день`
+                    : `осталось ${money(t.remain)}, месяц закрыт`}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
         <div style={card}>
