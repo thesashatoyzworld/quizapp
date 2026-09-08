@@ -180,15 +180,11 @@ export async function GET(request: NextRequest) {
       }
       // Метка вотермарка приходит с клиента (там доступен initData с username).
       const wm = (request.nextUrl.searchParams.get('wm') || '').slice(0, 64);
-      // Практикум идёт без записи — тогда плеер не рисуем вовсе,
-      // чтобы не обещать видео, которого не будет.
-      const player = lesson.kinescopeId
-        ? '<div class="kvwrap"><div class="kvlabel">Видеоурок · '
-          + (lesson.duration || 'скоро') + '</div>'
-          + videoBlock(lesson.kinescopeId, wm)
-          + '<p class="kvnote">Ниже — тот же урок текстом, с картинками и разборами. '
-          + 'Смотреть или читать, как удобнее.</p></div>'
-        : '';
+      const player = '<div class="kvwrap"><div class="kvlabel">Видеоурок · '
+        + (lesson.duration || 'скоро') + '</div>'
+        + videoBlock(lesson.kinescopeId, wm)
+        + '<p class="kvnote">Ниже — тот же урок текстом, с картинками и разборами. '
+        + 'Смотреть или читать, как удобнее.</p></div>';
       const i = LESSONS.findIndex((l) => l.slug === lesson.slug);
       const n = LESSONS[i + 1];
       const next = n ? { slug: n.slug, title: n.title, ready: !!n.html } : null;
