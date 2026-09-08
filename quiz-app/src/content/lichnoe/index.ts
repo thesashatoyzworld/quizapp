@@ -19,6 +19,8 @@ import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_04 } from './lichnyy-sozvon-evg
 
 import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_07 } from './lichnyy-sozvon-daniel-2026-09-07';
 
+import { LICHNOE_LICHNYY_SOZVON_AZAMAT_2026_09_08 } from './lichnyy-sozvon-azamat-2026-09-08';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -41,6 +43,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-azamat-2026-09-08',
+    telegramIds: [176922773, 788334680],
+    client: "Азамат Гимаев",
+    title: "Личный созвон: созвоны, эмоции и сегмент",
+    subtitle: "Почему созвоны не закрываются, как перестать отпускать на «подумаю» и с какого сегмента начинаем контент",
+    date: '2026-09-08',
+    duration: "61 мин",
+    tags: ["созвоны", "продажи", "сегмент"],
+    kinescopeId: 'aH6nQcsPm3TqcwSbDRNQ5g',
+    html: LICHNOE_LICHNYY_SOZVON_AZAMAT_2026_09_08,
+  },
   {
     slug: 'lichnyy-sozvon-daniel-2026-09-07',
     telegramIds: [397715074, 788334680],
