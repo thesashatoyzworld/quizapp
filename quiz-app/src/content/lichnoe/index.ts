@@ -41,7 +41,7 @@ export interface LichnyMaterial {
 export const LICHNOE: LichnyMaterial[] = [
   {
     slug: 'lichnyy-sozvon-daniel-2026-09-07',
-    telegramIds: [397715074],
+    telegramIds: [397715074, 788334680],
     title: "Собираем оффер под корпоративы",
     subtitle: "Твои этапы работы это и есть продукт. Плюс вопрос про бюджет в анкету и проблемы клиента как источник денег.",
     date: '2026-09-07',
