@@ -149,6 +149,11 @@ export async function listOrphans(month: string): Promise<OrphanPayment[]> {
          WHERE e.amount = p.amount
            AND e.paid_at BETWEEN ((p.created_at AT TIME ZONE 'Europe/Moscow')::date - 3)
                              AND ((p.created_at AT TIME ZONE 'Europe/Moscow')::date + 3)
+           -- Строка, уже привязанная к нашему собственному номеру, занята другой
+           -- оплатой: наши номера уникальны, и совпадение по order_id выше эту
+           -- пару уже отсеяло бы. Дубль возможен только у строки, внесённой
+           -- руками (номера нет) или по номеру счёта Продамуса.
+           AND (e.order_id IS NULL OR e.order_id !~ '^(uroven_|deal_|paid_)')
          ORDER BY abs(e.paid_at - (p.created_at AT TIME ZONE 'Europe/Moscow')::date)
          LIMIT 1
       ) d ON true
