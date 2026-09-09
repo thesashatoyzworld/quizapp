@@ -14,6 +14,25 @@ import {
 // Трафик идёт из шапки профиля в Instagram — на таком трении отваливается
 // большинство. Контакт человек вписывает руками.
 
+// Meta Pixel: заявка. Пиксель стоит в лейауте стратегией afterInteractive, на
+// быстрой отправке его может ещё не быть — поэтому ждём появления, а не теряем
+// событие молча. На нём в кабинете Meta строится аудитория заполнивших анкету и
+// look-alike от неё, так что терять заявки нельзя.
+function trackLead(payload: Record<string, unknown>): void {
+  if (typeof window === 'undefined') return;
+
+  let tries = 0;
+  const send = () => {
+    const fbq = (window as unknown as { fbq?: (...a: unknown[]) => void }).fbq;
+    if (typeof fbq === 'function') {
+      fbq('track', 'Lead', payload);
+      return;
+    }
+    if (tries++ < 25) setTimeout(send, 200);
+  };
+  send();
+}
+
 function Field({ label, optional, children }: {
   label: string; optional?: boolean; children: React.ReactNode;
 }) {
@@ -293,6 +312,11 @@ function DwyInner() {
       // переписку: по нему бот на том конце знает, кто пишет.
       const id = typeof data?.id === 'number' ? data.id : null;
 
+      // content_name = метка, с которой человек пришёл (from в ссылке), поэтому
+      // в кабинете Meta видно, какая кампания принесла заявку, а не только их
+      // общее число.
+      trackLead({ content_name: source, content_category: kind });
+
       // Человека не спрашиваем, хочет ли он написать — открываем телеграм
       // сами. Разговор всё равно начинать ему: бот постучаться первым не
       // может. Экран «спасибо» при этом отрисовывается: если переход не
@@ -302,7 +326,10 @@ function DwyInner() {
         const url = `https://t.me/${mode.handoff.account}?text=${encodeURIComponent(text)}`;
         setHandoffUrl(url);
         setSent(true);
-        window.location.assign(url);
+        // Четверть секунды на то, чтобы Lead успел уйти: событие отправляется
+        // картинкой, а навигация обрывает висящие запросы. Экран «спасибо» к
+        // этому моменту отрисован, задержка не видна.
+        setTimeout(() => window.location.assign(url), 250);
         return;
       }
 
