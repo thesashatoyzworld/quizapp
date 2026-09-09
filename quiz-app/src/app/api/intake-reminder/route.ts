@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from '@upstash/qstash';
 import { prisma } from '@/lib/prisma';
 import { sendBotMessage } from '@/lib/telegram';
-import { INTAKE_TOTAL } from '@/content/intake-tarif3';
+import { intakeTotal } from '@/lib/intake';
 
 const receiver = new Receiver({
   currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY || '',
@@ -29,7 +29,10 @@ export async function POST(request: NextRequest) {
   // Ссылка выдана вслепую и по ней ещё не переходили: писать некому.
   if (intake.telegramId === null) return NextResponse.json({ ok: true, skipped: 'not claimed yet' });
 
-  const left = INTAKE_TOTAL - intake.currentStep;
+  // Сколько вопросов осталось, считаем по анкете этого человека: у трека t2
+  // их шесть, у t3 одиннадцать, а у личной анкеты своё число. Общая константа
+  // тарифа 3 обещала бы «осталось 10» тому, кому осталось 5.
+  const left = Math.max(intakeTotal(intake) - intake.currentStep, 0);
   const text =
     intake.status === 'in_progress'
       ? `мы остановились на вопросе ${intake.currentStep + 1}, осталось ${left}. продолжим? /anketa`
