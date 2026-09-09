@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
+import { sendBotMessage } from '@/lib/telegram';
 
 // Правки маршрутных карт из /admin/roadmaps. Один роут на все сущности карты:
 // поля белые списки, чужого в базу не проходит.
@@ -89,6 +90,54 @@ async function sharedRows(roadmapId: string): Promise<number> {
   return steps + metrics + tasks + notes;
 }
 
+/** Кабинет: раздел с картой клиента. */
+const KARTA_URL = 'https://world.thesashatoyz.com/karta';
+
+/**
+ * Сообщение человеку о том, что карта собрана и лежит в кабинете.
+ * Саму карту в бот не пересылаем: она живёт одним экраном в кабинете,
+ * где видно шаги, задачи и прогресс, а сообщение только приводит туда.
+ */
+async function notifyClientRoadmapOpen(
+  roadmapId: string,
+  wasVisible: boolean,
+): Promise<'sent' | 'blocked' | 'no-telegram' | 'already-open'> {
+  if (wasVisible) return 'already-open';
+
+  const card = await prisma.roadmap.findUnique({
+    where: { id: roadmapId },
+    select: { telegramId: true, clientName: true },
+  });
+  if (!card?.telegramId) return 'no-telegram';
+
+  const name = (card.clientName || '').trim().split(/\s+/)[0];
+  const hi = name ? `${name}, привет` : 'привет';
+  const text = [
+    hi,
+    '',
+    'Собрал по твоей анкете маршрутную карту: где ты сейчас, куда идём и что делаешь на этой неделе.',
+    '',
+    'Она в кабинете, в разделе «Карта». Задачи отмечаешь там же, я вижу отметки и по ним понимаю, где ты идёшь.',
+  ].join(String.fromCharCode(10));
+
+  const res = await sendBotMessage(Number(card.telegramId), text, {
+    inline_keyboard: [
+      [{ text: '🗺 Открыть карту', web_app: { url: KARTA_URL } }],
+      [{ text: 'Открыть в браузере', url: KARTA_URL }],
+    ],
+  }, null);
+
+  await prisma.event.create({
+    data: {
+      telegramId: card.telegramId,
+      type: 'roadmap_opened',
+      metadata: { roadmapId, notified: res.ok, blocked: res.blocked === true },
+    },
+  }).catch(() => {});
+
+  return res.ok ? 'sent' : 'blocked';
+}
+
 export async function POST(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -148,6 +197,14 @@ export async function POST(request: NextRequest) {
       data.doneAt = data.status === 'done' ? new Date() : null;
     }
 
+    // Уведомление клиенту шлём только на переходе «закрыта → открыта»,
+    // иначе каждая правка уже открытой карты била бы человеку в бота.
+    const wasVisible =
+      entity === 'roadmap' && data.clientVisible === true
+        ? (await prisma.roadmap.findUnique({ where: { id: body.id as string }, select: { clientVisible: true } }))
+            ?.clientVisible === true
+        : false;
+
     // @ts-expect-error union of delegates, all have update
     await model(entity).update({ where: { id: body.id }, data });
 
@@ -155,10 +212,15 @@ export async function POST(request: NextRequest) {
     // экран из вступления и целей. Так было у Азамата: карта включена 18.08,
     // базовый набор не открыт, «страница не листается». Открываем сами.
     let autoShared = 0;
+    let notified: 'sent' | 'blocked' | 'no-telegram' | 'already-open' | null = null;
     if (entity === 'roadmap' && data.clientVisible === true) {
       if ((await sharedRows(body.id as string)) === 0) {
         autoShared = await shareDefaults(body.id as string);
       }
+      // Карта открыта, но человек об этом не узнает: раньше он либо получал её
+      // простынёй сообщений в боте, либо не получал ничего. Теперь карта живёт
+      // в кабинете, а в бот уходит короткое уведомление со ссылкой на раздел.
+      notified = await notifyClientRoadmapOpen(body.id as string, wasVisible);
     }
 
     // Любая правка карты это касание: держим дату свежей без ручного ввода.
@@ -167,7 +229,7 @@ export async function POST(request: NextRequest) {
       await prisma.roadmap.update({ where: { id: roadmapId }, data: { lastTouchAt: new Date() } });
     }
 
-    return NextResponse.json({ ok: true, autoShared });
+    return NextResponse.json({ ok: true, autoShared, notified });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'unknown';
     console.error('roadmap write failed:', message);
