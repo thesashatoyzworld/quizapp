@@ -19,6 +19,8 @@ export interface RoadmapSource {
   username: string | null;
   firstName: string | null;
   track: string;
+  /** реальный тариф доступа (uroven), а не трек анкеты: от него зависит промпт */
+  tier: number;
   /** анкета целиком: вопрос, затем ответы человека по порядку */
   transcript: string;
   /** оглавление открытых ему материалов для промпта */
@@ -166,6 +168,7 @@ export async function buildSource(intakeId: string): Promise<RoadmapSource> {
     username: intake.username,
     firstName: intake.firstName || intake.label,
     track: intake.track,
+    tier: tiers.uroven ?? 2,
     transcript: parts.join('\n\n'),
     catalog: renderMap(entries),
     entries,
