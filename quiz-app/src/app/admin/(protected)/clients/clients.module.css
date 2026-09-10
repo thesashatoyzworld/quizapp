@@ -1,0 +1,203 @@
+/* Сколько людей сейчас в работе, по потокам. Тема админки: тёмный фон,
+   циановый акцент, Orbitron на заголовках. */
+
+.page {
+  max-width: 1100px;
+}
+
+.h1 {
+  font-family: var(--font-display);
+  color: var(--neon-cyan);
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+}
+
+.sub {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 24px;
+}
+
+/* ── три плитки со счётом ─────────────────────── */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.tile {
+  padding: 18px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color 0.15s;
+}
+
+.tile:hover {
+  border-color: rgba(0, 240, 255, 0.45);
+}
+
+.tileActive {
+  border-color: var(--neon-cyan);
+}
+
+.tileLabel {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.tileValue {
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  font-size: 2.4rem;
+  line-height: 1.1;
+  margin-top: 6px;
+}
+
+.tileHint {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.total {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 24px;
+}
+
+.total b {
+  color: var(--neon-cyan);
+  font-weight: 600;
+}
+
+/* ── список людей выбранного потока ───────────── */
+
+.groupTitle {
+  font-family: var(--font-display);
+  color: var(--neon-cyan);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  margin: 22px 0 10px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  border-radius: 10px;
+}
+
+.cardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.tier {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+}
+
+.nick {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.nick a {
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.25);
+}
+
+.nick a:hover {
+  color: var(--neon-cyan);
+}
+
+.rows {
+  margin-top: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.k {
+  color: var(--text-muted);
+}
+
+.v {
+  color: var(--text-primary);
+}
+
+.vWarn {
+  color: #ffb347;
+}
+
+/* ── перенос в другой поток ───────────────────── */
+
+.switch {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.switchBtn {
+  flex: 1;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.switchBtn:hover:not(:disabled) {
+  border-color: rgba(0, 240, 255, 0.5);
+  color: var(--text-primary);
+}
+
+.switchBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.switchOn {
+  color: var(--neon-cyan);
+  border-color: var(--neon-cyan);
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}

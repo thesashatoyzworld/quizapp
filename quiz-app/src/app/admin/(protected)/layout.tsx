@@ -5,6 +5,7 @@ import styles from './admin-shell.module.css';
 
 const NAV_LINKS = [
   { href: '/admin/dashboard', label: 'Дашборд' },
+  { href: '/admin/clients', label: 'Клиенты' },
   { href: '/admin/roadmaps', label: 'Карты клиентов' },
   { href: '/admin/analytics', label: 'Аналитика' },
   { href: '/admin/uroven', label: 'Лиды · Уровень' },
@@ -14,7 +15,7 @@ const NAV_LINKS = [
   { href: '/admin/users', label: 'Пользователи' },
   { href: '/admin/payments', label: 'Оплаты' },
   { href: '/admin/broadcasts', label: 'Рассылки' },
-  { href: '/admin/instagram', label: 'Instagram' },
+  { href: '/admin/instagram', label: 'Инстаграм' },
   { href: '/admin/euvgen', label: 'EuvgenGlob' },
   { href: '/admin/sync', label: 'SYNC' },
 ];
