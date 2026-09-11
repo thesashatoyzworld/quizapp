@@ -16,6 +16,20 @@ import { helpers } from './tg';
  */
 const REUSE_MINUTES = 45;
 
+/**
+ * Сводка выключена (11.09.2026).
+ *
+ * Список строится по одному признаку: последнее слово осталось за человеком.
+ * Вежливые концовки вроде «оки» и «спасибо, на связи» под него подходят, и
+ * закрытые разговоры висели в очереди неделями, пока их не пометят руками.
+ * Саша сказал убрать уведомления совсем, пока это не починено.
+ *
+ * Вернуть: `SALES_DIGEST=on` в переменных окружения, деплой не нужен.
+ */
+function digestOn(): boolean {
+  return (process.env.SALES_DIGEST || '').trim().toLowerCase() === 'on';
+}
+
 function base(): string {
   return (process.env.NEXT_PUBLIC_CABINET_URL || 'https://world.thesashatoyz.com').replace(/\/$/, '');
 }
@@ -68,6 +82,8 @@ export function digestText(rows: WaitingRow[]): string {
  * сообщений в чате от этого не прибавляется — меняется текст уже отправленного.
  */
 export async function pushDigest(): Promise<void> {
+  if (!digestOn()) return;
+
   const rows = await waiting();
   const text = digestText(rows);
   const markup = {
