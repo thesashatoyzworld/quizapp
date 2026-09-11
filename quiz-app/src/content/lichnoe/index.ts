@@ -23,6 +23,8 @@ import { LICHNOE_LICHNYY_SOZVON_AZAMAT_2026_09_08 } from './lichnyy-sozvon-azama
 
 import { LICHNOE_LICHNYY_SOZVON_MOVLATGIREI_2026_09_11 } from './lichnyy-sozvon-movlatgirei-2026-09-11';
 
+import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_11 } from './lichnyy-sozvon-evgeniya-2026-09-11';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -45,6 +47,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-evgeniya-2026-09-11',
+    telegramIds: [934091008, 788334680],
+    client: "Женя Сокольчик",
+    title: "Личный созвон 11 сентября",
+    subtitle: "Кейсы на финишной прямой, ракурс статьи-конвертера и эксперимент с монтажом по таймеру",
+    date: '2026-09-11',
+    duration: "40 мин",
+    tags: ["кейсы", "контент", "монтаж", "анкета"],
+    kinescopeId: 'mY3eDygLMxs4h5AaPJCedo',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_11,
+  },
   {
     slug: 'lichnyy-sozvon-movlatgirei-2026-09-11',
     telegramIds: [700694308, 788334680],
