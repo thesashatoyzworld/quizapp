@@ -21,6 +21,8 @@ import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_07 } from './lichnyy-sozvon-danie
 
 import { LICHNOE_LICHNYY_SOZVON_AZAMAT_2026_09_08 } from './lichnyy-sozvon-azamat-2026-09-08';
 
+import { LICHNOE_LICHNYY_SOZVON_MOVLATGIREI_2026_09_11 } from './lichnyy-sozvon-movlatgirei-2026-09-11';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -43,6 +45,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-movlatgirei-2026-09-11',
+    telegramIds: [700694308, 788334680],
+    client: "Мовлатгирей Костоев",
+    title: "Собираем оффер «Хозяин голоса»",
+    subtitle: "Выбрали сегмент: хоббисты, 70% твоих денег. Назвали программу, разобрали, что писать текстом, и что делать с базой из шестидесяти человек",
+    date: '2026-09-11',
+    duration: "54 мин",
+    tags: ["оффер", "контент", "база"],
+    kinescopeId: 'tcfv9Bgr6c2WCxkcXB2Rgc',
+    html: LICHNOE_LICHNYY_SOZVON_MOVLATGIREI_2026_09_11,
+  },
   {
     slug: 'lichnyy-sozvon-azamat-2026-09-08',
     telegramIds: [176922773, 788334680],
