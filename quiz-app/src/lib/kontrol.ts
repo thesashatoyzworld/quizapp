@@ -55,12 +55,33 @@ export interface WatchItem {
     nextClientTask: string | null;
     lastTouchAt: string | null;
   } | null;
+  /** Переписка в телеграме: рабочий и личный аккаунты вместе. */
+  chat: {
+    lastAt: string;
+    lastSide: 'us' | 'client';
+    lastText: string;
+    /** когда человек писал сам последний раз */
+    clientAt: string | null;
+    /** с какого аккаунта последнее сообщение */
+    where: 'рабочий' | 'личный';
+  } | null;
   note: string;
   noteAt: string | null;
 }
 
+export interface WaitingClient {
+  chatId: string;
+  who: string;
+  username: string | null;
+  text: string;
+  at: string;
+  where: 'рабочий' | 'личный';
+}
+
 export interface WatchReport {
   items: WatchItem[];
+  /** все клиенты из базы, за которыми последнее слово, без оглядки на даты оплат */
+  waiting: WaitingClient[];
   /** в пределах 30 дней */
   agreed30: number;
   renewal30: number;
@@ -205,6 +226,7 @@ export async function getWatchlist(now = new Date()): Promise<WatchReport> {
   ]);
   const userBy = new Map(users.map((u) => [String(u.telegramId), u]));
   const roadmapBy = new Map(roadmaps.map((r) => [String(r.telegramId), r]));
+  const chatBy = await chatsOf(tgs);
 
   for (const item of items) {
     const note = noteBy.get(item.key);
@@ -213,6 +235,7 @@ export async function getWatchlist(now = new Date()): Promise<WatchReport> {
       item.noteAt = note.updatedAt.toISOString();
     }
     if (!item.tg) continue;
+    item.chat = chatBy.get(item.tg) ?? null;
 
     const u = userBy.get(item.tg);
     if (u) {
@@ -251,9 +274,100 @@ export async function getWatchlist(now = new Date()): Promise<WatchReport> {
   const within30 = items.filter((i) => i.daysLeft >= 0 && i.daysLeft <= 30);
   return {
     items,
+    waiting: await waitingClients(),
     agreed30: within30.filter((i) => i.kind === 'agreed').reduce((s, i) => s + i.amount, 0),
     renewal30: within30.filter((i) => i.kind !== 'agreed').reduce((s, i) => s + i.amount, 0),
   };
+}
+
+/**
+ * Клиенты, за которыми последнее слово, — со всей базы, а не только те, от кого
+ * ждём денег. Из «Диалогов» клиенты убраны (там продажи), и без этого блока
+ * вопрос клиента с оплатой в декабре не было бы видно нигде.
+ * Условия «в базе» те же, что в lib/clients-base.ts.
+ */
+async function waitingClients(): Promise<WaitingClient[]> {
+  const rows = await prisma.$queryRaw<
+    { chat_id: string; name: string | null; username: string | null; text: string; created_at: Date; src: string }[]
+  >`
+    WITH msgs AS (
+      SELECT chat_id, side, text, created_at, name, username, 'рабочий' AS src FROM tg_business_msg
+      UNION ALL
+      SELECT chat_id, side, text, created_at, name, username, 'личный' AS src FROM tg_personal_msg
+    ),
+    last_msg AS (
+      SELECT DISTINCT ON (chat_id) * FROM msgs ORDER BY chat_id, created_at DESC
+    )
+    SELECT m.chat_id, m.name, m.username, m.text, m.created_at, m.src
+      FROM last_msg m
+     WHERE m.side = 'client'
+       AND m.created_at > now() - interval '21 days'
+       AND (
+         EXISTS (
+           SELECT 1 FROM product_access a
+            WHERE a.telegram_id::text = m.chat_id AND a.status = 'active'
+              AND a.product_slug IN ('uroven-t2', 'uroven-t3')
+              AND (a.expires_at IS NULL OR a.expires_at > now())
+              AND a.track IS DISTINCT FROM 'service'
+         )
+         OR EXISTS (SELECT 1 FROM roadmaps r WHERE r.telegram_id::text = m.chat_id AND NOT r.archived)
+         OR EXISTS (SELECT 1 FROM payment_dues d WHERE d.telegram_id::text = m.chat_id AND d.status = 'pending')
+       )
+     ORDER BY m.created_at ASC`;
+
+  return rows.map((r) => ({
+    chatId: r.chat_id,
+    who: r.name || (r.username ? `@${r.username}` : r.chat_id),
+    username: r.username,
+    text: r.text.length > 200 ? `${r.text.slice(0, 200)}…` : r.text,
+    at: r.created_at.toISOString(),
+    where: r.src === 'личный' ? 'личный' : 'рабочий',
+  }));
+}
+
+/**
+ * Последнее в переписке с каждым: рабочий аккаунт (tg_business_msg) и личный
+ * (tg_personal_msg) складываются, побеждает самое свежее сообщение.
+ */
+async function chatsOf(tgs: string[]): Promise<Map<string, NonNullable<WatchItem['chat']>>> {
+  const out = new Map<string, NonNullable<WatchItem['chat']>>();
+  if (!tgs.length) return out;
+
+  type Row = { chat_id: string; side: string; text: string; created_at: Date; client_at: Date | null };
+  const [work, personal] = await Promise.all([
+    prisma.$queryRaw<Row[]>`
+      SELECT DISTINCT ON (chat_id) chat_id, side, text, created_at,
+             (SELECT max(t.created_at) FROM tg_business_msg t WHERE t.chat_id = m.chat_id AND t.side = 'client') AS client_at
+        FROM tg_business_msg m
+       WHERE chat_id = ANY(${tgs})
+       ORDER BY chat_id, created_at DESC`,
+    prisma.$queryRaw<Row[]>`
+      SELECT DISTINCT ON (chat_id) chat_id, side, text, created_at,
+             (SELECT max(t.created_at) FROM tg_personal_msg t WHERE t.chat_id = m.chat_id AND t.side = 'client') AS client_at
+        FROM tg_personal_msg m
+       WHERE chat_id = ANY(${tgs})
+       ORDER BY chat_id, created_at DESC`,
+  ]);
+
+  const later = (a: Date | null, b: Date | null) => (!a ? b : !b ? a : a > b ? a : b);
+  const put = (r: Row, where: 'рабочий' | 'личный') => {
+    const prev = out.get(r.chat_id);
+    const clientAt = later(r.client_at, prev?.clientAt ? new Date(prev.clientAt) : null);
+    if (!prev || new Date(prev.lastAt) < r.created_at) {
+      out.set(r.chat_id, {
+        lastAt: r.created_at.toISOString(),
+        lastSide: r.side === 'client' ? 'client' : 'us',
+        lastText: r.text.length > 160 ? `${r.text.slice(0, 160)}…` : r.text,
+        clientAt: clientAt ? clientAt.toISOString() : null,
+        where,
+      });
+    } else {
+      prev.clientAt = clientAt ? clientAt.toISOString() : null;
+    }
+  };
+  for (const r of work) put(r, 'рабочий');
+  for (const r of personal) put(r, 'личный');
+  return out;
 }
 
 function blank(
@@ -269,6 +383,7 @@ function blank(
     lessonsTotal: null,
     minutes: null,
     roadmap: null,
+    chat: null,
     note: '',
     noteAt: null,
   };

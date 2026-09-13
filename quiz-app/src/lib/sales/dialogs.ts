@@ -75,6 +75,17 @@ export async function waiting(): Promise<WaitingRow[]> {
       LEFT JOIN sales_outcome o ON o.chat_id = m.chat_id
      WHERE m.side = 'client'
        AND m.created_at < now() - make_interval(secs => ${FRESH_SECONDS})
+       -- Клиенты из базы не продажи: их видно в «Деньгах на столе». Условия
+       -- те же, что в lib/clients-base.ts, держать вместе.
+       AND NOT EXISTS (
+         SELECT 1 FROM product_access a
+          WHERE a.telegram_id::text = m.chat_id AND a.status = 'active'
+            AND a.product_slug IN ('uroven-t2', 'uroven-t3')
+            AND (a.expires_at IS NULL OR a.expires_at > now())
+            AND a.track IS DISTINCT FROM 'service'
+       )
+       AND NOT EXISTS (SELECT 1 FROM roadmaps r WHERE r.telegram_id::text = m.chat_id AND NOT r.archived)
+       AND NOT EXISTS (SELECT 1 FROM payment_dues d WHERE d.telegram_id::text = m.chat_id AND d.status = 'pending')
        AND (
          o.chat_id IS NULL
          OR m.created_at > o.marked_at

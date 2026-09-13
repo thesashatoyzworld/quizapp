@@ -5,6 +5,7 @@ import { sendBotMessage } from '@/lib/telegram';
 import { transcribeTgVoice, TG_FILE_LIMIT_BYTES } from '@/lib/whisper';
 import { suggestFromThread, type SalesStep } from './answer';
 import { pushDigest } from './digest';
+import { inBase, workAccount } from '@/lib/clients-base';
 
 // Личка рабочего аккаунта.
 //
@@ -80,7 +81,10 @@ export async function saveConnection(conn: TgBusinessConnection): Promise<void> 
   for (const chatId of helpers()) {
     await sendBotMessage(
       chatId,
-      conn.is_enabled
+      conn.is_enabled && String(conn.user.id) !== workAccount()
+        ? `подключился к личному аккаунту @${conn.user.username || conn.user.id}\n\n` +
+            'пишу только переписку с клиентами из базы, для трекинга. в продажи она не идёт, остальные чаты не сохраняю'
+        : conn.is_enabled
         ? `подключился к личке @${conn.user.username || conn.user.id}\n` +
             `${canReply ? 'отвечать разрешено' : 'права отвечать нет, только читаю'}\n\n` +
             'дальше по каждому входящему буду присылать, что бы я ответил'
@@ -374,6 +378,20 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
   if (msg.chat.id === Number((process.env.BOT_TOKEN || '').split(':')[0])) return;
 
   const conn = await ensureConnection(msg.business_connection_id);
+
+  // Бот подключён к двум аккаунтам: рабочему (продажи) и личному Саши (там
+  // пишется только переписка с клиентами). Не узнали подключение — не знаем,
+  // чей это аккаунт, и не пишем никуда: лучше потерять реплику, чем уложить
+  // разговор с другом в очередь продаж.
+  if (!conn) {
+    console.error('[business] подключение не опознано, сообщение пропущено', msg.business_connection_id);
+    return;
+  }
+  if (conn.userId !== workAccount()) {
+    await handlePersonalMessage(msg, conn.userId, said, voice);
+    return;
+  }
+
   // Свои сообщения тоже сохраняем: без них модель не увидит, что мы уже
   // ответили, и предложит отвечать на несказанное.
   const side =
@@ -453,6 +471,54 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
 }
 
 /**
+ * Сообщение с личного аккаунта Саши.
+ *
+ * Пишем только переписку с людьми из базы (см. lib/clients-base): она нужна,
+ * чтобы видеть клиента целиком, а не для продаж. Остальных — друзей, знакомых,
+ * лидов, написавших на личный, — не сохраняем вовсе. Подсказок и сводок нет.
+ */
+async function handlePersonalMessage(
+  msg: TgBusinessMessage,
+  account: string,
+  said: string,
+  voice: TgVoice | undefined,
+): Promise<void> {
+  const chatId = String(msg.chat.id);
+  // «Избранное» — чат аккаунта с самим собой.
+  if (chatId === account) return;
+  if (!(await inBase(chatId))) return;
+
+  const id = `${account}:${chatId}:${msg.message_id}`;
+  try {
+    await prisma.tgPersonalMsg.create({
+      data: {
+        id,
+        account,
+        chatId,
+        side: String(msg.from?.id) === account ? 'us' : 'client',
+        username: msg.chat.username || null,
+        name: msg.chat.first_name || null,
+        text: said || `[голосовое${stamp(voice?.duration)}, расшифровывается]`,
+        mediaType: voice ? (msg.video_note ? 'video' : 'voice') : null,
+        mediaRef: voice?.file_id ?? null,
+        createdAt: new Date(msg.date * 1000),
+      },
+    });
+  } catch {
+    // Повтор апдейта: запись уже есть.
+    return;
+  }
+
+  if (voice) {
+    const heard = await transcribeVoice(voice);
+    await prisma.tgPersonalMsg.update({
+      where: { id },
+      data: { text: said ? `${said}\n${heard.text}` : heard.text },
+    });
+  }
+}
+
+/**
  * Показать шаг тому, кто ведёт переписку: карточка, само сообщение и кнопки.
  *
  * Сообщение приходит отдельным куском, чтобы его можно было скопировать
@@ -507,7 +573,10 @@ export async function regenerate(chatId: string): Promise<boolean> {
   if (!rows.length) return false;
 
   const last = rows[rows.length - 1];
-  const conn = await prisma.tgBusinessConn.findFirst({ orderBy: { connectedAt: 'desc' } });
+  const conn = await prisma.tgBusinessConn.findFirst({
+    where: { userId: workAccount() },
+    orderBy: { connectedAt: 'desc' },
+  });
   const lead = await leadOfChat(chatId, last.username);
 
   const step = await suggestFromThread({
@@ -553,11 +622,13 @@ export async function sendAs(
   const token = process.env.BOT_TOKEN;
   if (!token) return { ok: false, error: 'нет токена' };
 
+  // Только рабочий аккаунт: к личному бот тоже подключён, но продажи и
+  // ответы из кабинета идут строго от @sashatoyzwork.
   const conn = await prisma.tgBusinessConn.findFirst({
-    where: { isEnabled: true },
+    where: { isEnabled: true, userId: workAccount() },
     orderBy: { connectedAt: 'desc' },
   });
-  if (!conn) return { ok: false, error: 'бот не подключён к личке' };
+  if (!conn) return { ok: false, error: 'бот не подключён к рабочему аккаунту' };
   if (!conn.canReply) return { ok: false, error: 'нет права отвечать, проверь настройки бизнес-бота' };
 
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {

@@ -50,6 +50,7 @@ function daysSince(iso: string | null): number | null {
 function flags(i: WatchItem): { text: string; tone: 'hot' | 'warn' }[] {
   const out: { text: string; tone: 'hot' | 'warn' }[] = [];
   if (i.daysLeft < 0) out.push({ text: 'не заплатил', tone: 'hot' });
+  if (i.chat?.lastSide === 'client') out.push({ text: 'ждёт ответа', tone: 'hot' });
   const noteAge = daysSince(i.noteAt);
   if (i.daysLeft >= 0 && i.daysLeft <= TALK_BEFORE_DAYS && (noteAge === null || noteAge > 7)) {
     out.push({ text: 'пора написать', tone: 'hot' });
@@ -169,6 +170,22 @@ function Row({ item }: { item: WatchItem }) {
                   <dd>{ddmm(item.roadmap.lastTouchAt)}</dd>
                 </div>
               )}
+              <div>
+                <dt>писал сам</dt>
+                <dd className={item.chat?.clientAt ? undefined : styles.muted}>
+                  {item.chat?.clientAt ? ago(daysSince(item.chat.clientAt)) : 'переписки нет'}
+                </dd>
+              </div>
+              {item.chat && (
+                <div className={styles.wide}>
+                  <dt>
+                    последнее в телеграме · {item.chat.where} · {ddmm(item.chat.lastAt)}
+                  </dt>
+                  <dd>
+                    <span className={styles.who}>{item.chat.lastSide === 'client' ? 'он:' : 'ты:'}</span> {item.chat.lastText}
+                  </dd>
+                </div>
+              )}
               {item.roadmap?.nextClientTask && (
                 <div className={styles.wide}>
                   <dt>ход клиента</dt>
@@ -219,6 +236,27 @@ export default function KontrolClient({ report }: { report: WatchReport }) {
           <div className={styles.totalLabel}>горят прямо сейчас</div>
         </div>
       </div>
+
+      {report.waiting.length > 0 && (
+        <section className={styles.waiting}>
+          <div className={styles.waitingHead}>клиенты ждут ответа · {report.waiting.length}</div>
+          {report.waiting.map((w) => (
+            <div key={w.chatId} className={styles.waitingRow}>
+              <div className={styles.waitingWho}>
+                {w.where === 'рабочий' ? (
+                  <Link href={`/admin/dialogi/${w.chatId}`} className={styles.link}>{w.who}</Link>
+                ) : (
+                  <span>{w.who}</span>
+                )}
+                <span className={styles.user}>
+                  {w.username ? `@${w.username} · ` : ''}{w.where} · {ago(daysSince(w.at))}
+                </span>
+              </div>
+              <div className={styles.waitingText}>{w.text}</div>
+            </div>
+          ))}
+        </section>
+      )}
 
       <div className={styles.tabs}>
         {([['all', 'все'], ['agreed', 'договорились'], ['renewal', 'продления']] as const).map(([k, t]) => (
