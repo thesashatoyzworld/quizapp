@@ -903,3 +903,34 @@ model Deal {
   @@index([status])
   @@map("deals")
 }
+
+// ═══════════════════════════════════════
+// ГРАФИК ПЛАТЕЖЕЙ (рассрочка по прайс-ссылке)
+// ═══════════════════════════════════════
+
+// Один ожидаемый платёж человека: «менторство 50 000 × 3, второй платёж 07.10».
+// Прайс-ссылка всегда разовая, автосписания нет, поэтому о следующем платеже
+// человеку надо напомнить. Крон cron-payment-reminders пишет ему в бота за три
+// дня и в сам день с кнопкой оплаты, вебхук Продамуса закрывает строку сам,
+// когда приходит оплата по этой ссылке от этого телеграма.
+model PaymentDue {
+  id                String    @id @default(uuid())
+  telegramId        BigInt    @map("telegram_id")
+  who               String? // как назвать в сводке Саше
+  dealId            String    @map("deal_id") // по какой прайс-ссылке платить
+  amount            Int
+  dueAt             DateTime  @map("due_at")
+  label             String? // «платёж 2 из 3»
+  /** pending — ждём, paid — пришла оплата, cancelled — договорились иначе. */
+  status            String    @default("pending")
+  paidAt            DateTime? @map("paid_at")
+  orderId           String?   @map("order_id")
+  remindedBeforeAt  DateTime? @map("reminded_before_at")
+  remindedDueAt     DateTime? @map("reminded_due_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, dueAt])
+  @@index([telegramId, dealId])
+  @@map("payment_dues")
+}
