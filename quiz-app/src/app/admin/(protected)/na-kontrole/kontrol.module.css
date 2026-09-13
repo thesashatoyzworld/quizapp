@@ -1,0 +1,355 @@
+/* «Деньги на столе». Тема общая для админки:
+   тёмный фон, циановый акцент, Orbitron на заголовках. */
+
+.page {
+  max-width: 1100px;
+}
+
+.h1 {
+  font-family: var(--font-display);
+  color: var(--neon-cyan);
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+}
+
+.sub {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.empty {
+  color: var(--text-muted);
+}
+
+/* ── итоги ─────────────────────────────── */
+
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 20px;
+}
+
+.totalValue,
+.totalValueDim,
+.totalHot {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  line-height: 1.1;
+}
+
+.totalValue {
+  color: var(--neon-cyan);
+}
+
+.totalValueDim {
+  color: var(--text-secondary);
+}
+
+.totalHot {
+  color: var(--danger);
+}
+
+.totalLabel {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-top: 4px;
+}
+
+/* ── вкладки ─────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.tab,
+.tabOn {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.tabOn {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  background: rgba(0, 240, 255, 0.06);
+}
+
+/* ── строка человека ─────────────────────────────── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 20px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.money {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.due,
+.dueWarn,
+.dueHot {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.due {
+  color: var(--text-primary);
+}
+
+.dueWarn {
+  color: var(--neon-yellow);
+}
+
+.dueHot {
+  color: var(--danger);
+}
+
+.when {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.amount {
+  margin-top: 8px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--neon-cyan);
+}
+
+.guess {
+  color: var(--text-muted);
+  font-weight: 400;
+  cursor: help;
+}
+
+.kind {
+  align-self: flex-start;
+  margin-top: 6px;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+}
+
+.agreed {
+  border-color: rgba(0, 240, 255, 0.4);
+  color: var(--neon-cyan);
+}
+
+.renewal {
+  border-color: rgba(240, 255, 0, 0.35);
+  color: var(--neon-yellow);
+}
+
+.auto {
+  color: var(--text-muted);
+}
+
+.body {
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.name {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.user {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.tier {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(157, 78, 221, 0.2);
+  color: #c9a2f0;
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+
+.flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.flagHot,
+.flagWarn {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.flagHot {
+  background: rgba(255, 42, 109, 0.15);
+  color: var(--danger);
+}
+
+.flagWarn {
+  background: rgba(240, 255, 0, 0.08);
+  color: var(--neon-yellow);
+}
+
+.signals {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px 16px;
+  margin: 12px 0 0;
+}
+
+.signals dt {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.signals dd {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.bad {
+  color: var(--danger) !important;
+}
+
+.link {
+  color: var(--neon-cyan);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* ── заметка ─────────────────────────────── */
+
+.note {
+  margin-top: 12px;
+}
+
+.noteInput {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.noteInput:focus {
+  outline: none;
+  border-color: rgba(0, 240, 255, 0.5);
+}
+
+.noteInput::placeholder {
+  color: var(--text-muted);
+}
+
+.noteMeta {
+  min-height: 1em;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.err {
+  color: var(--danger);
+}
+
+.hint {
+  margin-top: 24px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.hint code {
+  color: var(--neon-cyan);
+  background: rgba(0, 240, 255, 0.07);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .money {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+  }
+
+  .amount,
+  .kind {
+    margin-top: 0;
+  }
+
+  .totals {
+    gap: 20px;
+  }
+
+  .totalValue,
+  .totalValueDim,
+  .totalHot {
+    font-size: 1.4rem;
+  }
+}

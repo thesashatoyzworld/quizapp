@@ -112,7 +112,6 @@ export async function runPaymentReminders(now = new Date(), dryRun = false): Pro
     const left = mskDay(d.dueAt) - today;
     const who = d.who || String(d.telegramId);
     const line = `• ${who}: ${what(d)}, ${mskDate(d.dueAt)}`;
-    const button = { inline_keyboard: [[{ text: `💳 Оплатить ${formatPrice(d.amount)}`, url: payUrl(d.dealId, d.telegramId) }]] };
 
     let kind: 'before' | 'due' | null = null;
     if (left >= 1 && left <= REMIND_BEFORE_DAYS && !d.remindedBeforeAt) kind = 'before';
@@ -120,7 +119,10 @@ export async function runPaymentReminders(now = new Date(), dryRun = false): Pro
     else if (left <= 0 && left >= -1 && !d.remindedDueAt) kind = 'due';
     else if (left < 0) res.overdue.push(`${line} (просрочка ${-left} дн.)`);
 
-    if (!kind) continue;
+    // Без телеграма или без прайс-ссылки человеку писать некуда или нечем:
+    // строка живёт только в разделе «Деньги на столе».
+    if (!kind || !d.telegramId || !d.dealId) continue;
+    const button = { inline_keyboard: [[{ text: `💳 Оплатить ${formatPrice(d.amount)}`, url: payUrl(d.dealId, d.telegramId) }]] };
     if (dryRun) {
       res[kind].push(line);
       continue;

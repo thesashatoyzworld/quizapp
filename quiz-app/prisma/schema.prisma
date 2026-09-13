@@ -915,9 +915,11 @@ model Deal {
 // когда приходит оплата по этой ссылке от этого телеграма.
 model PaymentDue {
   id                String    @id @default(uuid())
-  telegramId        BigInt    @map("telegram_id")
+  /** null — человека нет в боте (Стас): строка только для раздела «Деньги на столе», без напоминаний */
+  telegramId        BigInt?   @map("telegram_id")
   who               String? // как назвать в сводке Саше
-  dealId            String    @map("deal_id") // по какой прайс-ссылке платить
+  /** null — платит мимо прайс-ссылки: напоминать нечем, закрывать руками */
+  dealId            String?   @map("deal_id") // по какой прайс-ссылке платить
   amount            Int
   dueAt             DateTime  @map("due_at")
   label             String? // «платёж 2 из 3»
@@ -933,4 +935,14 @@ model PaymentDue {
   @@index([status, dueAt])
   @@index([telegramId, dealId])
   @@map("payment_dues")
+}
+
+// Что человек говорит и чем рискуем — заметка Саши в разделе «Деньги на столе».
+// Ключ «tg:<telegram_id>» или «due:<id строки графика>» для тех, кого нет в боте.
+model WatchNote {
+  key       String   @id
+  note      String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("watch_notes")
 }

@@ -6,6 +6,7 @@ import styles from './admin-shell.module.css';
 const NAV_LINKS = [
   { href: '/admin/dashboard', label: 'Дашборд' },
   { href: '/admin/roadmaps', label: 'Карты клиентов' },
+  { href: '/admin/na-kontrole', label: 'Деньги на столе' },
   { href: '/admin/analytics', label: 'Аналитика' },
   { href: '/admin/uroven', label: 'Лиды · Уровень' },
   { href: '/admin/progress', label: 'Обучение' },
