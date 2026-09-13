@@ -142,6 +142,16 @@ export async function parked(): Promise<Parked[]> {
       ) m ON true
      WHERE m.created_at <= o.marked_at
        AND (o.outcome <> 'thinking' OR o.wake_at IS NULL OR o.wake_at > now())
+       -- Клиенты из базы не продажи (см. lib/clients-base.ts и waiting в dialogs.ts).
+       AND NOT EXISTS (
+         SELECT 1 FROM product_access a
+          WHERE a.telegram_id::text = o.chat_id AND a.status = 'active'
+            AND a.product_slug IN ('uroven-t2', 'uroven-t3')
+            AND (a.expires_at IS NULL OR a.expires_at > now())
+            AND a.track IS DISTINCT FROM 'service'
+       )
+       AND NOT EXISTS (SELECT 1 FROM roadmaps r WHERE r.telegram_id::text = o.chat_id AND NOT r.archived)
+       AND NOT EXISTS (SELECT 1 FROM payment_dues d WHERE d.telegram_id::text = o.chat_id AND d.status = 'pending')
      ORDER BY o.wake_at ASC NULLS LAST, o.marked_at DESC
   `;
 

@@ -946,3 +946,24 @@ model WatchNote {
 
   @@map("watch_notes")
 }
+
+// Переписка с клиентами на личном аккаунте Саши (не рабочем @sashatoyzwork).
+// Бот подключён к обоим через Telegram Business. С рабочего пишется всё и идёт
+// в продажи (tg_business_msg). С личного пишутся ТОЛЬКО люди из базы (доступ
+// т2/т3, карта или платёж в графике): друзья и прочие не сохраняются вовсе.
+// Нужна для трекинга клиентов в «Деньгах на столе», в продажи не попадает.
+model TgPersonalMsg {
+  id        String   @id // <account>:<chat>:<message_id>
+  account   String // telegram id аккаунта, к которому подключён бот
+  chatId    String   @map("chat_id")
+  side      String // us | client
+  username  String?
+  name      String?
+  text      String
+  mediaType String?  @map("media_type")
+  mediaRef  String?  @map("media_ref")
+  createdAt DateTime @map("created_at")
+
+  @@index([chatId, createdAt])
+  @@map("tg_personal_msg")
+}

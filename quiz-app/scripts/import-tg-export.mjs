@@ -45,7 +45,10 @@ const db = new pg.Client({
 await db.connect();
 
 const conn = (
-  await db.query('SELECT user_id, username FROM tg_business_conn ORDER BY connected_at DESC LIMIT 1')
+  // Выгрузка — рабочего аккаунта. К личному бот тоже подключён, его не берём.
+  await db.query('SELECT user_id, username FROM tg_business_conn WHERE user_id = $1 ORDER BY connected_at DESC LIMIT 1', [
+    (process.env.ADMIN_CHAT_ID_WORK || '6013902004').trim(),
+  ])
 ).rows[0];
 if (!conn) {
   console.error('В базе нет подключения (tg_business_conn) — непонятно, чьи сообщения считать нашими.');
