@@ -6,6 +6,7 @@ import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { floorPrice } from '@/content/prices';
 import { grantAccess } from '@/lib/access';
 import { getDeal, countPayment, dealProduct, parseDealOrderId, alreadyProcessed } from '@/lib/deals';
+import { markDuePaid } from '@/lib/payment-dues';
 import { sendWelcomeT2, startIntake } from '@/lib/onboarding';
 import { notifyAdmin } from '@/lib/telegram';
 import { INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
@@ -516,6 +517,10 @@ export async function POST(request: NextRequest) {
         if (product.slug === INTAKE_PRODUCT_SLUG) {
           await startIntake(tgUserId, 't3');
         }
+
+        // Платёж по графику закрываем сам, чтобы крон не напомнил об оплаченном.
+        await markDuePaid(tgUserId, deal.id, orderId as string)
+          .catch((e) => console.error('[Payment Dues] mark paid failed:', e));
       } else {
         // Телеграма нет: платили не из бота. Доступ вешаем
         // на order_id, привяжется при входе в бота, и зовём Сашу разобраться.
