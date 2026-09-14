@@ -42,6 +42,20 @@ export const isOnSale = (tier: string): boolean => SALES[tier as Tier] === 'sale
  */
 export const PERSONAL_KEY = 'svoi';
 
+/**
+ * Личный ключ со старой ценой тарифа 2: `uroven_t2_svoi10`. Открывает тариф
+ * так же, как `svoi`, но чекаут показывает 10 000, а не 12 000 после подорожания.
+ * Списывает всё равно карточка подписки 2356023 (10 000 каждые 30 дней), так что
+ * меняется только витрина: человеку, которому назвали 10 000, не показываем 12.
+ *
+ * ⚠️ Копия тоже инлайном в public/uroven/checkout.html.
+ */
+export const OLD_PRICE_KEY = 'svoi10';
+
+/** Ключ из ссылки открывает закрытый тариф. */
+export const isPersonalKey = (key: string | null | undefined): boolean =>
+  key === PERSONAL_KEY || key === OLD_PRICE_KEY;
+
 /** Открыт ли тариф этому человеку: по режиму продаж или по личному ключу. */
 export const canBuy = (tier: string, personal = false): boolean =>
   isOnSale(tier) || personal;

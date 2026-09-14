@@ -19,7 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
-import { canBuy, PERSONAL_KEY, waitlistLink } from '@/lib/sales';
+import { canBuy, isPersonalKey, waitlistLink } from '@/lib/sales';
 import { prices } from '@/content/prices';
 import { CATALOG } from '@/lib/catalog';
 
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const tier = TIERS[raw] ? raw : 't1';
   const t = TIERS[tier];
 
-  const personal = request.nextUrl.searchParams.get('k') === PERSONAL_KEY;
+  const personal = isPersonalKey(request.nextUrl.searchParams.get('k'));
 
   // Набор на тариф закрыт: ссылка не ведёт в тупик, а записывает в лист ожидания.
   // Старые ссылки из постов и переписок продолжают работать — просто иначе.
