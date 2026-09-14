@@ -7,7 +7,7 @@ import { STATUS_LABEL, type LeadStatus } from '@/content/lead-status';
 import { prisma } from '@/lib/prisma';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
-import { canBuy, isOnSale, PERSONAL_KEY, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
+import { canBuy, isOnSale, isPersonalKey, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { getDeal, formatPrice, formatDays } from '@/lib/deals';
 import { handleKbQuestion } from '@/lib/kb/ask';
@@ -1316,7 +1316,8 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
         // Личная ссылка на закрытый тариф: uroven_t2_svoi. Тот же ключ, что
         // у веб-ссылки /pay/t2?k=svoi — Саша даёт её в переписке одному человеку.
         // Меткой она и остаётся: в аналитике такие оплаты видно как uroven_svoi.
-        const personal = src === PERSONAL_KEY;
+        // uroven_t2_svoi10 — та же личная ссылка, но с витриной по старой цене.
+        const personal = isPersonalKey(src);
 
         // Человек пришёл по старой ссылке на тариф, набор которого закрыт.
         // Не молчим и не открываем чекаут — объясняем и предлагаем лист ожидания.
@@ -1341,7 +1342,7 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
         // покажет закрытому тарифу кнопку листа ожидания вместо оплаты.
         const checkoutUrl =
           `${WEBAPP_URL}/uroven/checkout.html?tier=${safeTier}` +
-          `${src ? `&src=${src}` : ''}${personal ? `&k=${PERSONAL_KEY}` : ''}`;
+          `${src ? `&src=${src}` : ''}${personal ? `&k=${src}` : ''}`;
 
         // По личной ссылке человек знает, что набор закрыт: на сайте написано
         // именно так. Одной строкой снимаем вопрос, почему кнопка всё-таки есть.

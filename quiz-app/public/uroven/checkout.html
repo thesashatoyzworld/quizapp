@@ -161,8 +161,13 @@ h1 {
   // Ключ не про безопасность (цена та же), а про то, чтобы ссылка из личной
   // переписки не разошлась по постам мимо набора.
   var PERSONAL_KEY = 'svoi';
-  var personal = /[?&]k=([a-z0-9-]+)/.exec(window.location.search);
-  personal = !!(personal && personal[1] === PERSONAL_KEY);
+  // ?k=svoi10 — личная ссылка тарифа 2 по старой цене: витрина 10 000 вместо
+  // живой цены. Списывает карточка подписки 2356023, то есть те же 10 000.
+  var OLD_PRICE_KEY = 'svoi10';
+  var keyMatch = /[?&]k=([a-z0-9-]+)/.exec(window.location.search);
+  var key = keyMatch ? keyMatch[1] : '';
+  var personal = key === PERSONAL_KEY || key === OLD_PRICE_KEY;
+  function oldPrice() { return key === OLD_PRICE_KEY && tier === 't2'; }
   function canBuy(t) { return SALES[t] === 'sale' || personal; }
 
   function render() {
@@ -172,7 +177,7 @@ h1 {
     // Цифры выше это запасной вариант на случай, если запрос не дошёл.
     // Правда живёт на сервере: 13 сентября цены меняются сами, и страница,
     // пролежавшая в кэше со вчера, не должна показывать вчерашнюю цену.
-    fetch('/api/prices', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (live) {
+    if (!oldPrice()) fetch('/api/prices', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (live) {
       var key = tier === 't1' ? 't1' : tier === 't2' ? 't2Month' : 't3Month';
       if (typeof live[key] === 'number') {
         document.getElementById('price').innerHTML = live[key].toLocaleString('ru-RU') + '&nbsp;₽';
@@ -222,7 +227,7 @@ h1 {
     var q = [];
     if (uid) q.push('u=' + uid);
     // Ключ едет дальше на сервер: /pay/<tier> гейтит закрытый тариф так же.
-    if (personal) q.push('k=' + PERSONAL_KEY);
+    if (personal) q.push('k=' + key);
     return origin + '/pay/' + tier + (q.length ? '?' + q.join('&') : '');
   }
 
@@ -256,7 +261,7 @@ h1 {
     if (!uid) {
       trackCheckout('bounce_bot');
       // Вне бота — уводим в бота, чтобы доступ привязался к Telegram
-      var back = 'https://t.me/testtoyzbot?start=uroven_' + tier + (personal ? '_' + PERSONAL_KEY : '');
+      var back = 'https://t.me/testtoyzbot?start=uroven_' + tier + (personal ? '_' + key : '');
       if (tg && tg.openTelegramLink) tg.openTelegramLink(back);
       else window.location.href = back;
       return;
