@@ -25,6 +25,8 @@ import { LICHNOE_LICHNYY_SOZVON_MOVLATGIREI_2026_09_11 } from './lichnyy-sozvon-
 
 import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_11 } from './lichnyy-sozvon-evgeniya-2026-09-11';
 
+import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_14 } from './lichnyy-sozvon-daniel-2026-09-14';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -47,6 +49,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-daniel-2026-09-14',
+    telegramIds: [397715074, 788334680],
+    client: "Даниэл Осипов",
+    title: "Сначала грядка и семечки, потом вода",
+    subtitle: "Кейсы, диалоги с тёплыми контактами, три ролика голосом и вектор «ведущий для миллионеров»",
+    date: '2026-09-14',
+    duration: "58 мин",
+    tags: ["кейсы", "контакты", "контент", "позиционирование"],
+    kinescopeId: 'kyCTx9UV7YFVX3XVixmk9v',
+    html: LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_14,
+  },
   {
     slug: 'lichnyy-sozvon-evgeniya-2026-09-11',
     telegramIds: [934091008, 788334680],
