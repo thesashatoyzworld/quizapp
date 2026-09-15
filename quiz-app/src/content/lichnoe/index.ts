@@ -29,6 +29,8 @@ import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_14 } from './lichnyy-sozvon-danie
 
 import { LICHNOE_LICHNYY_SOZVON_DMITRII_2026_09_15 } from './lichnyy-sozvon-dmitrii-2026-09-15';
 
+import { LICHNOE_LICHNYY_SOZVON_VOLESLAV_2026_09_15 } from './lichnyy-sozvon-voleslav-2026-09-15';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -51,6 +53,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-voleslav-2026-09-15',
+    telegramIds: [128222499, 788334680],
+    client: "Волеслав Шевченко",
+    title: "Снаряга для бродяги",
+    subtitle: "Первый оффер на подбор снаряжения за 5 000, таблица, которая его продаёт, и контент на объектах",
+    date: '2026-09-15',
+    duration: "56 мин",
+    tags: ["оффер", "пруфы", "контент"],
+    kinescopeId: '71fRFDFGFL7sDQSHebBjAd',
+    html: LICHNOE_LICHNYY_SOZVON_VOLESLAV_2026_09_15,
+  },
   {
     slug: 'lichnyy-sozvon-dmitrii-2026-09-15',
     telegramIds: [433684845, 788334680],
