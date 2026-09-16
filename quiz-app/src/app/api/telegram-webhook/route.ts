@@ -1010,13 +1010,16 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      // Разделы кабинета deep-link: /start sozvony | razbory → кнопка сразу в раздел.
+      // Разделы кабинета deep-link: /start sozvony | razbory | neyronki → кнопка сразу в раздел.
       // Нужен для анонсов в группе: ссылка из поста открывает нужный раздел в боте.
       // Ничего не выдаёт — раздел гейтит по telegram_id на сервере.
-      if (startParam === 'sozvony' || startParam === 'razbory') {
-        const room = startParam === 'sozvony'
-          ? { url: 'https://world.thesashatoyz.com/sozvony', button: '🎥 Открыть созвоны', what: 'записи групповых созвонов с конспектами' }
-          : { url: 'https://world.thesashatoyz.com/razbory', button: '🎥 Открыть разборы', what: 'разборы созвонов учеников с конспектами' };
+      if (startParam === 'sozvony' || startParam === 'razbory' || startParam === 'neyronki') {
+        const rooms = {
+          sozvony: { url: 'https://world.thesashatoyz.com/sozvony', button: '🎥 Открыть созвоны', what: 'записи групповых созвонов с конспектами' },
+          razbory: { url: 'https://world.thesashatoyz.com/razbory', button: '🎥 Открыть разборы', what: 'разборы созвонов учеников с конспектами' },
+          neyronki: { url: 'https://world.thesashatoyz.com/neyronki', button: '🤖 Открыть нейронки', what: 'разборы по нейронкам с конспектами' },
+        } as const;
+        const room = rooms[startParam];
         await prisma.user.upsert({
           where: { telegramId: BigInt(chatId) },
           create: { telegramId: BigInt(chatId), username: username || null, firstName: update.message.from?.first_name || null },
