@@ -108,6 +108,16 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
+    key: 'neyronki',
+    role: 'uroven',
+    title: 'Нейронки',
+    subtitle: 'Сайт, бот и автоматизация своими руками',
+    landingUrl: 'https://thesashatoyz.com/uroven',
+    materials: [
+      { kind: 'recording', title: 'Разборы по шагам', url: '/neyronki', note: 'Записи экрана и конспекты: как собрать через нейронку то, за что обычно платят подрядчику.', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
+    ],
+  },
+  {
     key: 'sozvony',
     role: 'uroven',
     title: 'Групповые созвоны',
