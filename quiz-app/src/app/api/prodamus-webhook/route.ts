@@ -7,7 +7,7 @@ import { floorPrice } from '@/content/prices';
 import { grantAccess } from '@/lib/access';
 import { getDeal, countPayment, dealProduct, parseDealOrderId, alreadyProcessed } from '@/lib/deals';
 import { markDuePaid } from '@/lib/payment-dues';
-import { sendWelcomeT2, startIntake } from '@/lib/onboarding';
+import { sendWelcomeT2, sendWelcomeT3, startIntake } from '@/lib/onboarding';
 import { notifyAdmin } from '@/lib/telegram';
 import { INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
 import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
@@ -494,8 +494,13 @@ export async function POST(request: NextRequest) {
         ]);
 
         // Дальше человек идёт тем же путём, что и обычная оплата тарифа:
-        // приветственный пакет т2 или досье т3.
-        const welcomed = product.slug === T2_PRODUCT_SLUG ? await sendWelcomeT2(tgUserId) : false;
+        // приветственный пакет своего тарифа, а внутри него интервью.
+        const welcomed =
+          product.slug === T2_PRODUCT_SLUG
+            ? await sendWelcomeT2(tgUserId)
+            : product.slug === INTAKE_PRODUCT_SLUG
+              ? await sendWelcomeT3(tgUserId)
+              : false;
 
         if (!welcomed && BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -514,7 +519,9 @@ export async function POST(request: NextRequest) {
           }).catch(() => {});
         }
 
-        if (product.slug === INTAKE_PRODUCT_SLUG) {
+        // Приветствие т3 запускает анкету само; здесь добираем случай, когда
+        // приветствие не ушло, потому что человеку уже здоровались раньше.
+        if (product.slug === INTAKE_PRODUCT_SLUG && !welcomed) {
           await startIntake(tgUserId, 't3');
         }
 
@@ -662,8 +669,14 @@ export async function POST(request: NextRequest) {
           grantAccess({ product, telegramId: tgUserId, source: orderId as string })
             .catch((e) => console.error('[Access] uroven telegram grant failed:', e)),
         ]);
-        // Тариф 2 встречает своим пакетом: где что лежит, группа, следом интервью.
-        const welcomed = product.slug === T2_PRODUCT_SLUG ? await sendWelcomeT2(tgUserId) : false;
+        // Тарифы 2 и 3 встречают своим пакетом: где что лежит, именная ссылка
+        // в группу, следом интервью.
+        const welcomed =
+          product.slug === T2_PRODUCT_SLUG
+            ? await sendWelcomeT2(tgUserId)
+            : product.slug === INTAKE_PRODUCT_SLUG
+              ? await sendWelcomeT3(tgUserId)
+              : false;
 
         if (!welcomed && BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -677,9 +690,9 @@ export async function POST(request: NextRequest) {
             }),
           }).catch(() => {});
         }
-        // Тариф 3 = групповое менторство: сразу зовём собрать досье до созвона 1-1.
-        // Момент максимальной мотивации, человек только что заплатил.
-        if (product.slug === INTAKE_PRODUCT_SLUG) {
+        // Приветствие т3 запускает анкету само; здесь добираем случай, когда
+        // приветствие не ушло, потому что человеку уже здоровались раньше.
+        if (product.slug === INTAKE_PRODUCT_SLUG && !welcomed) {
           await startIntake(tgUserId, 't3');
         }
 
