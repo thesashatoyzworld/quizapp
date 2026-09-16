@@ -19,7 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
-import { canBuy, isPersonalKey, waitlistLink } from '@/lib/sales';
+import { canBuy, isPersonalKey, waitlistLink, OLD_PRICE_KEY } from '@/lib/sales';
 import { prices } from '@/content/prices';
 import { CATALOG } from '@/lib/catalog';
 
@@ -27,11 +27,19 @@ const FORM = 'https://thesashatoyz.payform.ru';
 const BOT = 'https://t.me/testtoyzbot';
 const NOTIFY = 'https://quizapp-ivory-delta.vercel.app/api/prodamus-webhook';
 
-// ⚠️ У тарифа 2 подписка 2356023, а НЕ 2987944: старая карточка выставляет
-// 7 500, на ней сидят десять человек по прежней цене, и трогать её нельзя.
-// 2356023 списывает 10 000 сразу и каждые 30 дней. Та же карточка обслуживает
-// «Синхронизацию» — цена и период совпадают, а кто именно купил, видно
-// по нашему order_id, не по подписке.
+// ⚠️ У тарифа 2 три карточки подписки в Продамусе, по одной на каждую цену:
+// сумма жёстко зашита в карточку, произвольную ей не передать.
+//   3061890 — 12 000 каждые 30 дней, цена с 13 сентября. Идёт всем новым.
+//   2356023 — 10 000 каждые 30 дней, цена до 13 сентября. Только по ключу svoi10,
+//     то есть тому, кому Саша уже назвал 10 000. Та же карточка обслуживает
+//     «Синхронизацию» — кто именно купил, видно по order_id, не по подписке.
+//   2987944 — 7 500, старики из LEGACY_T2. Трогать её нельзя.
+// Цена на витрине считается из prices(), но списывает всё равно карточка: после
+// подорожания 13.09 витрина показывала 12 000, а старая 2356023 списывала 10 000.
+const T2_SUB = '3061890';      // 12 000 каждые 30 дней
+const T2_SUB_OLD = '2356023';  // 10 000 каждые 30 дней, только по ключу svoi10
+const OLD_T2_PRICE = 10000;    // что реально спишет T2_SUB_OLD — для трекинга
+
 // Цена разового т1 берётся из каталога, а не дублируется здесь: именно
 // расхождение копий цены и дало оплату 3 450 вместо 5 450 (20.08).
 // Цена считается в момент запроса, а не при загрузке модуля: 13 сентября она
@@ -40,7 +48,7 @@ const tiers = (): Record<string, { name: string; price: number; sub?: string }> 
   const p = prices();
   return {
     t1: { name: 'Тариф 1 (делаешь сам)', price: p.t1 },
-    t2: { name: 'Тариф 2 (сам + монетизация)', price: p.t2Month, sub: '2356023' },
+    t2: { name: 'Тариф 2 (сам + монетизация)', price: p.t2Month, sub: T2_SUB },
     t3: { name: 'Тариф 3 (делаем вместе)', price: p.t3Month, sub: '2989937' },
   };
 };
@@ -68,7 +76,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const tier = TIERS[raw] ? raw : 't1';
   const t = TIERS[tier];
 
-  const personal = isPersonalKey(request.nextUrl.searchParams.get('k'));
+  const key = request.nextUrl.searchParams.get('k');
+  const personal = isPersonalKey(key);
+  // Ключ svoi10 — тот же тариф по старой цене: и витрина чекаута, и карточка
+  // подписки остаются на 10 000. Он выдаётся руками тому, кому цену назвали
+  // до подорожания.
 
   // Набор на тариф закрыт: ссылка не ведёт в тупик, а записывает в лист ожидания.
   // Старые ссылки из постов и переписок продолжают работать — просто иначе.
@@ -95,6 +107,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // Старая цена тарифа 2 — только по узнанному Telegram: без него мы не знаем,
   // кто пришёл, и продаём по текущей цене.
   const legacyT2 = tier === 't2' && byTelegram && !!LEGACY_T2[uid];
+  const oldPriceT2 = tier === 't2' && key === OLD_PRICE_KEY;
 
   // base36 без «_», иначе ломается разбор order_id по «_web_»
   const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -118,6 +131,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   };
   if (legacyT2) {
     fields.subscription = LEGACY_T2_SUB;
+  } else if (oldPriceT2) {
+    fields.subscription = T2_SUB_OLD;
   } else if (t.sub) {
     fields.subscription = t.sub;
   } else {
@@ -135,7 +150,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       event_type: 'checkout_open',
       utm_source: src ? `uroven_${src}` : 'uroven_paylink',
       metadata: {
-        tag: 'uroven', tier, price: legacyT2 ? LEGACY_T2_PRICE : t.price,
+        tag: 'uroven', tier, price: legacyT2 ? LEGACY_T2_PRICE : oldPriceT2 ? OLD_T2_PRICE : t.price,
         legacy: legacyT2 ? LEGACY_T2[uid] : undefined,
         method: byTelegram ? 'paylink_tg' : 'paylink',
         order_id: orderId, src: src || null,
