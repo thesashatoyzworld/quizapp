@@ -31,6 +31,8 @@ import { LICHNOE_LICHNYY_SOZVON_DMITRII_2026_09_15 } from './lichnyy-sozvon-dmit
 
 import { LICHNOE_LICHNYY_SOZVON_VOLESLAV_2026_09_15 } from './lichnyy-sozvon-voleslav-2026-09-15';
 
+import { LICHNOE_LICHNYY_SOZVON_KARINA_2026_09_16 } from './lichnyy-sozvon-karina-2026-09-16';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -53,6 +55,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-karina-2026-09-16',
+    telegramIds: [132984742, 788334680],
+    client: "Карина Грайлер-Калина",
+    title: "Карта вашей молодости",
+    subtitle: "Каркас оффера на 90 дней: кому продаём, что внутри, сколько стоит и как описывать каждый шаг",
+    date: '2026-09-16',
+    duration: "64 мин",
+    tags: ["оффер", "позиционирование", "контент"],
+    kinescopeId: 'cAujbcd39J61EqNa1EBSZ6',
+    html: LICHNOE_LICHNYY_SOZVON_KARINA_2026_09_16,
+  },
   {
     slug: 'lichnyy-sozvon-voleslav-2026-09-15',
     telegramIds: [128222499, 788334680],
