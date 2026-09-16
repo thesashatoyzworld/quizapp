@@ -37,7 +37,7 @@ import {
   syncUsername,
   transcribePending,
 } from '@/lib/intake';
-import { sendWelcomeT2, startIntake, adminWelcomeT2 } from '@/lib/onboarding';
+import { sendWelcomeT2, sendWelcomeT3, startIntake, adminWelcome } from '@/lib/onboarding';
 import { findIntakeFor, rebuildRoadmap } from '@/lib/roadmap/build';
 import { approveAndSend } from '@/lib/roadmap/review';
 import { scheduleRoadmapBuild } from '@/lib/qstash';
@@ -668,7 +668,7 @@ export async function POST(request: NextRequest) {
     ) {
       const chatId = update.message.chat.id;
       const arg = update.message.text.trim().split(/\s+/)[1] || '';
-      const reply = arg ? await adminWelcomeT2(arg) : 'кому: /welcome @username';
+      const reply = arg ? await adminWelcome(arg) : 'кому: /welcome @username [t2|t3]';
       // Без parse_mode: подчёркивание в юзернейме Markdown принимает за курсив.
       await sendBotMessage(chatId, reply, undefined, null);
       return NextResponse.json({ ok: true });
@@ -959,10 +959,15 @@ export async function POST(request: NextRequest) {
             data: { telegramId: BigInt(chatId), metadata: { ...meta, token, consumed: true, boundTelegramId: chatId } },
           });
 
-          // Тариф 2 встречает своим пакетом: где что лежит, группа, следом интервью.
-          // Остальные продукты — прежним коротким сообщением про кабинет.
+          // Тарифы 2 и 3 встречают своим пакетом: где что лежит, именная ссылка
+          // в группу, следом интервью. Остальные продукты — прежним коротким
+          // сообщением про кабинет.
           const welcomed =
-            product.slug === 'uroven-t2' ? await sendWelcomeT2(chatId) : false;
+            product.slug === 'uroven-t2'
+              ? await sendWelcomeT2(chatId)
+              : product.slug === 'uroven-t3'
+                ? await sendWelcomeT3(chatId)
+                : false;
 
           if (!welcomed) {
             await sendMessage(
@@ -972,11 +977,10 @@ export async function POST(request: NextRequest) {
             );
           }
 
-          // Тариф 3 = менторство: следом зовём собрать досье до созвона 1-1.
-          // В ветке Продамуса это уже было, а редим — единственная дверь для тех,
-          // кому доступ открыли мимо оплаты картой (крипта, рассрочка, партнёрство).
-          // Без этого анкету каждому запускали руками через /anketa_send.
-          if (product.slug === 'uroven-t3') {
+          // Анкету менторства приветствие запускает само. Отдельный вызов нужен
+          // только там, где приветствие не ушло: человеку уже здоровались раньше
+          // (например, по тарифу 2), а досье к созвону 1-1 всё равно собрать надо.
+          if (product.slug === 'uroven-t3' && !welcomed) {
             await startIntake(chatId, 't3');
           }
 
