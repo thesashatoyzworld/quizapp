@@ -41,7 +41,7 @@ export const NEYRONKI: Neyronka[] = [
     date: '2026-09-16',
     duration: '60 мин',
     tags: ['Claude', 'лендинг', 'Telegram-бот', 'хостинг'],
-    kinescopeId: '',
+    kinescopeId: 'mbkNuLvPbDCimD1rAqQBy3',
     html: SAIT_CHEREZ_CLAUDE_2026_09_16,
   },
 ];
