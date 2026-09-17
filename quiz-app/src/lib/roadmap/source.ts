@@ -37,7 +37,7 @@ export function materialUrl(entry: MapEntry, telegramId: number | null): string 
   if (entry.external) {
     return `${WORKSHOPS_HOST}${entry.path}${telegramId ? `?tg=${telegramId}` : ''}`;
   }
-  return ['kurs', 'razbory', 'sozvony'].includes(entry.section)
+  return ['kurs', 'razbory', 'sozvony', 'neyronki'].includes(entry.section)
     ? `${WEBAPP}${entry.path}?open=${encodeURIComponent(entry.slug)}`
     : `${WEBAPP}${entry.path}`;
 }

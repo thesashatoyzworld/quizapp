@@ -12,6 +12,7 @@ import { PROMPTS, PROMPTY_ROLE, PROMPTY_MIN_TIER } from '@/content/prompty';
 import { POTOK_FILES, POTOK_ROLE, POTOK_MIN_TIER } from '@/content/potok';
 import { RAZBORY, RAZBORY_ROLE, RAZBORY_MIN_TIER } from '@/content/razbory';
 import { SOZVONY, SOZVONY_ROLE, SOZVONY_MIN_TIER } from '@/content/sozvony';
+import { NEYRONKI, NEYRONKI_ROLE, NEYRONKI_MIN_TIER } from '@/content/neyronki';
 import { WORKSHOPS_KB } from '@/content/workshops';
 import contentJson from '@/content/formula/content.json';
 import type { Content, Block, Rich, NavNode } from '@/content/formula/types';
@@ -35,7 +36,8 @@ const FORMULA_ROLE = 'uroven';
 const FORMULA_MIN_TIER = 1;
 
 export type Section =
-  | 'kurs' | 'prompty' | 'potok' | 'formula' | 'razbory' | 'sozvony' | 'workshops';
+  | 'kurs' | 'prompty' | 'potok' | 'formula' | 'razbory' | 'sozvony' | 'workshops'
+  | 'neyronki';
 
 /** Роль плюс минимальный тариф. Тариф 0 = роли достаточно самой по себе. */
 export interface AccessRule {
@@ -247,7 +249,12 @@ export function buildMap(): MapEntry[] {
       title: `Воркшоп · ${w.title}`,
       note: w.blurb,
       headings: w.headings,
-      access: w.rule === 'preobuchenie' ? WORKSHOP_PREOBUCHENIE : WORKSHOP_PREMIUM,
+      // Точечная выдача одного воркшопа: роль `workshop-<slug>`, как в гейте
+      // страницы (dashboard/app/w/_gate.tsx, withGuestAccess).
+      access: [
+        ...(w.rule === 'preobuchenie' ? WORKSHOP_PREOBUCHENIE : WORKSHOP_PREMIUM),
+        { role: `workshop-${w.slug}`, minTier: 0 },
+      ],
       path: `/w/${w.slug}`,
       external: true,
       people: [],
@@ -277,6 +284,22 @@ export function buildMap(): MapEntry[] {
       access: [{ role: SOZVONY_ROLE, minTier: SOZVONY_MIN_TIER }],
       path: '/sozvony',
       people: s.participants ?? [],
+    });
+  }
+
+  for (const n of NEYRONKI) {
+    entries.push({
+      section: 'neyronki',
+      slug: n.slug,
+      title: `Нейронки · ${n.title}`,
+      note: `${n.subtitle} Запись ${n.duration}, инструменты: ${n.tags.join(', ')}.`,
+      headings: headingsFromHtml(n.html),
+      access: [
+        { role: NEYRONKI_ROLE, minTier: NEYRONKI_MIN_TIER },
+        { role: `neyronka-${n.slug}`, minTier: 0 },
+      ],
+      path: '/neyronki',
+      people: [],
     });
   }
 
@@ -397,6 +420,11 @@ export function materialText(entry: MapEntry): string {
     case 'sozvony': {
       const s = SOZVONY.find((x) => x.slug === entry.slug);
       text = s ? htmlToText(s.html) : '';
+      break;
+    }
+    case 'neyronki': {
+      const n = NEYRONKI.find((x) => x.slug === entry.slug);
+      text = n ? htmlToText(n.html) : '';
       break;
     }
   }
