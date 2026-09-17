@@ -249,7 +249,12 @@ export function buildMap(): MapEntry[] {
       title: `Воркшоп · ${w.title}`,
       note: w.blurb,
       headings: w.headings,
-      access: w.rule === 'preobuchenie' ? WORKSHOP_PREOBUCHENIE : WORKSHOP_PREMIUM,
+      // Точечная выдача одного воркшопа: роль `workshop-<slug>`, как в гейте
+      // страницы (dashboard/app/w/_gate.tsx, withGuestAccess).
+      access: [
+        ...(w.rule === 'preobuchenie' ? WORKSHOP_PREOBUCHENIE : WORKSHOP_PREMIUM),
+        { role: `workshop-${w.slug}`, minTier: 0 },
+      ],
       path: `/w/${w.slug}`,
       external: true,
       people: [],
@@ -289,7 +294,10 @@ export function buildMap(): MapEntry[] {
       title: `Нейронки · ${n.title}`,
       note: `${n.subtitle} Запись ${n.duration}, инструменты: ${n.tags.join(', ')}.`,
       headings: headingsFromHtml(n.html),
-      access: [{ role: NEYRONKI_ROLE, minTier: NEYRONKI_MIN_TIER }],
+      access: [
+        { role: NEYRONKI_ROLE, minTier: NEYRONKI_MIN_TIER },
+        { role: `neyronka-${n.slug}`, minTier: 0 },
+      ],
       path: '/neyronki',
       people: [],
     });

@@ -67,7 +67,16 @@ export async function GET(request: NextRequest) {
       : rows
           .filter((r) => r.role === NEYRONKI_ROLE)
           .reduce((max, r) => Math.max(max, tierFromSlug(r.productSlug) ?? 0), 0);
-    const allowed = tier >= NEYRONKI_MIN_TIER;
+    // Точечная выдача одной записи: роль `neyronka-<slug>` в product_access.
+    // Так человек с предоплатой получает нужный материал, а не весь тариф 2 —
+    // тот же приём, что у воркшопов (`workshop-<slug>`).
+    const guest = new Set(
+      rows
+        .filter((r) => r.role.startsWith('neyronka-'))
+        .map((r) => r.role.slice('neyronka-'.length)),
+    );
+    const byTier = tier >= NEYRONKI_MIN_TIER;
+    const allowed = byTier || guest.size > 0;
 
     if (!allowed) {
       return NextResponse.json({ success: true, identified: true, allowed: false, tier, items: [] });
@@ -78,6 +87,9 @@ export async function GET(request: NextRequest) {
       const item = findNeyronka(slug);
       if (!item) {
         return NextResponse.json({ success: false, error: 'not found' }, { status: 404 });
+      }
+      if (!byTier && !guest.has(item.slug)) {
+        return NextResponse.json({ success: true, identified: true, allowed: false, tier, items: [] });
       }
       const html = item.html
         .replace('<!--VIDEO_SLOT-->', videoBlock(item.kinescopeId))
@@ -90,7 +102,7 @@ export async function GET(request: NextRequest) {
       identified: true,
       allowed: true,
       tier,
-      items: NEYRONKI.map(toCard),
+      items: (byTier ? NEYRONKI : NEYRONKI.filter((n) => guest.has(n.slug))).map(toCard),
     });
   } catch (error) {
     console.error('[Cabinet] neyronki error:', error);
