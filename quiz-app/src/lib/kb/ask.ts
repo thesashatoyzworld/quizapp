@@ -159,7 +159,7 @@ export async function handleKbQuestion(params: {
     : {
         text: 'Открыть в кабинете',
         web_app: {
-          url: ['kurs', 'razbory', 'sozvony'].includes(answer.entry.section)
+          url: ['kurs', 'razbory', 'sozvony', 'neyronki'].includes(answer.entry.section)
             ? `${WEBAPP}${answer.entry.path}?open=${encodeURIComponent(answer.entry.slug)}`
             : `${WEBAPP}${answer.entry.path}`,
         },
