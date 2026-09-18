@@ -34,6 +34,7 @@ import { LICHNOE_LICHNYY_SOZVON_VOLESLAV_2026_09_15 } from './lichnyy-sozvon-vol
 import { LICHNOE_LICHNYY_SOZVON_KARINA_2026_09_16 } from './lichnyy-sozvon-karina-2026-09-16';
 
 import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_09_18 } from './lichnyy-sozvon-leonid-2026-09-18';
+import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_18 } from './lichnyy-sozvon-evgeniya-2026-09-18';
 
 export interface LichnyMaterial {
   slug: string;
@@ -57,6 +58,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-evgeniya-2026-09-18',
+    telegramIds: [934091008, 788334680],
+    client: "Евгения Сокольчик",
+    title: "Личный созвон 18 сентября",
+    subtitle: "Статья-конвертер про ноги кентавра, лестница Ханта и расписание, чтобы контент перестал выходить в панике",
+    date: '2026-09-18',
+    duration: "65 мин",
+    tags: ["статья", "контент", "расписание", "оплаты"],
+    kinescopeId: 'iMArWvxRdD9NFSUfAnp6jL',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_18,
+  },
   {
     slug: 'lichnyy-sozvon-leonid-2026-09-18',
     telegramIds: [167259877, 788334680],
