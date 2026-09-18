@@ -36,6 +36,8 @@ import { LICHNOE_LICHNYY_SOZVON_KARINA_2026_09_16 } from './lichnyy-sozvon-karin
 import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_09_18 } from './lichnyy-sozvon-leonid-2026-09-18';
 import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_18 } from './lichnyy-sozvon-evgeniya-2026-09-18';
 
+import { LICHNOE_LICHNYY_SOZVON_NATALYA_NINCHICH_2026_09_18 } from './lichnyy-sozvon-natalya-ninchich-2026-09-18';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -58,6 +60,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-natalya-ninchich-2026-09-18',
+    telegramIds: [1312470710, 788334680],
+    client: "Наталья Нинчич",
+    title: "Забрать свой опыт себе",
+    subtitle: "Истории клиентов и своя история вместо оффера в лоб, сегмент женщин за 35 с детьми, рилс не удалять, гайд по тарелочкам",
+    date: '2026-09-18',
+    duration: "62 мин",
+    tags: ["кейсы", "самозванец", "сегмент"],
+    kinescopeId: 'uRjCbK6azXWDfUBiQFYAwy',
+    html: LICHNOE_LICHNYY_SOZVON_NATALYA_NINCHICH_2026_09_18,
+  },
   {
     slug: 'lichnyy-sozvon-evgeniya-2026-09-18',
     telegramIds: [934091008, 788334680],
