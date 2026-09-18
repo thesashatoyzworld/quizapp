@@ -33,6 +33,8 @@ import { LICHNOE_LICHNYY_SOZVON_VOLESLAV_2026_09_15 } from './lichnyy-sozvon-vol
 
 import { LICHNOE_LICHNYY_SOZVON_KARINA_2026_09_16 } from './lichnyy-sozvon-karina-2026-09-16';
 
+import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_09_18 } from './lichnyy-sozvon-leonid-2026-09-18';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -55,6 +57,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-leonid-2026-09-18',
+    telegramIds: [167259877, 788334680],
+    client: "Леонид Коновалов",
+    title: "Антикризисник, который видит всё изнутри",
+    subtitle: "Почему контент про карго не продавал, четыре сегмента, контент разговором и нарезкой, оффер, кейсы и лендинг",
+    date: '2026-09-18',
+    duration: "50 мин",
+    tags: ["сегменты", "контент", "оффер", "кейсы"],
+    kinescopeId: 'iqFvYT1yXM2Ve1UZwHpPeC',
+    html: LICHNOE_LICHNYY_SOZVON_LEONID_2026_09_18,
+  },
   {
     slug: 'lichnyy-sozvon-karina-2026-09-16',
     telegramIds: [132984742, 788334680],
