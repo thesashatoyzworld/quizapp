@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import { Receiver } from '@upstash/qstash';
 import { prisma } from '@/lib/prisma';
 import { scheduleIdeaAssemble } from '@/lib/qstash';
@@ -42,47 +43,71 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, rescheduled: true });
   }
 
-  const draft = assembleIdea(messages);
-  const parsed = await parseIdea(draft);
+  // Claim before work: несколько задач (по одной на сообщение альбома, или
+  // ретрай QStash после таймаута) могут пройти findMany выше одновременно.
+  // updateMany с condition ideaId: null атомарен на уровне БД: только одна
+  // задача реально проставит id и увидит claimed.count > 0.
+  const ideaId = randomUUID();
+  const claimed = await prisma.ideaInbox.updateMany({
+    where: { batchKey, ideaId: null },
+    data: { ideaId },
+  });
+  if (claimed.count === 0) {
+    return NextResponse.json({ ok: true, skipped: 'already claimed' });
+  }
 
-  const idea = await prisma.idea.create({
-    data: {
-      source: draft.source,
-      chatId: draft.chatId,
-      threadId: draft.threadId,
-      firstMessageId: draft.firstMessageId,
-      lastMessageId: draft.lastMessageId,
-      authorUsername: draft.authorUsername,
-      tgLink: draft.tgLink,
-      rawText: draft.rawText,
-      voiceTranscript: draft.voiceTranscript,
-      occurredAt: draft.occurredAt,
-      title: parsed.title,
-      type: parsed.type,
-      summary: parsed.summary,
-      tags: parsed.tags,
-      parsed: parsed.parsed,
-      parseError: parsed.parseError,
-      refs: {
-        create: draft.refs.map((r) => ({
-          kind: r.kind,
-          fileId: r.fileId,
-          thumbFileId: r.thumbFileId,
-          url: r.url,
-          domain: r.domain,
-          caption: r.caption,
-          messageId: r.messageId,
-          tgLink: r.tgLink,
-          position: r.position,
-        })),
+  try {
+    // Перечитываем именно то, что застолбили: сообщение могло прилететь
+    // между первым findMany и claim'ом, и оно тоже принадлежит этой идее.
+    const claimedRows = await prisma.ideaInbox.findMany({
+      where: { ideaId },
+      orderBy: { messageId: 'asc' },
+    });
+    const claimedMessages = claimedRows.map((r) => r.payload as unknown as IngestMessage);
+
+    const draft = assembleIdea(claimedMessages);
+    const parsed = await parseIdea(draft);
+
+    await prisma.idea.create({
+      data: {
+        id: ideaId,
+        source: draft.source,
+        chatId: draft.chatId,
+        threadId: draft.threadId,
+        firstMessageId: draft.firstMessageId,
+        lastMessageId: draft.lastMessageId,
+        authorUsername: draft.authorUsername,
+        tgLink: draft.tgLink,
+        rawText: draft.rawText,
+        voiceTranscript: draft.voiceTranscript,
+        occurredAt: draft.occurredAt,
+        title: parsed.title,
+        type: parsed.type,
+        summary: parsed.summary,
+        tags: parsed.tags,
+        parsed: parsed.parsed,
+        parseError: parsed.parseError,
+        refs: {
+          create: draft.refs.map((r) => ({
+            kind: r.kind,
+            fileId: r.fileId,
+            thumbFileId: r.thumbFileId,
+            url: r.url,
+            domain: r.domain,
+            caption: r.caption,
+            messageId: r.messageId,
+            tgLink: r.tgLink,
+            position: r.position,
+          })),
+        },
       },
-    },
-  });
+    });
 
-  await prisma.ideaInbox.updateMany({
-    where: { id: { in: rows.map((r) => r.id) } },
-    data: { ideaId: idea.id },
-  });
-
-  return NextResponse.json({ ok: true, ideaId: idea.id, messages: rows.length });
+    return NextResponse.json({ ok: true, ideaId, messages: claimedRows.length });
+  } catch (error) {
+    // Что-то упало после claim: снимаем метку, иначе эти сообщения навсегда
+    // помечены идеей, которой не существует, и никогда не соберутся снова.
+    await prisma.ideaInbox.updateMany({ where: { ideaId }, data: { ideaId: null } });
+    throw error;
+  }
 }

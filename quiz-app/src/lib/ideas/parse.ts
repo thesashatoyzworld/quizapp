@@ -99,6 +99,21 @@ export function normalizeParse(raw: string, draft: DraftIdea): IdeaParse {
 }
 
 export async function parseIdea(draft: DraftIdea): Promise<IdeaParse> {
+  // Ни текста, ни расшифровки: голое фото или видео без подписи. Модели
+  // разбирать нечего, а Haiku без вложения в контексте отвечает прозой
+  // вместо JSON ("я не вижу вложенного изображения..."), что тратит вызов
+  // и оставляет мусорный parseError. Это не ошибка, поэтому parseError null.
+  if (!draft.rawText?.trim() && !draft.voiceTranscript?.trim()) {
+    return {
+      title: fallbackTitle(draft),
+      type: 'other',
+      summary: null,
+      tags: [],
+      parsed: false,
+      parseError: null,
+    };
+  }
+
   try {
     const res = await anthropic().messages.create({
       model: MODEL,

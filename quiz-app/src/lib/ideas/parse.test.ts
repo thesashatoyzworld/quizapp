@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fallbackTitle, normalizeParse, buildParsePrompt } from './parse';
+import { fallbackTitle, normalizeParse, buildParsePrompt, parseIdea } from './parse';
 import type { DraftIdea } from './types';
 
 function draft(over: Partial<DraftIdea> = {}): DraftIdea {
@@ -73,6 +73,18 @@ test('empty title from model is counted as parse failure', () => {
   const p = normalizeParse('{"title":"","type":"reel","summary":"x","tags":[]}', draft({ rawText: 'снять рилс' }));
   assert.equal(p.parsed, false);
   assert.equal(p.title, 'снять рилс');
+});
+
+test('photo with no caption skips the model call and returns fallback', async () => {
+  // No ANTHROPIC_API_KEY in the test env, so if parseIdea reached the API
+  // call it would throw and land in the catch with a non-null parseError.
+  // parseError staying null here proves the early return fired instead.
+  const p = await parseIdea(draft({ refs: [
+    { kind: 'photo', fileId: 'a', thumbFileId: null, url: null, domain: null, caption: null, messageId: 1, tgLink: '', position: 0 },
+  ] }));
+  assert.equal(p.parsed, false);
+  assert.equal(p.parseError, null);
+  assert.equal(p.title, 'Референс без подписи');
 });
 
 test('prompt includes text, transcription and attachment list', () => {

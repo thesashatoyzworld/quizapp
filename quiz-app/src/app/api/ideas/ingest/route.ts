@@ -30,6 +30,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'chatId, messageId and source are required' }, { status: 400 });
   }
 
+  // Кривой at делает isBatchClosed сравнением с NaN, которое всегда false:
+  // пачка перепланирует себя каждую минуту и никогда не соберётся. Лучше
+  // упасть здесь явно, чем тихо зависнуть.
+  if (!m.at || Number.isNaN(Date.parse(m.at))) {
+    return NextResponse.json({ error: 'at is required and must be a parseable timestamp' }, { status: 400 });
+  }
+
   const batchKey = batchKeyOf(m);
 
   // Повтор того же сообщения (ретрай Telegram, бэкфилл) не плодит строк.
