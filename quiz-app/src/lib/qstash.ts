@@ -72,3 +72,25 @@ export async function scheduleFollowUp(
     console.error(`[QStash] Failed to schedule follow-up for user ${userId}:`, error);
   }
 }
+
+/**
+ * Склейка пачки сообщений в идею. Задача ставится на каждое сообщение:
+ * пришло ещё одно: сработавшая задача увидит, что тишины не было, и
+ * перепланирует себя.
+ */
+export async function scheduleIdeaAssemble(batchKey: string, delaySec: number) {
+  if (!WEBAPP_URL) {
+    console.error('[QStash] WEBAPP_URL not set, cannot schedule idea assemble');
+    return;
+  }
+
+  try {
+    await qstash.publishJSON({
+      url: `${WEBAPP_URL}/api/ideas/assemble`,
+      body: { batchKey },
+      delay: delaySec,
+    });
+  } catch (error) {
+    console.error(`[QStash] Failed to schedule idea assemble for ${batchKey}:`, error);
+  }
+}
