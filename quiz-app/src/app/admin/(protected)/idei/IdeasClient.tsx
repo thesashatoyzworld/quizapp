@@ -64,6 +64,7 @@ export default function IdeasClient({
   const router = useRouter();
   const [showRaw, setShowRaw] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Тумблер «сводка / исходник» переживает перезагрузку.
   useEffect(() => {
@@ -84,12 +85,27 @@ export default function IdeasClient({
   }
 
   async function setStatus(id: string, status: string) {
-    await fetch(`/api/admin/ideas/${id}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    router.refresh();
+    setErrors((e) => ({ ...e, [id]: '' }));
+    try {
+      const res = await fetch(`/api/admin/ideas/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const msg =
+          res.status === 401
+            ? 'Сессия истекла, обнови страницу'
+            : 'Не получилось сменить статус';
+        setErrors((e) => ({ ...e, [id]: msg }));
+        return;
+      }
+      // Обновляем только после успеха: иначе старое значение перерисуется
+      // так, будто клик не сработал.
+      router.refresh();
+    } catch {
+      setErrors((e) => ({ ...e, [id]: 'Не получилось сменить статус, проверь связь' }));
+    }
   }
 
   return (
@@ -168,6 +184,27 @@ export default function IdeasClient({
                   if (r.kind === 'voice' || r.kind === 'audio') {
                     return r.mediaUrl ? <audio key={r.id} controls src={r.mediaUrl} className={styles.audio} /> : null;
                   }
+                  if (r.kind === 'document') {
+                    return (
+                      <a key={r.id} className={styles.link} href={r.tgLink} target="_blank" rel="noreferrer">
+                        {r.caption ? `документ: ${r.caption}` : 'документ'}
+                      </a>
+                    );
+                  }
+                  if (r.kind === 'video_note') {
+                    if (r.thumbUrl) {
+                      return (
+                        <a key={r.id} href={r.tgLink} target="_blank" rel="noreferrer">
+                          <img className={styles.thumb} src={r.thumbUrl} alt={r.caption || 'кружок'} loading="lazy" />
+                        </a>
+                      );
+                    }
+                    return (
+                      <a key={r.id} className={styles.link} href={r.tgLink} target="_blank" rel="noreferrer">
+                        кружок
+                      </a>
+                    );
+                  }
                   const src = r.thumbUrl || r.mediaUrl;
                   return src ? (
                     <a key={r.id} href={r.tgLink} target="_blank" rel="noreferrer">
@@ -196,6 +233,8 @@ export default function IdeasClient({
                 {open === i.id ? 'свернуть' : 'как было'}
               </button>
             </div>
+
+            {errors[i.id] && <p className={styles.error}>{errors[i.id]}</p>}
           </article>
         ))}
       </div>
