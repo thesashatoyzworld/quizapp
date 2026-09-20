@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { scheduleIdeaAssemble } from '@/lib/qstash';
 import { isBatchClosed } from '@/lib/ideas/batch';
 import { assembleIdea } from '@/lib/ideas/assemble';
-import { parseIdea } from '@/lib/ideas/parse';
+import { parseIdea, fallbackTitle } from '@/lib/ideas/parse';
 import type { IngestMessage } from '@/lib/ideas/types';
 
 export const runtime = 'nodejs';
@@ -43,32 +43,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, rescheduled: true });
   }
 
-  // Claim before work: несколько задач (по одной на сообщение альбома, или
-  // ретрай QStash после таймаута) могут пройти findMany выше одновременно.
-  // updateMany с condition ideaId: null атомарен на уровне БД: только одна
-  // задача реально проставит id и увидит claimed.count > 0.
+  // Claim и создание идеи в одной транзакции: несколько задач (по одной на
+  // сообщение альбома, или ретрай QStash после таймаута) могут пройти
+  // findMany выше одновременно, а процесс может умереть между claim'ом и
+  // созданием идеи (таймаут maxDuration, краш, редеплой). Раньше claim и
+  // create были раздельными запросами, и падение между ними навсегда
+  // теряло сообщения: строки помечены ideaId, которого не существует,
+  // а верхний findMany ищет только ideaId: null и их больше не увидит.
+  // В транзакции оба шага коммитятся или откатываются вместе.
   const ideaId = randomUUID();
-  const claimed = await prisma.ideaInbox.updateMany({
-    where: { batchKey, ideaId: null },
-    data: { ideaId },
-  });
-  if (claimed.count === 0) {
-    return NextResponse.json({ ok: true, skipped: 'already claimed' });
-  }
 
-  try {
-    // Перечитываем именно то, что застолбили: сообщение могло прилететь
-    // между первым findMany и claim'ом, и оно тоже принадлежит этой идее.
-    const claimedRows = await prisma.ideaInbox.findMany({
+  const claim = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.ideaInbox.updateMany({
+      where: { batchKey, ideaId: null },
+      data: { ideaId },
+    });
+    if (claimed.count === 0) return null; // никто ничего не писал, откатывать нечего
+
+    const claimedRows = await tx.ideaInbox.findMany({
       where: { ideaId },
       orderBy: { messageId: 'asc' },
     });
     const claimedMessages = claimedRows.map((r) => r.payload as unknown as IngestMessage);
-
     const draft = assembleIdea(claimedMessages);
-    const parsed = await parseIdea(draft);
 
-    await prisma.idea.create({
+    // Плейсхолдер вместо разбора моделью: запись идеи не должна ждать
+    // Haiku. Настоящий title/type/summary/tags придёт следующим update'ом
+    // уже вне транзакции.
+    await tx.idea.create({
       data: {
         id: ideaId,
         source: draft.source,
@@ -81,12 +83,12 @@ export async function POST(request: NextRequest) {
         rawText: draft.rawText,
         voiceTranscript: draft.voiceTranscript,
         occurredAt: draft.occurredAt,
-        title: parsed.title,
-        type: parsed.type,
-        summary: parsed.summary,
-        tags: parsed.tags,
-        parsed: parsed.parsed,
-        parseError: parsed.parseError,
+        title: fallbackTitle(draft),
+        type: 'other',
+        summary: null,
+        tags: [],
+        parsed: false,
+        parseError: null,
         refs: {
           create: draft.refs.map((r) => ({
             kind: r.kind,
@@ -103,11 +105,34 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ ok: true, ideaId, messages: claimedRows.length });
-  } catch (error) {
-    // Что-то упало после claim: снимаем метку, иначе эти сообщения навсегда
-    // помечены идеей, которой не существует, и никогда не соберутся снова.
-    await prisma.ideaInbox.updateMany({ where: { ideaId }, data: { ideaId: null } });
-    throw error;
+    return { ideaId, draft, messageCount: claimedRows.length };
+  });
+
+  if (!claim) {
+    return NextResponse.json({ ok: true, skipped: 'already claimed' });
   }
+
+  // Идея уже существует (с плейсхолдер-заголовком, parsed: false) и
+  // пережила бы падение процесса прямо здесь. Разбор моделью и обновление
+  // карточки это best-effort поверх уже сохранённых данных: если упадёт,
+  // идея остаётся видимой с фолбэк-заголовком, что и есть корректное
+  // состояние "разбор не случился".
+  const parsed = await parseIdea(claim.draft);
+  try {
+    await prisma.idea.update({
+      where: { id: claim.ideaId },
+      data: {
+        title: parsed.title,
+        type: parsed.type,
+        summary: parsed.summary,
+        tags: parsed.tags,
+        parsed: parsed.parsed,
+        parseError: parsed.parseError,
+      },
+    });
+  } catch (error) {
+    console.error(`[ideas/assemble] Failed to save parse result for idea ${claim.ideaId}:`, error);
+  }
+
+  return NextResponse.json({ ok: true, ideaId: claim.ideaId, messages: claim.messageCount });
 }
