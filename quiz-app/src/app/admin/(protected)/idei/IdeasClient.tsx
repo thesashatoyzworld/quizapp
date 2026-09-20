@@ -108,6 +108,28 @@ export default function IdeasClient({
     }
   }
 
+  async function reparse(id: string) {
+    setErrors((e) => ({ ...e, [id]: '' }));
+    try {
+      const res = await fetch(`/api/admin/ideas/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reparse: true }),
+      });
+      if (!res.ok) {
+        const msg =
+          res.status === 401
+            ? 'Сессия истекла, обнови страницу'
+            : 'Не получилось разобрать заново';
+        setErrors((e) => ({ ...e, [id]: msg }));
+        return;
+      }
+      router.refresh();
+    } catch {
+      setErrors((e) => ({ ...e, [id]: 'Не получилось разобрать заново, проверь связь' }));
+    }
+  }
+
   return (
     <div className={styles.wrap}>
       <header className={styles.head}>
@@ -229,6 +251,9 @@ export default function IdeasClient({
                   {l}
                 </button>
               ))}
+              <button className={styles.status} onClick={() => reparse(i.id)}>
+                разобрать заново
+              </button>
               <button className={styles.status} onClick={() => setOpen(open === i.id ? null : i.id)}>
                 {open === i.id ? 'свернуть' : 'как было'}
               </button>

@@ -4,6 +4,7 @@ import { Receiver } from '@upstash/qstash';
 import { prisma } from '@/lib/prisma';
 import { scheduleIdeaAssemble } from '@/lib/qstash';
 import { isBatchClosed } from '@/lib/ideas/batch';
+import { findGapIndex } from '@/lib/ideas/gap';
 import { assembleIdea } from '@/lib/ideas/assemble';
 import { parseIdea, fallbackTitle } from '@/lib/ideas/parse';
 import type { IngestMessage } from '@/lib/ideas/types';
@@ -35,10 +36,25 @@ export async function POST(request: NextRequest) {
   if (rows.length === 0) return NextResponse.json({ ok: true, skipped: 'nothing to assemble' });
 
   const messages = rows.map((r) => r.payload as unknown as IngestMessage);
-  const lastAt = new Date(messages[messages.length - 1].at);
 
-  // Человек ещё пишет: подождём следующего окна.
-  if (!isBatchClosed(lastAt, new Date())) {
+  // Бэкфилл присылает месяцы истории за секунды: один и тот же batchKey
+  // (чат + тред + автор) тогда держит целую историю переписки, и без
+  // разбивки по собственным таймстампам сообщений всё слиплось бы в одну
+  // идею, датированную самым первым сообщением. Тот же баг ловит потерянную
+  // задачу склейки: если scheduleIdeaAssemble когда-то не сработал, старая
+  // строка молча прилипает к следующему сообщению того же автора хоть
+  // через неделю. Ищем первую паузу шире окна и берём в работу только то,
+  // что до неё; остаток обрабатываем отдельно.
+  const gapIndex = findGapIndex(messages);
+  const prefixEndIndex = gapIndex === -1 ? messages.length - 1 : gapIndex;
+  const remainderRows = rows.slice(prefixEndIndex + 1);
+  const prefixLastAt = new Date(messages[prefixEndIndex].at);
+  const prefixLastMessageId = rows[prefixEndIndex].messageId;
+
+  // Закрытость смотрим по последнему сообщению ПРЕФИКСА, а не по самому
+  // новому во всей пачке: старый префикс уже закрыт, даже если следом
+  // прямо сейчас приходят новые сообщения.
+  if (!isBatchClosed(prefixLastAt, new Date())) {
     await scheduleIdeaAssemble(batchKey, 60);
     return NextResponse.json({ ok: true, rescheduled: true });
   }
@@ -54,8 +70,10 @@ export async function POST(request: NextRequest) {
   const ideaId = randomUUID();
 
   const claim = await prisma.$transaction(async (tx) => {
+    // lte ограничивает claim тем же префиксом, что мы посчитали выше:
+    // remainder должен остаться нетронутым и уйти в отдельную задачу.
     const claimed = await tx.ideaInbox.updateMany({
-      where: { batchKey, ideaId: null },
+      where: { batchKey, ideaId: null, messageId: { lte: prefixLastMessageId } },
       data: { ideaId },
     });
     if (claimed.count === 0) return null; // никто ничего не писал, откатывать нечего
@@ -112,6 +130,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, skipped: 'already claimed' });
   }
 
+  if (remainderRows.length > 0) {
+    // Остаток не ждёт нового сообщения от автора: его может не быть
+    // вообще (бэкфилл, или автор просто больше не писал в этот тред).
+    await scheduleIdeaAssemble(batchKey, 5);
+  }
+
   // Идея уже существует (с плейсхолдер-заголовком, parsed: false) и
   // пережила бы падение процесса прямо здесь. Разбор моделью и обновление
   // карточки это best-effort поверх уже сохранённых данных: если упадёт,
@@ -134,5 +158,10 @@ export async function POST(request: NextRequest) {
     console.error(`[ideas/assemble] Failed to save parse result for idea ${claim.ideaId}:`, error);
   }
 
-  return NextResponse.json({ ok: true, ideaId: claim.ideaId, messages: claim.messageCount });
+  return NextResponse.json({
+    ok: true,
+    ideaId: claim.ideaId,
+    messages: claim.messageCount,
+    remaining: remainderRows.length,
+  });
 }
