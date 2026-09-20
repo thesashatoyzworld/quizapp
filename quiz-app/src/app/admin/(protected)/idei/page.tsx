@@ -17,6 +17,16 @@ export default async function IdeasPage({
     occurredAt: i.occurredAt.toISOString(),
     createdAt: i.createdAt.toISOString(),
     updatedAt: i.updatedAt.toISOString(),
+    // Only the fields the sheet draws: dates on notes would cross the wire
+    // for nothing.
+    notes: i.notes.map((n) => ({
+      id: n.id,
+      kind: n.kind,
+      text: n.text,
+      chosen: n.chosen,
+      done: n.done,
+      position: n.position,
+    })),
     refs: i.refs.map((r) => ({
       ...r,
       mediaUrl: r.fileId ? mediaUrl(r.fileId) : null,

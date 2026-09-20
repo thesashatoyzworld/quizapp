@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@/generated/prisma/client';
 import { isIdeaStatus, statusDbValues } from './status';
 
-export type IdeaListItem = Prisma.IdeaGetPayload<{ include: { refs: true } }>;
+export type IdeaListItem = Prisma.IdeaGetPayload<{ include: { refs: true; notes: true } }>;
 
 export interface IdeaFilters {
   type?: string;
@@ -30,7 +30,10 @@ export async function listIdeas(f: IdeaFilters): Promise<IdeaListItem[]> {
 
   return prisma.idea.findMany({
     where,
-    include: { refs: { orderBy: { position: 'asc' } } },
+    include: {
+      refs: { orderBy: { position: 'asc' } },
+      notes: { orderBy: { position: 'asc' } },
+    },
     orderBy: { occurredAt: 'desc' },
     take: 200,
   });

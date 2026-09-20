@@ -285,13 +285,31 @@
   background: rgba(255, 255, 255, 0.07);
 }
 
-.statusOn[data-status='in_work'] {
+.statusOn[data-status='picked'] {
+  color: var(--neon-cyan);
+  border-color: rgba(0, 240, 255, 0.5);
+  background: rgba(0, 240, 255, 0.12);
+}
+
+.statusOn[data-status='packing'] {
   color: var(--xp-gold);
   border-color: rgba(255, 215, 0, 0.5);
   background: rgba(255, 215, 0, 0.12);
 }
 
-.statusOn[data-status='shipped'] {
+.statusOn[data-status='brief'] {
+  color: #ff6b2c;
+  border-color: rgba(255, 107, 44, 0.5);
+  background: rgba(255, 107, 44, 0.12);
+}
+
+.statusOn[data-status='filming'] {
+  color: #9d4edd;
+  border-color: rgba(157, 78, 221, 0.55);
+  background: rgba(157, 78, 221, 0.14);
+}
+
+.statusOn[data-status='published'] {
   color: #3dff9a;
   border-color: rgba(61, 255, 154, 0.5);
   background: rgba(61, 255, 154, 0.12);
@@ -337,4 +355,229 @@
     font-size: 0.72rem;
     padding: 5px 9px;
   }
+}
+
+
+/* Лист внутри карточки. Держится тише самой карточки: заголовки блоков
+   мелкие, цвет несёт только счётчик и выбранный заголовок. */
+.sheetLine {
+  margin: 6px 0 0;
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+.sheet {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.blockHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.blockName {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* Счётчик и есть давление: пока заголовков меньше десяти, он горит. */
+.countLow {
+  font-size: 0.7rem;
+  color: var(--xp-gold);
+}
+
+.countOk {
+  font-size: 0.7rem;
+  color: #3dff9a;
+}
+
+.countPlain {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.noteList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.note,
+.noteDone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.noteDone {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.noteText,
+.noteTextChosen {
+  flex: 1 1 auto;
+  cursor: text;
+  border-bottom: 1px solid transparent;
+  min-width: 0;
+}
+
+.noteText:hover,
+.noteTextChosen:hover {
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Заголовок, на который ставим. */
+.noteTextChosen {
+  color: var(--xp-gold);
+  font-weight: 600;
+}
+
+.noteEdit {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-family: inherit;
+  padding: 4px 8px;
+}
+
+.bet,
+.betOn {
+  font-size: 0.66rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bet:hover {
+  border-color: rgba(255, 215, 0, 0.5);
+  color: var(--xp-gold);
+}
+
+.betOn {
+  color: var(--xp-gold);
+  border-color: rgba(255, 215, 0, 0.55);
+  background: rgba(255, 215, 0, 0.14);
+}
+
+.check {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.3);
+  color: #3dff9a;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.check:hover {
+  border-color: rgba(61, 255, 154, 0.6);
+}
+
+.drop {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.drop:hover {
+  color: var(--danger, #ff2a6d);
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kindRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.kindChip,
+.kindChipOn {
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.kindChip:hover {
+  border-color: rgba(0, 240, 255, 0.4);
+  color: var(--neon-cyan);
+}
+
+.kindChipOn {
+  color: var(--neon-cyan);
+  border-color: rgba(0, 240, 255, 0.5);
+  background: rgba(0, 240, 255, 0.12);
+}
+
+.composerInput {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 36px;
+  resize: vertical;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  padding: 8px 10px;
+}
+
+.composerInput:focus {
+  outline: none;
+  border-color: rgba(0, 240, 255, 0.45);
+}
+
+.composerInput::placeholder {
+  color: rgba(255, 255, 255, 0.3);
 }
