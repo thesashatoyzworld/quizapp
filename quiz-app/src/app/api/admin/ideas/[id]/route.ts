@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
-import { IDEA_STATUSES, type DraftIdea, type DraftRef, type RefKind } from '@/lib/ideas/types';
+import { type DraftIdea, type DraftRef, type RefKind } from '@/lib/ideas/types';
+import { IDEA_STATUSES, isIdeaStatus } from '@/lib/ideas/status';
 import { parseIdea } from '@/lib/ideas/parse';
 
 export const runtime = 'nodejs';
@@ -62,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ ok: true, title: parsed.title });
   }
 
-  if (!body.status || !IDEA_STATUSES.includes(body.status as never)) {
+  if (!body.status || !isIdeaStatus(body.status)) {
     return NextResponse.json({ error: `status must be one of ${IDEA_STATUSES.join(', ')}` }, { status: 400 });
   }
 
