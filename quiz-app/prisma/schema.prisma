@@ -991,7 +991,7 @@ model Idea {
   title           String
   type            String   @default("other")
   summary         String?
-  tags            String[]
+  tags            String[] @default([])
   parsed          Boolean  @default(false)
   parseError      String?  @map("parse_error")
 
@@ -1007,6 +1007,7 @@ model Idea {
   @@index([status])
   @@index([type])
   @@index([source])
+  @@index([occurredAt])
   @@map("ideas")
 }
 
