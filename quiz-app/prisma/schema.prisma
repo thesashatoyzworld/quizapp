@@ -786,6 +786,33 @@ model TgBusinessMsg {
   @@map("tg_business_msg")
 }
 
+/**
+ * Сообщения групп, где бот админ (сейчас «Коннекторы»). Пишутся только после
+ * того, как боту сняли privacy mode в BotFather: до этого телеграм отдаёт ему
+ * одни команды, и история группы не видна ни боту, ни нам.
+ */
+model TgGroupMsg {
+  /** chat_id:message_id — повторный апдейт телеграма падает на конфликте. */
+  id        String   @id
+  chatId    String   @map("chat_id")
+  /** Номер темы форума: в «Коннекторах» у каждого разговора своя. */
+  threadId  Int?     @map("thread_id")
+  /** Имя темы, когда телеграм приложил его к сообщению. */
+  topic     String?
+  userId    String?  @map("user_id")
+  username  String?
+  name      String?
+  text      String
+  /** voice | video | photo | file, если в сообщении было не только слово. */
+  mediaType String?  @map("media_type")
+  createdAt DateTime @map("created_at")
+
+  @@index([chatId, createdAt])
+  @@index([chatId, threadId, createdAt])
+  @@index([username])
+  @@map("tg_group_msg")
+}
+
 /** Скриншот переписки, присланный боту. Альбом собирается по groupId. */
 model TgShot {
   id        String   @id
