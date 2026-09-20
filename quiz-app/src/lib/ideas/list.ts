@@ -1,8 +1,9 @@
 import { createHmac } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@/generated/prisma/client';
+import { isIdeaStatus, statusDbValues } from './status';
 
-export type IdeaListItem = Prisma.IdeaGetPayload<{ include: { refs: true } }>;
+export type IdeaListItem = Prisma.IdeaGetPayload<{ include: { refs: true; notes: true } }>;
 
 export interface IdeaFilters {
   type?: string;
@@ -15,7 +16,9 @@ export async function listIdeas(f: IdeaFilters): Promise<IdeaListItem[]> {
   const where: Prisma.IdeaWhereInput = {};
   if (f.type) where.type = f.type;
   if (f.source) where.source = f.source;
-  if (f.status) where.status = f.status;
+  // A row can still carry a pre-ladder value, so one step means several
+  // stored values.
+  if (f.status && isIdeaStatus(f.status)) where.status = { in: statusDbValues(f.status) };
   if (f.q) {
     where.OR = [
       { title: { contains: f.q, mode: 'insensitive' } },
@@ -27,7 +30,10 @@ export async function listIdeas(f: IdeaFilters): Promise<IdeaListItem[]> {
 
   return prisma.idea.findMany({
     where,
-    include: { refs: { orderBy: { position: 'asc' } } },
+    include: {
+      refs: { orderBy: { position: 'asc' } },
+      notes: { orderBy: { position: 'asc' } },
+    },
     orderBy: { occurredAt: 'desc' },
     take: 200,
   });

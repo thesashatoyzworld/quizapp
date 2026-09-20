@@ -59,8 +59,9 @@ export interface DraftIdea {
 export const IDEA_TYPES = ['reel', 'bigvideo', 'carousel', 'post', 'offer', 'system', 'other'] as const;
 export type IdeaType = (typeof IDEA_TYPES)[number];
 
-export const IDEA_STATUSES = ['raw', 'in_work', 'shipped', 'rejected'] as const;
-export type IdeaStatus = (typeof IDEA_STATUSES)[number];
+// The status ladder lives in ./status: one source of truth, because the
+// browser, the API and the list query all have to agree on it.
+export { IDEA_STATUSES, type IdeaStatus } from './status';
 
 /** Three minutes of silence and the batch becomes one idea. */
 export const IDEA_BATCH_WINDOW_MS = 180_000;

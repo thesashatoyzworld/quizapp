@@ -12,16 +12,16 @@ datasource db {
 // ═══════════════════════════════════════
 
 model User {
-  id           String   @id @default(uuid())
-  telegramId   BigInt   @unique @map("telegram_id")
-  username     String?
-  firstName    String?  @map("first_name")
-  quizResult   String?  @map("quiz_result")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id         String   @id @default(uuid())
+  telegramId BigInt   @unique @map("telegram_id")
+  username   String?
+  firstName  String?  @map("first_name")
+  quizResult String?  @map("quiz_result")
+  createdAt  DateTime @default(now()) @map("created_at")
 
-  purchases    Purchase[]
-  events       Event[]
-  accesses     ProductAccess[]
+  purchases Purchase[]
+  events    Event[]
+  accesses  ProductAccess[]
 
   @@map("users")
 }
@@ -31,16 +31,16 @@ model User {
 // ═══════════════════════════════════════
 
 model Product {
-  id          String   @id @default(uuid())
-  slug        String   @unique
-  name        String
-  price       Int
-  type        String   @default("one_time")
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  price     Int
+  type      String   @default("one_time")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  materials   Material[]
-  purchases   Purchase[]
+  materials Material[]
+  purchases Purchase[]
 
   @@map("products")
 }
@@ -97,8 +97,8 @@ model ProductAccess {
   grantedAt   DateTime  @default(now()) @map("granted_at")
   expiresAt   DateTime? @map("expires_at")
   status      String    @default("active") // active | expired | revoked
-  source      String?   // prodamus order_id / subscription id
-  period      String?   // week | month | null (разовый)
+  source      String? // prodamus order_id / subscription id
+  period      String? // week | month | null (разовый)
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
@@ -161,7 +161,7 @@ model SyncWaitlist {
   telegramId BigInt   @map("telegram_id")
   username   String?
   firstName  String?  @map("first_name")
-  tier       String   // easy, mid, hard
+  tier       String // easy, mid, hard
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@unique([telegramId, tier])
@@ -174,29 +174,29 @@ model SyncWaitlist {
 // ═══════════════════════════════════════
 
 model IgKeyword {
-  id          Int      @id @default(autoincrement())
-  keyword     String   @unique // ключевое слово (регистронезависимо)
-  replyText   String   @map("reply_text") // текст private reply
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id        Int      @id @default(autoincrement())
+  keyword   String   @unique // ключевое слово (регистронезависимо)
+  replyText String   @map("reply_text") // текст private reply
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  replies     IgReply[]
+  replies IgReply[]
 
   @@map("ig_keywords")
 }
 
 model IgReply {
-  id              Int      @id @default(autoincrement())
-  keywordId       Int      @map("keyword_id")
-  keyword         IgKeyword @relation(fields: [keywordId], references: [id])
-  commentId       String   @unique @map("comment_id") // для дедупликации
-  igUserId        String   @map("ig_user_id")
-  igUsername       String?  @map("ig_username")
-  mediaId         String?  @map("media_id")
-  commentText     String?  @map("comment_text")
-  replySent       Boolean  @default(false) @map("reply_sent")
-  error           String?
-  createdAt       DateTime @default(now()) @map("created_at")
+  id          Int       @id @default(autoincrement())
+  keywordId   Int       @map("keyword_id")
+  keyword     IgKeyword @relation(fields: [keywordId], references: [id])
+  commentId   String    @unique @map("comment_id") // для дедупликации
+  igUserId    String    @map("ig_user_id")
+  igUsername  String?   @map("ig_username")
+  mediaId     String?   @map("media_id")
+  commentText String?   @map("comment_text")
+  replySent   Boolean   @default(false) @map("reply_sent")
+  error       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   @@index([igUserId])
   @@index([createdAt])
@@ -273,9 +273,9 @@ model LeadStatus {
   id         String   @id @default(uuid())
   product    String   @default("uroven") // uroven | mk-dengi | ...
   telegramId BigInt   @map("telegram_id")
-  status     String   @default("new")    // new | written | replied | bought | rejected
+  status     String   @default("new") // new | written | replied | bought | rejected
   note       String?
-  updatedBy  String?  @map("updated_by")  // username оператора, кто последним менял
+  updatedBy  String?  @map("updated_by") // username оператора, кто последним менял
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -304,11 +304,17 @@ model DwyLead {
   want       String?
   income     String?
   hours      String?
-  /** Как давно читает Сашу: снимает вопрос «а материалы мои смотрел?». */
+  /**
+   * Как давно читает Сашу: снимает вопрос «а материалы мои смотрел?».
+   */
   following  String?
-  /** Насколько готов платить: с какой скоростью идти к продаже. */
+  /**
+   * Насколько готов платить: с какой скоростью идти к продаже.
+   */
   readiness  String?
-  /** Подписчиков в инстаграме, ступень слайдера. */
+  /**
+   * Подписчиков в инстаграме, ступень слайдера.
+   */
   followers  Int?
   contact    String?
   phone      String?
@@ -347,30 +353,34 @@ model DwyLead {
 // Одна анкета на человека: повторный /anketa продолжает её, а не создаёт вторую.
 
 model Intake {
-  id          String    @id @default(uuid())
+  id              String    @id @default(uuid())
   // Пусто, пока человек не перешёл по персональной ссылке: тех, кто ни разу
   // не заходил в бота, мы по telegram_id не знаем. Проставляется при переходе.
-  telegramId  BigInt?   @unique @map("telegram_id")
-  username    String?
-  firstName   String?   @map("first_name")
-  /** как Саша назвал человека, когда выдавал ссылку вслепую */
-  label       String?
-  status      String    @default("invited") // invited | in_progress | done
-  /** какой набор вопросов: t2 — маршрут по материалам, t3 — досье к созвону 1-1 */
-  track       String    @default("t3")
-  currentStep Int       @default(0) @map("current_step")
+  telegramId      BigInt?   @unique @map("telegram_id")
+  username        String?
+  firstName       String?   @map("first_name")
+  /**
+   * как Саша назвал человека, когда выдавал ссылку вслепую
+   */
+  label           String?
+  status          String    @default("invited") // invited | in_progress | done
+  /**
+   * какой набор вопросов: t2 — маршрут по материалам, t3 — досье к созвону 1-1
+   */
+  track           String    @default("t3")
+  currentStep     Int       @default(0) @map("current_step")
   /**
    * Личная анкета: вопросы, написанные под конкретного человека после созвона.
    * Формат {"preamble"?: string, "questions": [{"title","body"}]}. Пусто = вопросы трека.
    */
-  customQuestions Json?  @map("custom_questions")
-  inviteToken String?   @unique @map("invite_token") // персональная ссылка для тех, кто не в боте
-  invitedAt   DateTime  @default(now()) @map("invited_at")
-  startedAt   DateTime? @map("started_at")
-  completedAt DateTime? @map("completed_at")
-  remindedAt  DateTime? @map("reminded_at") // напоминание ровно одно
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  customQuestions Json?     @map("custom_questions")
+  inviteToken     String?   @unique @map("invite_token") // персональная ссылка для тех, кто не в боте
+  invitedAt       DateTime  @default(now()) @map("invited_at")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  remindedAt      DateTime? @map("reminded_at") // напоминание ровно одно
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   answers IntakeAnswer[]
 
@@ -387,14 +397,14 @@ model IntakeAnswer {
   step          Int
   extraQuestion String? @map("extra_question")
 
-  kind        String // text | voice | photo | document | video_note
-  rawText     String? @map("raw_text")
-  transcript  String? // расшифровка голосового
+  kind             String // text | voice | photo | document | video_note
+  rawText          String? @map("raw_text")
+  transcript       String? // расшифровка голосового
   // ok | failed. Пусто у текстовых ответов и у тех, до кого ещё не дошли руки.
   transcriptStatus String? @map("transcript_status")
-  fileId      String? @map("file_id") // telegram file_id, чтобы Саша послушал сам
-  durationSec Int?    @map("duration_sec")
-  skipped     Boolean @default(false)
+  fileId           String? @map("file_id") // telegram file_id, чтобы Саша послушал сам
+  durationSec      Int?    @map("duration_sec")
+  skipped          Boolean @default(false)
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -414,27 +424,35 @@ model IntakeAnswer {
 // `prisma db push` на этой базе запрещён — она общая с другими приложениями.
 
 model Roadmap {
-  id          String  @id @default(uuid())
-  slug        String  @unique // папка клиента в GSD-BRAND: azamat-gimaev
-  clientName  String  @map("client_name")
-  telegramId  BigInt? @map("telegram_id")
-  username    String?
-  tier        String? // uroven-t3, uroven-t2
+  id         String  @id @default(uuid())
+  slug       String  @unique // папка клиента в GSD-BRAND: azamat-gimaev
+  clientName String  @map("client_name")
+  telegramId BigInt? @map("telegram_id")
+  username   String?
+  tier       String? // uroven-t3, uroven-t2
 
-  /** сколько занёс и сколько из этого уже отбил своими продажами */
+  /**
+   * сколько занёс и сколько из этого уже отбил своими продажами
+   */
   paidAmount Int? @map("paid_amount")
   returned   Int  @default(0)
 
   startedAt   DateTime? @map("started_at")
   accessUntil DateTime? @map("access_until")
 
-  /** куда идём вообще и цель текущего периода */
+  /**
+   * куда идём вообще и цель текущего периода
+   */
   goal       String?
   periodGoal String? @map("period_goal")
 
-  /** карта открыта клиенту в кабинете (/karta). Внутри он видит только строки с visibility=shared */
+  /**
+   * карта открыта клиенту в кабинете (/karta). Внутри он видит только строки с visibility=shared
+   */
   clientVisible Boolean @default(false) @map("client_visible")
-  /** строка сверху клиентского вида: зачем эта карта и как ей пользоваться */
+  /**
+   * строка сверху клиентского вида: зачем эта карта и как ей пользоваться
+   */
   clientIntro   String? @map("client_intro")
 
   archived    Boolean   @default(false)
@@ -457,11 +475,11 @@ model RoadmapMetric {
 
   key          String // leads, calls, sales, revenue
   label        String
-  startValue   String? @map("start_value")
-  currentValue String? @map("current_value")
+  startValue   String?  @map("start_value")
+  currentValue String?  @map("current_value")
   unit         String?
-  position     Int     @default(0)
-  visibility   String  @default("internal")
+  position     Int      @default(0)
+  visibility   String   @default("internal")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@unique([roadmapId, key])
@@ -476,7 +494,9 @@ model RoadmapStep {
   position Int
   title    String
   status   String  @default("todo") // done | partial | blocked | todo
-  /** чем подтверждается: дата, цифра, ссылка */
+  /**
+   * чем подтверждается: дата, цифра, ссылка
+   */
   evidence String?
 
   visibility String   @default("internal")
@@ -491,18 +511,24 @@ model RoadmapTask {
   roadmapId String  @map("roadmap_id")
   roadmap   Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
 
-  /** устойчивый ключ из roadmap.json: переписанное название не плодит вторую задачу */
+  /**
+   * устойчивый ключ из roadmap.json: переписанное название не плодит вторую задачу
+   */
   key      String?
-  position Int     @default(0)
+  position Int       @default(0)
   title    String
-  /** зачем эта задача: аргумент, который проговариваем на созвоне */
+  /**
+   * зачем эта задача: аргумент, который проговариваем на созвоне
+   */
   why      String?
-  owner    String  @default("client") // client | sasha
-  status   String  @default("todo") // todo | doing | done | dropped
-  dueOn    DateTime? @db.Date @map("due_on")
+  owner    String    @default("client") // client | sasha
+  status   String    @default("todo") // todo | doing | done | dropped
+  dueOn    DateTime? @map("due_on") @db.Date
   doneAt   DateTime? @map("done_at")
 
-  /** материал к задаче: воркшоп, разбор, запись созвона — чтобы не искать самому */
+  /**
+   * материал к задаче: воркшоп, разбор, запись созвона — чтобы не искать самому
+   */
   linkUrl   String? @map("link_url")
   linkLabel String? @map("link_label")
 
@@ -521,9 +547,11 @@ model RoadmapNote {
 
   kind       String    @default("insight") // blocker | risk | decision | insight | touch
   body       String
-  /** откуда: созвон 10.08, группа, личка, разбор */
+  /**
+   * откуда: созвон 10.08, группа, личка, разбор
+   */
   source     String?
-  happenedOn DateTime? @db.Date @map("happened_on")
+  happenedOn DateTime? @map("happened_on") @db.Date
 
   visibility String   @default("internal")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -543,8 +571,8 @@ model RoadmapNote {
 // Слепок обновляет синхронизация, статус и заметку она не трогает.
 
 model IgLead {
-  id       String @id @default(uuid())
-  clientId String @map("client_id") // id клиента в ChatPlace
+  id       String  @id @default(uuid())
+  clientId String  @map("client_id") // id клиента в ChatPlace
   username String?
   name     String?
 
@@ -556,14 +584,14 @@ model IgLead {
   lastEventAt DateTime @map("last_event_at")
 
   chatId      String? @map("chat_id")
-  chatStatus  String? @map("chat_status")  // active | stopped | unsubscribe
+  chatStatus  String? @map("chat_status") // active | stopped | unsubscribe
   chatHandler String? @map("chat_handler") // open (ведёт оператор) | closed (ведёт бот)
 
   // Человек уже оставил анкету на менторство или встал в лист ожидания —
   // тогда писать ему из холодной переписки не надо. Сопоставляем по нику:
   // в анкете есть и инстаграм, и телеграм.
-  formKind      String?   @map("form_kind")       // mentor | t2 | t3
-  formName      String?   @map("form_name")       // как человек назвался в анкете
+  formKind      String?   @map("form_kind") // mentor | t2 | t3
+  formName      String?   @map("form_name") // как человек назвался в анкете
   formFilledAt  DateTime? @map("form_filled_at")
   formMatchedBy String?   @map("form_matched_by") // instagram | telegram
 
@@ -593,10 +621,10 @@ model IgLead {
 // Сторис здесь пока не живут: публично их не достать, нужен вход клиента.
 
 model IgPost {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   handle    String // ник в инстаграме, без @
   slug      String? // slug маршрутной карты, если клиент заведён
-  shortcode String @unique
+  shortcode String  @unique
   url       String
   type      String // reel | карусель | фото
 
@@ -613,7 +641,7 @@ model IgPost {
   purpose String?
   hook    String?
   cta     String?
-  leadsTo String? @map("leads_to")
+  leadsTo String?  @map("leads_to")
   onRoute Boolean? @map("on_route") // двигает ли задачу из маршрутной карты
   why     String?
 
@@ -749,7 +777,9 @@ model FxRateDaily {
 // переписки. Историю чата Telegram боту не отдаёт — только то, что приходит
 // после подключения, поэтому переписку копим сами.
 
-/** Подключение бота к аккаунту. Из него берётся business_connection_id. */
+/**
+ * Подключение бота к аккаунту. Из него берётся business_connection_id.
+ */
 model TgBusinessConn {
   id          String   @id
   userId      String   @map("user_id")
@@ -762,7 +792,9 @@ model TgBusinessConn {
   @@map("tg_business_conn")
 }
 
-/** Сообщение из личной переписки. side: client | us. */
+/**
+ * Сообщение из личной переписки. side: client | us.
+ */
 model TgBusinessMsg {
   id        String   @id
   chatId    String   @map("chat_id")
@@ -770,9 +802,13 @@ model TgBusinessMsg {
   username  String?
   name      String?
   text      String
-  /** Номер анкеты, если человек пришёл с формы и она узналась. */
+  /**
+   * Номер анкеты, если человек пришёл с формы и она узналась.
+   */
   leadId    Int?     @map("lead_id")
-  /** voice | photo | video | file — если в сообщении было не только слово. */
+  /**
+   * voice | photo | video | file — если в сообщении было не только слово.
+   */
   mediaType String?  @map("media_type")
   /**
    * Где лежит исходник: путь внутри выгрузки Telegram Desktop или file_id
@@ -792,18 +828,26 @@ model TgBusinessMsg {
  * одни команды, и история группы не видна ни боту, ни нам.
  */
 model TgGroupMsg {
-  /** chat_id:message_id — повторный апдейт телеграма падает на конфликте. */
+  /**
+   * chat_id:message_id — повторный апдейт телеграма падает на конфликте.
+   */
   id        String   @id
   chatId    String   @map("chat_id")
-  /** Номер темы форума: в «Коннекторах» у каждого разговора своя. */
+  /**
+   * Номер темы форума: в «Коннекторах» у каждого разговора своя.
+   */
   threadId  Int?     @map("thread_id")
-  /** Имя темы, когда телеграм приложил его к сообщению. */
+  /**
+   * Имя темы, когда телеграм приложил его к сообщению.
+   */
   topic     String?
   userId    String?  @map("user_id")
   username  String?
   name      String?
   text      String
-  /** voice | video | photo | file, если в сообщении было не только слово. */
+  /**
+   * voice | video | photo | file, если в сообщении было не только слово.
+   */
   mediaType String?  @map("media_type")
   createdAt DateTime @map("created_at")
 
@@ -813,7 +857,9 @@ model TgGroupMsg {
   @@map("tg_group_msg")
 }
 
-/** Скриншот переписки, присланный боту. Альбом собирается по groupId. */
+/**
+ * Скриншот переписки, присланный боту. Альбом собирается по groupId.
+ */
 model TgShot {
   id        String   @id
   groupId   String?  @map("group_id")
@@ -828,7 +874,6 @@ model TgShot {
 
 /**
  * Правка перед отправкой: что предложил помощник и что ушло на самом деле.
- *
  * Единственный сигнал обучения, который у нас есть: разметки исходов пока
  * нет, а поправленный руками текст показывает, чем предложенное не годилось.
  */
@@ -845,17 +890,18 @@ model SalesCorrection {
 
 /**
  * Чем кончился разговор.
- *
  * Оплата сюда не пишется: она видна по выданному доступу и отметки не требует.
  * Руками ставится только то, чего в базе нет — «думает» со сроком возврата и
  * «слился». Пометка снимается сама, как только человек напишет снова: всё, что
  * старше его последней реплики, больше не описывает разговор.
  */
 model SalesOutcome {
-  chatId  String  @id @map("chat_id")
-  outcome String // thinking | lost
-  reason  String?
-  /** Для «думает»: когда вернуть в очередь. */
+  chatId   String    @id @map("chat_id")
+  outcome  String // thinking | lost
+  reason   String?
+  /**
+   * Для «думает»: когда вернуть в очередь.
+   */
   wakeAt   DateTime? @map("wake_at")
   markedAt DateTime  @default(now()) @map("marked_at")
   markedBy String?   @map("marked_by")
@@ -866,7 +912,6 @@ model SalesOutcome {
 
 /**
  * Сообщение-сводка в чате помощника: одно на чат, обновляется на месте.
- *
  * Раньше на каждое входящее прилетала отдельная подсказка, и разговоры с
  * разными людьми перемешивались в ленту. Теперь бот держит одну очередь.
  */
@@ -879,17 +924,23 @@ model TgDigest {
   @@map("tg_digest")
 }
 
-/** Вариант ответа под кнопкой «отправить». Текст в callback_data не влезает. */
+/**
+ * Вариант ответа под кнопкой «отправить». Текст в callback_data не влезает.
+ */
 model TgSuggestion {
   id        String    @id
   connId    String    @map("conn_id")
   chatId    String    @map("chat_id")
   text      String
-  /** Чем шаг обоснован, стадия разговора и повод позвать Сашу. */
+  /**
+   * Чем шаг обоснован, стадия разговора и повод позвать Сашу.
+   */
   why       String?
   stage     String?
   callSasha String?   @map("call_sasha")
-  /** Ступень лестницы для этого человека и ходы до оффера. */
+  /**
+   * Ступень лестницы для этого человека и ходы до оффера.
+   */
   sell      String?
   plan      String[]
   createdAt DateTime  @default(now()) @map("created_at")
@@ -913,14 +964,18 @@ model TgSuggestion {
 // сумму, произвольную под каждого не выставить. Помесячный тариф 2 и разовый
 // тариф 1 остаются в каталоге со своими ссылками.
 model Deal {
-  /** короткий токен из ссылки: t.me/testtoyzbot?start=deal_<id>. Без «_». */
+  /**
+   * короткий токен из ссылки: t.me/testtoyzbot?start=deal_<id>. Без «_».
+   */
   id         String    @id
   tier       String // t1 | t2 | t3 → продукт из CATALOG
   price      Int // рублей, источник правды для гейта по недоплате
   days       Int // на сколько открывается доступ
   title      String // как показать человеку и в форме Продамуса
   note       String? // заметка себе
-  /** active — ссылка работает, off — отвечает «напиши мне». Цены не удаляем. */
+  /**
+   * active — ссылка работает, off — отвечает «напиши мне». Цены не удаляем.
+   */
   status     String    @default("active")
   paidCount  Int       @default(0) @map("paid_count")
   lastPaidAt DateTime? @map("last_paid_at")
@@ -941,23 +996,29 @@ model Deal {
 // дня и в сам день с кнопкой оплаты, вебхук Продамуса закрывает строку сам,
 // когда приходит оплата по этой ссылке от этого телеграма.
 model PaymentDue {
-  id                String    @id @default(uuid())
-  /** null — человека нет в боте (Стас): строка только для раздела «Деньги на столе», без напоминаний */
-  telegramId        BigInt?   @map("telegram_id")
-  who               String? // как назвать в сводке Саше
-  /** null — платит мимо прайс-ссылки: напоминать нечем, закрывать руками */
-  dealId            String?   @map("deal_id") // по какой прайс-ссылке платить
-  amount            Int
-  dueAt             DateTime  @map("due_at")
-  label             String? // «платёж 2 из 3»
-  /** pending — ждём, paid — пришла оплата, cancelled — договорились иначе. */
-  status            String    @default("pending")
-  paidAt            DateTime? @map("paid_at")
-  orderId           String?   @map("order_id")
-  remindedBeforeAt  DateTime? @map("reminded_before_at")
-  remindedDueAt     DateTime? @map("reminded_due_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  id               String    @id @default(uuid())
+  /**
+   * null — человека нет в боте (Стас): строка только для раздела «Деньги на столе», без напоминаний
+   */
+  telegramId       BigInt?   @map("telegram_id")
+  who              String? // как назвать в сводке Саше
+  /**
+   * null — платит мимо прайс-ссылки: напоминать нечем, закрывать руками
+   */
+  dealId           String?   @map("deal_id") // по какой прайс-ссылке платить
+  amount           Int
+  dueAt            DateTime  @map("due_at")
+  label            String? // «платёж 2 из 3»
+  /**
+   * pending — ждём, paid — пришла оплата, cancelled — договорились иначе.
+   */
+  status           String    @default("pending")
+  paidAt           DateTime? @map("paid_at")
+  orderId          String?   @map("order_id")
+  remindedBeforeAt DateTime? @map("reminded_before_at")
+  remindedDueAt    DateTime? @map("reminded_due_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   @@index([status, dueAt])
   @@index([telegramId, dealId])
@@ -1003,33 +1064,34 @@ model TgPersonalMsg {
 // контента в бэклог. Таблицы созданы скриптом scripts/ideas-create-tables.mjs.
 
 model Idea {
-  id              String   @id @default(uuid())
-  source          String
-  chatId          String   @map("chat_id")
-  threadId        Int?     @map("thread_id")
-  firstMessageId  Int      @map("first_message_id")
-  lastMessageId   Int      @map("last_message_id")
-  authorUsername  String?  @map("author_username")
-  tgLink          String   @map("tg_link")
+  id             String  @id @default(uuid())
+  source         String
+  chatId         String  @map("chat_id")
+  threadId       Int?    @map("thread_id")
+  firstMessageId Int     @map("first_message_id")
+  lastMessageId  Int     @map("last_message_id")
+  authorUsername String? @map("author_username")
+  tgLink         String  @map("tg_link")
 
-  rawText         String?  @map("raw_text")
-  voiceTranscript String?  @map("voice_transcript")
+  rawText         String? @map("raw_text")
+  voiceTranscript String? @map("voice_transcript")
 
-  title           String
-  type            String   @default("other")
-  summary         String?
-  tags            String[] @default([])
-  parsed          Boolean  @default(false)
-  parseError      String?  @map("parse_error")
+  title      String
+  type       String   @default("other")
+  summary    String?
+  tags       String[] @default([])
+  parsed     Boolean  @default(false)
+  parseError String?  @map("parse_error")
 
-  status          String   @default("raw")
-  contentPieceId  String?  @map("content_piece_id")
+  status         String  @default("raw")
+  contentPieceId String? @map("content_piece_id")
 
-  occurredAt      DateTime @map("occurred_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  occurredAt DateTime @map("occurred_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  refs            IdeaRef[]
+  refs  IdeaRef[]
+  notes IdeaNote[]
 
   @@index([status])
   @@index([type])
@@ -1054,6 +1116,28 @@ model IdeaRef {
 
   @@index([ideaId])
   @@map("idea_refs")
+}
+
+/// What piles up inside one idea card: the one-page sheet.
+///
+/// One kind of record with a mark, not a table per block: the mark is what
+/// tells substance from a thesis, a title option or a thumbnail frame. When
+/// ideas later hang off a content piece, these rows move with one UPDATE.
+model IdeaNote {
+  id        String   @id @default(uuid())
+  ideaId    String   @map("idea_id")
+  kind      String
+  text      String
+  /// The title the career would be bet on. One per idea, held by the API.
+  chosen    Boolean  @default(false)
+  done      Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  idea      Idea     @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  @@index([ideaId, kind, position])
+  @@map("idea_notes")
 }
 
 model IdeaInbox {

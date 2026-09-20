@@ -4,13 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './idei.module.css';
 import { TypeIcon, TYPE_LABEL, typeColor, typeLabel } from './TypeIcon';
-
-const STATUS_LABEL: Record<string, string> = {
-  raw: 'сырое',
-  in_work: 'в работе',
-  shipped: 'сняли',
-  rejected: 'отклонили',
-};
+import NotesPanel, { type Note } from './NotesPanel';
+import { feedSummary } from '@/lib/ideas/notes';
+import { IDEA_STATUS_LABEL, IDEA_STATUSES, normalizeStatus } from '@/lib/ideas/status';
 
 const SOURCE_LABEL: Record<string, string> = {
   channel: 'канал «Идеи»',
@@ -43,6 +39,7 @@ interface Idea {
   tgLink: string;
   occurredAt: string;
   refs: Ref[];
+  notes: Note[];
 }
 
 export default function IdeasClient({
@@ -55,7 +52,17 @@ export default function IdeasClient({
   const router = useRouter();
   const [showRaw, setShowRaw] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // The sheet and the line under a collapsed card read the same notes, so they
+  // live here and not inside the panel.
+  const [notes, setNotes] = useState<Record<string, Note[]>>(() =>
+    Object.fromEntries(ideas.map((i) => [i.id, i.notes])),
+  );
+  useEffect(() => {
+    setNotes(Object.fromEntries(ideas.map((i) => [i.id, i.notes])));
+  }, [ideas]);
 
   // Тумблер «сводка / исходник» переживает перезагрузку.
   useEffect(() => {
@@ -155,8 +162,8 @@ export default function IdeasClient({
           </select>
           <select value={filters.status || ''} onChange={(e) => setFilter('status', e.target.value)}>
             <option value="">все статусы</option>
-            {Object.entries(STATUS_LABEL).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
+            {IDEA_STATUSES.map((v) => (
+              <option key={v} value={v}>{IDEA_STATUS_LABEL[v]}</option>
             ))}
           </select>
           <button className={styles.toggle} onClick={toggleRaw}>
@@ -189,6 +196,10 @@ export default function IdeasClient({
               {i.authorUsername && <span>@{i.authorUsername}</span>}
               <a href={i.tgLink} target="_blank" rel="noreferrer">открыть в Telegram</a>
             </div>
+
+            {feedSummary(notes[i.id] ?? []) && (
+              <p className={styles.sheetLine}>{feedSummary(notes[i.id] ?? [])}</p>
+            )}
 
             {showRaw || open === i.id ? (
               <div className={styles.raw}>
@@ -253,24 +264,52 @@ export default function IdeasClient({
               </div>
             )}
 
-            <div className={styles.actions}>
-              {Object.entries(STATUS_LABEL).map(([v, l]) => (
-                <button
-                  key={v}
-                  className={i.status === v ? styles.statusOn : styles.status}
-                  data-status={v}
-                  onClick={() => setStatus(i.id, v)}
-                >
-                  {l}
-                </button>
+            {/* Лестница отдельной строкой: это путь ролика, а не кнопки рядом
+                с «как было». «Отклонили» стоит за отбивкой, это выход из пути. */}
+            <div className={styles.ladder}>
+              {IDEA_STATUSES.filter((v) => v !== 'rejected').map((v, n) => (
+                <span key={v} className={styles.step}>
+                  {n > 0 && <span className={styles.stepSep}>›</span>}
+                  <button
+                    className={normalizeStatus(i.status) === v ? styles.statusOn : styles.status}
+                    data-status={v}
+                    onClick={() => setStatus(i.id, v)}
+                  >
+                    {IDEA_STATUS_LABEL[v]}
+                  </button>
+                </span>
               ))}
+              <button
+                className={normalizeStatus(i.status) === 'rejected' ? styles.statusOn : styles.status}
+                data-status="rejected"
+                onClick={() => setStatus(i.id, 'rejected')}
+              >
+                {IDEA_STATUS_LABEL.rejected}
+              </button>
+            </div>
+
+            <div className={styles.actions}>
               <button className={styles.status} onClick={() => reparse(i.id)}>
                 разобрать заново
+              </button>
+              <button
+                className={sheet === i.id ? styles.statusOn : styles.status}
+                onClick={() => setSheet(sheet === i.id ? null : i.id)}
+              >
+                {sheet === i.id ? 'закрыть лист' : 'лист'}
               </button>
               <button className={styles.status} onClick={() => setOpen(open === i.id ? null : i.id)}>
                 {open === i.id ? 'свернуть' : 'как было'}
               </button>
             </div>
+
+            {sheet === i.id && (
+              <NotesPanel
+                ideaId={i.id}
+                notes={notes[i.id] ?? []}
+                onNotes={(next) => setNotes((m) => ({ ...m, [i.id]: next }))}
+              />
+            )}
 
             {errors[i.id] && <p className={styles.error}>{errors[i.id]}</p>}
           </article>
