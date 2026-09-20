@@ -22,20 +22,20 @@ function draft(over: Partial<DraftIdea> = {}): DraftIdea {
 
 test('fallback title is first seven words of source', () => {
   const t = fallbackTitle(
-    draft({ rawText: 'long video: I tried all ways of making content and here is one that worked' })
+    draft({ rawText: 'длинное видео: я попробовал все способы создания контента и вот который сработал' })
   );
-  assert.equal(t, 'long video: I tried all ways of…');
+  assert.equal(t, 'длинное видео: я попробовал все способы создания…');
 });
 
 test('fallback title takes transcription if no text', () => {
-  assert.equal(fallbackTitle(draft({ voiceTranscript: 'thought about Hantas ladder' })), 'thought about Hantas ladder');
+  assert.equal(fallbackTitle(draft({ voiceTranscript: 'мысль про лестницу Ханта' })), 'мысль про лестницу Ханта');
 });
 
 test('without text and transcription title mentions references', () => {
   const t = fallbackTitle(draft({ refs: [
     { kind: 'photo', fileId: 'a', thumbFileId: null, url: null, domain: null, caption: null, messageId: 1, tgLink: '', position: 0 },
   ] }));
-  assert.equal(t, 'Reference without caption');
+  assert.equal(t, 'Референс без подписи');
 });
 
 test('model response is parsed and cleaned', () => {
@@ -62,32 +62,32 @@ test('unknown type becomes other, but parse is counted as done', () => {
 });
 
 test('garbage instead of JSON gives fallback title and parsed false', () => {
-  const p = normalizeParse('sorry, cannot do it', draft({ rawText: 'shoot reel on prices' }));
+  const p = normalizeParse('извините, не могу', draft({ rawText: 'снять рилс про цены' }));
   assert.equal(p.parsed, false);
   assert.equal(p.type, 'other');
-  assert.equal(p.title, 'shoot reel on prices');
+  assert.equal(p.title, 'снять рилс про цены');
   assert.match(p.parseError ?? '', /JSON/);
 });
 
 test('empty title from model is counted as parse failure', () => {
-  const p = normalizeParse('{"title":"","type":"reel","summary":"x","tags":[]}', draft({ rawText: 'shoot reel' }));
+  const p = normalizeParse('{"title":"","type":"reel","summary":"x","tags":[]}', draft({ rawText: 'снять рилс' }));
   assert.equal(p.parsed, false);
-  assert.equal(p.title, 'shoot reel');
+  assert.equal(p.title, 'снять рилс');
 });
 
 test('prompt includes text, transcription and attachment list', () => {
   const prompt = buildParsePrompt(
     draft({
-      rawText: 'here is text',
-      voiceTranscript: 'here is transcription',
+      rawText: 'вот текст',
+      voiceTranscript: 'вот расшифровка',
       refs: [
         { kind: 'photo', fileId: 'a', thumbFileId: null, url: null, domain: null, caption: null, messageId: 1, tgLink: '', position: 0 },
         { kind: 'link', fileId: null, thumbFileId: null, url: 'https://youtu.be/x', domain: 'youtu.be', caption: null, messageId: 1, tgLink: '', position: 1 },
       ],
     })
   );
-  assert.match(prompt, /here is text/);
-  assert.match(prompt, /here is transcription/);
+  assert.match(prompt, /вот текст/);
+  assert.match(prompt, /вот расшифровка/);
   assert.match(prompt, /photo/);
   assert.match(prompt, /youtu\.be/);
 });

@@ -27,14 +27,14 @@ test('album of three photos with caption is one idea with three thumbnails', () 
     msg({
       messageId: 12,
       tgLink: 'https://t.me/c/4399547083/220/12',
-      text: 'this montage I want',
+      text: 'вот такой монтаж хочу',
       attachments: [{ kind: 'photo', fileId: 'c', thumbFileId: 'tc' }],
     }),
   ]);
 
   assert.equal(draft.firstMessageId, 10);
   assert.equal(draft.lastMessageId, 12);
-  assert.equal(draft.rawText, 'this montage I want');
+  assert.equal(draft.rawText, 'вот такой монтаж хочу');
   assert.equal(draft.refs.filter((r) => r.kind === 'photo').length, 3);
   assert.deepEqual(draft.refs.map((r) => r.position), [0, 1, 2]);
   assert.equal(draft.tgLink, 'https://t.me/c/4399547083/220/10');
@@ -42,10 +42,10 @@ test('album of three photos with caption is one idea with three thumbnails', () 
 
 test('messages are sorted by messageId, not order in array', () => {
   const draft = assembleIdea([
-    msg({ messageId: 5, text: 'second' }),
-    msg({ messageId: 4, text: 'first' }),
+    msg({ messageId: 5, text: 'второе' }),
+    msg({ messageId: 4, text: 'первое' }),
   ]);
-  assert.equal(draft.rawText, 'first\n\nsecond');
+  assert.equal(draft.rawText, 'первое\n\nвторое');
   assert.equal(draft.firstMessageId, 4);
 });
 
@@ -53,11 +53,11 @@ test('voice returns transcription as separate field and remains a reference', ()
   const draft = assembleIdea([
     msg({
       messageId: 7,
-      voiceTranscript: 'idea for big video on Hantas ladder',
+      voiceTranscript: 'идея для большого видео про лестницу Ханта',
       attachments: [{ kind: 'voice', fileId: 'v1' }],
     }),
   ]);
-  assert.equal(draft.voiceTranscript, 'idea for big video on Hantas ladder');
+  assert.equal(draft.voiceTranscript, 'идея для большого видео про лестницу Ханта');
   assert.equal(draft.rawText, null);
   assert.equal(draft.refs[0].kind, 'voice');
   assert.equal(draft.refs[0].fileId, 'v1');
@@ -65,20 +65,20 @@ test('voice returns transcription as separate field and remains a reference', ()
 
 test('two transcriptions are joined with blank line', () => {
   const draft = assembleIdea([
-    msg({ messageId: 1, voiceTranscript: 'first thought' }),
-    msg({ messageId: 2, voiceTranscript: 'second thought' }),
+    msg({ messageId: 1, voiceTranscript: 'первая мысль' }),
+    msg({ messageId: 2, voiceTranscript: 'вторая мысль' }),
   ]);
-  assert.equal(draft.voiceTranscript, 'first thought\n\nsecond thought');
+  assert.equal(draft.voiceTranscript, 'первая мысль\n\nвторая мысль');
 });
 
 test('link from text becomes reference with domain', () => {
   const draft = assembleIdea([
-    msg({ messageId: 3, text: 'reference https://www.instagram.com/reel/ABC/' }),
+    msg({ messageId: 3, text: 'референс https://www.instagram.com/reel/ABC/' }),
   ]);
   const link = draft.refs.find((r) => r.kind === 'link');
   assert.equal(link?.url, 'https://www.instagram.com/reel/ABC/');
   assert.equal(link?.domain, 'instagram.com');
-  assert.equal(draft.rawText, 'reference https://www.instagram.com/reel/ABC/');
+  assert.equal(draft.rawText, 'референс https://www.instagram.com/reel/ABC/');
 });
 
 test('idea time is the first message time', () => {

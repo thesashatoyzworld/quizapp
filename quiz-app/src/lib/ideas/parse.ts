@@ -34,7 +34,7 @@ export interface IdeaParse {
 
 export function fallbackTitle(draft: DraftIdea): string {
   const source = (draft.rawText || draft.voiceTranscript || '').trim();
-  if (!source) return 'Reference without caption';
+  if (!source) return 'Референс без подписи';
   const words = source.split(/\s+/);
   const head = words.slice(0, 7).join(' ');
   return words.length > 7 ? `${head}…` : head;
@@ -42,29 +42,29 @@ export function fallbackTitle(draft: DraftIdea): string {
 
 export function buildParsePrompt(draft: DraftIdea): string {
   const parts: string[] = [];
-  if (draft.rawText) parts.push(`Message text:\n${draft.rawText}`);
-  if (draft.voiceTranscript) parts.push(`Voice transcription:\n${draft.voiceTranscript}`);
+  if (draft.rawText) parts.push(`Текст сообщения:\n${draft.rawText}`);
+  if (draft.voiceTranscript) parts.push(`Расшифровка голосового:\n${draft.voiceTranscript}`);
   if (draft.refs.length) {
     const list = draft.refs
       .map((r) => (r.kind === 'link' ? `link ${r.url} (${r.domain})` : r.kind))
       .join(', ');
-    parts.push(`Attachments: ${list}`);
+    parts.push(`Вложения: ${list}`);
   }
 
-  return `Here is an idea from a collection. Parse it and return ONLY JSON, no explanation.
+  return `Вот идея из копилки. Разбери её и верни ТОЛЬКО JSON, без пояснений.
 
 ${parts.join('\n\n')}
 
-JSON fields:
-- "title": headline of 3-7 words, capturing the essence of the idea
-- "type": one of ${IDEA_TYPES.join(' | ')}
-- "summary": one or two lines in the author's words, no embellishment. Do not
-  invent what is not in the message. Nothing to say: null
-- "tags": up to five short tags, array of strings
+Поля JSON:
+- "title": заголовок из 3-7 слов, по сути идеи
+- "type": одно из ${IDEA_TYPES.join(' | ')}
+- "summary": одна-две строки словами автора, без украшательств. Не додумывай
+  того, чего в сообщении нет. Нечего сказать: null
+- "tags": до пяти коротких меток, массив строк
 
-Short vertical video is reel. Long YouTube video is bigvideo.
-Slide deck is carousel. Text in a channel is post. Product, price or sale
-is offer. Process, tool or automation is system. Not sure: other.`;
+Короткое вертикальное видео это reel. Длинное видео на YouTube это bigvideo.
+Набор слайдов это carousel. Текст в канал это post. Продукт, цена или продажа
+это offer. Процесс, инструмент или автоматизация это system. Не понял: other.`;
 }
 
 export function normalizeParse(raw: string, draft: DraftIdea): IdeaParse {
@@ -83,11 +83,11 @@ export function normalizeParse(raw: string, draft: DraftIdea): IdeaParse {
   try {
     data = JSON.parse(fenced);
   } catch {
-    return fail(`model returned not JSON: ${raw.slice(0, 200)}`);
+    return fail(`модель вернула не JSON: ${raw.slice(0, 200)}`);
   }
 
   const title = typeof data?.title === 'string' ? data.title.trim() : '';
-  if (!title) return fail('model did not return title');
+  if (!title) return fail('модель не вернула заголовок');
 
   const type: IdeaType = IDEA_TYPES.includes(data?.type) ? data.type : 'other';
   const summary = typeof data?.summary === 'string' && data.summary.trim() ? data.summary.trim() : null;

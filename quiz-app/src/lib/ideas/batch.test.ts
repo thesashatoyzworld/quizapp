@@ -50,13 +50,13 @@ test('forum message link contains thread', () => {
 });
 
 test('links from text are extracted with domain', () => {
-  const links = extractLinks('check https://www.instagram.com/reel/ABC/ and also http://youtu.be/xyz');
+  const links = extractLinks('смотри https://www.instagram.com/reel/ABC/ и ещё http://youtu.be/xyz');
   assert.deepEqual(links, [
     { url: 'https://www.instagram.com/reel/ABC/', domain: 'instagram.com' },
     { url: 'http://youtu.be/xyz', domain: 'youtu.be' },
   ]);
   assert.deepEqual(extractLinks(null), []);
-  assert.deepEqual(extractLinks('no links'), []);
+  assert.deepEqual(extractLinks('без ссылок'), []);
 });
 
 test('same link twice is not duplicated', () => {
