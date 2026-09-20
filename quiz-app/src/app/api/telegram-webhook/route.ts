@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isLoggedGroup, saveGroupMessage } from '@/lib/group-log';
 import { after } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { notifyAdmin, sendBotMessage, editAdminMarkup, type NotifyRef } from '@/lib/telegram';
@@ -97,6 +98,13 @@ interface TelegramUpdate {
     document?: { file_id: string; file_name?: string };
     video_note?: { file_id: string; duration?: number };
     caption?: string;
+    // Время сообщения и тема форума: нужны записи групп, в личке не смотрим.
+    date?: number;
+    message_thread_id?: number;
+    reply_to_message?: {
+      message_id?: number;
+      forum_topic_created?: { name?: string };
+    };
   };
   callback_query?: {
     id: string;
@@ -356,6 +364,20 @@ export async function POST(request: NextRequest) {
         console.error('[business_message] разбор не прошёл', e);
       }
       return NextResponse.json({ ok: true });
+    }
+
+    // Группа, где бот сидит админом. Пишем всё, что телеграм отдал, и на этом
+    // останавливаемся: разбор ниже написан под личку, и болтовня из общего чата
+    // там превращается в ответы невпопад. Команды пропускаем дальше, они
+    // работали и при включённом privacy.
+    //
+    // Пока боту не сняли privacy mode в BotFather, сюда приходят только команды
+    // и упоминания, то есть ветка почти всегда простаивает. Это нормально.
+    if (update.message && isLoggedGroup(update.message.chat.id)) {
+      await saveGroupMessage(update.message);
+      if (!update.message.text?.startsWith('/')) {
+        return NextResponse.json({ ok: true });
+      }
     }
 
     // Handle inline button callbacks
