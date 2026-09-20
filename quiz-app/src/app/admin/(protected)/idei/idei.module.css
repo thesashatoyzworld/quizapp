@@ -57,11 +57,22 @@
   gap: 14px;
 }
 
+/* Each card is tinted by its type. --type-color is set inline per card,
+   so the stripe, the badge and the filter chip can never drift apart. */
 .card {
-  border: 1px solid rgba(0, 240, 255, 0.15);
+  --type-color: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid var(--type-color);
   border-radius: 10px;
-  padding: 16px;
+  padding: 16px 16px 16px 15px;
   background: var(--bg-secondary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--type-color) 22%, transparent),
+    0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
 .cardHead {
@@ -78,13 +89,23 @@
 }
 
 .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--neon-cyan);
-  border: 1px solid rgba(0, 240, 255, 0.4);
-  padding: 2px 8px;
+  white-space: nowrap;
+  color: var(--type-color);
+  border: 1px solid color-mix(in srgb, var(--type-color) 45%, transparent);
+  background: color-mix(in srgb, var(--type-color) 10%, transparent);
+  padding: 3px 9px;
   border-radius: 999px;
+}
+
+/* The badge sits on the type's colour, so the title must not compete. */
+.cardHead {
+  align-items: center;
 }
 
 .warn {
@@ -217,4 +238,103 @@
   color: var(--danger, #ff2a6d);
   font-size: 0.78rem;
   margin: 8px 0 0;
+}
+
+/* The type filter doubles as the legend: every colour and icon in the feed
+   is visible here even when nothing is filtered. */
+.typeRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.typeChip,
+.typeChipOn {
+  --type-color: rgba(255, 255, 255, 0.45);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.typeChip:hover {
+  color: var(--type-color);
+  border-color: color-mix(in srgb, var(--type-color) 50%, transparent);
+}
+
+.typeChipOn {
+  color: var(--type-color);
+  border-color: color-mix(in srgb, var(--type-color) 60%, transparent);
+  background: color-mix(in srgb, var(--type-color) 14%, transparent);
+}
+
+/* Statuses read at a glance too: in progress warm, shipped green,
+   rejected dimmed out of the way. «Сырое» is the default every card starts in,
+   so it stays quiet: highlighting it would out-shout the card's own type. */
+.statusOn[data-status='raw'] {
+  color: var(--text-secondary);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.statusOn[data-status='in_work'] {
+  color: var(--xp-gold);
+  border-color: rgba(255, 215, 0, 0.5);
+  background: rgba(255, 215, 0, 0.12);
+}
+
+.statusOn[data-status='shipped'] {
+  color: #3dff9a;
+  border-color: rgba(61, 255, 154, 0.5);
+  background: rgba(61, 255, 154, 0.12);
+}
+
+.statusOn[data-status='rejected'] {
+  color: var(--text-muted);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    max-width: 100%;
+  }
+
+  .controls select,
+  .toggle {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .card {
+    padding: 14px 12px 14px 11px;
+  }
+
+  .cardHead {
+    align-items: flex-start;
+  }
+
+  .title {
+    font-size: 0.95rem;
+    flex-basis: 100%;
+  }
+
+  .thumb {
+    width: 76px;
+    height: 76px;
+  }
+
+  .typeChip,
+  .typeChipOn {
+    font-size: 0.72rem;
+    padding: 5px 9px;
+  }
 }

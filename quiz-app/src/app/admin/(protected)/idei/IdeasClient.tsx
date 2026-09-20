@@ -3,16 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './idei.module.css';
-
-const TYPE_LABEL: Record<string, string> = {
-  reel: 'рилс',
-  bigvideo: 'большое видео',
-  carousel: 'карусель',
-  post: 'пост',
-  offer: 'оффер',
-  system: 'система',
-  other: 'прочее',
-};
+import { TypeIcon, TYPE_LABEL, typeColor, typeLabel } from './TypeIcon';
 
 const STATUS_LABEL: Record<string, string> = {
   raw: 'сырое',
@@ -135,13 +126,27 @@ export default function IdeasClient({
       <header className={styles.head}>
         <h1 className={styles.h1}>Идеи</h1>
         <p className={styles.sub}>Лента идей из канала и от Дани. Статус двигаешь руками, исходник всегда рядом.</p>
+        <div className={styles.typeRow}>
+          <button
+            className={filters.type ? styles.typeChip : styles.typeChipOn}
+            onClick={() => setFilter('type', '')}
+          >
+            все
+          </button>
+          {Object.keys(TYPE_LABEL).map((v) => (
+            <button
+              key={v}
+              className={filters.type === v ? styles.typeChipOn : styles.typeChip}
+              style={{ ['--type-color' as string]: typeColor(v) }}
+              onClick={() => setFilter('type', filters.type === v ? '' : v)}
+            >
+              <TypeIcon type={v} />
+              {typeLabel(v)}
+            </button>
+          ))}
+        </div>
+
         <div className={styles.controls}>
-          <select value={filters.type || ''} onChange={(e) => setFilter('type', e.target.value)}>
-            <option value="">все типы</option>
-            {Object.entries(TYPE_LABEL).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
-          </select>
           <select value={filters.source || ''} onChange={(e) => setFilter('source', e.target.value)}>
             <option value="">все источники</option>
             {Object.entries(SOURCE_LABEL).map(([v, l]) => (
@@ -164,9 +169,16 @@ export default function IdeasClient({
 
       <div className={styles.list}>
         {ideas.map((i) => (
-          <article key={i.id} className={styles.card}>
+          <article
+            key={i.id}
+            className={styles.card}
+            style={{ ['--type-color' as string]: typeColor(i.type) }}
+          >
             <div className={styles.cardHead}>
-              <span className={styles.badge}>{TYPE_LABEL[i.type] || i.type}</span>
+              <span className={styles.badge}>
+                <TypeIcon type={i.type} />
+                {typeLabel(i.type)}
+              </span>
               <h2 className={styles.title}>{i.title}</h2>
               {!i.parsed && <span className={styles.warn} title="модель не разобрала, заголовок из первых слов">не разобрано</span>}
             </div>
@@ -246,6 +258,7 @@ export default function IdeasClient({
                 <button
                   key={v}
                   className={i.status === v ? styles.statusOn : styles.status}
+                  data-status={v}
                   onClick={() => setStatus(i.id, v)}
                 >
                   {l}
