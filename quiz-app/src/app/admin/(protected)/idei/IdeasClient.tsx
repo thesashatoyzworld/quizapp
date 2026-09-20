@@ -264,17 +264,31 @@ export default function IdeasClient({
               </div>
             )}
 
-            <div className={styles.actions}>
-              {IDEA_STATUSES.map((v) => (
-                <button
-                  key={v}
-                  className={normalizeStatus(i.status) === v ? styles.statusOn : styles.status}
-                  data-status={v}
-                  onClick={() => setStatus(i.id, v)}
-                >
-                  {IDEA_STATUS_LABEL[v]}
-                </button>
+            {/* Лестница отдельной строкой: это путь ролика, а не кнопки рядом
+                с «как было». «Отклонили» стоит за отбивкой, это выход из пути. */}
+            <div className={styles.ladder}>
+              {IDEA_STATUSES.filter((v) => v !== 'rejected').map((v, n) => (
+                <span key={v} className={styles.step}>
+                  {n > 0 && <span className={styles.stepSep}>›</span>}
+                  <button
+                    className={normalizeStatus(i.status) === v ? styles.statusOn : styles.status}
+                    data-status={v}
+                    onClick={() => setStatus(i.id, v)}
+                  >
+                    {IDEA_STATUS_LABEL[v]}
+                  </button>
+                </span>
               ))}
+              <button
+                className={normalizeStatus(i.status) === 'rejected' ? styles.statusOn : styles.status}
+                data-status="rejected"
+                onClick={() => setStatus(i.id, 'rejected')}
+              >
+                {IDEA_STATUS_LABEL.rejected}
+              </button>
+            </div>
+
+            <div className={styles.actions}>
               <button className={styles.status} onClick={() => reparse(i.id)}>
                 разобрать заново
               </button>

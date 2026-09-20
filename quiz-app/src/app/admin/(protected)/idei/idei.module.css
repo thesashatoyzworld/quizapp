@@ -355,6 +355,16 @@
     font-size: 0.72rem;
     padding: 5px 9px;
   }
+
+  /* Лестница переносится на три строки, и стрелка в начале строки читается
+     как мусор. На узком экране порядок и так виден. */
+  .stepSep {
+    display: none;
+  }
+
+  .ladder > button:last-child {
+    margin-left: 0;
+  }
 }
 
 
@@ -580,4 +590,34 @@
 
 .composerInput::placeholder {
   color: rgba(255, 255, 255, 0.3);
+}
+
+/* Лестница: шаги идут слева направо, «отклонили» отбито вправо. */
+.ladder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stepSep {
+  color: rgba(255, 255, 255, 0.18);
+  font-size: 0.8rem;
+}
+
+.ladder > button:last-child {
+  margin-left: auto;
+}
+
+.busy {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  align-self: center;
 }

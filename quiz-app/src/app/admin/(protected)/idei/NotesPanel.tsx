@@ -213,6 +213,7 @@ export default function NotesPanel({
               {NOTE_LABEL[k]}
             </button>
           ))}
+          {busy && <span className={styles.busy}>записываю…</span>}
         </div>
         <textarea
           ref={input}
