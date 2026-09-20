@@ -967,3 +967,80 @@ model TgPersonalMsg {
   @@index([chatId, createdAt])
   @@map("tg_personal_msg")
 }
+
+// ═══════════════════════════════════════
+// IDEAS INBOX
+// ═══════════════════════════════════════
+// Копилка идей для контента: что Саша говорит в созвонах, мысли которые
+// приходят, темы из живых чатов. Идея → парсим → типизируем → предложение
+// контента в бэклог. Таблицы созданы скриптом scripts/ideas-create-tables.mjs.
+
+model Idea {
+  id              String   @id @default(uuid())
+  source          String
+  chatId          String   @map("chat_id")
+  threadId        Int?     @map("thread_id")
+  firstMessageId  Int      @map("first_message_id")
+  lastMessageId   Int      @map("last_message_id")
+  authorUsername  String?  @map("author_username")
+  tgLink          String   @map("tg_link")
+
+  rawText         String?  @map("raw_text")
+  voiceTranscript String?  @map("voice_transcript")
+
+  title           String
+  type            String   @default("other")
+  summary         String?
+  tags            String[] @default([])
+  parsed          Boolean  @default(false)
+  parseError      String?  @map("parse_error")
+
+  status          String   @default("raw")
+  contentPieceId  String?  @map("content_piece_id")
+
+  occurredAt      DateTime @map("occurred_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  refs            IdeaRef[]
+
+  @@index([status])
+  @@index([type])
+  @@index([source])
+  @@index([occurredAt])
+  @@map("ideas")
+}
+
+model IdeaRef {
+  id          String  @id @default(uuid())
+  ideaId      String  @map("idea_id")
+  kind        String
+  fileId      String? @map("file_id")
+  thumbFileId String? @map("thumb_file_id")
+  url         String?
+  domain      String?
+  caption     String?
+  messageId   Int     @map("message_id")
+  tgLink      String  @map("tg_link")
+  position    Int     @default(0)
+  idea        Idea    @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  @@index([ideaId])
+  @@map("idea_refs")
+}
+
+model IdeaInbox {
+  id        String   @id @default(uuid())
+  chatId    String   @map("chat_id")
+  threadId  Int?     @map("thread_id")
+  messageId Int      @map("message_id")
+  authorId  String?  @map("author_id")
+  batchKey  String   @map("batch_key")
+  payload   Json
+  ideaId    String?  @map("idea_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([chatId, messageId])
+  @@index([batchKey, ideaId])
+  @@map("idea_inbox")
+}
