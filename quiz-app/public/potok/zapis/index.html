@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Поток Спроса · лист записи</title>
+<style>
+  :root {
+    --bg: #fbfaf8;
+    --ink: #121212;
+    --muted: #6f6f6f;
+    --accent: #c94f0a;
+    --line: #e6e3de;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 19px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 20px 120px; }
+
+  h1 { font-size: clamp(30px, 6vw, 46px); letter-spacing: -0.02em; margin: 0 0 6px; }
+  .lead { color: var(--muted); margin: 0 0 26px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 10px 26px; padding: 16px 0; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .meta b { font-variant-numeric: tabular-nums; }
+  .how { color: var(--muted); font-size: 16px; margin: 18px 0 30px; }
+  .how kbd { background: #fff; border: 1px solid var(--line); border-bottom-width: 2px; padding: 1px 6px; font: inherit; font-size: 14px; }
+
+  .blk { border-top: 1px solid var(--line); padding: 26px 0 30px; scroll-margin-top: 12px; }
+  .blk header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 16px; }
+  .num { font: 700 15px/1 ui-monospace, "Courier New", monospace; background: var(--ink); color: #fff; padding: 6px 8px; }
+  .name { font-weight: 700; font-size: 21px; }
+  .tc { font: 400 15px/1 ui-monospace, "Courier New", monospace; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .badge { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 9px; border: 1px solid; }
+  .badge.live { color: var(--accent); border-color: var(--accent); }
+  .badge.off { color: var(--muted); border-color: var(--line); background: #fff; }
+  .sub { font-size: 15px; color: var(--muted); }
+
+  .body { display: grid; grid-template-columns: 1fr 380px; gap: 26px; align-items: start; }
+  .say { font-size: clamp(21px, 2.4vw, 27px); line-height: 1.45; }
+  .say b { color: var(--accent); }
+  figure { margin: 0; }
+  figure img { width: 100%; display: block; border: 1px solid var(--line); }
+
+  body.textonly figure { display: none; }
+  body.textonly .body { grid-template-columns: 1fr; }
+  body.textonly .say { font-size: clamp(24px, 3.4vw, 34px); }
+
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .bar button { font: inherit; font-size: 15px; padding: 7px 14px; background: #fff; border: 1px solid var(--ink); cursor: pointer; }
+  .bar button:hover { background: var(--ink); color: #fff; }
+
+  .plan { margin-top: 46px; border-top: 2px solid var(--ink); padding-top: 22px; }
+  .plan h2 { font-size: 22px; margin: 0 0 14px; }
+  .plan ul { margin: 0 0 22px; padding-left: 20px; color: #333; }
+  .plan li { margin-bottom: 5px; }
+
+  @media (max-width: 860px) {
+    .body { grid-template-columns: 1fr; }
+    figure { max-width: 460px; }
+  }
+  @media print {
+    .bar { display: none; }
+    .blk { break-inside: avoid; }
+    body { font-size: 15px; background: #fff; }
+  }
+</style>
+<div class="wrap">
+  <h1>Поток Спроса · лист записи</h1>
+  <p class="lead">Слайд слева, под ним то, что говоришь. Оранжевым - ударные фразы, их не проглатывать.</p>
+
+  <div class="meta">
+    <span>хронометраж <b>6:35</b></span>
+    <span>блоков <b>23</b></span>
+    <span>в кадре <b>13</b></span>
+    <span>за кадром <b>10</b></span>
+    <span>слов <b>745</b></span>
+  </div>
+
+  <div class="bar">
+    <button onclick="document.body.classList.toggle('textonly')">только текст</button>
+    <button onclick="window.print()">печать</button>
+  </div>
+
+  <p class="how">Темп расчётный: 130 слов в минуту плюс паузы. Таймкоды - ориентир, не норматив.
+  Колода рядом: <a href="/potok">quiz.thesashatoyz.com/potok</a>, листается <kbd>←</kbd> <kbd>→</kbd>, <kbd>T</kbd> показывает суфлёр прямо на слайде, <kbd>F</kbd> - фуллскрин.</p>
+
+  <section class="blk" id="b01">
+    <header>
+      <span class="num">01</span>
+      <span class="name">крюк</span>
+      <span class="tc">0:00 – 0:13</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">глаза в камеру, без графики</span>
+    </header>
+    <div class="body">
+      <div class="say">Вы снимаете контент, выделяете на него кучу времени - сценарии, съемка, монтаж. Но каждый раз выкладываете рилс или карусель и получаете <b>200 просмотров</b>. Разочарование и боль.</div>
+      <figure><img src="thumbs/slide-01.jpg" alt="слайд 01" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b02">
+    <header>
+      <span class="num">02</span>
+      <span class="name">вывод</span>
+      <span class="tc">0:13 – 0:32</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">три вывода появляются по одному</span>
+    </header>
+    <div class="body">
+      <div class="say">В итоге вы делаете вывод: либо вам это не подходит, либо это не работает, либо вы какой-то не такой. <b>И бросаете.</b> А кто-то идет искать ответы, проходит миллионы обучений и так и не получает цифр.</div>
+      <figure><img src="thumbs/slide-02.jpg" alt="слайд 02" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b03">
+    <header>
+      <span class="num">03</span>
+      <span class="name">что нужно на самом деле</span>
+      <span class="tc">0:32 – 0:52</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">теплее, спокойнее</span>
+    </header>
+    <div class="body">
+      <div class="say">Хотя всё что вам нужно - <b>увидеть первые результаты</b>. Согласитесь, если бы вы получили первые 10 000 - 100 000 просмотров и подписки - вам бы стало сильно проще? Вы бы почувствовали, что это работает и что у вас получается.</div>
+      <figure><img src="thumbs/slide-03.jpg" alt="слайд 03" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b04">
+    <header>
+      <span class="num">04</span>
+      <span class="name">для кого</span>
+      <span class="tc">0:52 – 1:07</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">+ плашка ролей</span>
+    </header>
+    <div class="body">
+      <div class="say">Это видео для экспертов, тренеров, мастеров и фрилансеров - у кого блог есть, а просмотров нет. Так вот - <b>я нашел как это сделать</b> и сейчас расскажу вам о нём.</div>
+      <figure><img src="thumbs/slide-04.jpg" alt="слайд 04" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b05">
+    <header>
+      <span class="num">05</span>
+      <span class="name">ставка</span>
+      <span class="tc">1:07 – 1:21</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">жёстче по тону</span>
+    </header>
+    <div class="body">
+      <div class="say">Большинство делает контент в надежде на лайфхаки - вирусные заголовки, форматы - либо просто стреляет наугад. Но каждая неудача бьет все сильнее. <b>И это вопрос времени, когда вы бросите.</b></div>
+      <figure><img src="thumbs/slide-05.jpg" alt="слайд 05" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b06">
+    <header>
+      <span class="num">06</span>
+      <span class="name">сколько это стоит</span>
+      <span class="tc">1:21 – 1:39</span>
+      <span class="badge off">за кадром</span>
+      <span class="sub">шкала появляется по кускам</span>
+    </header>
+    <div class="body">
+      <div class="say">Смотрите, как это выглядит во времени. Вы заходите на пару месяцев - результатов нет. Откладываете. Через пару месяцев собираетесь с силами и заходите ещё раз. И снова ничего. <b>Итог - полгода жизни и ни одного результата.</b></div>
+      <figure><img src="thumbs/slide-06.jpg" alt="слайд 06" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b07">
+    <header>
+      <span class="num">07</span>
+      <span class="name">цена вопроса</span>
+      <span class="tc">1:39 – 2:00</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">пауза после фразы</span>
+    </header>
+    <div class="body">
+      <div class="say">А все ваши действия, усилия и вложенное время сведутся на ноль. <b>По сути вы просто платите временем.</b> Хотя можно достаточно быстро получить первые результаты и уже на волне этих побед набрать свою аудиторию. Но сначала важно понять следующий момент.</div>
+      <figure><img src="thumbs/slide-07.jpg" alt="слайд 07" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b08">
+    <header>
+      <span class="num">08</span>
+      <span class="name">враг</span>
+      <span class="tc">2:00 – 2:18</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">спокойно, без наезда</span>
+    </header>
+    <div class="body">
+      <div class="say">Каждый кто получил результаты в контенте - свято верит в свой подход и считает его единственно верным. И продает его. Поэтому на рынке миллионы решений, и <b>каждое верное - но только для того, у кого сработало</b>.</div>
+      <figure><img src="thumbs/slide-08.jpg" alt="слайд 08" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b09">
+    <header>
+      <span class="num">09</span>
+      <span class="name">приемы</span>
+      <span class="tc">2:18 – 2:39</span>
+      <span class="badge off">за кадром</span>
+      <span class="sub">плашки появляются по списку</span>
+    </header>
+    <div class="body">
+      <div class="say">И все эти приемы: вирусные заголовки, форматы, полезные видео, лайфстайлы, тренды. <b>Не более чем технические приемы, которые могут лишь повысить шансы.</b> Но если вы взяли идею, которая не работает - они не помогут и вы в очередной раз потратите время.</div>
+      <figure><img src="thumbs/slide-09.jpg" alt="слайд 09" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b10">
+    <header>
+      <span class="num">10</span>
+      <span class="name">казино</span>
+      <span class="tc">2:39 – 2:48</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">ключевая мысль</span>
+    </header>
+    <div class="body">
+      <div class="say">Когда мы берем идею из головы - мы стреляем наугад. <b>А это ничем не отличается от казино и автоматов.</b></div>
+      <figure><img src="thumbs/slide-10.jpg" alt="слайд 10" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b11">
+    <header>
+      <span class="num">11</span>
+      <span class="name">определение</span>
+      <span class="tc">2:48 – 3:05</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">медленно, это ядро</span>
+    </header>
+    <div class="body">
+      <div class="say">Но когда мы берем идеи, которые уже показали себя - шансы сильно повышаются. Все, что нам нужно - попасть в поток спроса. <b>Поток спроса - это то, что люди уже смотрят, хотят и любят.</b></div>
+      <figure><img src="thumbs/slide-11.jpg" alt="слайд 11" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b12">
+    <header>
+      <span class="num">12</span>
+      <span class="name">ведро в стороне</span>
+      <span class="tc">3:05 – 3:16</span>
+      <span class="badge off">за кадром</span>
+      <span class="sub">дудл на весь экран</span>
+    </header>
+    <div class="body">
+      <div class="say">Есть один огромный поток. <b>Делая то, что хочется нам - мы выходим на улицу с ведром в надежде, что нам накапает просмотров.</b></div>
+      <figure><img src="thumbs/slide-12.jpg" alt="слайд 12" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b13">
+    <header>
+      <span class="num">13</span>
+      <span class="name">подставили ведро</span>
+      <span class="tc">3:16 – 3:27</span>
+      <span class="badge off">за кадром</span>
+      <span class="sub">дудл, труба и охваты</span>
+    </header>
+    <div class="body">
+      <div class="say">Когда мы подставляем ведро под поток спроса - <b>мы переливаем часть охватов себе</b>. И чем чаще вы подставляете ведро - тем чаще попадаете.</div>
+      <figure><img src="thumbs/slide-13.jpg" alt="слайд 13" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b14">
+    <header>
+      <span class="num">14</span>
+      <span class="name">сигнал</span>
+      <span class="tc">3:27 – 3:47</span>
+      <span class="badge off">за кадром</span>
+      <span class="sub">скрины крупно</span>
+    </header>
+    <div class="body">
+      <div class="say">Сначала я увидел видос западного блогера - «Публикуйте все подряд». Потом карусель своей коллеги уже на русском с таким же названием. Может она даже взяла идею у этого чувака. <b>Для меня это было сигналом - на это есть спрос.</b></div>
+      <figure><img src="thumbs/slide-14.jpg" alt="слайд 14" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b15">
+    <header>
+      <span class="num">15</span>
+      <span class="name">моя карусель</span>
+      <span class="tc">3:47 – 3:51</span>
+      <span class="badge off">за кадром</span>
+      <span class="sub">цифры на экране</span>
+    </header>
+    <div class="body">
+      <div class="say">Я сделал свою карусель и <b>получил вот такие результаты</b>.</div>
+      <figure><img src="thumbs/slide-15.jpg" alt="слайд 15" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b16">
+    <header>
+      <span class="num">16</span>
+      <span class="name">ещё три раза</span>
+      <span class="tc">3:51 – 4:09</span>
+      <span class="badge off">за кадром</span>
+      <span class="sub">плитка из четырёх</span>
+    </header>
+    <div class="body">
+      <div class="say">Но это не самое удивительное - потом я сделал это еще 3 раза. И каждый раз она давала охваты, взаимодействия, подписчиков и заявки. <b>Я брал только первый слайд - заход - и каждый раз подставлял свои смыслы.</b></div>
+      <figure><img src="thumbs/slide-16.jpg" alt="слайд 16" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b17">
+    <header>
+      <span class="num">17</span>
+      <span class="name">Женя</span>
+      <span class="tc">4:09 – 4:32</span>
+      <span class="badge off">за кадром</span>
+      <span class="sub">скрины ДО и ПОСЛЕ</span>
+    </header>
+    <div class="body">
+      <div class="say">Затем начал пробовать это у клиентов. Вот Женя, импортер авто из Китая. Сначала мы делали то, что Женя считал важным - как выбрать машину, на что смотреть в договоре, чем отличаются комплектации. Полезно и правильно. <b>А потом начали делать то, что люди хотят смотреть.</b></div>
+      <figure><img src="thumbs/slide-17.jpg" alt="слайд 17" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b18">
+    <header>
+      <span class="num">18</span>
+      <span class="name">Миша</span>
+      <span class="tc">4:32 – 4:39</span>
+      <span class="badge off">за кадром</span>
+      <span class="sub">скрины до и после</span>
+    </header>
+    <div class="body">
+      <div class="say">Затем мы это сделали для Миши. <b>Было 655 просмотров, стало 121 тысяча.</b></div>
+      <figure><img src="thumbs/slide-18.jpg" alt="слайд 18" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b19">
+    <header>
+      <span class="num">19</span>
+      <span class="name">Мовлат</span>
+      <span class="tc">4:39 – 4:52</span>
+      <span class="badge off">за кадром</span>
+      <span class="sub">скрин переписки крупно</span>
+    </header>
+    <div class="body">
+      <div class="say">Затем для Мовлата. Два рилса по чужому заходу - <b>оба залетели, второй на 70 тысяч просмотров</b>. Каждый раз используя этот инструмент, мы с большей вероятностью получаем результаты.</div>
+      <figure><img src="thumbs/slide-19.jpg" alt="слайд 19" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b20">
+    <header>
+      <span class="num">20</span>
+      <span class="name">возражение</span>
+      <span class="tc">4:52 – 5:14</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">главный блок, говори прямо</span>
+    </header>
+    <div class="body">
+      <div class="say">Нет. Мы берем только заход - первые три секунды ролика, первый слайд, саму идею или формат. Все остальное ваше: ваши смыслы, ваш опыт, ваша позиция. <b>Чужой заход - это не текст, который вы пересказываете, а дверь, в которую человек уже согласился войти.</b></div>
+      <figure><img src="thumbs/slide-20.jpg" alt="слайд 20" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b21">
+    <header>
+      <span class="num">21</span>
+      <span class="name">кто я</span>
+      <span class="tc">5:14 – 5:38</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">+ нижний титр с цифрами</span>
+    </header>
+    <div class="body">
+      <div class="say">Я занимаюсь контентом больше 14 лет, последние 5 - помогаю экспертам и блогерам. За это время я перепробовал абсолютно все подходы к созданию контента. Свои 40 тысяч подписчиков я набрал именно благодаря этому инструменту. <b>И если бы сейчас начинал с нуля - не делал бы ничего другого.</b></div>
+      <figure><img src="thumbs/slide-21.jpg" alt="слайд 21" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b22">
+    <header>
+      <span class="num">22</span>
+      <span class="name">честная граница</span>
+      <span class="tc">5:38 – 6:04</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">спокойно, без пафоса</span>
+    </header>
+    <div class="body">
+      <div class="say">Потому что важно получить быстрые результаты, чтобы вы поверили - это работает и это возможно. А когда будет аудитория - сможете экспериментировать и пробовать что захотите. <b>Промахиваться вы не перестанете - так не бывает ни у кого. Но попадать начнете заметно чаще, а первые цифры увидите за недели, а не за пол года.</b></div>
+      <figure><img src="thumbs/slide-22.jpg" alt="слайд 22" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="blk" id="b23">
+    <header>
+      <span class="num">23</span>
+      <span class="name">оффер + cta</span>
+      <span class="tc">6:04 – 6:35</span>
+      <span class="badge live">в кадре</span>
+      <span class="sub">стрелка вниз на кнопку</span>
+    </header>
+    <div class="body">
+      <div class="say">Я собрал все это в один продукт - <b>«Поток Спроса»</b>. Внутри десять рабочих заходов в вашей нише, система выбора того, что действительно сработает, восемь проверенных способов находить заходы и промт для нейронки, которая соберет таблицу за 15 минут. Плюс чем наполнять заход и что делать, если не зашло. Полторы тысячи рублей. <b>Все детали и кнопка - прямо под этим видео.</b></div>
+      <figure><img src="thumbs/slide-23.jpg" alt="слайд 23" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <div class="plan">
+    <h2>Что снимаем в кадре (13 блоков)</h2>
+    <ul><li>01 · крюк <span class="tc">0:00</span></li><li>02 · вывод <span class="tc">0:13</span></li><li>03 · что нужно на самом деле <span class="tc">0:32</span></li><li>04 · для кого <span class="tc">0:52</span></li><li>05 · ставка <span class="tc">1:07</span></li><li>07 · цена вопроса <span class="tc">1:39</span></li><li>08 · враг <span class="tc">2:00</span></li><li>10 · казино <span class="tc">2:39</span></li><li>11 · определение <span class="tc">2:48</span></li><li>20 · возражение <span class="tc">4:52</span></li><li>21 · кто я <span class="tc">5:14</span></li><li>22 · честная граница <span class="tc">5:38</span></li><li>23 · оффер + cta <span class="tc">6:04</span></li></ul>
+    <h2>Что идёт за кадром (10 блоков)</h2>
+    <ul><li>06 · сколько это стоит - шкала появляется по кускам</li><li>09 · приемы - плашки появляются по списку</li><li>12 · ведро в стороне - дудл на весь экран</li><li>13 · подставили ведро - дудл, труба и охваты</li><li>14 · сигнал - скрины крупно</li><li>15 · моя карусель - цифры на экране</li><li>16 · ещё три раза - плитка из четырёх</li><li>17 · Женя - скрины ДО и ПОСЛЕ</li><li>18 · Миша - скрины до и после</li><li>19 · Мовлат - скрин переписки крупно</li></ul>
+  </div>
+</div>
+</html>
