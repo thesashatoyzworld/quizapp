@@ -976,6 +976,32 @@ export async function POST(request: NextRequest) {
             await grantAccess({ product, telegramId: chatId, userId: user.id, source });
           }
 
+          // Сделка мимо кассы: срок и график платежей договорены заранее и лежат
+          // в самой ссылке. Каталог т2/т3 знает только «месяц», поэтому раньше срок
+          // правили руками после клика, а график нельзя было завести, пока
+          // человек не нажал ссылку и у него не появился telegram_id.
+          if (!meta.consumed) {
+            const deal = ev.metadata as { expiresAt?: string; dueIds?: string[] };
+            if (deal.expiresAt) {
+              const access = await prisma.productAccess.findFirst({
+                where: { telegramId: BigInt(chatId), productSlug: product.slug },
+                orderBy: { grantedAt: 'desc' },
+              });
+              if (access) {
+                await prisma.productAccess.update({
+                  where: { id: access.id },
+                  data: { expiresAt: new Date(deal.expiresAt), status: 'active' },
+                });
+              }
+            }
+            if (deal.dueIds?.length) {
+              await prisma.paymentDue.updateMany({
+                where: { id: { in: deal.dueIds }, telegramId: null },
+                data: { telegramId: BigInt(chatId) },
+              });
+            }
+          }
+
           await prisma.event.update({
             where: { id: ev.id },
             data: { telegramId: BigInt(chatId), metadata: { ...meta, token, consumed: true, boundTelegramId: chatId } },

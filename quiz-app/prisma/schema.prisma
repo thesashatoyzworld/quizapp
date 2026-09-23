@@ -947,6 +947,8 @@ model PaymentDue {
   who               String? // как назвать в сводке Саше
   /** null — платит мимо прайс-ссылки: напоминать нечем, закрывать руками */
   dealId            String?   @map("deal_id") // по какой прайс-ссылке платить
+  /** своя ссылка оплаты мимо Продамуса (PayPal): кнопка напоминания ведёт на неё */
+  payUrl            String?   @map("pay_url")
   amount            Int
   dueAt             DateTime  @map("due_at")
   label             String? // «платёж 2 из 3»

@@ -119,10 +119,12 @@ export async function runPaymentReminders(now = new Date(), dryRun = false): Pro
     else if (left <= 0 && left >= -1 && !d.remindedDueAt) kind = 'due';
     else if (left < 0) res.overdue.push(`${line} (просрочка ${-left} дн.)`);
 
-    // Без телеграма или без прайс-ссылки человеку писать некуда или нечем:
+    // Без телеграма или без ссылки оплаты человеку писать некуда или нечем:
     // строка живёт только в разделе «Деньги на столе».
-    if (!kind || !d.telegramId || !d.dealId) continue;
-    const button = { inline_keyboard: [[{ text: `💳 Оплатить ${formatPrice(d.amount)}`, url: payUrl(d.dealId, d.telegramId) }]] };
+    if (!kind || !d.telegramId) continue;
+    const url = d.payUrl || (d.dealId ? payUrl(d.dealId, d.telegramId) : null);
+    if (!url) continue;
+    const button = { inline_keyboard: [[{ text: `💳 Оплатить ${formatPrice(d.amount)}`, url }]] };
     if (dryRun) {
       res[kind].push(line);
       continue;
