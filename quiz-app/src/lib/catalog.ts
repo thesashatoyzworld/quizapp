@@ -33,6 +33,9 @@ export interface CatalogProduct {
   orderPrefix: string;
 }
 
+/** Предзаказ «Потока Спроса». Из неё же считается доплата до полного курса. */
+export const POTOK_PRICE = 1490;
+
 export const CATALOG: Record<string, CatalogProduct> = {
   mk_dengi: {
     slug: 'mk-dengi',
@@ -102,11 +105,27 @@ export const CATALOG: Record<string, CatalogProduct> = {
   potok_sprosa: {
     slug: 'potok-sprosa',
     name: 'Поток Спроса',
-    price: 1490,
+    price: POTOK_PRICE,
     type: 'one_time',
     role: 'potok',
     period: null,
     orderPrefix: 'potok_sprosa',
+  },
+
+  // ── Доплата с «Потока Спроса» до полного курса ──
+  // Предлагается один раз, на экране после оплаты трипвайра. Slug тот же, что
+  // у тарифа 1: человек получает ровно тот доступ, и кабинет видит его как t1.
+  // Цена — разница, поэтому считается от той же prices(), что и сам тариф.
+  // order_id: uroven_dop_<tgId> | uroven_dop_web_<token> — третий сегмент на
+  // своём месте, как у uroven_<tier>_<...>, и вебхук разбирает его тем же кодом.
+  uroven_dop: {
+    slug: 'uroven-t1',
+    name: 'Новый уровень контента — доплата с «Потока Спроса»',
+    get price() { return prices().t1 - POTOK_PRICE; },
+    type: 'one_time',
+    role: 'uroven',
+    period: null,
+    orderPrefix: 'uroven_dop',
   },
 
   uroven_t3: {

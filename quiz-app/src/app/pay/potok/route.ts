@@ -20,6 +20,9 @@ import { CATALOG } from '@/lib/catalog';
 
 const FORM = 'https://thesashatoyz.payform.ru';
 const BOT = 'https://t.me/testtoyzbot';
+// Продамус возвращает человека не в бота, а на свой экран: там он забирает
+// доступ той же кнопкой и один раз видит предложение добрать до курса.
+const DONE = 'https://thesashatoyz.com/potok-sprosa/gotovo';
 const NOTIFY = 'https://quizapp-ivory-delta.vercel.app/api/prodamus-webhook';
 
 export async function GET(request: NextRequest) {
@@ -34,6 +37,8 @@ export async function GET(request: NextRequest) {
   const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const orderId = byTelegram ? `potok_sprosa_${uid}` : `potok_sprosa_web_${token}`;
   const bind = byTelegram ? `${BOT}?start=kabinet` : `${BOT}?start=paid_${token}`;
+  // Токен едет на экран «готово»: кнопка привязки там собирается из него.
+  const done = byTelegram ? DONE : `${DONE}?t=${token}`;
 
   const fields: Record<string, string> = {
     do: 'pay',
@@ -46,7 +51,7 @@ export async function GET(request: NextRequest) {
       `Открой доступ в Telegram: ${bind} — внутри методичка и правила для нейронки. ` +
       `Сразу учти: нужен компьютер, с телефона метод не работает.`,
     urlNotification: NOTIFY,
-    urlSuccess: bind,
+    urlSuccess: done,
   };
 
   // Метка источника, если её передали: /pay/potok?src=reels
