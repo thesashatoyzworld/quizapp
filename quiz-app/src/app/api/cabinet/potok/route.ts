@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       allowed: true,
       via: access.via,
       tier: access.tier,
-      steps: POTOK_STEPS.map(({ key, title, note, html }) => ({ key, title, note, ready: !!html || key === 'metod' })),
+      steps: POTOK_STEPS.map(({ key, title, note, group, html }) => ({ key, title, note, group, ready: !!html || key === 'metod' })),
       items: POTOK_FILES.map(({ key, name, label, note, bytes }) => ({ key, name, label, note, bytes })),
     });
   } catch (e) {

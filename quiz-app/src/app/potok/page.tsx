@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Fragment, Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import { trackSection, trackMaterial } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
@@ -15,6 +15,8 @@ interface BranchStep {
   key: string;
   title: string;
   note: string;
+  /** подзаголовок-группа; несколько шагов подряд с одной группой идут под ним */
+  group?: string;
   ready: boolean;
 }
 
@@ -169,7 +171,11 @@ function PotokInner() {
             <div className="pt-card">
               <div className="pt-h">Что в ветке</div>
               <ul className="pt-branch">
-                {steps.map((st) => {
+                {steps.map((st, i) => {
+                  // Группа рисуется один раз — перед первым своим шагом.
+                  const head = st.group && st.group !== steps[i - 1]?.group
+                    ? <li className="pt-branch-g" key={`g-${st.group}`}>{st.group}</li>
+                    : null;
                   // Первый шаг — сама раздача: она ниже на этой же странице,
                   // отдельной статьи у неё нет.
                   const article = st.ready && st.key !== 'metod';
@@ -185,19 +191,25 @@ function PotokInner() {
                   );
                   if (!article) {
                     return (
-                      <li className={`pt-branch-i ${st.ready ? 'is-ready' : 'is-soon'}`} key={st.key}>{inner}</li>
+                      <Fragment key={st.key}>
+                        {head}
+                        <li className={`pt-branch-i ${st.ready ? 'is-ready' : 'is-soon'}`}>{inner}</li>
+                      </Fragment>
                     );
                   }
                   return (
-                    <li className="pt-branch-i is-ready" key={st.key}>
-                      <button className="pt-branch-b"
-                        onClick={() => {
-                          setViewer({ title: st.title, src: href({ step: st.key }) });
-                          trackMaterial('potok', `step-${st.key}`, st.title, tgId);
-                        }}>
-                        {inner}
-                      </button>
-                    </li>
+                    <Fragment key={st.key}>
+                      {head}
+                      <li className="pt-branch-i is-ready">
+                        <button className="pt-branch-b"
+                          onClick={() => {
+                            setViewer({ title: st.title, src: href({ step: st.key }) });
+                            trackMaterial('potok', `step-${st.key}`, st.title, tgId);
+                          }}>
+                          {inner}
+                        </button>
+                      </li>
+                    </Fragment>
                   );
                 })}
               </ul>
@@ -366,6 +378,13 @@ function PotokInner() {
           display: flex; align-items: baseline; gap: 8px;
           font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14.5px;
         }
+        .pt-branch-g {
+          list-style: none; border-top: 1px solid var(--pt-line);
+          padding: 14px 0 2px; font-family: 'Manrope', system-ui, sans-serif;
+          font-weight: 700; font-size: 11px; letter-spacing: 0.06em;
+          text-transform: uppercase; color: var(--pt-muted);
+        }
+        .pt-branch-g + .pt-branch-i { border-top: none; }
         .pt-branch-b {
           display: block; width: 100%; text-align: left; cursor: pointer;
           background: none; border: none; padding: 0; margin: 0; color: inherit; font: inherit;
