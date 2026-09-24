@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { CATALOG } from '@/lib/catalog';
+import { cardFields, readCard } from '@/lib/payform-card';
 
 const FORM = 'https://thesashatoyz.payform.ru';
 const BOT = 'https://t.me/testtoyzbot';
@@ -53,6 +54,8 @@ export async function GET(request: NextRequest) {
     urlNotification: NOTIFY,
     urlSuccess: done,
   };
+  const card = readCard(request);
+  Object.assign(fields, cardFields(card));
 
   // Метка источника, если её передали: /pay/potok?src=reels
   const src = (request.nextUrl.searchParams.get('src') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32);
@@ -65,7 +68,7 @@ export async function GET(request: NextRequest) {
       metadata: {
         tag: 'potok', price: product.price,
         method: byTelegram ? 'paylink_tg' : 'paylink',
-        order_id: orderId, src: src || null,
+        order_id: orderId, src: src || null, card,
         tg: byTelegram ? Number(uid) : undefined,
       },
     });

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { CATALOG } from '@/lib/catalog';
+import { cardFields, readCard } from '@/lib/payform-card';
 import { canBuy, waitlistLink } from '@/lib/sales';
 
 const FORM = 'https://thesashatoyz.payform.ru';
@@ -50,6 +51,8 @@ export async function GET(request: NextRequest) {
     urlNotification: NOTIFY,
     urlSuccess: bind,
   };
+  const card = readCard(request);
+  Object.assign(fields, cardFields(card));
 
   try {
     await trackEvent({
@@ -58,7 +61,7 @@ export async function GET(request: NextRequest) {
       metadata: {
         tag: 'uroven', tier: 't1', price: product.price,
         method: byTelegram ? 'paylink_tg' : 'paylink',
-        order_id: orderId, from: from || null,
+        order_id: orderId, from: from || null, card,
         tg: byTelegram ? Number(uid) : undefined,
       },
     });

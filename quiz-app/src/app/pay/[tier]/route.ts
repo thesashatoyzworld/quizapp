@@ -22,6 +22,7 @@ import { trackEvent } from '@/lib/notion';
 import { canBuy, isPersonalKey, waitlistLink, OLD_PRICE_KEY } from '@/lib/sales';
 import { prices } from '@/content/prices';
 import { CATALOG } from '@/lib/catalog';
+import { cardFields, readCard } from '@/lib/payform-card';
 
 const FORM = 'https://thesashatoyz.payform.ru';
 const BOT = 'https://t.me/testtoyzbot';
@@ -140,6 +141,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     fields['products[0][price]'] = String(t.price);
     fields['products[0][quantity]'] = '1';
   }
+  // Зарубежная карта — только на разовом товаре, подписку она не держит.
+  const card = fields.subscription ? 'ru' : readCard(request);
+  Object.assign(fields, cardFields(card));
 
   // Метка источника, если её передали: /pay/t1?src=oksana
   const src = (request.nextUrl.searchParams.get('src') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32);
@@ -153,7 +157,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         tag: 'uroven', tier, price: legacyT2 ? LEGACY_T2_PRICE : oldPriceT2 ? OLD_T2_PRICE : t.price,
         legacy: legacyT2 ? LEGACY_T2[uid] : undefined,
         method: byTelegram ? 'paylink_tg' : 'paylink',
-        order_id: orderId, src: src || null,
+        order_id: orderId, src: src || null, card,
         tg: byTelegram ? Number(uid) : undefined,
         // Личная ссылка на закрытый тариф — чтобы в статистике набора её было видно отдельно.
         personal: personal || undefined,
