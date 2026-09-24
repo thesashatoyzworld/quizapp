@@ -11,6 +11,13 @@ import OpenInBrowser from '@/components/OpenInBrowser';
 // Файлы отдаёт сервер (/api/cabinet/potok) после проверки доступа: материал платный,
 // в public их класть нельзя, иначе они лежат по прямой ссылке в обход гейта.
 
+interface BranchStep {
+  key: string;
+  title: string;
+  note: string;
+  ready: boolean;
+}
+
 interface FileItem {
   key: string;
   name: string;
@@ -41,6 +48,10 @@ function TelegramLoginButton() {
 function PotokInner() {
   const [state, setState] = useState<'load' | 'guest' | 'locked' | 'ok'>('load');
   const [items, setItems] = useState<FileItem[]>([]);
+  const [steps, setSteps] = useState<BranchStep[]>([]);
+  // Каким ключом открыта ветка: 'potok' — куплена отдельно за 1 490,
+  // 'uroven' — человек и так на курсе. От этого зависит, звать ли на курс.
+  const [via, setVia] = useState<'potok' | 'uroven' | null>(null);
   const [tgId, setTgId] = useState<number | null>(null);
   // Метку превью читаем один раз при создании состояния: на сервере window нет,
   // а ссылки с ней рисуются только после загрузки, то есть уже на клиенте.
@@ -66,7 +77,13 @@ function PotokInner() {
         if (stop) return;
         if (!data.identified) setState('guest');
         else if (!data.allowed) setState('locked');
-        else { setItems(data.items || []); setState('ok'); trackSection('potok', id); }
+        else {
+          setItems(data.items || []);
+          setSteps(data.steps || []);
+          setVia(data.via ?? null);
+          setState('ok');
+          trackSection('potok', id);
+        }
       } catch {
         if (!stop) setState('guest');
       }
@@ -147,6 +164,24 @@ function PotokInner() {
             </p>
           </div>
 
+          {steps.length > 1 && (
+            <div className="pt-card">
+              <div className="pt-h">Что в ветке</div>
+              <ul className="pt-branch">
+                {steps.map((st) => (
+                  <li className={`pt-branch-i ${st.ready ? 'is-ready' : 'is-soon'}`} key={st.key}>
+                    <span className="pt-branch-t">
+                      {st.title}
+                      {!st.ready && <span className="pt-branch-soon">скоро</span>}
+                    </span>
+                    <span className="pt-branch-n">{st.note}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="pt-note">Новые шаги появляются здесь же. Доплачивать за них не надо.</p>
+            </div>
+          )}
+
           <div className="pt-card">
             <div className="pt-h">Порядок шагов</div>
             <ol className="pt-steps">
@@ -189,6 +224,20 @@ function PotokInner() {
               </div>
             </div>
           ))}
+
+          {via === 'potok' && (
+            <a className="pt-card pt-up" href="https://thesashatoyz.com/uroven"
+              target="_blank" rel="noopener noreferrer"
+              onClick={() => trackMaterial('potok', 'upsell-uroven', 'Новый уровень контента', tgId)}>
+              <div className="pt-h">Метод это первый шаг</div>
+              <p>
+                Найти заход это половина дела. Дальше его надо наполнить своим смыслом, размножить
+                и докрутить, а это уже курс «Новый уровень контента». «Поток спроса» входит в него
+                целиком, и 1 490 зачтутся в стоимость.
+              </p>
+              <span className="pt-up-go">Посмотреть курс →</span>
+            </a>
+          )}
 
           <div className="pt-card pt-both">
             <div className="pt-h">Нужны оба файла</div>
@@ -282,6 +331,24 @@ function PotokInner() {
         }
         .pt-view:hover { border-color: var(--pt-accent); color: var(--pt-accent); }
         .pt-both p { font-size: 13.5px; line-height: 1.5; margin: 0; color: var(--pt-muted); }
+        .pt-branch { margin: 0; padding: 0; list-style: none; }
+        .pt-branch-i { padding: 10px 0; border-top: 1px solid var(--pt-line); }
+        .pt-branch-i:first-child { border-top: none; padding-top: 0; }
+        .pt-branch-t {
+          display: flex; align-items: baseline; gap: 8px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14.5px;
+        }
+        .pt-branch-n { display: block; font-size: 12.5px; line-height: 1.45; color: var(--pt-muted); margin-top: 3px; }
+        .pt-branch-i.is-soon .pt-branch-t { color: var(--pt-muted); }
+        .pt-branch-soon {
+          flex: 0 0 auto; font-family: 'Manrope', system-ui, sans-serif; font-weight: 700;
+          font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase;
+          color: var(--pt-muted); border: 1px solid var(--pt-line); border-radius: 999px; padding: 2px 7px;
+        }
+        .pt-up { display: block; text-decoration: none; background: var(--pt-accent-soft); border-color: transparent; }
+        .pt-up .pt-h { color: var(--pt-accent); }
+        .pt-up p { font-size: 13.5px; line-height: 1.5; margin: 0; }
+        .pt-up-go { display: inline-block; margin-top: 12px; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14px; color: var(--pt-accent); }
         .pt-login-title { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px; }
         .pt-login-sub { color: var(--pt-muted); font-size: 12.5px; margin: 4px 0 12px; line-height: 1.4; }
         .pt-tg-login { margin-top: 4px; min-height: 46px; }

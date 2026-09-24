@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getActiveAccessByTelegram } from '@/lib/access';
 import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
-import { POTOK_FILES, POTOK_ROLE, POTOK_MIN_TIER } from '@/content/potok';
+import { POTOK_FILES } from '@/content/potok';
+import { resolvePotokAccess } from '@/content/potok/access';
+import { BRANCH_STEPS } from '@/content/potok/branch';
 
 export const runtime = 'nodejs';
 
@@ -9,18 +11,16 @@ export const runtime = 'nodejs';
 // Материал платный, поэтому файлы не лежат в public: их отдаёт этот роут после
 // проверки доступа, как статьи уроков.
 //
-//   GET /api/cabinet/potok             → список файлов без содержимого
+//   GET /api/cabinet/potok             → карта ветки и список файлов без содержимого
 //   GET /api/cabinet/potok?file=<key>  → сам файл на скачивание
 //   GET /api/cabinet/potok?view=html   → методичка для просмотра в iframe
 //
 // Опознание как в /api/cabinet/kurs: ?telegramId из Mini App initData,
 // иначе подписанная сессия-cookie после Telegram Login Widget.
 
-// Тариф зашит в productSlug суффиксом -t<N> (uroven-t1 / uroven-t2 / uroven-t3).
-function tierFromSlug(slug: string): number | null {
-  const m = /-t(\d+)$/.exec(slug);
-  return m ? parseInt(m[1], 10) : null;
-}
+// Два входа в ветку: своя роль `potok` (купил за 1 490) и роль курса `uroven`.
+// Кто именно вошёл, страница узнаёт из `via`: покупателю трипвайра показываем
+// апсейл на курс, ученику курса он не нужен.
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,19 +37,16 @@ export async function GET(request: NextRequest) {
     }
 
     if (!telegramId && !bypass) {
-      return NextResponse.json({ success: true, identified: false, allowed: false, tier: 0, items: [] });
+      return NextResponse.json({ success: true, identified: false, allowed: false, via: null, tier: 0, steps: [], items: [] });
     }
 
     const rows = telegramId ? await getActiveAccessByTelegram(telegramId) : [];
-    const tier = bypass
-      ? POTOK_MIN_TIER
-      : rows
-          .filter((r) => r.role === POTOK_ROLE)
-          .reduce((max, r) => Math.max(max, tierFromSlug(r.productSlug) ?? 0), 0);
-    const allowed = tier >= POTOK_MIN_TIER;
+    const access = bypass
+      ? { allowed: true, via: 'potok' as const, tier: 0 }
+      : resolvePotokAccess(rows.map((r) => ({ role: r.role, productSlug: r.productSlug })));
 
-    if (!allowed) {
-      return NextResponse.json({ success: true, identified: true, allowed: false, tier, items: [] });
+    if (!access.allowed) {
+      return NextResponse.json({ success: true, identified: true, allowed: false, via: null, tier: access.tier, steps: [], items: [] });
     }
 
     // Методичка для просмотра прямо на странице. Отдаём как есть, одним файлом:
@@ -85,7 +82,9 @@ export async function GET(request: NextRequest) {
       success: true,
       identified: true,
       allowed: true,
-      tier,
+      via: access.via,
+      tier: access.tier,
+      steps: BRANCH_STEPS,
       items: POTOK_FILES.map(({ key, name, label, note, bytes }) => ({ key, name, label, note, bytes })),
     });
   } catch (e) {

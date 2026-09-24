@@ -144,7 +144,11 @@ function DostupInner() {
 
       {/* Показываем ВСЕ разделы. Открытые (бесплатные + купленные) — с материалами.
           Закрытые платные — под замком с кнопкой на лендинг: «это есть, но закрыто». */}
-      {unlocked && SECTIONS.filter((s) => (!s.personal || hasPersonal) && (!s.roadmap || hasRoadmap)).map((s) => (
+      {unlocked && SECTIONS
+        .filter((s) => (!s.personal || hasPersonal) && (!s.roadmap || hasRoadmap))
+        // Раздел, который входит в состав старшего продукта, владельцу старшего не рисуем.
+        .filter((s) => !s.hideForRoles?.some((r) => unlocked.includes(r)))
+        .map((s) => (
         has(s.role) ? (
         <section className="kb-card kb-open" key={s.key}>
           <div className="kb-head">

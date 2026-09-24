@@ -49,6 +49,13 @@ export interface Section {
    * Сашей (rooms-эндпоинт отдаёт hasRoadmap). Остальным его в кабинете нет.
    */
   roadmap?: boolean;
+  /**
+   * Не показывать раздел тем, у кого есть одна из этих ролей. Нужно там, где
+   * продукт продаётся отдельно, но входит в состав старшего: «Поток Спроса»
+   * куплен за 1 490 — это свой раздел; куплен курс — метод лежит внутри курса,
+   * и второй карточкой он бы только двоился.
+   */
+  hideForRoles?: string[];
 }
 
 export const SECTIONS: Section[] = [
@@ -80,6 +87,19 @@ export const SECTIONS: Section[] = [
     materials: [
       { kind: 'article', title: 'Статьи', url: 'https://thesashatoyz.com/blog', note: 'Лонгриды и разборы.' },
       { kind: 'podcast', title: 'Подкаст «По чесноку»', url: 'https://thesashatoyz.com/podcast', note: 'Все выпуски.' },
+    ],
+  },
+  {
+    // Ветка «Поток Спроса»: у покупателя за 1 490 это единственный его раздел.
+    // Ученику курса не показываем — тот же материал лежит внутри «Нового уровня».
+    key: 'potok',
+    role: 'potok',
+    hideForRoles: ['uroven'],
+    title: 'Поток Спроса',
+    subtitle: 'Метод поиска заходов · нужен компьютер',
+    landingUrl: 'https://thesashatoyz.com/potok-sprosa',
+    materials: [
+      { kind: 'link', title: 'Метод: где брать заходы', url: '/potok', note: 'Методичка и правила для нейронки. Программа сама листает ленту и приносит то, что уже собрало реакцию в твоей теме.' },
     ],
   },
   {

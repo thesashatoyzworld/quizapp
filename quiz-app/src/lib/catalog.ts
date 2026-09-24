@@ -93,6 +93,22 @@ export const CATALOG: Record<string, CatalogProduct> = {
     period: 'month',
     orderPrefix: 'uroven_t2',
   },
+  // ── «Поток Спроса» — трипвайр 1 490 ──
+  // Своя роль `potok`, а НЕ `uroven`: покупатель за 1 490 получает только
+  // ветку метода, курс ему не открывается. Ученикам курса ветка тоже открыта,
+  // но по роли `uroven` — правило в src/content/potok/access.ts.
+  // order_id: potok_sprosa_<tgId> или potok_sprosa_web_<token> — третий сегмент
+  // разбирается тем же парсером, что у uroven_<tier>_<...>.
+  potok_sprosa: {
+    slug: 'potok-sprosa',
+    name: 'Поток Спроса',
+    price: 1490,
+    type: 'one_time',
+    role: 'potok',
+    period: null,
+    orderPrefix: 'potok_sprosa',
+  },
+
   uroven_t3: {
     slug: 'uroven-t3',
     name: 'Новый уровень контента — Тариф 3 (делаем вместе)',
