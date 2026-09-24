@@ -57,7 +57,8 @@ function PotokInner() {
   // а ссылки с ней рисуются только после загрузки, то есть уже на клиенте.
   const [preview] = useState(() =>
     typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('preview') || '');
-  const [viewer, setViewer] = useState(false);
+  // Что открыто в просмотрщике: методичка из раздачи или статья шага ветки.
+  const [viewer, setViewer] = useState<{ title: string; src: string } | null>(null);
 
   useEffect(() => {
     const prev = preview;
@@ -168,17 +169,41 @@ function PotokInner() {
             <div className="pt-card">
               <div className="pt-h">Что в ветке</div>
               <ul className="pt-branch">
-                {steps.map((st) => (
-                  <li className={`pt-branch-i ${st.ready ? 'is-ready' : 'is-soon'}`} key={st.key}>
-                    <span className="pt-branch-t">
-                      {st.title}
-                      {!st.ready && <span className="pt-branch-soon">скоро</span>}
-                    </span>
-                    <span className="pt-branch-n">{st.note}</span>
-                  </li>
-                ))}
+                {steps.map((st) => {
+                  // Первый шаг — сама раздача: она ниже на этой же странице,
+                  // отдельной статьи у неё нет.
+                  const article = st.ready && st.key !== 'metod';
+                  const inner = (
+                    <>
+                      <span className="pt-branch-t">
+                        {st.title}
+                        {!st.ready && <span className="pt-branch-soon">скоро</span>}
+                        {article && <span className="pt-branch-go">читать →</span>}
+                      </span>
+                      <span className="pt-branch-n">{st.note}</span>
+                    </>
+                  );
+                  if (!article) {
+                    return (
+                      <li className={`pt-branch-i ${st.ready ? 'is-ready' : 'is-soon'}`} key={st.key}>{inner}</li>
+                    );
+                  }
+                  return (
+                    <li className="pt-branch-i is-ready" key={st.key}>
+                      <button className="pt-branch-b"
+                        onClick={() => {
+                          setViewer({ title: st.title, src: href({ step: st.key }) });
+                          trackMaterial('potok', `step-${st.key}`, st.title, tgId);
+                        }}>
+                        {inner}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
-              <p className="pt-note">Новые шаги появляются здесь же. Доплачивать за них не надо.</p>
+              {steps.some((st) => !st.ready) && (
+                <p className="pt-note">Новые шаги появляются здесь же. Доплачивать за них не надо.</p>
+              )}
             </div>
           )}
 
@@ -217,7 +242,10 @@ function PotokInner() {
                   onClick={() => trackMaterial('potok', f.key, f.label, tgId)}>Скачать</a>
                 {f.key === 'html' && (
                   <button className="pt-view"
-                    onClick={() => { setViewer(true); trackMaterial('potok', 'html-view', f.label, tgId); }}>
+                    onClick={() => {
+                      setViewer({ title: 'Инструкция', src: href({ view: 'html' }) });
+                      trackMaterial('potok', 'html-view', f.label, tgId);
+                    }}>
                     Смотреть здесь
                   </button>
                 )}
@@ -250,15 +278,15 @@ function PotokInner() {
       )}
 
       {viewer && (
-        <div className="pt-viewer" role="dialog" aria-modal="true" aria-label="Инструкция">
+        <div className="pt-viewer" role="dialog" aria-modal="true" aria-label={viewer.title}>
           <div className="pt-viewer-bar">
-            <button className="pt-viewer-back" onClick={() => setViewer(false)}>
+            <button className="pt-viewer-back" onClick={() => setViewer(null)}>
               <span className="pt-viewer-chev">{'‹'}</span> Назад
             </button>
-            <span className="pt-viewer-title">Инструкция</span>
+            <span className="pt-viewer-title">{viewer.title}</span>
             <span className="pt-viewer-pad" />
           </div>
-          <iframe className="pt-viewer-frame" src={href({ view: 'html' })} title="Инструкция" />
+          <iframe className="pt-viewer-frame" src={viewer.src} title={viewer.title} />
         </div>
       )}
 
@@ -337,6 +365,15 @@ function PotokInner() {
         .pt-branch-t {
           display: flex; align-items: baseline; gap: 8px;
           font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14.5px;
+        }
+        .pt-branch-b {
+          display: block; width: 100%; text-align: left; cursor: pointer;
+          background: none; border: none; padding: 0; margin: 0; color: inherit; font: inherit;
+        }
+        .pt-branch-b:hover .pt-branch-t { color: var(--pt-accent); }
+        .pt-branch-go {
+          flex: 0 0 auto; margin-left: auto; font-family: 'Manrope', system-ui, sans-serif;
+          font-weight: 700; font-size: 12px; color: var(--pt-accent);
         }
         .pt-branch-n { display: block; font-size: 12.5px; line-height: 1.45; color: var(--pt-muted); margin-top: 3px; }
         .pt-branch-i.is-soon .pt-branch-t { color: var(--pt-muted); }

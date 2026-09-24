@@ -3,7 +3,7 @@ import { getActiveAccessByTelegram } from '@/lib/access';
 import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { POTOK_FILES } from '@/content/potok';
 import { resolvePotokAccess } from '@/content/potok/access';
-import { BRANCH_STEPS } from '@/content/potok/branch';
+import { POTOK_STEPS } from '@/content/potok/steps';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +14,7 @@ export const runtime = 'nodejs';
 //   GET /api/cabinet/potok             → карта ветки и список файлов без содержимого
 //   GET /api/cabinet/potok?file=<key>  → сам файл на скачивание
 //   GET /api/cabinet/potok?view=html   → методичка для просмотра в iframe
+//   GET /api/cabinet/potok?step=<key>  → статья шага ветки для iframe
 //
 // Опознание как в /api/cabinet/kurs: ?telegramId из Mini App initData,
 // иначе подписанная сессия-cookie после Telegram Login Widget.
@@ -47,6 +48,17 @@ export async function GET(request: NextRequest) {
 
     if (!access.allowed) {
       return NextResponse.json({ success: true, identified: true, allowed: false, via: null, tier: access.tier, steps: [], items: [] });
+    }
+
+    // Статья шага ветки. Содержимое вырезано из курса скриптом potok-steps.mjs
+    // и лежит самодостаточным документом — отдаём как есть, одним файлом.
+    const stepKey = request.nextUrl.searchParams.get('step');
+    if (stepKey) {
+      const st = POTOK_STEPS.find((x) => x.key === stepKey);
+      if (!st || !st.html) return NextResponse.json({ success: false, error: 'not found' }, { status: 404 });
+      return new NextResponse(st.html, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store' },
+      });
     }
 
     // Методичка для просмотра прямо на странице. Отдаём как есть, одним файлом:
@@ -84,7 +96,7 @@ export async function GET(request: NextRequest) {
       allowed: true,
       via: access.via,
       tier: access.tier,
-      steps: BRANCH_STEPS,
+      steps: POTOK_STEPS.map(({ key, title, note, html }) => ({ key, title, note, ready: !!html || key === 'metod' })),
       items: POTOK_FILES.map(({ key, name, label, note, bytes }) => ({ key, name, label, note, bytes })),
     });
   } catch (e) {
