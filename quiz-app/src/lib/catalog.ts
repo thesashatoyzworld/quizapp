@@ -33,6 +33,9 @@ export interface CatalogProduct {
   orderPrefix: string;
 }
 
+/** Предзаказ «Потока Спроса». Из неё же считается доплата до полного курса. */
+export const POTOK_PRICE = 1490;
+
 export const CATALOG: Record<string, CatalogProduct> = {
   mk_dengi: {
     slug: 'mk-dengi',
@@ -93,6 +96,38 @@ export const CATALOG: Record<string, CatalogProduct> = {
     period: 'month',
     orderPrefix: 'uroven_t2',
   },
+  // ── «Поток Спроса» — трипвайр 1 490 ──
+  // Своя роль `potok`, а НЕ `uroven`: покупатель за 1 490 получает только
+  // ветку метода, курс ему не открывается. Ученикам курса ветка тоже открыта,
+  // но по роли `uroven` — правило в src/content/potok/access.ts.
+  // order_id: potok_sprosa_<tgId> или potok_sprosa_web_<token> — третий сегмент
+  // разбирается тем же парсером, что у uroven_<tier>_<...>.
+  potok_sprosa: {
+    slug: 'potok-sprosa',
+    name: 'Поток Спроса',
+    price: POTOK_PRICE,
+    type: 'one_time',
+    role: 'potok',
+    period: null,
+    orderPrefix: 'potok_sprosa',
+  },
+
+  // ── Доплата с «Потока Спроса» до полного курса ──
+  // Предлагается один раз, на экране после оплаты трипвайра. Slug тот же, что
+  // у тарифа 1: человек получает ровно тот доступ, и кабинет видит его как t1.
+  // Цена — разница, поэтому считается от той же prices(), что и сам тариф.
+  // order_id: uroven_dop_<tgId> | uroven_dop_web_<token> — третий сегмент на
+  // своём месте, как у uroven_<tier>_<...>, и вебхук разбирает его тем же кодом.
+  uroven_dop: {
+    slug: 'uroven-t1',
+    name: 'Новый уровень контента — доплата с «Потока Спроса»',
+    get price() { return prices().t1 - POTOK_PRICE; },
+    type: 'one_time',
+    role: 'uroven',
+    period: null,
+    orderPrefix: 'uroven_dop',
+  },
+
   uroven_t3: {
     slug: 'uroven-t3',
     name: 'Новый уровень контента — Тариф 3 (делаем вместе)',

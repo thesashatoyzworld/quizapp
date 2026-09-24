@@ -16,10 +16,6 @@ export interface PotokFile {
   b64: string;
 }
 
-/** Раздача открыта тем же ключом, что курс: роль uroven, любой тариф. */
-export const POTOK_ROLE = 'uroven';
-export const POTOK_MIN_TIER = 1;
-
 export const POTOK_FILES: PotokFile[] = [
   {
     "key": "zip",

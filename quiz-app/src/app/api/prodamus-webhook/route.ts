@@ -256,8 +256,8 @@ async function notifyAdminMkDengiWeb(amount: number, email: string, phone: strin
   await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
-async function notifyAdminUroven(productName: string, amount: number, contact: string, orderId: string) {
-  const text = `💳 Оплата «Новый уровень контента»\n\n${productName}\n${amount.toLocaleString('ru-RU')} ₽\nКонтакт: ${contact}\nOrder: ${orderId}`;
+async function notifyAdminUroven(productName: string, amount: number, contact: string, orderId: string, heading = 'Новый уровень контента') {
+  const text = `💳 Оплата «${heading}»\n\n${productName}\n${amount.toLocaleString('ru-RU')} ₽\nКонтакт: ${contact}\nOrder: ${orderId}`;
   await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
@@ -420,6 +420,9 @@ export async function POST(request: NextRequest) {
     const isConnectors = typeof orderId === 'string' && orderId.startsWith('conn_');
     const isMkDengi = typeof orderId === 'string' && orderId.startsWith('mkdengi');
     const isUroven = typeof orderId === 'string' && orderId.startsWith('uroven_');
+    // «Поток Спроса» за 1 490. order_id — potok_sprosa_<tgId> / potok_sprosa_web_<token>:
+    // третий сегмент тот же, что у uroven_<tier>_<...>, поэтому разбор общий.
+    const isPotok = typeof orderId === 'string' && orderId.startsWith('potok_sprosa');
     const isDeal = typeof orderId === 'string' && orderId.startsWith('deal_');
 
     if (isDeal) {
@@ -488,7 +491,7 @@ export async function POST(request: NextRequest) {
 
       if (tgUserId && tgUserId > 1000) {
         await Promise.all([
-          createPurchase(tgUserId, product.slug, amount, 'uroven', orderId as string),
+          createPurchase(tgUserId, product.slug, amount, isPotok ? 'potok' : 'uroven', orderId as string),
           grantAccess({ product, telegramId: tgUserId, source: orderId as string, days: deal.days })
             .catch((e) => console.error('[Access] deal grant failed:', e)),
         ]);
@@ -599,10 +602,13 @@ export async function POST(request: NextRequest) {
         await notifyAdminMkDengiWeb(amount, email, phone, orderId as string);
         console.log(`[Prodamus Webhook] MK Dengi (web) payment, order ${orderId}`);
       }
-    } else if (isUroven) {
-      // «Новый уровень контента» — order_id:
-      //   uroven_<tier>_<tgUserId>   — оплата из бота (привязка к Telegram)
-      //   uroven_<tier>_web_<token>  — оплата картой с сайта (привязка позже по токену/почте)
+    } else if (isUroven || isPotok) {
+      // Товары каталога с общим разбором order_id:
+      //   uroven_<tier>_<tgUserId>   — курс, оплата из бота
+      //   uroven_<tier>_web_<token>  — курс, оплата картой с сайта
+      //   potok_sprosa_<tgUserId>    — «Поток Спроса» из бота
+      //   potok_sprosa_web_<token>   — «Поток Спроса» картой с сайта
+      // Во всех четырёх третий сегмент — либо telegram id, либо 'web'.
       const product = resolveProductByOrderId(orderId as string);
       if (!product) {
         console.error('[Prodamus Webhook] uroven: product not resolved for order', orderId);
@@ -665,7 +671,7 @@ export async function POST(request: NextRequest) {
       if (tgUserId && tgUserId > 1000) {
         // Оплата привязана к Telegram → выдаём доступ и пишем в чат.
         await Promise.all([
-          createPurchase(tgUserId, product.slug, amount, 'uroven', orderId as string),
+          createPurchase(tgUserId, product.slug, amount, isPotok ? 'potok' : 'uroven', orderId as string),
           grantAccess({ product, telegramId: tgUserId, source: orderId as string })
             .catch((e) => console.error('[Access] uroven telegram grant failed:', e)),
         ]);
@@ -679,14 +685,22 @@ export async function POST(request: NextRequest) {
               : false;
 
         if (!welcomed && BOT_TOKEN) {
+          // «Поток Спроса» ведём сразу в его ветку и предупреждаем про компьютер:
+          // с телефона метод не работает, и узнать это лучше сразу, а не через день.
+          const doneText = isPotok
+            ? `готово ⚡\n\nоплата принята: <b>${product.name}</b>.\n\nметодичка и правила для нейронки в кабинете, жми кнопку. сразу учти: нужен компьютер, с телефона метод не работает.`
+            : `готово ⚡\n\nоплата принята: <b>${product.name}</b>.\n\nвсе материалы в кабинете, жми кнопку ниже.`;
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: tgUserId,
-              text: `готово ⚡\n\nоплата принята: <b>${product.name}</b>.\n\nвсе материалы в кабинете, жми кнопку ниже.`,
+              text: doneText,
               parse_mode: 'HTML',
-              reply_markup: { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
+              reply_markup: { inline_keyboard: [[{
+                text: isPotok ? '⚡ Открыть «Поток Спроса»' : '🚪 Открыть кабинет',
+                web_app: { url: isPotok ? 'https://world.thesashatoyz.com/potok' : 'https://world.thesashatoyz.com/dostup' },
+              }]] },
             }),
           }).catch(() => {});
         }
@@ -696,7 +710,7 @@ export async function POST(request: NextRequest) {
           await startIntake(tgUserId, 't3');
         }
 
-        await notifyAdminUroven(product.name, amount, `TG user ${tgUserId}`, orderId as string);
+        await notifyAdminUroven(product.name, amount, `TG user ${tgUserId}`, orderId as string, isPotok ? 'Поток Спроса' : undefined);
         console.log(`[Prodamus Webhook] Uroven (telegram) payment user ${tgUserId}, ${product.slug}`);
       } else {
         // Оплата картой с сайта. Токен = хвост order_id после _web_.
@@ -718,7 +732,7 @@ export async function POST(request: NextRequest) {
         await grantAccess({ product, telegramId: null, source: orderId as string })
           .catch((e) => console.error('[Access] uroven web grant failed:', e));
 
-        await notifyAdminUroven(product.name, amount, email || phone || 'нет контакта', orderId as string);
+        await notifyAdminUroven(product.name, amount, email || phone || 'нет контакта', orderId as string, isPotok ? 'Поток Спроса' : undefined);
         console.log(`[Prodamus Webhook] Uroven (web) payment, order ${orderId}`);
       }
     } else if (isSyncMk) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Fragment, Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import { trackSection, trackMaterial } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
@@ -10,6 +10,15 @@ import OpenInBrowser from '@/components/OpenInBrowser';
 //
 // Файлы отдаёт сервер (/api/cabinet/potok) после проверки доступа: материал платный,
 // в public их класть нельзя, иначе они лежат по прямой ссылке в обход гейта.
+
+interface BranchStep {
+  key: string;
+  title: string;
+  note: string;
+  /** подзаголовок-группа; несколько шагов подряд с одной группой идут под ним */
+  group?: string;
+  ready: boolean;
+}
 
 interface FileItem {
   key: string;
@@ -41,12 +50,17 @@ function TelegramLoginButton() {
 function PotokInner() {
   const [state, setState] = useState<'load' | 'guest' | 'locked' | 'ok'>('load');
   const [items, setItems] = useState<FileItem[]>([]);
+  const [steps, setSteps] = useState<BranchStep[]>([]);
+  // Каким ключом открыта ветка: 'potok' — куплена отдельно за 1 490,
+  // 'uroven' — человек и так на курсе. От этого зависит, звать ли на курс.
+  const [via, setVia] = useState<'potok' | 'uroven' | null>(null);
   const [tgId, setTgId] = useState<number | null>(null);
   // Метку превью читаем один раз при создании состояния: на сервере window нет,
   // а ссылки с ней рисуются только после загрузки, то есть уже на клиенте.
   const [preview] = useState(() =>
     typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('preview') || '');
-  const [viewer, setViewer] = useState(false);
+  // Что открыто в просмотрщике: методичка из раздачи или статья шага ветки.
+  const [viewer, setViewer] = useState<{ title: string; src: string } | null>(null);
 
   useEffect(() => {
     const prev = preview;
@@ -66,7 +80,13 @@ function PotokInner() {
         if (stop) return;
         if (!data.identified) setState('guest');
         else if (!data.allowed) setState('locked');
-        else { setItems(data.items || []); setState('ok'); trackSection('potok', id); }
+        else {
+          setItems(data.items || []);
+          setSteps(data.steps || []);
+          setVia(data.via ?? null);
+          setState('ok');
+          trackSection('potok', id);
+        }
       } catch {
         if (!stop) setState('guest');
       }
@@ -147,6 +167,58 @@ function PotokInner() {
             </p>
           </div>
 
+          {steps.length > 1 && (
+            <div className="pt-card">
+              <div className="pt-h">Что в ветке</div>
+              <ul className="pt-branch">
+                {steps.map((st, i) => {
+                  // Группа рисуется один раз — перед первым своим шагом.
+                  const head = st.group && st.group !== steps[i - 1]?.group
+                    ? <li className="pt-branch-g" key={`g-${st.group}`}>{st.group}</li>
+                    : null;
+                  // Первый шаг — сама раздача: она ниже на этой же странице,
+                  // отдельной статьи у неё нет.
+                  const article = st.ready && st.key !== 'metod';
+                  const inner = (
+                    <>
+                      <span className="pt-branch-t">
+                        {st.title}
+                        {!st.ready && <span className="pt-branch-soon">скоро</span>}
+                        {article && <span className="pt-branch-go">читать →</span>}
+                      </span>
+                      <span className="pt-branch-n">{st.note}</span>
+                    </>
+                  );
+                  if (!article) {
+                    return (
+                      <Fragment key={st.key}>
+                        {head}
+                        <li className={`pt-branch-i ${st.ready ? 'is-ready' : 'is-soon'}`}>{inner}</li>
+                      </Fragment>
+                    );
+                  }
+                  return (
+                    <Fragment key={st.key}>
+                      {head}
+                      <li className="pt-branch-i is-ready">
+                        <button className="pt-branch-b"
+                          onClick={() => {
+                            setViewer({ title: st.title, src: href({ step: st.key }) });
+                            trackMaterial('potok', `step-${st.key}`, st.title, tgId);
+                          }}>
+                          {inner}
+                        </button>
+                      </li>
+                    </Fragment>
+                  );
+                })}
+              </ul>
+              {steps.some((st) => !st.ready) && (
+                <p className="pt-note">Новые шаги появляются здесь же. Доплачивать за них не надо.</p>
+              )}
+            </div>
+          )}
+
           <div className="pt-card">
             <div className="pt-h">Порядок шагов</div>
             <ol className="pt-steps">
@@ -182,13 +254,30 @@ function PotokInner() {
                   onClick={() => trackMaterial('potok', f.key, f.label, tgId)}>Скачать</a>
                 {f.key === 'html' && (
                   <button className="pt-view"
-                    onClick={() => { setViewer(true); trackMaterial('potok', 'html-view', f.label, tgId); }}>
+                    onClick={() => {
+                      setViewer({ title: 'Инструкция', src: href({ view: 'html' }) });
+                      trackMaterial('potok', 'html-view', f.label, tgId);
+                    }}>
                     Смотреть здесь
                   </button>
                 )}
               </div>
             </div>
           ))}
+
+          {via === 'potok' && (
+            <a className="pt-card pt-up" href="https://thesashatoyz.com/uroven"
+              target="_blank" rel="noopener noreferrer"
+              onClick={() => trackMaterial('potok', 'upsell-uroven', 'Новый уровень контента', tgId)}>
+              <div className="pt-h">Метод это первый шаг</div>
+              <p>
+                Найти заход это половина дела. Дальше его надо наполнить своим смыслом, размножить
+                и докрутить, а это уже курс «Новый уровень контента». «Поток спроса» входит в него
+                целиком, и 1 490 зачтутся в стоимость.
+              </p>
+              <span className="pt-up-go">Посмотреть курс →</span>
+            </a>
+          )}
 
           <div className="pt-card pt-both">
             <div className="pt-h">Нужны оба файла</div>
@@ -201,15 +290,15 @@ function PotokInner() {
       )}
 
       {viewer && (
-        <div className="pt-viewer" role="dialog" aria-modal="true" aria-label="Инструкция">
+        <div className="pt-viewer" role="dialog" aria-modal="true" aria-label={viewer.title}>
           <div className="pt-viewer-bar">
-            <button className="pt-viewer-back" onClick={() => setViewer(false)}>
+            <button className="pt-viewer-back" onClick={() => setViewer(null)}>
               <span className="pt-viewer-chev">{'‹'}</span> Назад
             </button>
-            <span className="pt-viewer-title">Инструкция</span>
+            <span className="pt-viewer-title">{viewer.title}</span>
             <span className="pt-viewer-pad" />
           </div>
-          <iframe className="pt-viewer-frame" src={href({ view: 'html' })} title="Инструкция" />
+          <iframe className="pt-viewer-frame" src={viewer.src} title={viewer.title} />
         </div>
       )}
 
@@ -282,6 +371,40 @@ function PotokInner() {
         }
         .pt-view:hover { border-color: var(--pt-accent); color: var(--pt-accent); }
         .pt-both p { font-size: 13.5px; line-height: 1.5; margin: 0; color: var(--pt-muted); }
+        .pt-branch { margin: 0; padding: 0; list-style: none; }
+        .pt-branch-i { padding: 10px 0; border-top: 1px solid var(--pt-line); }
+        .pt-branch-i:first-child { border-top: none; padding-top: 0; }
+        .pt-branch-t {
+          display: flex; align-items: baseline; gap: 8px;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14.5px;
+        }
+        .pt-branch-g {
+          list-style: none; border-top: 1px solid var(--pt-line);
+          padding: 14px 0 2px; font-family: 'Manrope', system-ui, sans-serif;
+          font-weight: 700; font-size: 11px; letter-spacing: 0.06em;
+          text-transform: uppercase; color: var(--pt-muted);
+        }
+        .pt-branch-g + .pt-branch-i { border-top: none; }
+        .pt-branch-b {
+          display: block; width: 100%; text-align: left; cursor: pointer;
+          background: none; border: none; padding: 0; margin: 0; color: inherit; font: inherit;
+        }
+        .pt-branch-b:hover .pt-branch-t { color: var(--pt-accent); }
+        .pt-branch-go {
+          flex: 0 0 auto; margin-left: auto; font-family: 'Manrope', system-ui, sans-serif;
+          font-weight: 700; font-size: 12px; color: var(--pt-accent);
+        }
+        .pt-branch-n { display: block; font-size: 12.5px; line-height: 1.45; color: var(--pt-muted); margin-top: 3px; }
+        .pt-branch-i.is-soon .pt-branch-t { color: var(--pt-muted); }
+        .pt-branch-soon {
+          flex: 0 0 auto; font-family: 'Manrope', system-ui, sans-serif; font-weight: 700;
+          font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase;
+          color: var(--pt-muted); border: 1px solid var(--pt-line); border-radius: 999px; padding: 2px 7px;
+        }
+        .pt-up { display: block; text-decoration: none; background: var(--pt-accent-soft); border-color: transparent; }
+        .pt-up .pt-h { color: var(--pt-accent); }
+        .pt-up p { font-size: 13.5px; line-height: 1.5; margin: 0; }
+        .pt-up-go { display: inline-block; margin-top: 12px; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14px; color: var(--pt-accent); }
         .pt-login-title { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px; }
         .pt-login-sub { color: var(--pt-muted); font-size: 12.5px; margin: 4px 0 12px; line-height: 1.4; }
         .pt-tg-login { margin-top: 4px; min-height: 46px; }

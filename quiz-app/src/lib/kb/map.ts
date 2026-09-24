@@ -9,7 +9,8 @@
 
 import { LESSONS, KURS_ROLE, KURS_MIN_TIER } from '@/content/kurs';
 import { PROMPTS, PROMPTY_ROLE, PROMPTY_MIN_TIER } from '@/content/prompty';
-import { POTOK_FILES, POTOK_ROLE, POTOK_MIN_TIER } from '@/content/potok';
+import { POTOK_FILES } from '@/content/potok';
+import { POTOK_ROLE, COURSE_ROLE, COURSE_MIN_TIER } from '@/content/potok/access';
 import { RAZBORY, RAZBORY_ROLE, RAZBORY_MIN_TIER } from '@/content/razbory';
 import { SOZVONY, SOZVONY_ROLE, SOZVONY_MIN_TIER } from '@/content/sozvony';
 import { NEYRONKI, NEYRONKI_ROLE, NEYRONKI_MIN_TIER } from '@/content/neyronki';
@@ -22,6 +23,13 @@ const formula = contentJson as unknown as Content;
 // Правила доступа библиотеки воркшопов повторяют gated.tsx на её страницах:
 // премиум — «Синхронизация» либо «Новый уровень» от тарифа 2; предобучение —
 // любой «Новый уровень» либо «Синхронизация».
+// Ветка «Поток Спроса» открывается двумя ключами: своей ролью за 1 490
+// и ролью курса с любого тарифа — то же правило, что в content/potok/access.ts.
+const POTOK_ACCESS: AccessRule[] = [
+  { role: POTOK_ROLE, minTier: 0 },
+  { role: COURSE_ROLE, minTier: COURSE_MIN_TIER },
+];
+
 const WORKSHOP_PREMIUM: AccessRule[] = [
   { role: 'sync', minTier: 0 },
   { role: 'uroven', minTier: 2 },
@@ -221,7 +229,7 @@ export function buildMap(): MapEntry[] {
       title: `«Поток спроса» — ${f.label}`,
       note: f.note,
       headings: [],
-      access: [{ role: POTOK_ROLE, minTier: POTOK_MIN_TIER }],
+      access: POTOK_ACCESS,
       path: '/potok',
       people: [],
     });
