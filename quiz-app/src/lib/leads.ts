@@ -68,7 +68,7 @@ function paidViaLabel(r: PaidRow): string {
   if (r.co_src) return PAY_SRC_RU[r.co_src] || r.co_src;
   if (r.co_utm === 'uroven_dop_potok') return 'доплата из Потока Спроса';
   const from = r.co_from || (r.co_utm === 'ig' ? 'ig' : null);
-  const fromRu = from ? ` · ${PAY_SRC_RU[from] || from}` : '';
+  const fromRu = from ? ` · ${PAY_SRC_RU[from] || SOURCE_RU[from] || from}` : '';
   switch (r.co_method) {
     case 'deal_link':
       return 'прайс-ссылка';
