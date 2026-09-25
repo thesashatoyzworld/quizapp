@@ -532,6 +532,34 @@ model RoadmapNote {
   @@map("roadmap_notes")
 }
 
+// Proposal from a group call: what Sasha told each client, and how their roadmap
+// should change. The server pipeline posts it, Sasha applies it with one button.
+// Nothing reaches a client roadmap before that tap.
+//
+// ⚠ Created by scripts/roadmap-call-proposals-create-table.mjs, never by db push.
+model RoadmapCallProposal {
+  id         String    @id @default(uuid())
+  /** zoom-drainer job id: the same call posted twice stays one row */
+  jobId      String    @unique @map("job_id")
+  callDate   DateTime  @db.Date @map("call_date")
+  sozvonSlug String?   @map("sozvon_slug")
+  title      String?
+  /** perClient[] and unmatched[] as the pipeline sent them (see lib/roadmap/call-proposals.ts) */
+  payload    Json
+  status     String    @default("pending") // pending | applying | applied | partial | failed
+  /** when the apply button last claimed the row: a stale 'applying' can be claimed again */
+  claimedAt  DateTime? @map("claimed_at")
+  /** per-client outcome of the apply */
+  result     Json?
+  tgChatId   String?   @map("tg_chat_id")
+  tgMessageId Int?     @map("tg_message_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  appliedAt  DateTime? @map("applied_at")
+
+  @@index([status, createdAt])
+  @@map("roadmap_call_proposals")
+}
+
 // ═══════════════════════════════════════
 // INSTAGRAM — ЛЮДИ ИЗ ВОРОНОК CHATPLACE
 // ═══════════════════════════════════════

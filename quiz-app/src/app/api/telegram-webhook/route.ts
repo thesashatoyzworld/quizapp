@@ -41,6 +41,7 @@ import {
 import { sendWelcomeT2, sendWelcomeT3, startIntake, adminWelcome } from '@/lib/onboarding';
 import { findIntakeFor, rebuildRoadmap } from '@/lib/roadmap/build';
 import { approveAndSend } from '@/lib/roadmap/review';
+import { claimProposal, runClaimedProposal, retryKeyboard } from '@/lib/roadmap/call-proposals';
 import { scheduleRoadmapBuild } from '@/lib/qstash';
 import { INTAKE_TEXTS } from '@/content/intake-tarif3';
 import { trackContent } from '@/content/intake-tracks';
@@ -648,6 +649,33 @@ export async function POST(request: NextRequest) {
         await answerCallbackQuery(cb.id, 'Пересобираю…');
         const queued = await rebuildRoadmap(roadmapId);
         await editMessageText(chatId, messageId, queued);
+        return NextResponse.json({ ok: true });
+      }
+
+      // Group call proposal: apply every client's roadmap change at once. Only Sasha.
+      if (data.startsWith('gcp_ok:') && cb.message) {
+        if (!isAdminChat(cb.message.chat.id)) {
+          await answerCallbackQuery(cb.id);
+          return NextResponse.json({ ok: true });
+        }
+
+        const proposalId = data.slice('gcp_ok:'.length);
+        const chatId = cb.message.chat.id;
+        const messageId = cb.message.message_id;
+        // The claim is one conditional update: a second tap while this one runs
+        // loses it and only gets a toast, the message stays as the first tap left it.
+        const claim = await claimProposal(proposalId);
+        if (!claim.claimed) {
+          await answerCallbackQuery(cb.id, claim.text);
+          return NextResponse.json({ ok: true });
+        }
+
+        // While applying the button reads "retry": if this function dies mid-apply,
+        // Sasha can tap again once the claim goes stale.
+        await answerCallbackQuery(cb.id, 'Вношу в карты…');
+        await editAdminMarkup({ chatId: String(chatId), messageId }, retryKeyboard(proposalId, 'applying'));
+        const res = await runClaimedProposal(proposalId);
+        await editMessageText(chatId, messageId, res.text, retryKeyboard(proposalId, res.status));
         return NextResponse.json({ ok: true });
       }
 
