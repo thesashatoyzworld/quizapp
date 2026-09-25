@@ -38,6 +38,8 @@ import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_18 } from './lichnyy-sozvon-evg
 
 import { LICHNOE_LICHNYY_SOZVON_NATALYA_NINCHICH_2026_09_18 } from './lichnyy-sozvon-natalya-ninchich-2026-09-18';
 
+import { LICHNOE_LICHNYY_SOZVON_NIKITA_2026_09_25 } from './lichnyy-sozvon-nikita-2026-09-25';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -60,6 +62,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-nikita-2026-09-25',
+    telegramIds: [979439488, 788334680],
+    client: "Никита Мирошник",
+    title: "Хозяин своей жизни",
+    subtitle: "Аудитория пацаны, Марио вместо цветочка, инвентаризация опыта, кейсы с подробной точкой А и контент про то, чего хотят",
+    date: '2026-09-25',
+    duration: "60 мин",
+    tags: ["оффер", "история", "кейсы", "контент"],
+    kinescopeId: 'aKhCS2sQhT47RHpHUmyW9C',
+    html: LICHNOE_LICHNYY_SOZVON_NIKITA_2026_09_25,
+  },
   {
     slug: 'lichnyy-sozvon-natalya-ninchich-2026-09-18',
     telegramIds: [1312470710, 788334680],
