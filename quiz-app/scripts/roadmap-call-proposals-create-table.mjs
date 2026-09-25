@@ -29,6 +29,10 @@ CREATE TABLE IF NOT EXISTS roadmap_call_proposals (
 
 CREATE INDEX IF NOT EXISTS roadmap_call_proposals_status_idx
   ON roadmap_call_proposals(status, created_at);
+
+-- Added after the first run: when the apply button claimed the row. A row stuck
+-- in 'applying' longer than 3 minutes can be claimed again.
+ALTER TABLE roadmap_call_proposals ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMP(3);
 `;
 
 const client = new pg.Client({

@@ -291,6 +291,17 @@ export function proposalKeyboard(id: string, applicable: boolean) {
   };
 }
 
+/**
+ * Buttons while applying and after it. Anything short of a full 'applied'
+ * keeps a retry: a run that died mid-apply or failed for some clients can be
+ * tapped again, and clients already applied are skipped by the note guard.
+ */
+export function retryKeyboard(id: string, status: string) {
+  const view = [{ text: '👀 Посмотреть', url: viewUrl(id) }];
+  if (status === 'applied') return { inline_keyboard: [view] };
+  return { inline_keyboard: [[{ text: '🔁 Повторить', callback_data: `gcp_ok:${id}` }], view] };
+}
+
 async function clientNames(slugs: string[]): Promise<Map<string, string>> {
   const rows = await prisma.roadmap.findMany({ where: { slug: { in: slugs } }, select: { slug: true, clientName: true } });
   return new Map(rows.map((r) => [r.slug, r.clientName]));
@@ -502,20 +513,37 @@ export function resultMessage(p: ProposalPayload, results: ClientResult[]): stri
   return text.length > 4000 ? `${text.slice(0, 3990)}…` : text;
 }
 
-/**
- * The "apply" button. Claims the proposal (pending -> applying) so a double tap
- * does nothing, applies every client, and stores the outcome.
- */
-export async function applyProposal(id: string): Promise<{ claimed: boolean; ok: boolean; text: string }> {
-  const claim = await prisma.roadmapCallProposal.updateMany({
-    where: { id, status: 'pending' },
-    data: { status: 'applying' },
-  });
-  if (claim.count !== 1) {
-    const row = await prisma.roadmapCallProposal.findUnique({ where: { id }, select: { status: true } });
-    return { claimed: false, ok: false, text: row ? `уже ${row.status === 'applying' ? 'применяется' : 'применено'}` : 'предложение не найдено' };
-  }
+/** A run stuck in 'applying' longer than this is taken as dead and can be claimed again. */
+export const STALE_CLAIM_MS = 3 * 60 * 1000;
 
+/**
+ * Claims the proposal with one conditional update, so two taps never both win.
+ * Claimable: pending, failed, partial, or applying with a claim older than
+ * STALE_CLAIM_MS (the function died mid-apply).
+ */
+export async function claimProposal(id: string): Promise<{ claimed: true } | { claimed: false; text: string }> {
+  const now = new Date();
+  const stale = new Date(now.getTime() - STALE_CLAIM_MS);
+  const claim = await prisma.roadmapCallProposal.updateMany({
+    where: {
+      id,
+      OR: [
+        { status: { in: ['pending', 'failed', 'partial'] } },
+        { status: 'applying', OR: [{ claimedAt: null }, { claimedAt: { lt: stale } }] },
+      ],
+    },
+    data: { status: 'applying', claimedAt: now },
+  });
+  if (claim.count === 1) return { claimed: true };
+
+  const row = await prisma.roadmapCallProposal.findUnique({ where: { id }, select: { status: true } });
+  if (!row) return { claimed: false, text: 'предложение не найдено' };
+  if (row.status === 'applying') return { claimed: false, text: 'уже применяется. Если зависло, повтори через 3 минуты' };
+  return { claimed: false, text: 'уже применено' };
+}
+
+/** Applies a proposal this call has claimed and stores the outcome. */
+export async function runClaimedProposal(id: string): Promise<{ ok: boolean; status: string; text: string }> {
   const row = await prisma.roadmapCallProposal.findUniqueOrThrow({ where: { id } });
   const payload = row.payload as unknown as ProposalPayload;
 
@@ -527,7 +555,7 @@ export async function applyProposal(id: string): Promise<{ claimed: boolean; ok:
       where: { id },
       data: { status: 'failed', result: { error: String((err as Error)?.message || err) } },
     });
-    return { claimed: true, ok: false, text: 'не получилось применить, подробности на странице предложения' };
+    return { ok: false, status: 'failed', text: 'не получилось применить, подробности на странице предложения' };
   }
 
   const failed = results.filter((r) => r.status === 'failed').length;
@@ -537,5 +565,14 @@ export async function applyProposal(id: string): Promise<{ claimed: boolean; ok:
     data: { status, result: results as unknown as object, appliedAt: new Date() },
   });
 
-  return { claimed: true, ok: failed === 0, text: resultMessage(payload, results) };
+  return { ok: failed === 0, status, text: resultMessage(payload, results) };
+}
+
+/** Claim plus apply in one call, for callers that do not need the split. */
+export async function applyProposal(
+  id: string,
+): Promise<{ claimed: boolean; ok: boolean; status?: string; text: string }> {
+  const claim = await claimProposal(id);
+  if (!claim.claimed) return { claimed: false, ok: false, text: claim.text };
+  return { claimed: true, ...(await runClaimedProposal(id)) };
 }

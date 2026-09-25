@@ -547,6 +547,8 @@ model RoadmapCallProposal {
   /** perClient[] and unmatched[] as the pipeline sent them (see lib/roadmap/call-proposals.ts) */
   payload    Json
   status     String    @default("pending") // pending | applying | applied | partial | failed
+  /** when the apply button last claimed the row: a stale 'applying' can be claimed again */
+  claimedAt  DateTime? @map("claimed_at")
   /** per-client outcome of the apply */
   result     Json?
   tgChatId   String?   @map("tg_chat_id")

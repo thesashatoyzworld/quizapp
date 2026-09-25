@@ -41,7 +41,7 @@ import {
 import { sendWelcomeT2, sendWelcomeT3, startIntake, adminWelcome } from '@/lib/onboarding';
 import { findIntakeFor, rebuildRoadmap } from '@/lib/roadmap/build';
 import { approveAndSend } from '@/lib/roadmap/review';
-import { applyProposal, viewUrl as callProposalUrl } from '@/lib/roadmap/call-proposals';
+import { claimProposal, runClaimedProposal, retryKeyboard } from '@/lib/roadmap/call-proposals';
 import { scheduleRoadmapBuild } from '@/lib/qstash';
 import { INTAKE_TEXTS } from '@/content/intake-tarif3';
 import { trackContent } from '@/content/intake-tracks';
@@ -662,14 +662,20 @@ export async function POST(request: NextRequest) {
         const proposalId = data.slice('gcp_ok:'.length);
         const chatId = cb.message.chat.id;
         const messageId = cb.message.message_id;
-        const view = { inline_keyboard: [[{ text: '👀 Посмотреть', url: callProposalUrl(proposalId) }]] };
+        // The claim is one conditional update: a second tap while this one runs
+        // loses it and only gets a toast, the message stays as the first tap left it.
+        const claim = await claimProposal(proposalId);
+        if (!claim.claimed) {
+          await answerCallbackQuery(cb.id, claim.text);
+          return NextResponse.json({ ok: true });
+        }
 
-        // Buttons go first: a second tap must not find "apply" under the message.
+        // While applying the button reads "retry": if this function dies mid-apply,
+        // Sasha can tap again once the claim goes stale.
         await answerCallbackQuery(cb.id, 'Вношу в карты…');
-        await editAdminMarkup({ chatId: String(chatId), messageId }, view);
-        const res = await applyProposal(proposalId);
-        // A tap that lost the race leaves the first tap's result in place.
-        if (res.claimed) await editMessageText(chatId, messageId, res.text, view);
+        await editAdminMarkup({ chatId: String(chatId), messageId }, retryKeyboard(proposalId, 'applying'));
+        const res = await runClaimedProposal(proposalId);
+        await editMessageText(chatId, messageId, res.text, retryKeyboard(proposalId, res.status));
         return NextResponse.json({ ok: true });
       }
 
