@@ -41,6 +41,7 @@ import {
 import { sendWelcomeT2, sendWelcomeT3, startIntake, adminWelcome } from '@/lib/onboarding';
 import { findIntakeFor, rebuildRoadmap } from '@/lib/roadmap/build';
 import { approveAndSend } from '@/lib/roadmap/review';
+import { applyProposal, viewUrl as callProposalUrl } from '@/lib/roadmap/call-proposals';
 import { scheduleRoadmapBuild } from '@/lib/qstash';
 import { INTAKE_TEXTS } from '@/content/intake-tarif3';
 import { trackContent } from '@/content/intake-tracks';
@@ -648,6 +649,27 @@ export async function POST(request: NextRequest) {
         await answerCallbackQuery(cb.id, 'Пересобираю…');
         const queued = await rebuildRoadmap(roadmapId);
         await editMessageText(chatId, messageId, queued);
+        return NextResponse.json({ ok: true });
+      }
+
+      // Group call proposal: apply every client's roadmap change at once. Only Sasha.
+      if (data.startsWith('gcp_ok:') && cb.message) {
+        if (!isAdminChat(cb.message.chat.id)) {
+          await answerCallbackQuery(cb.id);
+          return NextResponse.json({ ok: true });
+        }
+
+        const proposalId = data.slice('gcp_ok:'.length);
+        const chatId = cb.message.chat.id;
+        const messageId = cb.message.message_id;
+        const view = { inline_keyboard: [[{ text: '👀 Посмотреть', url: callProposalUrl(proposalId) }]] };
+
+        // Buttons go first: a second tap must not find "apply" under the message.
+        await answerCallbackQuery(cb.id, 'Вношу в карты…');
+        await editAdminMarkup({ chatId: String(chatId), messageId }, view);
+        const res = await applyProposal(proposalId);
+        // A tap that lost the race leaves the first tap's result in place.
+        if (res.claimed) await editMessageText(chatId, messageId, res.text, view);
         return NextResponse.json({ ok: true });
       }
 
