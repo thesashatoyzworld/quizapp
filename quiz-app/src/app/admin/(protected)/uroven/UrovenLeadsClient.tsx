@@ -42,6 +42,20 @@ export default function UrovenLeadsClient({ leads: initial }: { leads: UrovenLea
     return c;
   }, [leads]);
 
+  // оплаты по источникам: сколько людей и денег пришло каждым путём
+  const byVia = useMemo(() => {
+    const m = new Map<string, { n: number; sum: number }>();
+    for (const l of leads) {
+      if (!l.paid) continue;
+      const k = l.paidVia || 'не отмечено';
+      const v = m.get(k) || { n: 0, sum: 0 };
+      v.n++;
+      v.sum += l.paidAmount || 0;
+      m.set(k, v);
+    }
+    return [...m.entries()].sort((a, b) => b[1].n - a[1].n);
+  }, [leads]);
+
   const shown = filter === 'all' ? leads : leads.filter((l) => l.status === filter);
 
   async function save(tg: string, patch: { status?: LeadStatusValue; note?: string }) {
@@ -92,6 +106,23 @@ export default function UrovenLeadsClient({ leads: initial }: { leads: UrovenLea
         })}
       </div>
 
+      {byVia.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4 }}>
+            Откуда оплаты
+          </span>
+          {byVia.map(([via, v]) => (
+            <span key={via} style={{
+              padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(6,214,160,0.3)',
+              background: 'rgba(6,214,160,0.08)', color: 'var(--text-secondary)', fontSize: '0.78rem', whiteSpace: 'nowrap',
+            }}>
+              {via} <span style={{ color: '#06d6a0' }}>{v.n}</span>
+              <span style={{ opacity: 0.55 }}> · {v.sum.toLocaleString('ru-RU')} ₽</span>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div style={{ overflowX: 'auto', border: '1px solid rgba(0,240,255,0.12)', borderRadius: 10 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 940 }}>
           <thead>
@@ -123,7 +154,7 @@ export default function UrovenLeadsClient({ leads: initial }: { leads: UrovenLea
                       </a>
                       {l.paid && (
                         <span
-                          title={`оплата${l.paidAt ? ` ${fmt(l.paidAt)}` : ''}${l.paidTier ? ` · ${l.paidTier}` : ''}`}
+                          title={`оплата${l.paidAt ? ` ${fmt(l.paidAt)}` : ''}${l.paidTier ? ` · ${l.paidTier}` : ''}${l.paidVia ? ` · через: ${l.paidVia}` : ''}`}
                           style={{ marginLeft: 6, color: '#06d6a0', fontSize: '0.78rem', whiteSpace: 'nowrap' }}
                         >
                           💰 {l.paidAmount ? `${l.paidAmount.toLocaleString('ru-RU')} ₽` : ''}
@@ -135,7 +166,12 @@ export default function UrovenLeadsClient({ leads: initial }: { leads: UrovenLea
                     <td style={{ ...td, color: 'var(--text-secondary)', fontSize: '0.8rem', maxWidth: 340, cursor: 'pointer', lineHeight: 1.4 }} onClick={() => setOpen((o) => ({ ...o, [l.tg]: !o[l.tg] }))}>
                       {l.context || '—'}
                     </td>
-                    <td style={{ ...td, color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{l.source ? SOURCE[l.source] || l.source : '—'}</td>
+                    <td style={{ ...td, color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                      {l.paidVia && (
+                        <div style={{ color: '#06d6a0', whiteSpace: 'nowrap' }}>оплата: {l.paidVia}</div>
+                      )}
+                      {l.source ? SOURCE[l.source] || l.source : l.paidVia ? null : '—'}
+                    </td>
                     <td style={{ ...td, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmt(l.lastAt)}</td>
                     <td style={td}>
                       <select value={l.status} onChange={(e) => save(l.tg, { status: e.target.value as LeadStatusValue })} style={{

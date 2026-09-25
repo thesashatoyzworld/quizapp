@@ -18,6 +18,7 @@ export type UrovenLead = {
   paidAmount: number | null;
   paidTier: string | null;
   paidAt: string | null;
+  paidVia: string | null; // откуда пришла оплата: бот, лендинг, Поток Спроса, прайс-ссылка…
   source: string | null;
   lastAt: string;
   context: string; // человекочитаемая сводка пути
@@ -41,7 +42,50 @@ type AggRow = {
 
 type EvRow = { tg: string; created_at: Date; type: string; path: string | null; src: string | null; pct: number | null };
 
-type PaidRow = { tg: string | null; amount: number | null; slug: string | null; created_at: Date };
+type PaidRow = {
+  tg: string | null;
+  amount: number | null;
+  slug: string | null;
+  created_at: Date;
+  source: string | null;
+  co_src: string | null;
+  co_method: string | null;
+  co_utm: string | null;
+  co_from: string | null;
+};
+
+const PAY_SRC_RU: Record<string, string> = {
+  potok: 'Поток Спроса',
+  yt: 'YouTube',
+  ig: 'Instagram',
+  lichka: 'личка',
+};
+
+// Откуда пришла оплата — по чекауту, который её открыл (checkout_open с тем же order_id).
+// Метка ?src= на ссылке оплаты главнее способа: /pay/t1?src=potok — это «Поток Спроса»,
+// даже если сама ссылка обычная.
+function paidViaLabel(r: PaidRow): string {
+  if (r.co_src) return PAY_SRC_RU[r.co_src] || r.co_src;
+  if (r.co_utm === 'uroven_dop_potok') return 'доплата из Потока Спроса';
+  const from = r.co_from || (r.co_utm === 'ig' ? 'ig' : null);
+  const fromRu = from ? ` · ${PAY_SRC_RU[from] || from}` : '';
+  switch (r.co_method) {
+    case 'deal_link':
+      return 'прайс-ссылка';
+    case 'tg_openlink':
+      return 'бот';
+    case 'paylink_tg':
+      return 'лендинг в Telegram';
+    case 'bounce_bot':
+    case 'browser_card':
+    case 'tg_webview':
+      return `лендинг${fromRu}`;
+    case 'paylink':
+      return 'ссылка на оплату';
+  }
+  // Чекаута нет: доступ выдан скриптом мимо формы (перевод, крипта, PayPal)
+  return r.source === 'web_redeem' ? 'выдано вручную' : 'не отмечено';
+}
 
 // uroven-t2 / t2 / uroven_t3 → «тариф 2»
 function tierName(slug: string | null): string | null {
@@ -190,10 +234,31 @@ export async function getUrovenLeads(): Promise<UrovenLead[]> {
       )                                                                    AS tg,
       pu.amount                                                            AS amount,
       COALESCE(p.slug, (regexp_match(pu.prodamus_order_id, '^uroven_(t[0-9])'))[1]) AS slug,
-      pu.created_at                                                        AS created_at
+      pu.created_at                                                        AS created_at,
+      pu.source                                                            AS source,
+      co.metadata->>'src'                                                  AS co_src,
+      co.metadata->>'method'                                               AS co_method,
+      co.utm_source                                                        AS co_utm,
+      co.metadata->>'from'                                                 AS co_from
     FROM purchases pu
     LEFT JOIN products p ON p.id = pu.product_id
     LEFT JOIN users u ON u.id = pu.user_id
+    -- чекаут этой оплаты: веб-путь пишет в покупку paid_<token>, а в чекаут —
+    -- uroven_<tier>_web_<token>; телеграмный и прайс-ссылки — одинаковый order_id
+    -- (телеграмный повторяется, поэтому берём последний до оплаты)
+    LEFT JOIN LATERAL (
+      SELECT e.metadata, e.utm_source
+      FROM events e
+      WHERE e.type = 'checkout_open'
+        AND (
+          e.metadata->>'order_id' = pu.prodamus_order_id
+          OR (pu.prodamus_order_id LIKE 'paid\\_%'
+              AND e.metadata->>'order_id' LIKE '%\\_web\\_' || substr(pu.prodamus_order_id, 6))
+        )
+        AND e.created_at <= pu.created_at
+      ORDER BY e.created_at DESC
+      LIMIT 1
+    ) co ON true
     WHERE pu.source = 'uroven' OR p.slug LIKE 'uroven%'
     ORDER BY pu.created_at ASC
   `;
@@ -261,6 +326,7 @@ export async function getUrovenLeads(): Promise<UrovenLead[]> {
       paidAmount: pay?.amount ?? null,
       paidTier: pay ? tierName(pay.slug) : null,
       paidAt: pay ? pay.created_at.toISOString() : null,
+      paidVia: pay ? paidViaLabel(pay) : null,
       source: r.source ?? null,
       lastAt: (r.last_at || fallbackAt).toISOString(),
       context: j.context || (pay ? 'оплатил (событий на сайте не было)' : ''),
