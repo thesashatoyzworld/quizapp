@@ -84,7 +84,7 @@ export default async function CallProposalPage({ params }: { params: Promise<{ i
             )}
 
             <div style={op}>
-              <div className={styles.k}>в «Что решили», клиент видит</div>
+              <div className={styles.k}>запись в журнал карты, клиент её не видит</div>
               <div className={styles.noteBody}>{c.logEntry}</div>
             </div>
 

@@ -375,7 +375,8 @@ async function applyClientTx(
   if (roadmap.archived) return { ...res, status: 'skipped', error: 'карта в архиве' };
 
   // The log note marks the call as applied to this roadmap: a second tap or a
-  // retry after a timeout finds it and changes nothing.
+  // retry after a timeout finds it and changes nothing. Looked up by source
+  // alone, whatever its visibility.
   const already = await tx.roadmapNote.findFirst({
     where: { roadmapId: roadmap.id, source: meta.source },
     select: { id: true },
@@ -437,7 +438,9 @@ async function applyClientTx(
       body: c.logEntry,
       source: meta.source,
       happenedOn: new Date(meta.callDate),
-      visibility: 'shared',
+      // Internal: the call summary reaches clients elsewhere. The guard above
+      // matches on source only, so visibility never affects re-apply.
+      visibility: 'internal',
     },
   });
 
