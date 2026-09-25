@@ -120,7 +120,7 @@ const str = (v: unknown, max: number): string =>
 
 /** Client text never carries the long dash. */
 function noDash(s: string): string {
-  return s.replace(/\s*—\s*/g, ' - ');
+  return s.replace(/\s*\u2014\s*/g, ' - ');
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
