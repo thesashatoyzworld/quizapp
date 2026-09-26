@@ -24,6 +24,7 @@ const NAV_LINKS = [
   { href: '/admin/broadcasts', label: 'Рассылки' },
   { href: '/admin/instagram', label: 'Instagram' },
   { href: '/admin/content', label: 'Контент' },
+  { href: '/admin/kontent', label: 'YouTube' },
 ];
 
 export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
