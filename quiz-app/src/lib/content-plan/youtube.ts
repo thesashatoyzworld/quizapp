@@ -34,6 +34,7 @@ export const PLAN_KICKER = 'YouTube · выход по пятницам';
 export const PLAN_VIDEOS: PlanVideo[] = [
   { id: 'azam', title: 'Азам', color: '#00f0ff', releaseDate: '2026-10-02' },
   { id: 'mln', title: '1,5 млн за месяц', color: '#ff4fbf', releaseDate: '2026-10-09' },
+  { id: 'tash', title: 'Из Ташкента', color: '#ffd24f', releaseDate: '2026-10-23' },
 ];
 
 export const PLAN_EVENTS: PlanEvent[] = [
@@ -68,10 +69,22 @@ export const PLAN_EVENTS: PlanEvent[] = [
   { date: '2026-10-06', videoId: 'mln', kind: 'step', text: 'Заголовок и обложка по референсам', who: 'Claude' },
 
   { date: '2026-10-07', videoId: 'mln', kind: 'step', text: 'Правки списком. Выбор заголовка и обложки', who: 'Саша' },
+  { date: '2026-10-07', videoId: 'tash', kind: 'step', text: 'Список кадров для поездки', who: 'Claude' },
   { date: '2026-10-08', videoId: 'mln', kind: 'step', text: 'Финал, загрузка отложенной публикацией' },
   { date: '2026-10-09', videoId: 'mln', kind: 'release', text: 'Выход ролика' },
+  { date: '2026-10-09', videoId: 'tash', kind: 'shoot', text: 'Поездка 9–15.10: снимаем в Ташкенте' },
 
-  { date: '2026-10-16', kind: 'free', text: 'Слот свободен. Кандидат: «2 млн просмотров и 1 продажа»' },
+  { date: '2026-10-15', videoId: 'tash', kind: 'step', text: 'Возвращение. Исходники Дане', who: 'Саша' },
+  { date: '2026-10-16', kind: 'free', text: 'Слот свободен. Нужен ролик из созвона: материал Дане до 8.10' },
+  { date: '2026-10-16', videoId: 'tash', kind: 'step', text: 'Расшифровка, ТЗ, хроно', who: 'Claude' },
+  { date: '2026-10-17', videoId: 'tash', kind: 'step', text: 'Монтаж', who: 'Даня' },
+  { date: '2026-10-18', videoId: 'tash', kind: 'step', text: 'Монтаж', who: 'Даня' },
+  { date: '2026-10-19', videoId: 'tash', kind: 'step', text: 'Монтаж', who: 'Даня' },
+  { date: '2026-10-20', videoId: 'tash', kind: 'step', text: 'Черновой монтаж', who: 'Даня' },
+  { date: '2026-10-20', videoId: 'tash', kind: 'step', text: 'Заголовок и обложка', who: 'Claude' },
+  { date: '2026-10-21', videoId: 'tash', kind: 'step', text: 'Правки списком. Выбор заголовка и обложки', who: 'Саша' },
+  { date: '2026-10-22', videoId: 'tash', kind: 'step', text: 'Финал, загрузка отложенной публикацией' },
+  { date: '2026-10-23', videoId: 'tash', kind: 'release', text: 'Выход ролика' },
 ];
 
 export const PLAN_NOTES: PlanNote[] = [
@@ -86,7 +99,7 @@ export const PLAN_NOTES: PlanNote[] = [
   {
     label: '16.10',
     paragraphs: [
-      '«2 млн просмотров и 1 продажа» (созвон с Женей 18.09). ТЗ у подрядчика старое: cold open переставить на кусок 03:29–03:45.',
+      'Ролика пока нет. Берём самый сильный кейс из созвонов 28.09–8.10: без отдельной съёмки, Даня монтирует 9–13.10, пока Саша в Ташкенте. Выбрать созвон к 6.10.',
     ],
   },
 ];
