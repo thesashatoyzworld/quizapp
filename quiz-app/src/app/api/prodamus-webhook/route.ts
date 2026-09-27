@@ -11,6 +11,9 @@ import { sendWelcomeT2, sendWelcomeT3, startIntake } from '@/lib/onboarding';
 import { notifyAdmin } from '@/lib/telegram';
 import { INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
 import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
+import { isEmail } from '@/lib/mail';
+import { sendPaidEmail } from '@/lib/paid-email';
+import { schedulePaidReminder } from '@/lib/qstash';
 
 const PRODAMUS_SECRET_KEY = process.env.PRODAMUS_SECRET_KEY || '';
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -720,6 +723,12 @@ export async function POST(request: NextRequest) {
         const email = (body.customer_email || body.email || '') as string;
         const phone = (body.customer_phone || body.phone || '') as string;
 
+        // Повторный вебхук по той же оплате: письмо второй раз не шлём.
+        const seen = await prisma.event.findFirst({
+          where: { type: 'web_paid', metadata: { path: ['orderId'], equals: String(orderId) } },
+          select: { id: true },
+        }).catch(() => null);
+
         await prisma.event.create({
           data: {
             type: 'web_paid',
@@ -728,6 +737,14 @@ export async function POST(request: NextRequest) {
             metadata: { token, email, phone, amount, orderId: String(orderId), consumed: false },
           },
         }).catch((e) => console.error('[Supabase] uroven web event insert failed:', e));
+
+        // Со страницы Продамуса до бота доходят не все (СБП, рассрочка, закрытая
+        // вкладка), а кроме почты других контактов нет. Письмо со ссылкой сразу,
+        // напоминание через час, если оплата так и не привязана.
+        if (!seen && token && isEmail(email)) {
+          await sendPaidEmail({ kind: 'first', to: email, token, productSlug: product.slug, productName: product.name });
+          await schedulePaidReminder(String(orderId));
+        }
 
         await grantAccess({ product, telegramId: null, source: orderId as string })
           .catch((e) => console.error('[Access] uroven web grant failed:', e));
