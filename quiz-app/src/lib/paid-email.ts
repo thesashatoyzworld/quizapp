@@ -24,11 +24,13 @@ export async function sendPaidEmail(opts: {
   const { kind, to, token, productSlug, productName } = opts;
   const link = `${BOT}?start=paid_${token}`;
   const isPotok = productSlug === 'potok-sprosa';
+  // В каталоге «Новый уровень контента — Тариф 1 (сам)»: в теме письма хватит курса.
+  const title = productName.split(' — ')[0];
 
   const subject =
     kind === 'first'
-      ? `${productName}: оплата прошла, остался один шаг`
-      : `${productName}: доступ ещё не привязан`;
+      ? `${title}: оплата прошла, остался один шаг`
+      : `${title}: доступ ещё не привязан`;
 
   const lines: string[] =
     kind === 'first'
