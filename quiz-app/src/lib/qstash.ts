@@ -94,3 +94,24 @@ export async function scheduleIdeaAssemble(batchKey: string, delaySec: number) {
     console.error(`[QStash] Failed to schedule idea assemble for ${batchKey}:`, error);
   }
 }
+
+/**
+ * Напоминание купившему с сайта, если за час он не привязал оплату к Telegram.
+ * Одно: дальше пишет Саша руками.
+ */
+export async function schedulePaidReminder(orderId: string, delaySec = 60 * 60) {
+  if (!WEBAPP_URL) {
+    console.error('[QStash] WEBAPP_URL not set, cannot schedule paid reminder');
+    return;
+  }
+
+  try {
+    await qstash.publishJSON({
+      url: `${WEBAPP_URL}/api/paid-reminder`,
+      body: { orderId },
+      delay: delaySec,
+    });
+  } catch (error) {
+    console.error(`[QStash] Failed to schedule paid reminder for ${orderId}:`, error);
+  }
+}
