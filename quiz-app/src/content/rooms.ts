@@ -87,6 +87,7 @@ export const SECTIONS: Section[] = [
     materials: [
       { kind: 'article', title: 'Статьи', url: 'https://thesashatoyz.com/blog', note: 'Лонгриды и разборы.' },
       { kind: 'podcast', title: 'Подкаст «По чесноку»', url: 'https://thesashatoyz.com/podcast', note: 'Все выпуски.' },
+      { kind: 'link', title: '5000 вирусных хуков', url: '/huki', note: 'Шаблоны первой фразы с примером и психологией, 37 категорий. Внутри инструкция и промпт: как подогнать хуки под себя в нейронке.' },
     ],
   },
   {
