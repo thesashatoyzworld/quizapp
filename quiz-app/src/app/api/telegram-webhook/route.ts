@@ -227,7 +227,7 @@ async function deliverLeadMagnet(
   const lmText = `привет, ${firstName}\n\n${lm.intro}${lm.softPitch ? '\n\n' + lm.softPitch : ''}`;
   const lmMarkup = {
     inline_keyboard: [
-      [{ text: '📖 Открыть гайд', web_app: { url: lm.url } }],
+      [{ text: lm.buttonText || '📖 Открыть гайд', web_app: { url: lm.url } }],
     ],
   };
 
@@ -257,7 +257,7 @@ async function deliverLeadMagnet(
 async function sendSubscriptionGate(chatId: number, slug: string, lm: LeadMagnet, firstName: string) {
   const channel = lm.channelUsername.startsWith('@') ? lm.channelUsername : `@${lm.channelUsername}`;
   const gateText =
-    lm.gateText ||
+    lm.gateText?.replace('{name}', firstName) ||
     `привет, ${firstName}\n\nчтобы забрать материал — подпишись на канал, оттуда я и делюсь всем этим\n\nподписался? жми кнопку ниже 👇`;
 
   const gateMarkup = {
