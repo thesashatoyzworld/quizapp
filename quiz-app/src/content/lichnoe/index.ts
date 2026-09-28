@@ -42,6 +42,8 @@ import { LICHNOE_LICHNYY_SOZVON_NIKITA_2026_09_25 } from './lichnyy-sozvon-nikit
 
 import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_25 } from './lichnyy-sozvon-evgeniya-2026-09-25';
 
+import { LICHNOE_LICHNYY_SOZVON_NATALIA_NIKOLAEVA_2026_09_28 } from './lichnyy-sozvon-natalia-nikolaeva-2026-09-28';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -64,6 +66,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-natalia-nikolaeva-2026-09-28',
+    telegramIds: [184686361, 788334680],
+    client: "Наталья Николаева",
+    title: "Личный созвон 28 сентября",
+    subtitle: "Сначала флирт, потом предложение: проявленность как корень, психологи и коучи как сегмент, упаковка через исследования и оффер «экологичная система»",
+    date: '2026-09-28',
+    duration: "55 мин",
+    tags: ["контент", "сегмент", "упаковка", "оффер"],
+    kinescopeId: 'g4mjAAcXLrfCy1H6vgUaQz',
+    html: LICHNOE_LICHNYY_SOZVON_NATALIA_NIKOLAEVA_2026_09_28,
+  },
   {
     slug: 'lichnyy-sozvon-evgeniya-2026-09-25',
     telegramIds: [934091008, 788334680],
