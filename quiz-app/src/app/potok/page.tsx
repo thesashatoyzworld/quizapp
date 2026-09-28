@@ -94,6 +94,23 @@ function PotokInner() {
     return () => { stop = true; };
   }, []);
 
+  // Кнопки «предыдущий / следующий» в конце статьи шага шлют сюда ключ шага:
+  // статья в iframe, заголовок просмотрщика и учёт открытий живут на странице.
+  // Пустой ключ = последний шаг, возвращаемся к списку.
+  useEffect(() => {
+    function onMsg(e: MessageEvent) {
+      if (e.origin !== window.location.origin) return;
+      const d = e.data as { type?: string; key?: string } | null;
+      if (!d || d.type !== 'potok-step') return;
+      const st = steps.find((x) => x.key === d.key);
+      if (!st) { setViewer(null); return; }
+      setViewer({ title: st.title, src: href({ step: st.key }) });
+      trackMaterial('potok', `step-${st.key}`, st.title, tgId);
+    }
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [steps, tgId]);
+
   /** Ссылка на файл: доступ проверяется на сервере, метка нужна для опознания. */
   function href(extra: Record<string, string>) {
     const qs = new URLSearchParams(extra);

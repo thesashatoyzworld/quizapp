@@ -23,6 +23,45 @@ export const runtime = 'nodejs';
 // Кто именно вошёл, страница узнаёт из `via`: покупателю трипвайра показываем
 // апсейл на курс, ученику курса он не нужен.
 
+function esc(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Кнопки «предыдущий / следующий» в конце статьи шага. Дописываются при отдаче,
+// а не в генераторе: steps.ts пересобирается из курса и правки там затираются.
+// Внутри кабинета статья открыта в iframe: клик сообщает странице, какой шаг
+// открыть, чтобы сменился и заголовок просмотрщика. Открытая напрямую статья
+// просто переходит по ссылке.
+function withStepNav(html: string, key: string, params: URLSearchParams): string {
+  const list = POTOK_STEPS.filter((s) => s.html);
+  const i = list.findIndex((s) => s.key === key);
+  if (i < 0) return html;
+  const link = (k: string) => {
+    const qs = new URLSearchParams();
+    qs.set('step', k);
+    for (const p of ['telegramId', 'preview']) {
+      const v = params.get(p);
+      if (v) qs.set(p, v);
+    }
+    return `/api/cabinet/potok?${qs}`;
+  };
+  const prev = list[i - 1];
+  const next = list[i + 1];
+  const a = (cls: string, label: string, title: string, step: string) =>
+    `<a class="${cls}" href="${step ? esc(link(step)) : '/potok'}" data-step="${step}">` +
+    `<span class="k">${label}</span><span class="n">${esc(title)}</span></a>`;
+  const nav =
+    `<nav class="lvlnav potok-nav">` +
+    (prev ? a('prev', '‹ Предыдущий шаг', prev.title, prev.key) : '') +
+    (next ? a('next', 'Следующий шаг ›', next.title, next.key) : a('next', 'Это последний шаг', 'К списку шагов', '')) +
+    `</nav>` +
+    `<script>document.querySelectorAll('.potok-nav a').forEach(function(el){el.addEventListener('click',function(e){` +
+    `var s=el.getAttribute('data-step');if(window.parent!==window){e.preventDefault();` +
+    `window.parent.postMessage({type:'potok-step',key:s},location.origin);}});});</script>`;
+  const at = html.lastIndexOf('</main>');
+  return at < 0 ? html : html.slice(0, at) + nav + html.slice(at);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const q = request.nextUrl.searchParams.get('preview');
@@ -56,7 +95,7 @@ export async function GET(request: NextRequest) {
     if (stepKey) {
       const st = POTOK_STEPS.find((x) => x.key === stepKey);
       if (!st || !st.html) return NextResponse.json({ success: false, error: 'not found' }, { status: 404 });
-      return new NextResponse(st.html, {
+      return new NextResponse(withStepNav(st.html, st.key, request.nextUrl.searchParams), {
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store' },
       });
     }
