@@ -276,7 +276,7 @@ function adCard(){const d=document.createElement('article');d.className='card ad
  '<p class="hook">Хук есть. Теперь нужна тема, которая уже залетела</p>'+
  '<p class="ex">Где брать заходы, которые собрали просмотры в твоей нише, и как налить в них свой смысл.</p>'+
  '<a class="btn primary" href="'+POTOK_URL.replace('utm_medium=huki','utm_medium=huki-feed')+'" data-cta="potok-feed" style="margin-top:auto">Забрать «Поток Спроса»</a></div>';
- d.querySelector('a').addEventListener('click',()=>trackMat('cta-potok-feed','Клик: Поток Спроса из ленты'));
+ d.querySelector('a').addEventListener('click',()=>{trackMat('cta-potok-feed','Клик: Поток Спроса из ленты');ht('huki_cta_click',{cta:'potok-feed'})});
  return d}
 function more(){const f=document.createDocumentFragment();cur.slice(shown,shown+STEP).forEach((h,i)=>{if(showAd&&!q&&shown+i===AD_AT)f.append(adCard());f.append(card(h))});$('list').append(f);shown=Math.min(shown+STEP,cur.length);$('more').hidden=shown>=cur.length}
 function actions(){const cc=$('copy-cat'),dl=$('dl-cat');
@@ -298,7 +298,8 @@ $('copy-cat').onclick=e=>{copyText(catText(cat),e.currentTarget,'Скопиро�
 $('dl-cat').addEventListener('click',()=>trackMat(cat===-1?'download-all':'download-'+D[cat].file,cat===-1?'Скачал всю базу':'Скачал категорию: '+D[cat].name));
 $('dl-all').addEventListener('click',()=>trackMat('download-all','Скачал всю базу'));
 $('copy-prompt').onclick=e=>{copyText($('prompt').textContent,e.currentTarget,'Скопировать промпт');trackMat('prompt','Копия промпта')};
-document.querySelector('.buy').addEventListener('click',()=>trackMat('cta-potok-main','Клик: Поток Спроса'));
+document.querySelector('.buy').addEventListener('click',()=>{trackMat('cta-potok-main','Клик: Поток Спроса');ht('huki_cta_click',{cta:'potok-main'})});
+$('g-bot').addEventListener('click',()=>ht('huki_gate_click',{cta:'open_bot'}));
 $('more').onclick=more;
 new IntersectionObserver(e=>{if(e[0].isIntersecting&&!$('more').hidden)more()},{rootMargin:'600px'}).observe($('more'));
 let t;$('q').addEventListener('input',e=>{clearTimeout(t);t=setTimeout(()=>{q=e.target.value.trim();$('clear').hidden=!q;render()},150)});
@@ -314,6 +315,12 @@ function toGate(){const g=$('gate');g.scrollIntoView({behavior:'smooth',block:'c
 document.addEventListener('click',e=>{if(!LOCKED)return;const el=e.target.closest&&e.target.closest(LOCK_SEL);if(!el)return;e.preventDefault();e.stopImmediatePropagation();toGate()},true);
 $('q').addEventListener('focus',()=>{if(LOCKED){$('q').blur();toGate()}});
 function tgApp(){const w=window.Telegram&&Telegram.WebApp;return w&&w.initData?w:null}
+// Воронка /huki: анонимно, по session_id. Смотреть в админке «Хуки».
+let SID='';try{SID=sessionStorage.getItem('huki_sid')||'';if(!SID){SID=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random());sessionStorage.setItem('huki_sid',SID)}}catch(e){SID='nosess-'+Date.now()}
+const PAGE_PATH=location.pathname+location.search;
+function ht(type,extra){try{const body=JSON.stringify(Object.assign({type,session_id:SID,path:PAGE_PATH,ctx:tgApp()?'miniapp':'browser'},extra||{}));
+  if(navigator.sendBeacon)navigator.sendBeacon('/api/huki/track',new Blob([body],{type:'application/json'}));else fetch('/api/huki/track',{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}).catch(()=>{})}catch(e){}}
+let GATE_SEEN=false;
 function unlock(j){
   D=j.data;ALL=[];D.forEach((c,ci)=>c.items.forEach(h=>ALL.push({...h,ci})));
   LOCKED=false;PASS=j.pass||null;document.body.classList.remove('locked');
@@ -322,8 +329,9 @@ function unlock(j){
   if(j.via==='cabinet'||j.via==='client')$('to-cabinet').hidden=false;
   try{const v=parseInt(localStorage.getItem('hooks-cat'));if(v>=-1&&v<D.length)cat=v}catch(e){}
   render();
+  ht('huki_unlock',{via:j.via,after_gate:GATE_SEEN});
 }
-function gateMode(err){const inTg=!!tgApp();$('g-wait').hidden=true;$('g-web').hidden=inTg;$('g-tg').hidden=!inTg;
+function gateMode(err){if(!GATE_SEEN){GATE_SEEN=true;ht('huki_gate_view')}const inTg=!!tgApp();$('g-wait').hidden=true;$('g-web').hidden=inTg;$('g-tg').hidden=!inTg;
   const e=$('g-err');e.hidden=!err;e.textContent=err||''}
 // Пропуск из ссылки «Открыть в браузере» забираем один раз и убираем из адреса.
 let urlPass=null;
@@ -334,13 +342,14 @@ async function checkAccess(){
     const j=await r.json();if(j.ok){unlock(j);return true}return false}catch(e){return false}
 }
 let waitingSub=false;
-$('g-sub').onclick=()=>{const w=tgApp();waitingSub=true;if(w)w.openTelegramLink('https://t.me/sashatoyz');else location.href='https://t.me/sashatoyz'};
-$('g-check').onclick=async e=>{const b=e.currentTarget;b.textContent='Проверяю…';const ok=await checkAccess();b.textContent='Я подписался';
+$('g-sub').onclick=()=>{ht('huki_gate_click',{cta:'subscribe'});const w=tgApp();waitingSub=true;if(w)w.openTelegramLink('https://t.me/sashatoyz');else location.href='https://t.me/sashatoyz'};
+$('g-check').onclick=async e=>{ht('huki_gate_click',{cta:'check'});const b=e.currentTarget;b.textContent='Проверяю…';const ok=await checkAccess();b.textContent='Я подписался';
   if(!ok)gateMode('Пока не вижу подписку. Подпишись и нажми ещё раз.')};
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&waitingSub&&LOCKED){waitingSub=false;setTimeout(checkAccess,700)}});
 
 window.addEventListener('load',()=>{
   const w=window.Telegram&&Telegram.WebApp;
+  ht('huki_view',{ref:document.referrer||null});
   checkAccess().then(ok=>{if(!ok)gateMode()});
   // В мини-аппе файлы не качаются: даём уйти в обычный браузер. Пропуск едет в ссылке, чтобы там база тоже была открыта.
   try{if(w&&w.initData){const b=$('in-browser');b.hidden=false;b.onclick=e=>{e.preventDefault();w.openLink(location.origin+'/huki'+(PASS?'?pass='+encodeURIComponent(PASS):''))}}}catch(e){}

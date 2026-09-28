@@ -616,6 +616,15 @@ export async function POST(request: NextRequest) {
         if (subscribed) {
           await answerCallbackQuery(cb.id, 'Готово ✓');
           await editMessageText(chatId, cb.message.message_id, 'спасибо, что подписался 🤝 держи материал ниже');
+          // Отдельное событие: подписался именно через гейт, а не был подписчиком раньше.
+          await trackEvent({
+            event_type: 'leadmagnet_subscribed',
+            user_id: userId,
+            username: username || undefined,
+            first_name: fullName || undefined,
+            utm_source: `leadmagnet_${slug}`,
+            metadata: { slug, channel: lm.channelUsername },
+          });
           await deliverLeadMagnet(chatId, slug, lm, firstName, username, fullName);
         } else {
           await answerCallbackQuery(cb.id, 'Пока не вижу подписку — подпишись и нажми ещё раз');
