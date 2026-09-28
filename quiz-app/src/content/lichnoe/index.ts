@@ -40,6 +40,8 @@ import { LICHNOE_LICHNYY_SOZVON_NATALYA_NINCHICH_2026_09_18 } from './lichnyy-so
 
 import { LICHNOE_LICHNYY_SOZVON_NIKITA_2026_09_25 } from './lichnyy-sozvon-nikita-2026-09-25';
 
+import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_25 } from './lichnyy-sozvon-evgeniya-2026-09-25';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -62,6 +64,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-evgeniya-2026-09-25',
+    telegramIds: [934091008, 788334680],
+    client: "Евгения Сокольчик",
+    title: "Личный созвон 25 сентября",
+    subtitle: "Грядку собрали, теперь её надо поливать: контент первым приоритетом, статья через то, чего хотят, и идеи, которые уже сработали",
+    date: '2026-09-25',
+    duration: "57 мин",
+    tags: ["контент", "статья", "деньги", "идеи"],
+    kinescopeId: 'np5ZsYe1Edtojo5TpGERxd',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_25,
+  },
   {
     slug: 'lichnyy-sozvon-nikita-2026-09-25',
     telegramIds: [979439488, 788334680],
