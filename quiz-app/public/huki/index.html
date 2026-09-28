@@ -132,19 +132,16 @@ a.file:hover,.file>summary:hover{background:var(--soft)}
 
 <main>
 <div class="flow">
-  <h1><span id="total">5000</span> вирусных хуков</h1>
-  <p class="lede">шаблоны первой фразы для рилс и каруселей <span class="acc">с психологией: почему цепляет</span></p>
+  <h1>5000 хуков, которые люди смотрят</h1>
+  <p class="lede">набор заголовков для рилс и каруселей <span class="acc">с психологией: почему люди будут останавливаться и смотреть ваш контент</span></p>
 
   <section class="win cta cta-top" id="cta">
     <div class="winBar"><span>поток_спроса.exe</span><span class="winDots">_ □ ✕</span></div>
     <div class="winBody">
-      <h2>Хук держит первую секунду. Просмотры решает заход</h2>
-      <p>Хорошая первая фраза не спасёт тему, которая никому не нужна. В «Потоке Спроса» показываю, где брать заходы, которые уже собрали просмотры в твоей нише, и как налить в них свой смысл.</p>
-      <ul>
-        <li>10 рабочих заходов в твоей нише уже сегодня</li>
-        <li>промт и готовая таблица за 15 минут вместо трёх часов руками</li>
-        <li>как из одной идеи собрать 12 единиц контента</li>
-      </ul>
+      <h2>Набрать просмотры за 7 дней</h2>
+      <p>Хороший заголовок не спасёт, если вы взяли не «рабочую» идею.</p>
+      <p>В «Потоке Спроса» показываю, как находить такие идеи, которые будут улетать на сотни тысяч просмотров и приводить клиентов.</p>
+      <p><b>Всё, что нужно: 5 минут вашего времени.</b></p>
       <a class="btn primary buy" href="https://thesashatoyz.com/potok-sprosa?utm_source=kabinet&amp;utm_medium=huki&amp;utm_campaign=potok" data-cta="potok-main">Забрать «Поток Спроса»</a>
       <p class="note">сначала видео на 6 минут, потом решаешь</p>
     </div>
@@ -247,7 +244,7 @@ let ALL=P.preview,LOCKED=true,PASS=null;
 const TOTAL=P.cats.reduce((a,c)=>a+c.count,0),OPEN_N=12;
 const $=id=>document.getElementById(id);
 const fmtN=n=>n.toLocaleString('ru-RU');
-$('total').textContent=fmtN(TOTAL);$('g-total').textContent=fmtN(TOTAL);$('g-open').textContent=OPEN_N;$('g-cats').textContent=D.length;
+$('g-total').textContent=fmtN(TOTAL);$('g-open').textContent=OPEN_N;$('g-cats').textContent=D.length;
 let cat=-1,q='',shown=0,cur=[],showAd=true;const STEP=120,AD_AT=12;
 const POTOK_URL=document.querySelector('.buy').href;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
