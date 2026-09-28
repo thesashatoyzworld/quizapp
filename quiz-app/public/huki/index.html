@@ -107,6 +107,21 @@ mark{background:#ffe066;color:#000;padding:0 1px}
 body.locked #q{cursor:pointer}
 body.locked pre.prompt{filter:blur(4px);user-select:none;-webkit-user-select:none}
 @media (max-width:860px){.gate{margin-top:-200px}}
+/* Порядок: «Поток Спроса» сразу под заголовком, отдельным окном; ниже промпт и файлы */
+.cta-top{border-color:var(--accent);box-shadow:8px 8px 0 var(--accent)}
+.gap-lg{margin-top:56px}
+.files-lede{margin:0 0 16px}
+.files-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.file{display:block;border:2px solid #000;background:#fff;box-shadow:4px 4px 0 #000;color:inherit;text-decoration:none}
+a.file,.file>summary{display:flex;gap:12px;align-items:flex-start;padding:12px;cursor:pointer;list-style:none}
+.file>summary::-webkit-details-marker{display:none}
+a.file:hover,.file>summary:hover{background:var(--soft)}
+.file[open]{grid-column:1/-1}
+.file-body{padding:4px 14px 16px}
+.ico{flex:none;width:42px;padding:10px 0;text-align:center;border:2px solid #000;background:var(--soft);font:bold 11px "Courier New",monospace}
+.file b{display:block;font:bold 14px "Courier New",monospace;word-break:break-word}
+.file small{display:block;margin-top:4px;font-size:15px;line-height:1.3;color:#444}
+.file:focus-visible,.file>summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 </style>
 </head>
 <body class="locked">
@@ -120,21 +135,22 @@ body.locked pre.prompt{filter:blur(4px);user-select:none;-webkit-user-select:non
   <h1><span id="total">5000</span> вирусных хуков</h1>
   <p class="lede">шаблоны первой фразы для рилс и каруселей <span class="acc">с психологией: почему цепляет</span></p>
 
-  <section class="win">
-    <div class="winBar"><span>как_работать_с_нейронкой.txt</span><span class="winDots">_ □ ✕</span></div>
+  <section class="win cta cta-top" id="cta">
+    <div class="winBar"><span>поток_спроса.exe</span><span class="winDots">_ □ ✕</span></div>
     <div class="winBody">
-      <ol class="steps">
-        <li><span><b>Выбери категорию под задачу.</b><br>Продаёшь: «Продажи и убеждение», «Отработка возражений».<br>Нужны охваты: «Любопытство и интрига», «Шокирующие правды», «Узнаваемые ситуации».</span></li>
-        <li><span><b>Забери категорию.</b><br>Кнопка «Скопировать категорию» над списком или «Скачать файл».</span></li>
-        <li><span><b>Открой Claude или ChatGPT.</b><br>Вставь категорию или прикрепи файл, ниже вставь промпт и заполни три строки про себя.</span></li>
-        <li><span><b>Отбери два-три варианта.</b><br>Те, что сказал бы вслух своими словами. Их и снимай.</span></li>
-      </ol>
-      <div class="tip">Если будешь пользоваться часто: в Claude создай Проект и один раз загрузи туда всю базу файлом в «Знания проекта». Дальше в каждом новом чате пишешь только промпт с темой.</div>
-      <div class="row"><a class="btn" id="dl-all" href="/api/huki/file?f=all" download="huki-vse.txt">Скачать всю базу</a></div>
+      <h2>Хук держит первую секунду. Просмотры решает заход</h2>
+      <p>Хорошая первая фраза не спасёт тему, которая никому не нужна. В «Потоке Спроса» показываю, где брать заходы, которые уже собрали просмотры в твоей нише, и как налить в них свой смысл.</p>
+      <ul>
+        <li>10 рабочих заходов в твоей нише уже сегодня</li>
+        <li>промт и готовая таблица за 15 минут вместо трёх часов руками</li>
+        <li>как из одной идеи собрать 12 единиц контента</li>
+      </ul>
+      <a class="btn primary buy" href="https://thesashatoyz.com/potok-sprosa?utm_source=kabinet&amp;utm_medium=huki&amp;utm_campaign=potok" data-cta="potok-main">Забрать «Поток Спроса»</a>
+      <p class="note">сначала видео на 6 минут, потом решаешь</p>
     </div>
   </section>
 
-  <section class="win gap">
+  <section class="win gap-lg">
     <div class="winBar dark"><span>промпт.txt</span><span class="winDots">_ □ ✕</span></div>
     <div class="winBody">
       <pre class="prompt" id="prompt">Ниже база хуков для рилс и каруселей.
@@ -154,23 +170,31 @@ body.locked pre.prompt{filter:blur(4px);user-select:none;-webkit-user-select:non
     </div>
   </section>
 
-  <section class="win gap cta" id="cta">
-    <div class="winBar"><span>поток_спроса.exe</span><span class="winDots">_ □ ✕</span></div>
+  <section class="win gap files">
+    <div class="winBar dark"><span>файлы_для_нейронки/</span><span class="winDots">_ □ ✕</span></div>
     <div class="winBody">
-      <h2>Хук держит первую секунду. Просмотры решает заход</h2>
-      <p>Хорошая первая фраза не спасёт тему, которая никому не нужна. В «Потоке Спроса» показываю, где брать заходы, которые уже собрали просмотры в твоей нише, и как налить в них свой смысл.</p>
-      <ul>
-        <li>10 рабочих заходов в твоей нише уже сегодня</li>
-        <li>промт и готовая таблица за 15 минут вместо трёх часов руками</li>
-        <li>как из одной идеи собрать 12 единиц контента</li>
-      </ul>
-      <a class="btn primary buy" href="https://thesashatoyz.com/potok-sprosa?utm_source=kabinet&amp;utm_medium=huki&amp;utm_campaign=potok" data-cta="potok-main">Забрать «Поток Спроса»</a>
-      <p class="note">сначала видео на 6 минут, потом решаешь</p>
+      <p class="files-lede">Не сочиняй первую фразу с нуля. Отдай базу нейронке вместе с промптом, и она сама подберёт шаблоны под твою тему и перепишет их твоими словами.</p>
+      <div class="files-grid">
+        <details class="file" id="f-howto">
+          <summary><span class="ico">TXT</span><span><b>инструкция.txt</b><small>4 шага от категории до готовой первой фразы</small></span></summary>
+          <div class="file-body">
+      <ol class="steps">
+        <li><span><b>Выбери категорию под задачу.</b><br>Продаёшь: «Продажи и убеждение», «Отработка возражений».<br>Нужны охваты: «Любопытство и интрига», «Шокирующие правды», «Узнаваемые ситуации».</span></li>
+        <li><span><b>Забери категорию.</b><br>Кнопка «Скопировать категорию» над списком или «Скачать файл».</span></li>
+        <li><span><b>Открой Claude или ChatGPT.</b><br>Вставь категорию или прикрепи файл, ниже вставь промпт и заполни три строки про себя.</span></li>
+        <li><span><b>Отбери два-три варианта.</b><br>Те, что сказал бы вслух своими словами. Их и снимай.</span></li>
+      </ol>
+      <div class="tip">Если будешь пользоваться часто: в Claude создай Проект и один раз загрузи туда всю базу файлом в «Знания проекта». Дальше в каждом новом чате пишешь только промпт с темой.</div>
+          </div>
+        </details>
+        <a class="file" id="dl-all" href="/api/huki/file?f=all" download="huki-vse.txt"><span class="ico">TXT</span><span><b>вся_база.txt</b><small>загрузи один раз в Проект Claude, дальше пишешь только тему</small></span></a>
+        <a class="file" id="f-cats" href="#lib"><span class="ico">DIR</span><span><b>категории/</b><small>по файлу на задачу: продажи, охваты, возражения</small></span></a>
+      </div>
     </div>
   </section>
 </div>
 
-<section class="lib">
+<section class="lib" id="lib">
   <h2 class="lib-h">База</h2>
   <div class="bar">
     <label class="search" for="q">
@@ -288,7 +312,7 @@ render();
 // ── Гейт ──────────────────────────────────────────────────────
 // Пока база закрыта, клики по ней (категории, поиск, копирование, файлы, промпт)
 // ведут к окну подписки. «Поток Спроса» остаётся кликабельным.
-const LOCK_SEL='.cat,.copy,#copy-cat,#dl-cat,#dl-all,#copy-prompt,#more,#clear';
+const LOCK_SEL='.cat,.copy,#copy-cat,#dl-cat,#dl-all,#copy-prompt,#more,#clear,.file';
 function toGate(){const g=$('gate');g.scrollIntoView({behavior:'smooth',block:'center'});g.classList.remove('pulse');void g.offsetWidth;g.classList.add('pulse')}
 document.addEventListener('click',e=>{if(!LOCKED)return;const el=e.target.closest&&e.target.closest(LOCK_SEL);if(!el)return;e.preventDefault();e.stopImmediatePropagation();toGate()},true);
 $('q').addEventListener('focus',()=>{if(LOCKED){$('q').blur();toGate()}});
