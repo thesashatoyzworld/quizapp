@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: '/admin/na-kontrole', label: 'Деньги на столе' },
   { href: '/admin/analytics', label: 'Аналитика' },
   { href: '/admin/uroven', label: 'Лиды · Уровень' },
+  { href: '/admin/huki', label: 'Хуки' },
   { href: '/admin/progress', label: 'Обучение' },
   { href: '/admin/anketa', label: 'Анкеты' },
   { href: '/admin/zayavki', label: 'Заявки' },

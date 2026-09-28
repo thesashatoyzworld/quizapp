@@ -59,6 +59,9 @@ export async function GET(request: NextRequest) {
 
   // Метка источника, если её передали: /pay/potok?src=reels
   const src = (request.nextUrl.searchParams.get('src') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32);
+  // Откуда человек пришёл на лендинг (utm_medium первого захода, например huki).
+  // Лендинг протаскивает его сюда как ?from=, `src` занят A/B-вариантом страницы.
+  const from = (request.nextUrl.searchParams.get('from') || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
 
   // Трекинг не должен мешать оплате — падение молча игнорируем.
   try {
@@ -68,7 +71,7 @@ export async function GET(request: NextRequest) {
       metadata: {
         tag: 'potok', price: product.price,
         method: byTelegram ? 'paylink_tg' : 'paylink',
-        order_id: orderId, src: src || null, card,
+        order_id: orderId, src: src || null, from: from || null, card,
         tg: byTelegram ? Number(uid) : undefined,
       },
     });
