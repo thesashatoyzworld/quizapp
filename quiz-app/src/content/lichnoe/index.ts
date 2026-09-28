@@ -269,7 +269,7 @@ export const LICHNOE: LichnyMaterial[] = [
     date: '2026-08-05',
     duration: "60 мин",
     tags: ["сегмент", "карта смыслов", "пруфы", "форматы"],
-    kinescopeId: '8zpLxr4n2EemNKceS82fkj',
+    kinescopeId: '',
     html: LICHNOE_LICHNYY_SOZVON_KONSTANTIN_2026_08_05,
   },
   {
@@ -281,7 +281,7 @@ export const LICHNOE: LichnyMaterial[] = [
     date: '2026-08-05',
     duration: "63 мин",
     tags: ["тарифы", "офферы", "диагностика", "рассрочка"],
-    kinescopeId: 'j36K6FUncUHbkbAMcYVbsD',
+    kinescopeId: '',
     html: LICHNOE_LICHNYY_SOZVON_2026_08_05,
   },
 ];
