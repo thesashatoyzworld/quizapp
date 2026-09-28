@@ -44,6 +44,8 @@ import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_09_25 } from './lichnyy-sozvon-evg
 
 import { LICHNOE_LICHNYY_SOZVON_NATALIA_NIKOLAEVA_2026_09_28 } from './lichnyy-sozvon-natalia-nikolaeva-2026-09-28';
 
+import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_21 } from './lichnyy-sozvon-daniel-2026-09-21';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -66,6 +68,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-daniel-2026-09-21',
+    telegramIds: [397715074, 788334680],
+    client: "Даниэл Осипов",
+    title: "Люди хотят людей, а не глянец",
+    subtitle: "Камера перестала пугать: без отыгрыша в кадре, новые форматы и корпоративы в приоритете",
+    date: '2026-09-21',
+    duration: "67 мин",
+    tags: ["контент", "форматы", "съёмка", "корпоративы"],
+    kinescopeId: 'v2xf4VPbjiboBcByD4xYEM',
+    html: LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_21,
+  },
   {
     slug: 'lichnyy-sozvon-natalia-nikolaeva-2026-09-28',
     telegramIds: [184686361, 788334680],
