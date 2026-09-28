@@ -46,6 +46,8 @@ import { LICHNOE_LICHNYY_SOZVON_NATALIA_NIKOLAEVA_2026_09_28 } from './lichnyy-s
 
 import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_21 } from './lichnyy-sozvon-daniel-2026-09-21';
 
+import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_28 } from './lichnyy-sozvon-daniel-2026-09-28';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -68,6 +70,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-daniel-2026-09-28',
+    telegramIds: [397715074, 788334680],
+    client: "Даниэл Осипов",
+    title: "Та же комната, другой коридор",
+    subtitle: "Месяц полный фокус на контент про юмор и импровизацию: чат-рулетка, условия без плана, оффер пока на паузе",
+    date: '2026-09-28',
+    duration: "56 мин",
+    tags: ["контент", "юмор", "импровизация", "форматы"],
+    kinescopeId: 'd4kbAVx6FuMvJVDpRrUXnJ',
+    html: LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_28,
+  },
   {
     slug: 'lichnyy-sozvon-daniel-2026-09-21',
     telegramIds: [397715074, 788334680],
