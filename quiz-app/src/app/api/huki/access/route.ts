@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { HUKI, PASS_COOKIE, PASS_TTL_SEC, resolveAccess, signPass } from '@/lib/huki';
+import { HUKI, HUKI_PROMPT, PASS_COOKIE, PASS_TTL_SEC, resolveAccess, signPass } from '@/lib/huki';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const secret = process.env.SESSION_SECRET || process.env.BOT_TOKEN || '';
     const pass = access.telegramId ? signPass(access.telegramId, secret) : null;
 
-    const res = NextResponse.json({ ok: true, via: access.via, data: HUKI, pass });
+    const res = NextResponse.json({ ok: true, via: access.via, data: HUKI, prompt: HUKI_PROMPT, pass });
     if (pass && access.via !== 'cabinet') {
       res.cookies.set(PASS_COOKIE, pass, {
         httpOnly: true,
