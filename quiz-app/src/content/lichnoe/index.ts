@@ -48,6 +48,8 @@ import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_21 } from './lichnyy-sozvon-danie
 
 import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_28 } from './lichnyy-sozvon-daniel-2026-09-28';
 
+import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_09_29 } from './lichnyy-sozvon-ramil-2026-09-29';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -70,6 +72,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-ramil-2026-09-29',
+    telegramIds: [1556129897, 788334680],
+    client: "Рамиль Абязов",
+    title: "Вкус жизни",
+    subtitle: "Три ступени программы, формат и цена, оффер через результат и оффер на первый созвон",
+    date: '2026-09-29',
+    duration: "77 мин",
+    tags: ["оффер", "продукт", "история"],
+    kinescopeId: 'qvNGXYZRAMhnt8PuJLGPu1',
+    html: LICHNOE_LICHNYY_SOZVON_RAMIL_2026_09_29,
+  },
   {
     slug: 'lichnyy-sozvon-daniel-2026-09-28',
     telegramIds: [397715074, 788334680],
