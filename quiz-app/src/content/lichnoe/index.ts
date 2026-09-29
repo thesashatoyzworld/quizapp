@@ -50,6 +50,8 @@ import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_09_28 } from './lichnyy-sozvon-danie
 
 import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_09_29 } from './lichnyy-sozvon-ramil-2026-09-29';
 
+import { LICHNOE_LICHNYY_SOZVON_NIA_2026_09_29 } from './lichnyy-sozvon-nia-2026-09-29';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -72,6 +74,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-nia-2026-09-29',
+    telegramIds: [104934039, 788334680],
+    client: "Ниа",
+    title: "Грядка для артистов",
+    subtitle: "Что сломалось, продажа личной работы вместо курса, оффер для артистов через продвижение",
+    date: '2026-09-29',
+    duration: "131 мин",
+    tags: ["оффер", "продукт", "кейсы"],
+    kinescopeId: 'o8H1TqDvitpGwmR1VkJNnn',
+    html: LICHNOE_LICHNYY_SOZVON_NIA_2026_09_29,
+  },
   {
     slug: 'lichnyy-sozvon-ramil-2026-09-29',
     telegramIds: [1556129897, 788334680],
