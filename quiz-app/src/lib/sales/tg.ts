@@ -486,7 +486,7 @@ async function handlePersonalMessage(
   const chatId = String(msg.chat.id);
   // «Избранное» — чат аккаунта с самим собой.
   if (chatId === account) return;
-  if (!(await inBase(chatId))) return;
+  if (!(await inBase(chatId, msg.chat.username))) return;
 
   const id = `${account}:${chatId}:${msg.message_id}`;
   try {
