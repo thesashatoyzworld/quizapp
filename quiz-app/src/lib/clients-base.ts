@@ -22,8 +22,11 @@ export function workAccount(): string {
   return (process.env.ADMIN_CHAT_ID_WORK || '6013902004').trim();
 }
 
-export async function inBase(chatId: string): Promise<boolean> {
+export async function inBase(chatId: string, username?: string | null): Promise<boolean> {
   if (!/^\d{3,20}$/.test(chatId)) return false;
+  // Клиент может перейти на новый аккаунт: тогда его id ещё нигде нет, а ник
+  // уже вписан в карту. Совпадение по нику ловит первое же сообщение с нового.
+  const nick = (username || '').replace(/^@/, '').toLowerCase();
   // SQL, а не prisma: колонки track в схеме нет, она есть только в базе.
   // Служебные доступы (сам Саша, рабочий аккаунт, партнёры) клиентами не считаем.
   const rows = await prisma.$queryRaw<{ yes: boolean }[]>`
@@ -36,6 +39,7 @@ export async function inBase(chatId: string): Promise<boolean> {
            AND a.track IS DISTINCT FROM 'service'
       )
       OR EXISTS (SELECT 1 FROM roadmaps r WHERE r.telegram_id::text = ${chatId} AND NOT r.archived)
+      OR (${nick} <> '' AND EXISTS (SELECT 1 FROM roadmaps r WHERE lower(r.username) = ${nick} AND NOT r.archived))
       OR EXISTS (SELECT 1 FROM payment_dues d WHERE d.telegram_id::text = ${chatId} AND d.status = 'pending')
     ) AS yes`;
   return rows[0]?.yes === true;
