@@ -75,7 +75,8 @@ export interface WaitingClient {
   username: string | null;
   text: string;
   at: string;
-  where: 'рабочий' | 'личный';
+  /** «бот» — человек ответил самому @testtoyzbot, отвечать ему со своего аккаунта */
+  where: 'рабочий' | 'личный' | 'бот';
 }
 
 export interface WatchReport {
@@ -293,7 +294,9 @@ async function waitingClients(): Promise<WaitingClient[]> {
     WITH msgs AS (
       SELECT chat_id, side, text, created_at, name, username, 'рабочий' AS src FROM tg_business_msg
       UNION ALL
-      SELECT chat_id, side, text, created_at, name, username, 'личный' AS src FROM tg_personal_msg
+      SELECT chat_id, side, text, created_at, name, username,
+             CASE WHEN account = 'bot' THEN 'бот' ELSE 'личный' END AS src
+        FROM tg_personal_msg
     ),
     last_msg AS (
       SELECT DISTINCT ON (chat_id) * FROM msgs ORDER BY chat_id, created_at DESC
@@ -321,7 +324,7 @@ async function waitingClients(): Promise<WaitingClient[]> {
     username: r.username,
     text: r.text.length > 200 ? `${r.text.slice(0, 200)}…` : r.text,
     at: r.created_at.toISOString(),
-    where: r.src === 'личный' ? 'личный' : 'рабочий',
+    where: r.src === 'личный' || r.src === 'бот' ? r.src : 'рабочий',
   }));
 }
 
