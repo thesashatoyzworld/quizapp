@@ -274,6 +274,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -411,10 +418,14 @@ body.rev .todo{display:block;}
 <p class="punch">Выкиньте элемент и посмотрите, что сломается:</p>
 <ul><li>выкинули, и утверждение превратилось в мнение, верить стало нечему - это был пруф</li><li>выкинули, и стало скучно, никто не досмотрит - это была упаковка</li></ul>
 <p>Возьмем мою карусель про то, что можно не тратить кучу времени на контент</p>
+<img src="/kurs/assets/sasha-15min-experiment.jpg" alt="">
+<p>Смысл: на контент не нужно тратить часы</p>
+<p>Формат эксперимента: я сделал рилс за 3 минуты и карусель за 15 минут</p>
+<p>Пруф: статистика обеих единиц - 12 297 и 89 140 просмотров</p>
 <p>Выкиньте оттуда статистику двух единиц - останется «не тратьте много времени», то есть чужое мнение, которое человек пролистнет</p>
-<p>Выкиньте формат эксперимента - цифры останутся, но их никто не увидит</p>
+<p>Выкиньте формат эксперимента - цифры останутся, но их никто не увидит: без «я засек время и вот что вышло» это просто скриншот статистики, который не за что зацепить</p>
 <h3>Что может быть пруфом</h3>
-<ul><li>1. <strong>Ваш результат.</strong> Мой эксперимент: рилс за 3 минуты и карусель за 15 минут со скриншотом статистики. Или 40 тысяч подписчиков за пять месяцев на озвучке. Результат не обязан быть огромным: сегодня я разобрался, как засинхронить камеру с экраном - это тоже результат, и про него тоже можно сделать единицу</li><li>2. <strong>Результат клиента.</strong> Наташа с 44 подписчиками, Женя с 470, Вася с 1 500</li><li>3. <strong>Замер, который вы провели специально.</strong> Я загнал два аккаунта в свое приложение и показал, как один и тот же файл дает 5 879 и 360 576 просмотров</li><li>4. <strong>Чужие публичные данные.</strong> 80 роликов главы Инстаграма, которые я отсмотрел за год, официальные документы площадок, отраслевая статистика</li><li>5. <strong>Показ процесса.</strong> Скриншот доски с этапами, таблица с расписанием, запись экрана. Вы пилите доску на виду, и это само по себе доказательство</li><li>6. <strong>Ваш провал.</strong> Мои семь роликов ниже 5 000 просмотров, снятые с профессиональным оператором и краской. Это пруф не слабее победы, а иногда сильнее</li></ul>
+<ul><li>1. <strong>Ваш результат.</strong> Мой эксперимент: рилс за 3 минуты и карусель за 15 минут со скриншотом статистики. Или 40 тысяч подписчиков за пять месяцев на озвучке. Результат не обязан быть огромным: сегодня я разобрался, как засинхронить камеру с экраном - это тоже результат, и про него тоже можно сделать единицу</li><li>2. <strong>Результат клиента.</strong> Наташа с 44 подписчиками - рилс на 168 127 просмотров и 122 подписки с одного ролика. Женя с 470 подписчиками - ролики по 150-250 просмотров выросли до 134 тысяч, 71 тысячи и 54 тысяч. Вася с 1 500 подписчиками - держит 500 тысяч в месяц, в августе рекорд 890 тысяч, купил вторую квартиру</li><li>3. <strong>Замер, который вы провели специально.</strong> Я взял два чужих аккаунта, где авторы перезаливают одни и те же ролики, и прогнал их через свое приложение. У одного коуча один и тот же 13-секундный ролик в одну заливку набрал 5 879 просмотров, а в другую 360 576. Файл один, разница в 61 раз. Это уже не мое мнение, что алгоритм работает как казино, а замер</li><li>4. <strong>Чужие публичные данные.</strong> 80 роликов главы Инстаграма, которые я отсмотрел за год, официальные документы площадок, отраслевая статистика</li><li>5. <strong>Показ процесса.</strong> Скриншот доски с этапами, таблица с расписанием, запись экрана. Вы пилите доску на виду, и это само по себе доказательство</li><li>6. <strong>Ваш провал.</strong> Мои семь роликов ниже 5 000 просмотров, снятые с профессиональным оператором и краской. Это пруф не слабее победы, а иногда сильнее</li></ul>
 <p>Вот как выглядел мой:</p>
 <img src="/kurs/assets/proval-reels-operator.jpg" alt="">
 <p>1 981, 2 316, 1 930 просмотров</p>
@@ -427,7 +438,9 @@ body.rev .todo{display:block;}
 <p>Пруфом может быть не результат, а <strong>процесс и честность</strong></p>
 <p>Показывайте, как вы делаете, что пробуете и что из этого выходит, включая то, что не вышло</p>
 <p>Промежуточные результаты - это тоже пруф: было 200 просмотров, стало 1 500</p>
-<p>Вот [мой ролик 2023 года](<a href="https://www.instagram.com/reel/CsGkfbcv5oq/" target="_blank" rel="noopener">https://www.instagram.com/reel/CsGkfbcv5oq/</a>) - первый, который набрал тридцать тысяч</p>
+<p>Вот мой ролик 2023 года - первый, который набрал тридцать тысяч</p>
+<video src="/kurs/assets/sasha-reel-2023.mp4" controls playsinline style="width:100%;margin:20px 0;border:1px solid #ddd"></video>
+<p><a href="https://www.instagram.com/reel/CsGkfbcv5oq/" target="_blank" rel="noopener">https://www.instagram.com/reel/CsGkfbcv5oq/</a></p>
 <p>Никаких результатов у меня тогда не было, я просто показал свою систему создания контента</p>
 <p>37 262 проигрывания, 28 126 просмотров, 1 661 лайк</p>
 <p>Доверие строится из честности, прозрачности и искренности, а не из красивых цифр</p>
@@ -513,6 +526,13 @@ body.rev .todo{display:block;}
 <p>Показательно что тут чувак просто в тачке сидит и говорит в камеру - ничего особенного</p>
 <p>А значит - тема горячая и имеет спрос</p>
 <p>Мы взяли его заход, переложили просто Женины тезисы / смыслы и это тоже дало результаты (помним - нам насрать на джекпот, мы на это не влияем)</p>
+<div class="kcar" data-i="0" data-n="2">
+      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/potok-zhenya-do.jpg" alt="">
+         <figcaption><b>Было</b><span>154, 155 и 259 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/potok-zhenya-posle.jpg" alt="">
+         <figcaption><b>Стало</b><span>134 тысячи, 71,2 тысячи и 54 тысячи просмотров на заходах с ютуба</span></figcaption></figure></div>
+      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button></div>
+        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 2</span></div>
+    </div>
 <p>То есть эти цифры для нас показательны в контексте того, что огромному количеству людей отзывается тема, люди смотрят это и взаимодействуют</p>
 <p>Таким образом же мы можем находить телеграм каналы и инстаграм аккаунты своих коллег (на ютуб каналах у них часто это все указано)</p>
 <p>Тут же мы можем искать рабочие заголовки для рилсов и каруселей</p>
@@ -521,10 +541,16 @@ body.rev .todo{display:block;}
 <p>Я уже выше приводил пример с каруселью, которую нашел у своей коллеги и переделал по своему, оставив только первый слайд</p>
 <p>Вы можете подписаться на коллег и следить за тем контентом, который у них хорошо набирает</p>
 <p>Второй вариант - это ваша лента рекомендаций, в которой вам может попадаться похожий контент</p>
-<p>Третий вариант - это лента дискавери</p>
+<p>Чем чаще вы будете лайкать и сохранять контент своих коллег, который залетел и в целом вам отзывается - тем больше такого контента вам будет попадаться</p>
+<p>Третий вариант - это лупа (эксплор, дискавери)</p>
 <p>Вы нажимаете поиск внизу и вам открывается раздел того, что инстаграм вам рекомендует самостоятельно (посты, рилсы, карусели) исходя из ваших интересов</p>
 <img src="/kurs/assets/photo_2026-07-22_08-11-46.jpg" alt="">
+<p>Туда попадают лучшие контентные единицы или те, что прямо сейчас набирают популярность - можно брать оттуда</p>
 <p>Таким образом можно находить интересный контент, который попадает в эту ленту и таким образом - попасть в эту ленту самим</p>
+<p>Если вас мучает совесть - вы всегда можете отмечать автора в описании</p>
+<p>Если вам стремно - повторяю еще раз, мы не КОПИРУЕМ один в один</p>
+<p>Мы заимствуем то, что сработало, и подставляем туда свои идеи / смыслы / позицию</p>
+<p>Еще никто не подавал ни на кого в суд за то, что это предложение написано буквами русского алфавита</p>
 <h3>Английский</h3>
 <p>Мы можем делать все тоже самое, только искать заходы на английском языке</p>
 <p>Да, тут чуть сложнее, если вы не знаете языка, но здесь вам могут помогать нейронки</p>
@@ -541,11 +567,25 @@ body.rev .todo{display:block;}
 <p>Он начал с "хватит делать полезный контент", и я подумал: а что если развернуть в другую сторону</p>
 <p>В итоге после этого видео название пришло само - "Продающий Контент"</p>
 <p>И после этого я сделал несколько роликов вокруг этой темы и каждый раз они набирали и давали результат</p>
-<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Мои ролики на этом смысле</th><th></th><th></th><th></th></tr></thead><tbody><tr><td><img src="/kurs/assets/photo_2026-06-28_15-31-23.jpg" alt=""></td><td><img src="/kurs/assets/photo_2026-06-28_15-31-13.jpg" alt=""></td><td><img src="/kurs/assets/photo_2026-06-28_15-30-55.jpg" alt=""></td><td><img src="/kurs/assets/photo_2026-06-28_14-46-57.jpg" alt=""></td></tr></tbody></table></div>
+<div class="kcar shots" data-i="0" data-n="4">
+      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/photo_2026-06-28_15-31-23.jpg" alt="">
+         <figcaption></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/photo_2026-06-28_15-31-13.jpg" alt="">
+         <figcaption></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/photo_2026-06-28_15-30-55.jpg" alt="">
+         <figcaption></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/photo_2026-06-28_14-46-57.jpg" alt="">
+         <figcaption></figcaption></figure></div>
+      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button><button class="kcdot" data-i="2"></button><button class="kcdot" data-i="3"></button></div>
+        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 4</span></div>
+    </div>
 <p class="punch">Формат</p>
 <p>Это рабочая тема, которой пользуются многие ребята, на которых вы подписаны</p>
 <p>Я не буду тут перечислять все примеры, просто прикреплю один из последних, что находил</p>
-<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Оригинал</th><th>Копия</th></tr></thead><tbody><tr><td><img src="/kurs/assets/photo_2026-07-22_08-41-03.jpg" alt=""></td><td><img src="/kurs/assets/photo_2026-07-22_08-42-04.jpg" alt=""></td></tr><tr><td><a href="https://www.instagram.com/reel/DTYexzyii5n/" target="_blank" rel="noopener">https://www.instagram.com/reel/DTYexzyii5n/</a></td><td><a href="https://www.instagram.com/reel/DW6fUV2DLoW/" target="_blank" rel="noopener">https://www.instagram.com/reel/DW6fUV2DLoW/</a></td></tr><tr><td>оригинал @andrea.rendl - 1,87 млн просмотров</td><td>копия на русском @coachmatiunin - 3,24 млн</td></tr></tbody></table></div>
+<div class="kcar shots" data-i="0" data-n="2">
+      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/photo_2026-07-22_08-41-03.jpg" alt="">
+         <figcaption><b>Оригинал</b><span>@andrea.rendl, 1,87 млн просмотров <a href="https://www.instagram.com/reel/DTYexzyii5n/" target="_blank" rel="noopener">https://www.instagram.com/reel/DTYexzyii5n/</a></span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/photo_2026-07-22_08-42-04.jpg" alt="">
+         <figcaption><b>Копия на русском</b><span>@coachmatiunin, 3,24 млн просмотров <a href="https://www.instagram.com/reel/DW6fUV2DLoW/" target="_blank" rel="noopener">https://www.instagram.com/reel/DW6fUV2DLoW/</a></span></figcaption></figure></div>
+      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button></div>
+        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 2</span></div>
+    </div>
 <p>Формат "кафе у Вселенной", где человек разговаривает со Вселенной, взят один в один</p>
 <p>И обратите внимание: копия обогнала оригинал почти вдвое</p>
 <p>Вы можете даже не подставлять свои тезисы, если находите какой-то формат, который вам отзывается и подходит - просто хотя бы автора отмечайте, у которого вы это взяли</p>
@@ -1086,7 +1126,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });

@@ -301,6 +301,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -809,7 +816,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -1109,6 +1128,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -1150,10 +1176,16 @@ body.rev .todo{display:block;}
 <p>27,5 тысяч лайков и 12,6 тысяч сохранений - тема людям заходит, спрос на нее есть</p>
 <p>Причем на англоязычном рынке я видел ролик с тем же смыслом, который набрал 4 миллиона просмотров. Возможно, она взяла заход оттуда</p>
 <p>Я взял этот заход и собрал его три раза:</p>
-<p><img src="/kurs/assets/l5-moya-karusel-1.jpg" alt=""> <img src="/kurs/assets/l5-moya-karusel-2.jpg" alt=""> <img src="/kurs/assets/l5-moya-karusel-3.jpg" alt=""></p>
-<p>257 826 просмотров в июне, 54 610 в июле, 19 537 в августе</p>
+<div class="kcar shots" data-i="0" data-n="3">
+      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/l5-moya-karusel-1.jpg" alt="">
+         <figcaption><b>Июнь</b><span>257 826 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/l5-moya-karusel-2.jpg" alt="">
+         <figcaption><b>Июль</b><span>54 610 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/l5-moya-karusel-3.jpg" alt="">
+         <figcaption><b>Август</b><span>19 537 просмотров</span></figcaption></figure></div>
+      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button><button class="kcdot" data-i="2"></button></div>
+        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 3</span></div>
+    </div>
 <p>И вот что важно: внутри у каждой свои смыслы, наполнение каждый раз разное</p>
-<p>Я не копировал карусель. Я взял только заход и наполнил его собой</p>
+<p>Я не копировал карусель. Я взял только заход и наполнил его своими смыслами и идеями</p>
 <p>Вторая часть - ваша позиция и то, во что вы верите</p>
 <p class="punch">ВАША ПРАВДА</p>
 <p>Когда эти две вещи стыкуются - получаются цифры</p>
@@ -1560,7 +1592,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -1860,6 +1904,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -1887,6 +1938,13 @@ body.rev .todo{display:block;}
 <p>Показательно что тут чувак просто в тачке сидит и говорит в камеру - ничего особенного</p>
 <p>А значит - тема горячая и имеет спрос</p>
 <p>Мы взяли его заход, переложили просто Женины тезисы / смыслы и это тоже дало результаты (помним - нам насрать на джекпот, мы на это не влияем)</p>
+<div class="kcar" data-i="0" data-n="2">
+      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/potok-zhenya-do.jpg" alt="">
+         <figcaption><b>Было</b><span>154, 155 и 259 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/potok-zhenya-posle.jpg" alt="">
+         <figcaption><b>Стало</b><span>134 тысячи, 71,2 тысячи и 54 тысячи просмотров на заходах с ютуба</span></figcaption></figure></div>
+      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button></div>
+        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 2</span></div>
+    </div>
 <p>То есть эти цифры для нас показательны в контексте того, что огромному количеству людей отзывается тема, люди смотрят это и взаимодействуют</p>
 <p>Таким образом же мы можем находить телеграм каналы и инстаграм аккаунты своих коллег (на ютуб каналах у них часто это все указано)</p>
 <p>Тут же мы можем искать рабочие заголовки для рилсов и каруселей</p>
@@ -2290,7 +2348,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -2315,8 +2385,8 @@ body.rev .todo{display:block;}
   },
   {
     key: "kollegi",
-    title: "Инстаграмы коллег",
-    note: "Подписаться на тех, кто работает в твоей теме, и смотреть, что у них набирает.",
+    title: "Инстаграм: коллеги, лента, лупа",
+    note: "Подписки на коллег, лента рекомендаций и лупа: где инстаграм сам показывает то, что уже набирает.",
     group: "Где искать заходы",
     html: `<!doctype html>
 <html lang="ru">
@@ -2324,7 +2394,7 @@ body.rev .todo{display:block;}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Инстаграмы коллег · Поток Спроса</title>
+<title>Инстаграм: коллеги, лента, лупа · Поток Спроса</title>
 <style>
 /* ============================================================
    НОВЫЙ УРОВЕНЬ КОНТЕНТА — статьи уровней.
@@ -2590,6 +2660,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -2598,1447 +2675,27 @@ body.rev .todo{display:block;}
 
 <header class="arthead"><div class="ahin">
   <div class="lvlbadge">Поток Спроса</div>
-  <h1>Инстаграмы коллег</h1>
-  <p class="dek">Подписаться на тех, кто работает в твоей теме, и смотреть, что у них набирает.</p>
+  <h1>Инстаграм: коллеги, лента, лупа</h1>
+  <p class="dek">Подписки на коллег, лента рекомендаций и лупа: где инстаграм сам показывает то, что уже набирает.</p>
 </div></header>
 
 <main class="wrap">
 <section>
-<h2>Инстаграмы коллег</h2>
+<h2>Инстаграм: коллеги, лента, лупа</h2>
 
 <p>Я уже выше приводил пример с каруселью, которую нашел у своей коллеги и переделал по своему, оставив только первый слайд</p>
 <p>Вы можете подписаться на коллег и следить за тем контентом, который у них хорошо набирает</p>
-</section>
-</main>
-
-<div class="readnav" id="readnav">
-  <div class="toc"></div>
-  <div class="readnav-btns">
-    <button class="rbtn" id="tocToggle" title="оглавление">☰</button>
-    <div class="pct">
-      <svg width="46" height="46"><circle cx="23" cy="23" r="19" fill="#fff" stroke="#ddd" stroke-width="3"/>
-        <circle id="rcArc" cx="23" cy="23" r="19" fill="none" stroke="#e8590c" stroke-width="3" stroke-linecap="round"/></svg>
-      <span id="rcPct">0%</span>
-    </div>
-  </div>
-</div>
-
-<script>
-/* ============================================================
-   Статьи курса: прогресс чтения, оглавление со scroll-spy, режим правок.
-   Режим правок: ?review=1 или #review — показывает пометки [визуал: …] и [ждёт …].
-   ============================================================ */
-(function () {
-  document.addEventListener('DOMContentLoaded', () => {
-    if (/[?&]review=1/.test(location.search) || location.hash === '#review') document.body.classList.add('rev');
-
-    /* ---------- оглавление ---------- */
-    const nav = document.getElementById('readnav');
-    const toc = nav && nav.querySelector('.toc');
-    const heads = [...document.querySelectorAll('section h2, section h3')];
-    if (toc && heads.length) {
-      heads.forEach((h, i) => {
-        if (!h.id) h.id = 'h' + i;
-        const a = document.createElement('a');
-        a.href = '#' + h.id;
-        a.textContent = h.textContent;
-        if (h.tagName === 'H3') a.className = 'sub';
-        a.addEventListener('click', () => nav.classList.remove('open'));
-        toc.appendChild(a);
-      });
-      const btn = document.getElementById('tocToggle');
-      if (btn) btn.addEventListener('click', () => nav.classList.toggle('open'));
-      if (window.innerWidth >= 900) nav.classList.add('open');
-    }
-
-    /* ---------- прогресс + активный пункт ---------- */
-    const bar = document.getElementById('progress');
-    const arc = document.getElementById('rcArc');
-    const pctTxt = document.getElementById('rcPct');
-    const links = toc ? [...toc.querySelectorAll('a')] : [];
-    const R = 19, LEN = 2 * Math.PI * R;
-    if (arc) { arc.style.strokeDasharray = LEN; arc.style.strokeDashoffset = LEN; }
-
-    function onScroll() {
-      const h = document.documentElement;
-      const max = h.scrollHeight - h.clientHeight;
-      const p = max > 0 ? Math.min(1, h.scrollTop / max) : 0;
-      if (bar) bar.style.width = (p * 100) + '%';
-      if (arc) arc.style.strokeDashoffset = LEN * (1 - p);
-      if (pctTxt) pctTxt.textContent = Math.round(p * 100) + '%';
-
-      let cur = 0;
-      heads.forEach((el, i) => { if (el.getBoundingClientRect().top < 140) cur = i; });
-      links.forEach((a, i) => a.classList.toggle('on', i === cur));
-      const on = links[cur];
-      if (on && toc && nav.classList.contains('open')) {
-        const t = on.offsetTop - toc.clientHeight / 2;
-        if (Math.abs(toc.scrollTop - t) > 60) toc.scrollTop = t;
-      }
-    }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    onScroll();
-  });
-})();
-
-</script>
-<script>
-/* ============================================================
-   Интерактивы для статей курса. Рендерятся в <div class="ix" data-ix="имя">.
-   Те же механики, что в презентациях, адаптированные под чтение с экрана.
-   ============================================================ */
-(function () {
-  const H = (s) => { const d = document.createElement('div'); d.innerHTML = s.trim(); return d.firstElementChild; };
-
-  const IX = {};
-
-  /* ---------- диагностика уровня ---------- */
-  IX.diag = (root) => {
-    const L = [
-      ['1', 'хотите, но ничего не делаете', 'Уровень 1. Хочу, но не делаю', 'Задача: просто начать выкладывать. Плевать какой контент, плевать какие цифры.', '02-uroven-1.html'],
-      ['2', 'когда-то делали, но бросили', 'Уровень 2. Делал, но бросил', 'Вы на первом, просто выключили игру. Задача: понять, что выбило, и вернуться с пониженной планкой.', '03-uroven-2.html'],
-      ['3', 'делаете, но вас раздражает то, что вы делаете', 'Уровень 3. Делаю, но бесит', 'Задача: собрать комфортную среду — свою форму, свою правду, свою ставку.', '04-uroven-3.html'],
-      ['4', 'не раздражает, но времени не хватает', 'Уровень 4. Не бесит, но жрёт время', 'Задача: сжать время, а не найти его. Больше времени не будет.', '05-uroven-4.html'],
-      ['5', 'времени хватает, а отклика нет', 'Уровень 5. Времени хватает, а отклика нет', 'Задача: поймать промежуточные результаты и научиться их докручивать.', '06-uroven-5.html'],
-      ['6', 'всё работает, хочу больше', 'Уровень 6. Всё работает, хочу больше', 'Задача: масштабировать то, что уже работает.', '08-uroven-6.html'],
-    ];
-    root.innerHTML = \`<div class="ixt">диагностика</div><div class="ixh">На каком вы уровне прямо сейчас</div>
-      <div class="dg">\${L.map((l, i) => \`<button class="dgr" data-i="\${i}"><b>\${l[0]}</b><span>\${l[1]}</span></button>\`).join('')}</div>
-      <div class="dgout muted">нажмите на строку, которая про вас</div>\`;
-    const out = root.querySelector('.dgout');
-    root.querySelectorAll('.dgr').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('.dgr').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      const l = L[+b.dataset.i];
-      out.classList.remove('muted');
-      out.innerHTML = \`<b>\${l[2]}</b><br>\${l[3]}<br><a href="\${l[4]}">Перейти к уровню →</a>\`;
-    }));
-  };
-
-  /* ---------- шесть замков ---------- */
-  IX.locks = (root) => {
-    const L = [
-      ['👀', 'Страх осуждения', 'Психика сформирована так, чтобы НЕ выделяться: вне стаи шансов выжить было мало. Заставляя себя, вы боретесь со своей природой.', 'Снимайте в галерею, никуда не выкладывая. И заведите новый аккаунт, где вас никто не знает.'],
-      ['📉', 'Страх неудачи', 'Вы пришли в спортзал и после первого упражнения встали на весы. Ничего не изменилось — разочарование.', 'Смените критерий: выложил единицу = победа. Результат привычки — её повторение, а не цифры.'],
-      ['💎', 'Перфекционизм', 'Скрытая форма страха. Планка настолько высокая, что вызывает стресс, а стресс съедает время и энергию, которых нет.', 'Один дубль — не переснимать вообще. И потолок времени вместо потолка качества: выкладываете то, что получилось, когда время вышло.'],
-      ['🎭', 'Синдром самозванца', '«Я недостаточно хорош» → надо стараться → слишком тяжело → оправдание → бездействие → «я недостаточно хорош». Цикл замкнулся.', 'Принять текущий уровень. Инвентаризация опыта — выписать свои кейсы. Признание от другого человека.'],
-      ['👑', 'Эго', '«Это слишком просто». Эго хочет выстрадать результат, иначе он ничего не стоит. Чаще всего с этим сталкиваются творцы.', 'Разделите контент и свою потребность. Быть уникальным — в продукте. Контент — инструмент привлечения внимания.'],
-      ['🔋', 'Нет мотивации', 'Насколько быстро вы загораетесь, настолько же быстро тухнете. Чаще всего это значит, что вы этого не хотите.', 'Вернуться к цепочке «зачем» в блоке про цель. И честно: часть вещей решается только с психотерапевтом.'],
-    ];
-    root.innerHTML = \`<div class="ixt">кликните на любой</div><div class="ixh">Что именно вас держит</div>
-      <div class="lk">\${L.map((l, i) => \`<button class="lki" data-i="\${i}"><span class="ic">\${l[0]}</span><span class="nm">\${l[1]}</span></button>\`).join('')}</div>
-      <div class="lkout muted">каждый замок открывается своим ключом</div>\`;
-    const out = root.querySelector('.lkout');
-    root.querySelectorAll('.lki').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('.lki').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      const l = L[+b.dataset.i];
-      out.classList.remove('muted');
-      out.innerHTML = \`<b>\${l[0]} \${l[1]}</b><div class="k">что за этим стоит</div><p>\${l[2]}</p><div class="k">как обойти</div><p>\${l[3]}</p>\`;
-    }));
-  };
-
-  /* ---------- долина отчаяния ---------- */
-  IX.valley = (root) => {
-    const S = [
-      [60, 70, 'Неинформированный оптимизм', 'Нашли идею, которая вдохновляет, готовы окунуться на 100%. Ещё не знаете, что впереди.'],
-      [230, 130, 'Информированный пессимизм', 'Оказывается, всё не так просто. Не хватает навыков или недооценили сложность.'],
-      [420, 250, 'Долина отчаяния', 'Всё валится из рук, сила воли трещит. Мозг подкидывает НОВУЮ классную идею или говорит «мы устали». Здесь выходят 95%.'],
-      [640, 140, 'Информированный оптимизм', 'Прошли испытание, всё начинает медленно работать. Опыт есть, вы близко.'],
-      [820, 60, 'Успех', 'Результат получен.'],
-    ];
-    root.innerHTML = \`<div class="ixt">кликните на стадию</div><div class="ixh">Любое движение к цели выглядит так</div>
-      <svg viewBox="0 0 900 300" class="vly">
-        <path d="M60,70 C160,80 180,120 230,130 C320,150 350,240 420,250 C520,262 560,180 640,140 C720,100 760,70 820,60"
-              fill="none" stroke="#ddd" stroke-width="6"/>
-        \${S.map((s, i) => \`<g class="vp" data-i="\${i}"><circle cx="\${s[0]}" cy="\${s[1]}" r="11" fill="#bbb"/>
-           <text x="\${s[0]}" y="\${s[1] - 24}" text-anchor="middle" font-size="15" font-weight="bold" fill="#666">\${i + 1}</text></g>\`).join('')}
-        <text x="420" y="292" text-anchor="middle" font-size="15" fill="#c0392b" font-weight="bold">здесь выходят 95%</text>
-      </svg>
-      <div class="vlyout muted">нажмите на точку</div>\`;
-    const out = root.querySelector('.vlyout');
-    root.querySelectorAll('.vp').forEach(g => g.addEventListener('click', () => {
-      root.querySelectorAll('.vp').forEach(x => x.classList.remove('on'));
-      g.classList.add('on');
-      const s = S[+g.dataset.i];
-      out.classList.remove('muted');
-      out.innerHTML = \`<b>Стадия \${+g.dataset.i + 1}. \${s[2]}</b><p>\${s[3]}</p>\`;
-    }));
-  };
-
-  /* ---------- почему вы вышли из игры ---------- */
-  IX.causes = (root) => {
-    const C = [
-      ['Вы ждали результатов', 'на первый уровень', 'И не увидели их в тот срок, который сами себе назначили.'],
-      ['Вы задрали планку сложности', 'на первый уровень', 'Снимали слишком долго, монтировали слишком тщательно, требовали от себя слишком много.'],
-      ['Вы делали не в той форме', 'на третий уровень', 'Писали, хотя комфортнее говорить. Или снимали, хотя проще писать.'],
-      ['Вы говорили не своё', 'на третий уровень', 'Брали чужие темы и смыслы, потому что они «должны работать».'],
-      ['У вас изменился контекст', 'вы ничего не бросали', 'Переезд, работа, ребёнок, здоровье. Это вообще не про контент.'],
-    ];
-    root.innerHTML = \`<div class="ixt">найдите свою причину</div><div class="ixh">Вариантов немного, и они почти всегда отсюда</div>
-      <div class="cz">\${C.map((c, i) => \`<button class="czi" data-i="\${i}"><span class="t">\${c[0]}</span><span class="g">\${c[1]}</span></button>\`).join('')}</div>
-      <div class="czout muted">от причины зависит, куда вам идти</div>\`;
-    const out = root.querySelector('.czout');
-    root.querySelectorAll('.czi').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('.czi').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      const c = C[+b.dataset.i];
-      out.classList.remove('muted');
-      out.innerHTML = \`<b>\${c[1]}</b> — \${c[2]}\`;
-    }));
-  };
-
-  /* ---------- ручка громкости ---------- */
-  IX.knob = (root) => {
-    const V = {
-      p: ['вы вообще не говорите, что у вас можно что-то купить — люди искренне не знают, чем вы занимаетесь',
-        'есть где-то в шапке профиля, но вы про это молчите',
-        'иногда упоминаете вскользь, в конце, извиняющимся тоном',
-        'регулярно рассказываете, что делаете и с какими задачами к вам приходят',
-        'есть прямые предложения с призывом к действию, вы запускаете диалоги первым',
-        'активная промо-кампания: оффер каждый день, во всех форматах, пока не закроете задачу'],
-      r: ['вы не проявляетесь, вас нет',
-        'выкладываете раз в месяц то, что не жалко',
-        'делитесь, но всё время себя одёргиваете',
-        'делитесь тем, что вам самому интересно, без оглядки на продажи',
-        'говорите свободно и про то, что вас правда занимает',
-        'отдаётесь процессу полностью, делаете только то, что хотите, вообще не думая про деньги'],
-    };
-    root.innerHTML = \`<div class="ixt">инструмент</div><div class="ixh">Ручка громкости</div>
-      <div class="kn">
-        <div class="knd"><svg viewBox="0 0 200 200">
-          <circle cx="100" cy="100" r="82" fill="#fff" stroke="#000" stroke-width="3"/>
-          <circle class="arc" cx="100" cy="100" r="70" fill="none" stroke="#e8590c" stroke-width="14"
-                  stroke-linecap="round" transform="rotate(135 100 100)" stroke-dasharray="0 999"/>
-          <line class="ptr" x1="100" y1="100" x2="100" y2="42" stroke="#000" stroke-width="6" stroke-linecap="round"
-                transform="rotate(-135 100 100)"/>
-          <circle cx="100" cy="100" r="9" fill="#000"/>
-          <text class="val" x="100" y="152" text-anchor="middle" font-size="34" font-weight="bold" fill="#e8590c">0</text>
-        </svg></div>
-        <div class="kns">
-          <div class="knm"><button class="ixbtn on" data-m="p">Передатчик</button><button class="ixbtn" data-m="r">Приёмник</button></div>
-          <p class="knt"></p>
-          <div class="knc"><button class="ixbtn" data-s="-1">− тише</button><button class="ixbtn" data-s="1">громче +</button></div>
-          <p class="knw"></p>
-        </div>
-      </div>\`;
-    let m = 'p', v = 0;
-    const arc = root.querySelector('.arc'), ptr = root.querySelector('.ptr'), val = root.querySelector('.val'),
-      txt = root.querySelector('.knt'), warn = root.querySelector('.knw');
-    const FULL = 2 * Math.PI * 70 * (270 / 360);
-    const draw = () => {
-      ptr.setAttribute('transform', \`rotate(\${-135 + v * 54} 100 100)\`);
-      arc.setAttribute('stroke-dasharray', \`\${(FULL * v / 5).toFixed(1)} 999\`);
-      val.textContent = v;
-      txt.innerHTML = \`<b>\${v}</b> — \${V[m][v]}\`;
-      warn.textContent = (v === 2 || v === 3) ? 'На двойке не работает ни один режим.' : '';
-    };
-    root.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('[data-m]').forEach(x => x.classList.remove('on'));
-      b.classList.add('on'); m = b.dataset.m; draw();
-    }));
-    root.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => {
-      v = Math.max(0, Math.min(5, v + (+b.dataset.s))); draw();
-    }));
-    draw();
-  };
-
-  /* ---------- калькулятор времени ---------- */
-  IX.calc = (root) => {
-    root.innerHTML = \`<div class="ixt">посчитайте</div><div class="ixh">Сколько времени забирает контент и сколько можно вернуть</div>
-      <div class="cl">
-        <label>единиц контента в неделю <input type="range" class="c1" min="1" max="15" value="5"><b class="c1v">5</b></label>
-        <label>часов на одну единицу сейчас <input type="range" class="c2" min="1" max="8" step="0.5" value="3"><b class="c2v">3 ч</b></label>
-        <div class="clres">
-          <div><span class="k">сейчас в месяц</span><b class="bad now">0 ч</b><span class="s nowd"></span></div>
-          <div><span class="k">если сжать до 30 минут</span><b class="ok aft">0 ч</b><span class="s aftd"></span></div>
-        </div>
-      </div>\`;
-    const q = s => root.querySelector(s);
-    const upd = () => {
-      const c = +q('.c1').value, h = +q('.c2').value;
-      q('.c1v').textContent = c; q('.c2v').textContent = h + ' ч';
-      const now = c * h * 4.3, aft = c * 0.5 * 4.3;
-      q('.now').textContent = Math.round(now) + ' ч';
-      q('.nowd').textContent = 'это ' + (now / 8).toFixed(1) + ' рабочих дней в месяц';
-      q('.aft').textContent = Math.round(aft) + ' ч';
-      q('.aftd').textContent = 'освободится ' + Math.round(now - aft) + ' часов, это ' + ((now - aft) / 8).toFixed(1) + ' рабочих дней';
-    };
-    q('.c1').addEventListener('input', upd); q('.c2').addEventListener('input', upd); upd();
-  };
-
-  /* ---------- докрутка по симптому ---------- */
-  IX.troub = (root) => {
-    const T = [
-      ['Мало просмотров', 'Вы не цепляете внимание', 'Неинтересные первые 3–4 секунды.', 'Придумать отличительную фишку · сделать заголовок интереснее · выбрать более интересную идею'],
-      ['Мало сохранений', 'Нет ценности, нечего сохранять', 'Человеку нечего забрать с собой.', 'Показать решение визуально: на доске, в тетрадке, графикой · поменять идею на такую, которую можно показать'],
-      ['Мало репостов', 'Люди не узнают свою ситуацию', 'Делятся тем, в чём узнают себя.', 'Искать идеи, актуальные для зрителя · показывать ситуации, с которыми аудитория реально сталкивается'],
-      ['Мало лайков', 'Слабая идея', 'Лайк — реакция на саму мысль.', 'Вернуться к карте смыслов и проверить идею по четырём категориям'],
-      ['Мало комментариев', 'Нет эмоции', 'Это никого не задевает.', 'Комментарии сейчас в самом низу приоритета: все гоняют ключевые слова, площадка понизила их в рейтинге'],
-    ];
-    root.innerHTML = \`<div class="ixt">выберите симптом</div><div class="ixh">Работаем по причинам, а не наугад</div>
-      <div class="tb">\${T.map((t, i) => \`<button class="tbi" data-i="\${i}">\${t[0]}</button>\`).join('')}</div>
-      <div class="tbout muted">нажмите на симптом</div>\`;
-    const out = root.querySelector('.tbout');
-    root.querySelectorAll('.tbi').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('.tbi').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      const t = T[+b.dataset.i];
-      out.classList.remove('muted');
-      out.innerHTML = \`<b>\${t[1]}</b><p class="muted">\${t[2]}</p><p>\${t[3]}</p>\`;
-    }));
-  };
-
-  /* ---------- тест на выкидывание ---------- */
-  IX.unit = (root) => {
-    root.innerHTML = \`<div class="ixt">тест на выкидывание</div><div class="ixh">Уберите элемент и посмотрите, что сломается</div>
-      <div class="un">
-        <div class="uni" data-el="s"><span class="k">смысл</span><b>Что я утверждаю</b>
-          <p>«можно не тратить кучу времени на контент, который сдохнет за час»</p><button class="ixbtn">убрать</button></div>
-        <div class="uni" data-el="p"><span class="k">пруф</span><b>Чем я это держу</b>
-          <p>статистика двух единиц: рилс за 3 минуты и карусель за 15 минут</p><button class="ixbtn">убрать</button></div>
-        <div class="uni" data-el="u"><span class="k">упаковка</span><b>Как это заходит</b>
-          <p>формат эксперимента: «я проверил на себе и показываю цифры»</p><button class="ixbtn">убрать</button></div>
-      </div>
-      <div class="unout"><b class="ok">Всё на месте.</b> Человек начинает смотреть, верит и забирает смысл.</div>\`;
-    const st = { s: true, p: true, u: true };
-    const out = root.querySelector('.unout');
-    const txt = () => {
-      const { s, p, u } = st;
-      if (s && p && u) return '<b class="ok">Всё на месте.</b> Человек начинает смотреть, верит и забирает смысл.';
-      if (!u && s && p) return '<b class="bad">Без упаковки:</b> цифры и мысль остались, но их никто не увидит.';
-      if (!p && s && u) return '<b class="bad">Без пруфа:</b> осталось «не тратьте много времени» — то есть мнение. Таких мнений в ленте тысяча.';
-      if (!s && p && u) return '<b class="bad">Без смысла:</b> красивый эксперимент, из которого непонятно, что вы утверждаете.';
-      if (!s && !p) return '<b class="bad">Осталась только форма.</b> Посмотрят и забудут через минуту.';
-      if (!p && !u) return '<b class="bad">Голое утверждение.</b> Ни смотреть, ни верить.';
-      if (!s && !u) return '<b class="bad">Набор цифр без идеи и без входа.</b> Это не контент, это отчёт.';
-      return '<b class="bad">Пусто.</b> Ничего не осталось.';
-    };
-    root.querySelectorAll('.uni').forEach(b => {
-      b.querySelector('button').addEventListener('click', () => {
-        const k = b.dataset.el; st[k] = !st[k];
-        b.classList.toggle('off', !st[k]);
-        b.querySelector('button').textContent = st[k] ? 'убрать' : 'вернуть';
-        out.innerHTML = txt();
-      });
-    });
-  };
-
-  /* ---------- конструктор переупаковки ---------- */
-  IX.repurpose = (root) => {
-    const O = [['длинное видео на YouTube', 1], ['3 нарезки в Reels', 3], ['3 шортса на YouTube', 3],
-      ['пост в телеграм', 1], ['2 карусели', 2], ['4 тредса', 4]];
-    root.innerHTML = \`<div class="ixt">соберите свою переупаковку</div><div class="ixh">Один рабочий созвон → сколько единиц</div>
-      <div class="rp">\${O.map((o, i) => \`<button class="rpi" data-w="\${o[1]}">\${o[0]}</button>\`).join('')}</div>
-      <div class="rpout">из одной записи получается <b>0</b> единиц контента</div>\`;
-    const out = root.querySelector('.rpout');
-    root.querySelectorAll('.rpi').forEach(o => o.addEventListener('click', () => {
-      o.classList.toggle('on');
-      let n = 0; root.querySelectorAll('.rpi.on').forEach(x => n += +x.dataset.w);
-      out.innerHTML = \`из одной записи получается <b>\${n}</b> единиц контента\`;
-    }));
-  };
-
-  /* ---------- весы ХОЧУ / НАДО ---------- */
-  IX.scale = (root) => {
-    root.innerHTML = \`<div class="ixt">баланс</div><div class="ixh">Что делать с вашим перекосом</div>
-      <div class="sc"><div class="scl">ХОЧУ</div><div class="scr">НАДО</div></div>
-      <div class="scc"><button class="ixbtn" data-s="h">много ХОЧУ, мало НАДО</button><button class="ixbtn" data-s="n">много НАДО, мало ХОЧУ</button></div>
-      <div class="scout muted">выберите свой перекос</div>\`;
-    const l = root.querySelector('.scl'), r = root.querySelector('.scr'), out = root.querySelector('.scout');
-    const D = {
-      h: ['78%', '22%', '<b>Создаём условия для действий.</b> Подносим кочергу к жопке: органичный дедлайн, обещание другому человеку, расписание. Энергия есть, не хватает необходимости.'],
-      n: ['22%', '78%', '<b>Протыкаем ёмкость.</b> Отпускаем ситуацию, разрешаем себе своё ХОЧУ — и оно появляется. Давление сбрасывается, на освободившемся месте появляются силы.'],
-    };
-    root.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('[data-s]').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      const d = D[b.dataset.s];
-      l.style.width = d[0]; r.style.width = d[1];
-      out.classList.remove('muted'); out.innerHTML = d[2];
-    }));
-  };
-
-  /* ---------- карта пройденного пути ---------- */
-  IX.path = (root) => {
-    const S = [
-      ['Зачем вам блог', 'есть цепочка, которая держит контент в приоритетах'],
-      ['Уровень 1 · начали', 'знаете, как обходить свою систему безопасности, а не бороться с ней'],
-      ['Уровень 2 · вернулись', 'знаете, почему бросили и что делать, если повторится'],
-      ['Уровень 3 · не бесит', 'собрали свою форму, свою правду и свою ставку'],
-      ['Уровень 4 · не жрёт время', 'единица занимает столько, сколько вы ей отвели'],
-      ['Уровень 5 · есть отклик', 'поток спроса плюс ваша правда, упакованные так, чтобы человек узнал себя'],
-      ['Уровень 6 · масштаб', 'тиражируете то, что работает, вместо того чтобы пахать больше'],
-    ];
-    root.innerHTML = \`<div class="ixt">отметьте, что уже закрыто</div><div class="ixh">Пройдитесь по своему пути</div>
-      <div class="pth">\${S.map((s, i) => \`<button class="pti" data-i="\${i}"><span class="n">\${i === 0 ? '0' : i}</span>
-        <span class="t">\${s[0]}</span><span class="g">\${s[1]}</span><span class="ck">✓</span></button>\`).join('')}</div>
-      <div class="pthout muted">нажимайте на ступени, которые вы уже закрыли</div>\`;
-    const out = root.querySelector('.pthout');
-    root.querySelectorAll('.pti').forEach(b => b.addEventListener('click', () => {
-      b.classList.toggle('done');
-      const n = root.querySelectorAll('.pti.done').length;
-      out.classList.toggle('muted', n === 0);
-      out.innerHTML = n === 0 ? 'нажимайте на ступени, которые вы уже закрыли'
-        : (n === S.length ? '<b>Весь стек собран.</b> Дальше — сверка раз в месяц и масштаб.'
-          : \`Закрыто <b>\${n}</b> из \${S.length}. Остальное — ваш план на ближайшие месяцы.\`);
-    }));
-  };
-
-  /* ---------- карусель иллюстраций (собирается генератором из %%carousel%%) ---------- */
-  function initCarousels() {
-    document.querySelectorAll('.kcar').forEach(car => {
-      const frames = [...car.querySelectorAll('.kcfr')];
-      const dots = [...car.querySelectorAll('.kcdot')];
-      const cnt = car.querySelector('.kccnt');
-      const set = i => {
-        i = Math.max(0, Math.min(frames.length - 1, i));
-        car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
-        dots.forEach((d, j) => d.classList.toggle('on', j === i));
-        cnt.textContent = (i + 1) + ' / ' + frames.length;
-        car.querySelectorAll('.kcarrow').forEach(b => {
-          const d = Number(b.dataset.d);
-          b.disabled = (d < 0 && i === 0) || (d > 0 && i === frames.length - 1);
-        });
-      };
-      car.querySelectorAll('.kcarrow').forEach(b =>
-        b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
-      dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
-        const i = Number(car.dataset.i);
-        set(i >= frames.length - 1 ? 0 : i + 1);
-      });
-      set(0);
-    });
-  }
-
-  /* ---------- запуск ---------- */
-  document.addEventListener('DOMContentLoaded', () => {
-    initCarousels();
-    document.querySelectorAll('.ix[data-ix]').forEach(el => {
-      const fn = IX[el.dataset.ix];
-      if (fn) { try { fn(el); } catch (e) { console.warn('ix ' + el.dataset.ix, e); } }
-      else el.innerHTML = '<div class="ixt">интерактив</div><p class="muted">' + el.dataset.ix + ' — не найден</p>';
-    });
-  });
-})();
-
-</script>
-</body>
-</html>`,
-  },
-  {
-    key: "lenta",
-    title: "Лента рекомендаций",
-    note: "То, что инстаграм приносит сам: похожий контент попадается в ленте, если ты его смотришь.",
-    group: "Где искать заходы",
-    html: `<!doctype html>
-<html lang="ru">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
-<title>Лента рекомендаций · Поток Спроса</title>
-<style>
-/* ============================================================
-   НОВЫЙ УРОВЕНЬ КОНТЕНТА — статьи уровней.
-   Системный стиль, как в algoritm-sistema.html: Times, колонка 620,
-   оранжевый акцент, жёсткие рамки, offset-тени, Courier-лейблы.
-   ============================================================ */
-:root{
-  --accent:#e8590c;
-  --marker:#ffb239;
-  --done:#2f9e44;
-  --miss:#c0392b;
-}
-*{box-sizing:border-box;}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;}
-html,body{max-width:100%;overflow-x:hidden;}
-body{margin:0;background:#fff;color:#000;font-size:20px;line-height:1.62;}
-body,body *,body *::before,body *::after{font-family:"Times New Roman",Times,serif;}
-a{color:var(--accent);text-decoration:underline;}
-a:hover{color:#000;}
-.ac,.em{color:var(--accent);}
-.muted{color:#666;}
-
-/* прогресс чтения */
-#progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--accent);z-index:50;transition:width .1s linear;}
-
-/* навбар */
-.nav{border-bottom:1px solid #ccc;}
-.navInner{max-width:720px;margin:0 auto;padding:14px 24px;display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-.brand{font-weight:bold;font-size:18px;color:#000;text-decoration:none;}
-.navLinks{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;}
-.navLink{color:var(--accent);text-decoration:underline;}
-.navLink:hover{color:#000;}
-
-/* шапка уровня */
-.arthead{border-bottom:1px solid #ccc;}
-.ahin{max-width:620px;margin:0 auto;padding:40px 24px 30px;}
-.backlink{display:inline-block;font-size:14px;color:#666;text-decoration:none;margin-bottom:20px;}
-.backlink:hover{color:#000;}
-.lvlbadge{display:inline-block;font-family:"Courier New",Courier,monospace;font-size:12px;letter-spacing:.14em;
-  text-transform:uppercase;color:#fff;background:var(--accent);padding:5px 10px;margin-bottom:16px;font-weight:bold;}
-.arthead h1{font-size:2.4em;font-weight:bold;line-height:1.13;margin:0 0 16px;}
-.arthead .dek{font-size:1.1em;color:#444;line-height:1.5;margin:0 0 22px;max-width:60ch;}
-.taskline{border:1px solid #000;border-left:4px solid var(--accent);background:#fffaf2;padding:12px 16px;font-size:16px;line-height:1.45;}
-.taskline b{color:var(--accent);}
-
-/* контейнер и секции */
-.wrap{max-width:620px;width:100%;margin:0 auto;padding:0 24px;}
-section{padding:38px 0;border-bottom:1px dashed #ccc;}
-section:last-of-type{border-bottom:none;}
-.slabel{display:inline-block;font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);font-weight:bold;margin-bottom:12px;}
-
-/* типографика */
-h2{font-size:1.6em;font-weight:bold;line-height:1.18;margin:0 0 10px;}
-h3{font-size:1.2em;font-weight:bold;line-height:1.25;margin:22px 0 6px;}
-h4{font-size:1.05em;font-weight:bold;margin:18px 0 4px;}
-p{margin:0 0 14px;}
-.lead{font-size:1.15em;line-height:1.45;font-weight:bold;}
-.punch{font-size:1.5em;font-weight:bold;line-height:1.2;margin:26px 0;}
-ul,ol{margin:0 0 16px;padding-left:24px;}
-li{margin:0 0 6px;}
-blockquote{margin:24px 0;padding:8px 0 8px 18px;border-left:3px solid var(--accent);color:#333;}
-blockquote p{margin:0 0 6px;font-size:1.05em;line-height:1.42;}
-blockquote p:last-child{margin-bottom:0;}
-img{max-width:100%;height:auto;display:block;margin:20px auto;border:1px solid #ddd;}
-figure{margin:24px 0;}
-figcaption{font-size:14px;color:#666;text-align:center;margin-top:8px;}
-
-/* карточки и врезки */
-.callout{border:1px solid #000;background:#fafafa;padding:20px 22px;margin:20px 0;}
-.callout .ct{font-family:"Courier New",Courier,monospace;font-size:12px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--accent);font-weight:bold;margin-bottom:8px;}
-.warnbox{border:1px solid var(--accent);background:#fffaf2;padding:16px 18px;margin:20px 0;font-size:16px;line-height:1.45;}
-.tbl{width:100%;border-collapse:collapse;font-size:16px;margin:20px 0;}
-.tbl th,.tbl td{border:1px solid #ccc;padding:9px 11px;text-align:left;vertical-align:top;}
-.tbl th{background:#f5f2f0;font-size:13px;text-transform:uppercase;letter-spacing:.08em;}
-.tbl td.yes{color:var(--done);font-weight:bold;}
-.tbl td.no{color:var(--miss);font-weight:bold;}
-.tbl-scroll{overflow-x:auto;}
-/* скриншоты внутри таблицы — сравнение «оригинал / мой заход» */
-.tbl td img{margin:0;border:1px solid #ddd;max-width:100%;}
-.tbl td:has(img){padding:8px;}
-.tbl td a{font-size:13px;word-break:break-all;}
-
-/* задача и маркер уровня */
-.taskbox{border:2px solid #000;box-shadow:5px 5px 0 var(--accent);padding:22px 24px;margin:26px 0;}
-.taskbox .tt{font-family:"Courier New",Courier,monospace;font-size:12px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--accent);font-weight:bold;margin-bottom:10px;}
-.markerbox{border:1px solid #000;background:#f4fbf5;border-left:4px solid var(--done);padding:16px 18px;margin:22px 0;}
-.markerbox .tt{font-family:"Courier New",Courier,monospace;font-size:12px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--done);font-weight:bold;margin-bottom:6px;}
-
-/* пометки для Саши: [визуал: ...] и [ждёт ...] */
-.todo{display:none;font-family:"Courier New",Courier,monospace;font-size:13px;line-height:1.4;
-  color:#b45309;background:#fffbeb;border:1px dashed #f59e0b;padding:8px 12px;margin:14px 0;}
-body.rev .todo{display:block;}
-
-/* нижняя навигация между уровнями */
-.lvlnav{display:flex;gap:14px;justify-content:space-between;padding:34px 0 60px;flex-wrap:wrap;}
-.lvlnav a{flex:1;min-width:220px;border:1px solid #000;padding:14px 16px;text-decoration:none;color:#000;background:#fff;}
-.lvlnav a:hover{background:#fffaf2;border-color:var(--accent);}
-.lvlnav a .k{display:block;font-family:"Courier New",Courier,monospace;font-size:11px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--accent);margin-bottom:4px;}
-.lvlnav a .n{font-weight:bold;font-size:17px;line-height:1.25;}
-.lvlnav a.next{text-align:right;}
-
-/* оглавление + процент */
-.readnav{position:fixed;right:20px;bottom:20px;z-index:45;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
-.readnav .toc{display:none;background:#fff;border:2px solid #000;box-shadow:4px 4px 0 rgba(0,0,0,.18);
-  padding:12px 14px;max-width:260px;max-height:56vh;overflow-y:auto;font-size:14px;line-height:1.35;}
-.readnav.open .toc{display:block;}
-.readnav .toc a{display:block;color:#333;text-decoration:none;padding:4px 0;border-bottom:1px solid #eee;}
-.readnav .toc a:last-child{border-bottom:none;}
-.readnav .toc a.on{color:var(--accent);font-weight:bold;}
-.readnav .toc a.sub{padding-left:12px;font-size:13px;color:#666;}
-.readnav-btns{display:flex;align-items:center;gap:10px;}
-.readnav .rbtn{width:44px;height:44px;background:#fff;border:2px solid #000;box-shadow:3px 3px 0 rgba(0,0,0,.18);
-  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;padding:0;}
-.readnav .rbtn:hover{border-color:var(--accent);color:var(--accent);}
-.readnav .pct{position:relative;width:46px;height:46px;}
-.readnav .pct svg{transform:rotate(-90deg);}
-.readnav .pct span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:"Courier New",Courier,monospace;font-size:12px;font-weight:bold;}
-@media(max-width:560px){.readnav{right:12px;bottom:12px;}.readnav .toc{max-width:200px;}}
-
-/* CTA */
-.softcta{border:1px solid #000;border-left:4px solid var(--accent);background:#fffaf2;padding:16px 18px;margin:26px 0;
-  display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-.softcta .sct{flex:1;min-width:200px;font-size:16px;line-height:1.45;}
-.softcta .sct b{color:var(--accent);}
-.bevel{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-weight:bold;
-  padding:11px 18px;border:2px solid #000;box-shadow:4px 4px 0 #000;font-size:16px;}
-.bevel:hover{background:#000;color:#fff;box-shadow:4px 4px 0 var(--accent);}
-
-/* интерактивы — общая рамка */
-.ix{border:2px solid #000;background:#fff;padding:20px 22px;margin:26px 0;box-shadow:5px 5px 0 rgba(0,0,0,.1);}
-.ix .ixt{font-family:"Courier New",Courier,monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--accent);font-weight:bold;margin-bottom:12px;}
-.ix .ixh{font-size:1.15em;font-weight:bold;line-height:1.25;margin-bottom:14px;}
-.ix .ixhint{font-size:14px;color:#666;margin-top:12px;font-style:italic;}
-.ixbtn{border:1px solid #000;background:#fff;padding:9px 14px;font-size:15px;cursor:pointer;font-family:inherit;}
-.ixbtn:hover{border-color:var(--accent);color:var(--accent);}
-.ixbtn.on{background:var(--accent);border-color:#000;color:#fff;}
-.ix .k{display:block;font-family:"Courier New",Courier,monospace;font-size:11px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--accent);font-weight:bold;margin:12px 0 4px;}
-.ix .ok{color:var(--done);} .ix .bad{color:var(--miss);}
-.ix p{font-size:16px;line-height:1.45;margin:0 0 8px;}
-
-/* диагностика */
-.dg{display:flex;flex-direction:column;gap:7px;}
-.dgr{display:flex;align-items:center;gap:14px;border:1px solid #ccc;background:#fff;padding:11px 14px;
-  cursor:pointer;text-align:left;font-family:inherit;font-size:16px;}
-.dgr:hover{border-color:var(--accent);}
-.dgr.on{border-color:var(--accent);background:#fffaf2;}
-.dgr b{color:var(--accent);font-size:19px;min-width:18px;}
-.dgout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:52px;}
-
-/* замки */
-.lk{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-@media(max-width:560px){.lk{grid-template-columns:repeat(2,1fr);}}
-.lki{border:1px solid #ccc;background:#fff;padding:12px 10px;cursor:pointer;text-align:left;font-family:inherit;}
-.lki:hover{border-color:var(--accent);}
-.lki.on{border-color:var(--accent);background:#fffaf2;}
-.lki .ic{display:block;font-size:22px;line-height:1;}
-.lki .nm{display:block;font-size:15px;font-weight:bold;margin-top:6px;line-height:1.2;}
-.lkout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:70px;}
-
-/* долина */
-.vly{width:100%;height:auto;display:block;margin:6px 0;}
-.vly .vp{cursor:pointer;}
-.vly .vp.on circle{fill:var(--accent);r:15;}
-.vly .vp.on text{fill:#000;}
-.vlyout{margin-top:10px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:60px;}
-
-/* причины */
-.cz{display:flex;flex-direction:column;gap:7px;}
-.czi{display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid #ccc;background:#fff;
-  padding:11px 14px;cursor:pointer;text-align:left;font-family:inherit;font-size:16px;}
-.czi:hover{border-color:var(--accent);}
-.czi.on{border-color:var(--accent);background:#fffaf2;}
-.czi .t{font-weight:bold;}
-.czi .g{font-size:13px;color:var(--accent);white-space:nowrap;}
-.czout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:44px;}
-
-/* ручка громкости */
-.kn{display:flex;gap:22px;align-items:center;flex-wrap:wrap;}
-.knd{flex:0 0 180px;} .knd svg{width:180px;height:180px;}
-.kns{flex:1;min-width:240px;}
-.knm{display:flex;gap:8px;margin-bottom:14px;}
-.knt{font-size:16px;line-height:1.45;min-height:66px;}
-.knc{display:flex;gap:8px;margin-top:8px;}
-.knw{color:var(--miss);font-weight:bold;font-size:15px;margin-top:10px;min-height:20px;}
-
-/* калькулятор */
-.cl label{display:flex;align-items:center;gap:12px;font-size:16px;margin-bottom:12px;flex-wrap:wrap;}
-.cl input[type=range]{flex:1;min-width:180px;accent-color:#e8590c;}
-.cl label b{color:var(--accent);min-width:60px;text-align:right;}
-.clres{display:flex;gap:24px;border-top:1px solid #ddd;padding-top:16px;margin-top:6px;flex-wrap:wrap;}
-.clres > div{flex:1;min-width:180px;}
-.clres .k{margin:0 0 4px;}
-.clres b{display:block;font-size:32px;line-height:1.1;}
-.clres .s{display:block;font-size:14px;color:#666;margin-top:4px;}
-
-/* докрутка */
-.tb{display:flex;flex-wrap:wrap;gap:7px;}
-.tbi{border:1px solid #ccc;background:#fff;padding:9px 13px;cursor:pointer;font-family:inherit;font-size:15px;font-weight:bold;}
-.tbi:hover{border-color:var(--accent);}
-.tbi.on{border-color:var(--accent);background:#fffaf2;}
-.tbout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:70px;}
-
-/* формула */
-.un{display:flex;gap:10px;flex-wrap:wrap;}
-.uni{flex:1;min-width:170px;border:2px solid #000;padding:13px 14px;transition:.2s;}
-.uni.off{opacity:.22;border-style:dashed;}
-.uni b{display:block;font-size:16px;margin:4px 0 6px;}
-.uni p{font-size:14px;color:#555;line-height:1.35;}
-.unout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:44px;}
-
-/* переупаковка */
-.rp{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;}
-@media(max-width:560px){.rp{grid-template-columns:1fr;}}
-.rpi{border:1px dashed #ccc;background:#fff;padding:10px 13px;cursor:pointer;font-family:inherit;font-size:15px;color:#888;text-align:left;}
-.rpi:hover{border-color:var(--accent);}
-.rpi.on{border-style:solid;border-color:var(--accent);background:#fffaf2;color:#000;font-weight:bold;}
-.rpout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:18px;}
-.rpout b{font-size:28px;color:var(--accent);}
-
-/* карта пути */
-.pth{display:flex;flex-direction:column-reverse;gap:6px;}
-.pti{display:flex;align-items:center;gap:12px;border:1px solid #ccc;background:#fff;padding:10px 13px;
-  cursor:pointer;text-align:left;font-family:inherit;font-size:15px;}
-.pti:hover{border-color:var(--accent);}
-.pti.done{border-color:var(--done);background:#f4fbf5;}
-.pti .n{font-weight:bold;color:var(--accent);min-width:16px;}
-.pti.done .n{color:var(--done);}
-.pti .t{font-weight:bold;min-width:150px;}
-.pti .g{flex:1;font-size:13px;color:#666;}
-.pti .ck{opacity:0;color:var(--done);font-weight:bold;}
-.pti.done .ck{opacity:1;}
-.pthout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;min-height:30px;}
-
-/* весы */
-.sc{display:flex;height:46px;border:2px solid #000;overflow:hidden;}
-.scl{background:var(--accent);color:#fff;width:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;transition:.3s;}
-.scr{background:#000;color:#fff;width:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;transition:.3s;}
-.scc{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
-.scout{margin-top:16px;font-size:16px;line-height:1.45;min-height:44px;}
-
-/* карусель иллюстраций (%%carousel%% в markdown) */
-.kcar{margin:26px 0;border:1px solid #ddd;background:#fff;padding:18px 18px 14px;}
-.kcfrs{position:relative;cursor:pointer;}
-.kcfr{margin:0;display:none;}
-.kcfr.on{display:block;}
-.kcfr img{width:100%;display:block;border:1px solid #eee;margin:0;}
-.kcfr figcaption{margin-top:14px;min-height:76px;}
-.kcfr figcaption b{display:block;font-size:1.05em;margin-bottom:5px;}
-.kcfr figcaption span{display:block;font-size:.95em;line-height:1.5;color:#444;}
-.kcbar{display:flex;align-items:center;gap:14px;margin-top:12px;border-top:1px solid #eee;padding-top:12px;}
-.kcarrow{width:34px;height:34px;border:1px solid #bbb;background:#fff;cursor:pointer;font-size:18px;
-  line-height:1;font-family:inherit;color:#000;padding:0;}
-.kcarrow:hover:not(:disabled){background:#000;color:#fff;border-color:#000;}
-.kcarrow:disabled{opacity:.28;cursor:default;}
-.kcdots{display:flex;gap:7px;}
-.kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
-.kcdot.on{background:var(--accent);border-color:var(--accent);}
-.kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
-
-</style>
-</head>
-<body>
-<div id="progress"></div>
-
-<header class="arthead"><div class="ahin">
-  <div class="lvlbadge">Поток Спроса</div>
-  <h1>Лента рекомендаций</h1>
-  <p class="dek">То, что инстаграм приносит сам: похожий контент попадается в ленте, если ты его смотришь.</p>
-</div></header>
-
-<main class="wrap">
-<section>
-<h2>Лента рекомендаций</h2>
 <p>Второй вариант - это ваша лента рекомендаций, в которой вам может попадаться похожий контент</p>
-</section>
-</main>
-
-<div class="readnav" id="readnav">
-  <div class="toc"></div>
-  <div class="readnav-btns">
-    <button class="rbtn" id="tocToggle" title="оглавление">☰</button>
-    <div class="pct">
-      <svg width="46" height="46"><circle cx="23" cy="23" r="19" fill="#fff" stroke="#ddd" stroke-width="3"/>
-        <circle id="rcArc" cx="23" cy="23" r="19" fill="none" stroke="#e8590c" stroke-width="3" stroke-linecap="round"/></svg>
-      <span id="rcPct">0%</span>
-    </div>
-  </div>
-</div>
-
-<script>
-/* ============================================================
-   Статьи курса: прогресс чтения, оглавление со scroll-spy, режим правок.
-   Режим правок: ?review=1 или #review — показывает пометки [визуал: …] и [ждёт …].
-   ============================================================ */
-(function () {
-  document.addEventListener('DOMContentLoaded', () => {
-    if (/[?&]review=1/.test(location.search) || location.hash === '#review') document.body.classList.add('rev');
-
-    /* ---------- оглавление ---------- */
-    const nav = document.getElementById('readnav');
-    const toc = nav && nav.querySelector('.toc');
-    const heads = [...document.querySelectorAll('section h2, section h3')];
-    if (toc && heads.length) {
-      heads.forEach((h, i) => {
-        if (!h.id) h.id = 'h' + i;
-        const a = document.createElement('a');
-        a.href = '#' + h.id;
-        a.textContent = h.textContent;
-        if (h.tagName === 'H3') a.className = 'sub';
-        a.addEventListener('click', () => nav.classList.remove('open'));
-        toc.appendChild(a);
-      });
-      const btn = document.getElementById('tocToggle');
-      if (btn) btn.addEventListener('click', () => nav.classList.toggle('open'));
-      if (window.innerWidth >= 900) nav.classList.add('open');
-    }
-
-    /* ---------- прогресс + активный пункт ---------- */
-    const bar = document.getElementById('progress');
-    const arc = document.getElementById('rcArc');
-    const pctTxt = document.getElementById('rcPct');
-    const links = toc ? [...toc.querySelectorAll('a')] : [];
-    const R = 19, LEN = 2 * Math.PI * R;
-    if (arc) { arc.style.strokeDasharray = LEN; arc.style.strokeDashoffset = LEN; }
-
-    function onScroll() {
-      const h = document.documentElement;
-      const max = h.scrollHeight - h.clientHeight;
-      const p = max > 0 ? Math.min(1, h.scrollTop / max) : 0;
-      if (bar) bar.style.width = (p * 100) + '%';
-      if (arc) arc.style.strokeDashoffset = LEN * (1 - p);
-      if (pctTxt) pctTxt.textContent = Math.round(p * 100) + '%';
-
-      let cur = 0;
-      heads.forEach((el, i) => { if (el.getBoundingClientRect().top < 140) cur = i; });
-      links.forEach((a, i) => a.classList.toggle('on', i === cur));
-      const on = links[cur];
-      if (on && toc && nav.classList.contains('open')) {
-        const t = on.offsetTop - toc.clientHeight / 2;
-        if (Math.abs(toc.scrollTop - t) > 60) toc.scrollTop = t;
-      }
-    }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    onScroll();
-  });
-})();
-
-</script>
-<script>
-/* ============================================================
-   Интерактивы для статей курса. Рендерятся в <div class="ix" data-ix="имя">.
-   Те же механики, что в презентациях, адаптированные под чтение с экрана.
-   ============================================================ */
-(function () {
-  const H = (s) => { const d = document.createElement('div'); d.innerHTML = s.trim(); return d.firstElementChild; };
-
-  const IX = {};
-
-  /* ---------- диагностика уровня ---------- */
-  IX.diag = (root) => {
-    const L = [
-      ['1', 'хотите, но ничего не делаете', 'Уровень 1. Хочу, но не делаю', 'Задача: просто начать выкладывать. Плевать какой контент, плевать какие цифры.', '02-uroven-1.html'],
-      ['2', 'когда-то делали, но бросили', 'Уровень 2. Делал, но бросил', 'Вы на первом, просто выключили игру. Задача: понять, что выбило, и вернуться с пониженной планкой.', '03-uroven-2.html'],
-      ['3', 'делаете, но вас раздражает то, что вы делаете', 'Уровень 3. Делаю, но бесит', 'Задача: собрать комфортную среду — свою форму, свою правду, свою ставку.', '04-uroven-3.html'],
-      ['4', 'не раздражает, но времени не хватает', 'Уровень 4. Не бесит, но жрёт время', 'Задача: сжать время, а не найти его. Больше времени не будет.', '05-uroven-4.html'],
-      ['5', 'времени хватает, а отклика нет', 'Уровень 5. Времени хватает, а отклика нет', 'Задача: поймать промежуточные результаты и научиться их докручивать.', '06-uroven-5.html'],
-      ['6', 'всё работает, хочу больше', 'Уровень 6. Всё работает, хочу больше', 'Задача: масштабировать то, что уже работает.', '08-uroven-6.html'],
-    ];
-    root.innerHTML = \`<div class="ixt">диагностика</div><div class="ixh">На каком вы уровне прямо сейчас</div>
-      <div class="dg">\${L.map((l, i) => \`<button class="dgr" data-i="\${i}"><b>\${l[0]}</b><span>\${l[1]}</span></button>\`).join('')}</div>
-      <div class="dgout muted">нажмите на строку, которая про вас</div>\`;
-    const out = root.querySelector('.dgout');
-    root.querySelectorAll('.dgr').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('.dgr').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      const l = L[+b.dataset.i];
-      out.classList.remove('muted');
-      out.innerHTML = \`<b>\${l[2]}</b><br>\${l[3]}<br><a href="\${l[4]}">Перейти к уровню →</a>\`;
-    }));
-  };
-
-  /* ---------- шесть замков ---------- */
-  IX.locks = (root) => {
-    const L = [
-      ['👀', 'Страх осуждения', 'Психика сформирована так, чтобы НЕ выделяться: вне стаи шансов выжить было мало. Заставляя себя, вы боретесь со своей природой.', 'Снимайте в галерею, никуда не выкладывая. И заведите новый аккаунт, где вас никто не знает.'],
-      ['📉', 'Страх неудачи', 'Вы пришли в спортзал и после первого упражнения встали на весы. Ничего не изменилось — разочарование.', 'Смените критерий: выложил единицу = победа. Результат привычки — её повторение, а не цифры.'],
-      ['💎', 'Перфекционизм', 'Скрытая форма страха. Планка настолько высокая, что вызывает стресс, а стресс съедает время и энергию, которых нет.', 'Один дубль — не переснимать вообще. И потолок времени вместо потолка качества: выкладываете то, что получилось, когда время вышло.'],
-      ['🎭', 'Синдром самозванца', '«Я недостаточно хорош» → надо стараться → слишком тяжело → оправдание → бездействие → «я недостаточно хорош». Цикл замкнулся.', 'Принять текущий уровень. Инвентаризация опыта — выписать свои кейсы. Признание от другого человека.'],
-      ['👑', 'Эго', '«Это слишком просто». Эго хочет выстрадать результат, иначе он ничего не стоит. Чаще всего с этим сталкиваются творцы.', 'Разделите контент и свою потребность. Быть уникальным — в продукте. Контент — инструмент привлечения внимания.'],
-      ['🔋', 'Нет мотивации', 'Насколько быстро вы загораетесь, настолько же быстро тухнете. Чаще всего это значит, что вы этого не хотите.', 'Вернуться к цепочке «зачем» в блоке про цель. И честно: часть вещей решается только с психотерапевтом.'],
-    ];
-    root.innerHTML = \`<div class="ixt">кликните на любой</div><div class="ixh">Что именно вас держит</div>
-      <div class="lk">\${L.map((l, i) => \`<button class="lki" data-i="\${i}"><span class="ic">\${l[0]}</span><span class="nm">\${l[1]}</span></button>\`).join('')}</div>
-      <div class="lkout muted">каждый замок открывается своим ключом</div>\`;
-    const out = root.querySelector('.lkout');
-    root.querySelectorAll('.lki').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('.lki').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      const l = L[+b.dataset.i];
-      out.classList.remove('muted');
-      out.innerHTML = \`<b>\${l[0]} \${l[1]}</b><div class="k">что за этим стоит</div><p>\${l[2]}</p><div class="k">как обойти</div><p>\${l[3]}</p>\`;
-    }));
-  };
-
-  /* ---------- долина отчаяния ---------- */
-  IX.valley = (root) => {
-    const S = [
-      [60, 70, 'Неинформированный оптимизм', 'Нашли идею, которая вдохновляет, готовы окунуться на 100%. Ещё не знаете, что впереди.'],
-      [230, 130, 'Информированный пессимизм', 'Оказывается, всё не так просто. Не хватает навыков или недооценили сложность.'],
-      [420, 250, 'Долина отчаяния', 'Всё валится из рук, сила воли трещит. Мозг подкидывает НОВУЮ классную идею или говорит «мы устали». Здесь выходят 95%.'],
-      [640, 140, 'Информированный оптимизм', 'Прошли испытание, всё начинает медленно работать. Опыт есть, вы близко.'],
-      [820, 60, 'Успех', 'Результат получен.'],
-    ];
-    root.innerHTML = \`<div class="ixt">кликните на стадию</div><div class="ixh">Любое движение к цели выглядит так</div>
-      <svg viewBox="0 0 900 300" class="vly">
-        <path d="M60,70 C160,80 180,120 230,130 C320,150 350,240 420,250 C520,262 560,180 640,140 C720,100 760,70 820,60"
-              fill="none" stroke="#ddd" stroke-width="6"/>
-        \${S.map((s, i) => \`<g class="vp" data-i="\${i}"><circle cx="\${s[0]}" cy="\${s[1]}" r="11" fill="#bbb"/>
-           <text x="\${s[0]}" y="\${s[1] - 24}" text-anchor="middle" font-size="15" font-weight="bold" fill="#666">\${i + 1}</text></g>\`).join('')}
-        <text x="420" y="292" text-anchor="middle" font-size="15" fill="#c0392b" font-weight="bold">здесь выходят 95%</text>
-      </svg>
-      <div class="vlyout muted">нажмите на точку</div>\`;
-    const out = root.querySelector('.vlyout');
-    root.querySelectorAll('.vp').forEach(g => g.addEventListener('click', () => {
-      root.querySelectorAll('.vp').forEach(x => x.classList.remove('on'));
-      g.classList.add('on');
-      const s = S[+g.dataset.i];
-      out.classList.remove('muted');
-      out.innerHTML = \`<b>Стадия \${+g.dataset.i + 1}. \${s[2]}</b><p>\${s[3]}</p>\`;
-    }));
-  };
-
-  /* ---------- почему вы вышли из игры ---------- */
-  IX.causes = (root) => {
-    const C = [
-      ['Вы ждали результатов', 'на первый уровень', 'И не увидели их в тот срок, который сами себе назначили.'],
-      ['Вы задрали планку сложности', 'на первый уровень', 'Снимали слишком долго, монтировали слишком тщательно, требовали от себя слишком много.'],
-      ['Вы делали не в той форме', 'на третий уровень', 'Писали, хотя комфортнее говорить. Или снимали, хотя проще писать.'],
-      ['Вы говорили не своё', 'на третий уровень', 'Брали чужие темы и смыслы, потому что они «должны работать».'],
-      ['У вас изменился контекст', 'вы ничего не бросали', 'Переезд, работа, ребёнок, здоровье. Это вообще не про контент.'],
-    ];
-    root.innerHTML = \`<div class="ixt">найдите свою причину</div><div class="ixh">Вариантов немного, и они почти всегда отсюда</div>
-      <div class="cz">\${C.map((c, i) => \`<button class="czi" data-i="\${i}"><span class="t">\${c[0]}</span><span class="g">\${c[1]}</span></button>\`).join('')}</div>
-      <div class="czout muted">от причины зависит, куда вам идти</div>\`;
-    const out = root.querySelector('.czout');
-    root.querySelectorAll('.czi').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('.czi').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      const c = C[+b.dataset.i];
-      out.classList.remove('muted');
-      out.innerHTML = \`<b>\${c[1]}</b> — \${c[2]}\`;
-    }));
-  };
-
-  /* ---------- ручка громкости ---------- */
-  IX.knob = (root) => {
-    const V = {
-      p: ['вы вообще не говорите, что у вас можно что-то купить — люди искренне не знают, чем вы занимаетесь',
-        'есть где-то в шапке профиля, но вы про это молчите',
-        'иногда упоминаете вскользь, в конце, извиняющимся тоном',
-        'регулярно рассказываете, что делаете и с какими задачами к вам приходят',
-        'есть прямые предложения с призывом к действию, вы запускаете диалоги первым',
-        'активная промо-кампания: оффер каждый день, во всех форматах, пока не закроете задачу'],
-      r: ['вы не проявляетесь, вас нет',
-        'выкладываете раз в месяц то, что не жалко',
-        'делитесь, но всё время себя одёргиваете',
-        'делитесь тем, что вам самому интересно, без оглядки на продажи',
-        'говорите свободно и про то, что вас правда занимает',
-        'отдаётесь процессу полностью, делаете только то, что хотите, вообще не думая про деньги'],
-    };
-    root.innerHTML = \`<div class="ixt">инструмент</div><div class="ixh">Ручка громкости</div>
-      <div class="kn">
-        <div class="knd"><svg viewBox="0 0 200 200">
-          <circle cx="100" cy="100" r="82" fill="#fff" stroke="#000" stroke-width="3"/>
-          <circle class="arc" cx="100" cy="100" r="70" fill="none" stroke="#e8590c" stroke-width="14"
-                  stroke-linecap="round" transform="rotate(135 100 100)" stroke-dasharray="0 999"/>
-          <line class="ptr" x1="100" y1="100" x2="100" y2="42" stroke="#000" stroke-width="6" stroke-linecap="round"
-                transform="rotate(-135 100 100)"/>
-          <circle cx="100" cy="100" r="9" fill="#000"/>
-          <text class="val" x="100" y="152" text-anchor="middle" font-size="34" font-weight="bold" fill="#e8590c">0</text>
-        </svg></div>
-        <div class="kns">
-          <div class="knm"><button class="ixbtn on" data-m="p">Передатчик</button><button class="ixbtn" data-m="r">Приёмник</button></div>
-          <p class="knt"></p>
-          <div class="knc"><button class="ixbtn" data-s="-1">− тише</button><button class="ixbtn" data-s="1">громче +</button></div>
-          <p class="knw"></p>
-        </div>
-      </div>\`;
-    let m = 'p', v = 0;
-    const arc = root.querySelector('.arc'), ptr = root.querySelector('.ptr'), val = root.querySelector('.val'),
-      txt = root.querySelector('.knt'), warn = root.querySelector('.knw');
-    const FULL = 2 * Math.PI * 70 * (270 / 360);
-    const draw = () => {
-      ptr.setAttribute('transform', \`rotate(\${-135 + v * 54} 100 100)\`);
-      arc.setAttribute('stroke-dasharray', \`\${(FULL * v / 5).toFixed(1)} 999\`);
-      val.textContent = v;
-      txt.innerHTML = \`<b>\${v}</b> — \${V[m][v]}\`;
-      warn.textContent = (v === 2 || v === 3) ? 'На двойке не работает ни один режим.' : '';
-    };
-    root.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('[data-m]').forEach(x => x.classList.remove('on'));
-      b.classList.add('on'); m = b.dataset.m; draw();
-    }));
-    root.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => {
-      v = Math.max(0, Math.min(5, v + (+b.dataset.s))); draw();
-    }));
-    draw();
-  };
-
-  /* ---------- калькулятор времени ---------- */
-  IX.calc = (root) => {
-    root.innerHTML = \`<div class="ixt">посчитайте</div><div class="ixh">Сколько времени забирает контент и сколько можно вернуть</div>
-      <div class="cl">
-        <label>единиц контента в неделю <input type="range" class="c1" min="1" max="15" value="5"><b class="c1v">5</b></label>
-        <label>часов на одну единицу сейчас <input type="range" class="c2" min="1" max="8" step="0.5" value="3"><b class="c2v">3 ч</b></label>
-        <div class="clres">
-          <div><span class="k">сейчас в месяц</span><b class="bad now">0 ч</b><span class="s nowd"></span></div>
-          <div><span class="k">если сжать до 30 минут</span><b class="ok aft">0 ч</b><span class="s aftd"></span></div>
-        </div>
-      </div>\`;
-    const q = s => root.querySelector(s);
-    const upd = () => {
-      const c = +q('.c1').value, h = +q('.c2').value;
-      q('.c1v').textContent = c; q('.c2v').textContent = h + ' ч';
-      const now = c * h * 4.3, aft = c * 0.5 * 4.3;
-      q('.now').textContent = Math.round(now) + ' ч';
-      q('.nowd').textContent = 'это ' + (now / 8).toFixed(1) + ' рабочих дней в месяц';
-      q('.aft').textContent = Math.round(aft) + ' ч';
-      q('.aftd').textContent = 'освободится ' + Math.round(now - aft) + ' часов, это ' + ((now - aft) / 8).toFixed(1) + ' рабочих дней';
-    };
-    q('.c1').addEventListener('input', upd); q('.c2').addEventListener('input', upd); upd();
-  };
-
-  /* ---------- докрутка по симптому ---------- */
-  IX.troub = (root) => {
-    const T = [
-      ['Мало просмотров', 'Вы не цепляете внимание', 'Неинтересные первые 3–4 секунды.', 'Придумать отличительную фишку · сделать заголовок интереснее · выбрать более интересную идею'],
-      ['Мало сохранений', 'Нет ценности, нечего сохранять', 'Человеку нечего забрать с собой.', 'Показать решение визуально: на доске, в тетрадке, графикой · поменять идею на такую, которую можно показать'],
-      ['Мало репостов', 'Люди не узнают свою ситуацию', 'Делятся тем, в чём узнают себя.', 'Искать идеи, актуальные для зрителя · показывать ситуации, с которыми аудитория реально сталкивается'],
-      ['Мало лайков', 'Слабая идея', 'Лайк — реакция на саму мысль.', 'Вернуться к карте смыслов и проверить идею по четырём категориям'],
-      ['Мало комментариев', 'Нет эмоции', 'Это никого не задевает.', 'Комментарии сейчас в самом низу приоритета: все гоняют ключевые слова, площадка понизила их в рейтинге'],
-    ];
-    root.innerHTML = \`<div class="ixt">выберите симптом</div><div class="ixh">Работаем по причинам, а не наугад</div>
-      <div class="tb">\${T.map((t, i) => \`<button class="tbi" data-i="\${i}">\${t[0]}</button>\`).join('')}</div>
-      <div class="tbout muted">нажмите на симптом</div>\`;
-    const out = root.querySelector('.tbout');
-    root.querySelectorAll('.tbi').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('.tbi').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      const t = T[+b.dataset.i];
-      out.classList.remove('muted');
-      out.innerHTML = \`<b>\${t[1]}</b><p class="muted">\${t[2]}</p><p>\${t[3]}</p>\`;
-    }));
-  };
-
-  /* ---------- тест на выкидывание ---------- */
-  IX.unit = (root) => {
-    root.innerHTML = \`<div class="ixt">тест на выкидывание</div><div class="ixh">Уберите элемент и посмотрите, что сломается</div>
-      <div class="un">
-        <div class="uni" data-el="s"><span class="k">смысл</span><b>Что я утверждаю</b>
-          <p>«можно не тратить кучу времени на контент, который сдохнет за час»</p><button class="ixbtn">убрать</button></div>
-        <div class="uni" data-el="p"><span class="k">пруф</span><b>Чем я это держу</b>
-          <p>статистика двух единиц: рилс за 3 минуты и карусель за 15 минут</p><button class="ixbtn">убрать</button></div>
-        <div class="uni" data-el="u"><span class="k">упаковка</span><b>Как это заходит</b>
-          <p>формат эксперимента: «я проверил на себе и показываю цифры»</p><button class="ixbtn">убрать</button></div>
-      </div>
-      <div class="unout"><b class="ok">Всё на месте.</b> Человек начинает смотреть, верит и забирает смысл.</div>\`;
-    const st = { s: true, p: true, u: true };
-    const out = root.querySelector('.unout');
-    const txt = () => {
-      const { s, p, u } = st;
-      if (s && p && u) return '<b class="ok">Всё на месте.</b> Человек начинает смотреть, верит и забирает смысл.';
-      if (!u && s && p) return '<b class="bad">Без упаковки:</b> цифры и мысль остались, но их никто не увидит.';
-      if (!p && s && u) return '<b class="bad">Без пруфа:</b> осталось «не тратьте много времени» — то есть мнение. Таких мнений в ленте тысяча.';
-      if (!s && p && u) return '<b class="bad">Без смысла:</b> красивый эксперимент, из которого непонятно, что вы утверждаете.';
-      if (!s && !p) return '<b class="bad">Осталась только форма.</b> Посмотрят и забудут через минуту.';
-      if (!p && !u) return '<b class="bad">Голое утверждение.</b> Ни смотреть, ни верить.';
-      if (!s && !u) return '<b class="bad">Набор цифр без идеи и без входа.</b> Это не контент, это отчёт.';
-      return '<b class="bad">Пусто.</b> Ничего не осталось.';
-    };
-    root.querySelectorAll('.uni').forEach(b => {
-      b.querySelector('button').addEventListener('click', () => {
-        const k = b.dataset.el; st[k] = !st[k];
-        b.classList.toggle('off', !st[k]);
-        b.querySelector('button').textContent = st[k] ? 'убрать' : 'вернуть';
-        out.innerHTML = txt();
-      });
-    });
-  };
-
-  /* ---------- конструктор переупаковки ---------- */
-  IX.repurpose = (root) => {
-    const O = [['длинное видео на YouTube', 1], ['3 нарезки в Reels', 3], ['3 шортса на YouTube', 3],
-      ['пост в телеграм', 1], ['2 карусели', 2], ['4 тредса', 4]];
-    root.innerHTML = \`<div class="ixt">соберите свою переупаковку</div><div class="ixh">Один рабочий созвон → сколько единиц</div>
-      <div class="rp">\${O.map((o, i) => \`<button class="rpi" data-w="\${o[1]}">\${o[0]}</button>\`).join('')}</div>
-      <div class="rpout">из одной записи получается <b>0</b> единиц контента</div>\`;
-    const out = root.querySelector('.rpout');
-    root.querySelectorAll('.rpi').forEach(o => o.addEventListener('click', () => {
-      o.classList.toggle('on');
-      let n = 0; root.querySelectorAll('.rpi.on').forEach(x => n += +x.dataset.w);
-      out.innerHTML = \`из одной записи получается <b>\${n}</b> единиц контента\`;
-    }));
-  };
-
-  /* ---------- весы ХОЧУ / НАДО ---------- */
-  IX.scale = (root) => {
-    root.innerHTML = \`<div class="ixt">баланс</div><div class="ixh">Что делать с вашим перекосом</div>
-      <div class="sc"><div class="scl">ХОЧУ</div><div class="scr">НАДО</div></div>
-      <div class="scc"><button class="ixbtn" data-s="h">много ХОЧУ, мало НАДО</button><button class="ixbtn" data-s="n">много НАДО, мало ХОЧУ</button></div>
-      <div class="scout muted">выберите свой перекос</div>\`;
-    const l = root.querySelector('.scl'), r = root.querySelector('.scr'), out = root.querySelector('.scout');
-    const D = {
-      h: ['78%', '22%', '<b>Создаём условия для действий.</b> Подносим кочергу к жопке: органичный дедлайн, обещание другому человеку, расписание. Энергия есть, не хватает необходимости.'],
-      n: ['22%', '78%', '<b>Протыкаем ёмкость.</b> Отпускаем ситуацию, разрешаем себе своё ХОЧУ — и оно появляется. Давление сбрасывается, на освободившемся месте появляются силы.'],
-    };
-    root.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => {
-      root.querySelectorAll('[data-s]').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-      const d = D[b.dataset.s];
-      l.style.width = d[0]; r.style.width = d[1];
-      out.classList.remove('muted'); out.innerHTML = d[2];
-    }));
-  };
-
-  /* ---------- карта пройденного пути ---------- */
-  IX.path = (root) => {
-    const S = [
-      ['Зачем вам блог', 'есть цепочка, которая держит контент в приоритетах'],
-      ['Уровень 1 · начали', 'знаете, как обходить свою систему безопасности, а не бороться с ней'],
-      ['Уровень 2 · вернулись', 'знаете, почему бросили и что делать, если повторится'],
-      ['Уровень 3 · не бесит', 'собрали свою форму, свою правду и свою ставку'],
-      ['Уровень 4 · не жрёт время', 'единица занимает столько, сколько вы ей отвели'],
-      ['Уровень 5 · есть отклик', 'поток спроса плюс ваша правда, упакованные так, чтобы человек узнал себя'],
-      ['Уровень 6 · масштаб', 'тиражируете то, что работает, вместо того чтобы пахать больше'],
-    ];
-    root.innerHTML = \`<div class="ixt">отметьте, что уже закрыто</div><div class="ixh">Пройдитесь по своему пути</div>
-      <div class="pth">\${S.map((s, i) => \`<button class="pti" data-i="\${i}"><span class="n">\${i === 0 ? '0' : i}</span>
-        <span class="t">\${s[0]}</span><span class="g">\${s[1]}</span><span class="ck">✓</span></button>\`).join('')}</div>
-      <div class="pthout muted">нажимайте на ступени, которые вы уже закрыли</div>\`;
-    const out = root.querySelector('.pthout');
-    root.querySelectorAll('.pti').forEach(b => b.addEventListener('click', () => {
-      b.classList.toggle('done');
-      const n = root.querySelectorAll('.pti.done').length;
-      out.classList.toggle('muted', n === 0);
-      out.innerHTML = n === 0 ? 'нажимайте на ступени, которые вы уже закрыли'
-        : (n === S.length ? '<b>Весь стек собран.</b> Дальше — сверка раз в месяц и масштаб.'
-          : \`Закрыто <b>\${n}</b> из \${S.length}. Остальное — ваш план на ближайшие месяцы.\`);
-    }));
-  };
-
-  /* ---------- карусель иллюстраций (собирается генератором из %%carousel%%) ---------- */
-  function initCarousels() {
-    document.querySelectorAll('.kcar').forEach(car => {
-      const frames = [...car.querySelectorAll('.kcfr')];
-      const dots = [...car.querySelectorAll('.kcdot')];
-      const cnt = car.querySelector('.kccnt');
-      const set = i => {
-        i = Math.max(0, Math.min(frames.length - 1, i));
-        car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
-        dots.forEach((d, j) => d.classList.toggle('on', j === i));
-        cnt.textContent = (i + 1) + ' / ' + frames.length;
-        car.querySelectorAll('.kcarrow').forEach(b => {
-          const d = Number(b.dataset.d);
-          b.disabled = (d < 0 && i === 0) || (d > 0 && i === frames.length - 1);
-        });
-      };
-      car.querySelectorAll('.kcarrow').forEach(b =>
-        b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
-      dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
-        const i = Number(car.dataset.i);
-        set(i >= frames.length - 1 ? 0 : i + 1);
-      });
-      set(0);
-    });
-  }
-
-  /* ---------- запуск ---------- */
-  document.addEventListener('DOMContentLoaded', () => {
-    initCarousels();
-    document.querySelectorAll('.ix[data-ix]').forEach(el => {
-      const fn = IX[el.dataset.ix];
-      if (fn) { try { fn(el); } catch (e) { console.warn('ix ' + el.dataset.ix, e); } }
-      else el.innerHTML = '<div class="ixt">интерактив</div><p class="muted">' + el.dataset.ix + ' — не найден</p>';
-    });
-  });
-})();
-
-</script>
-</body>
-</html>`,
-  },
-  {
-    key: "discovery",
-    title: "Дискавери",
-    note: "Раздел поиска: инстаграм сам показывает, что считает интересным тебе. Туда же можно попасть и самому.",
-    group: "Где искать заходы",
-    html: `<!doctype html>
-<html lang="ru">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
-<title>Дискавери · Поток Спроса</title>
-<style>
-/* ============================================================
-   НОВЫЙ УРОВЕНЬ КОНТЕНТА — статьи уровней.
-   Системный стиль, как в algoritm-sistema.html: Times, колонка 620,
-   оранжевый акцент, жёсткие рамки, offset-тени, Courier-лейблы.
-   ============================================================ */
-:root{
-  --accent:#e8590c;
-  --marker:#ffb239;
-  --done:#2f9e44;
-  --miss:#c0392b;
-}
-*{box-sizing:border-box;}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;}
-html,body{max-width:100%;overflow-x:hidden;}
-body{margin:0;background:#fff;color:#000;font-size:20px;line-height:1.62;}
-body,body *,body *::before,body *::after{font-family:"Times New Roman",Times,serif;}
-a{color:var(--accent);text-decoration:underline;}
-a:hover{color:#000;}
-.ac,.em{color:var(--accent);}
-.muted{color:#666;}
-
-/* прогресс чтения */
-#progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--accent);z-index:50;transition:width .1s linear;}
-
-/* навбар */
-.nav{border-bottom:1px solid #ccc;}
-.navInner{max-width:720px;margin:0 auto;padding:14px 24px;display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-.brand{font-weight:bold;font-size:18px;color:#000;text-decoration:none;}
-.navLinks{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;}
-.navLink{color:var(--accent);text-decoration:underline;}
-.navLink:hover{color:#000;}
-
-/* шапка уровня */
-.arthead{border-bottom:1px solid #ccc;}
-.ahin{max-width:620px;margin:0 auto;padding:40px 24px 30px;}
-.backlink{display:inline-block;font-size:14px;color:#666;text-decoration:none;margin-bottom:20px;}
-.backlink:hover{color:#000;}
-.lvlbadge{display:inline-block;font-family:"Courier New",Courier,monospace;font-size:12px;letter-spacing:.14em;
-  text-transform:uppercase;color:#fff;background:var(--accent);padding:5px 10px;margin-bottom:16px;font-weight:bold;}
-.arthead h1{font-size:2.4em;font-weight:bold;line-height:1.13;margin:0 0 16px;}
-.arthead .dek{font-size:1.1em;color:#444;line-height:1.5;margin:0 0 22px;max-width:60ch;}
-.taskline{border:1px solid #000;border-left:4px solid var(--accent);background:#fffaf2;padding:12px 16px;font-size:16px;line-height:1.45;}
-.taskline b{color:var(--accent);}
-
-/* контейнер и секции */
-.wrap{max-width:620px;width:100%;margin:0 auto;padding:0 24px;}
-section{padding:38px 0;border-bottom:1px dashed #ccc;}
-section:last-of-type{border-bottom:none;}
-.slabel{display:inline-block;font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);font-weight:bold;margin-bottom:12px;}
-
-/* типографика */
-h2{font-size:1.6em;font-weight:bold;line-height:1.18;margin:0 0 10px;}
-h3{font-size:1.2em;font-weight:bold;line-height:1.25;margin:22px 0 6px;}
-h4{font-size:1.05em;font-weight:bold;margin:18px 0 4px;}
-p{margin:0 0 14px;}
-.lead{font-size:1.15em;line-height:1.45;font-weight:bold;}
-.punch{font-size:1.5em;font-weight:bold;line-height:1.2;margin:26px 0;}
-ul,ol{margin:0 0 16px;padding-left:24px;}
-li{margin:0 0 6px;}
-blockquote{margin:24px 0;padding:8px 0 8px 18px;border-left:3px solid var(--accent);color:#333;}
-blockquote p{margin:0 0 6px;font-size:1.05em;line-height:1.42;}
-blockquote p:last-child{margin-bottom:0;}
-img{max-width:100%;height:auto;display:block;margin:20px auto;border:1px solid #ddd;}
-figure{margin:24px 0;}
-figcaption{font-size:14px;color:#666;text-align:center;margin-top:8px;}
-
-/* карточки и врезки */
-.callout{border:1px solid #000;background:#fafafa;padding:20px 22px;margin:20px 0;}
-.callout .ct{font-family:"Courier New",Courier,monospace;font-size:12px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--accent);font-weight:bold;margin-bottom:8px;}
-.warnbox{border:1px solid var(--accent);background:#fffaf2;padding:16px 18px;margin:20px 0;font-size:16px;line-height:1.45;}
-.tbl{width:100%;border-collapse:collapse;font-size:16px;margin:20px 0;}
-.tbl th,.tbl td{border:1px solid #ccc;padding:9px 11px;text-align:left;vertical-align:top;}
-.tbl th{background:#f5f2f0;font-size:13px;text-transform:uppercase;letter-spacing:.08em;}
-.tbl td.yes{color:var(--done);font-weight:bold;}
-.tbl td.no{color:var(--miss);font-weight:bold;}
-.tbl-scroll{overflow-x:auto;}
-/* скриншоты внутри таблицы — сравнение «оригинал / мой заход» */
-.tbl td img{margin:0;border:1px solid #ddd;max-width:100%;}
-.tbl td:has(img){padding:8px;}
-.tbl td a{font-size:13px;word-break:break-all;}
-
-/* задача и маркер уровня */
-.taskbox{border:2px solid #000;box-shadow:5px 5px 0 var(--accent);padding:22px 24px;margin:26px 0;}
-.taskbox .tt{font-family:"Courier New",Courier,monospace;font-size:12px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--accent);font-weight:bold;margin-bottom:10px;}
-.markerbox{border:1px solid #000;background:#f4fbf5;border-left:4px solid var(--done);padding:16px 18px;margin:22px 0;}
-.markerbox .tt{font-family:"Courier New",Courier,monospace;font-size:12px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--done);font-weight:bold;margin-bottom:6px;}
-
-/* пометки для Саши: [визуал: ...] и [ждёт ...] */
-.todo{display:none;font-family:"Courier New",Courier,monospace;font-size:13px;line-height:1.4;
-  color:#b45309;background:#fffbeb;border:1px dashed #f59e0b;padding:8px 12px;margin:14px 0;}
-body.rev .todo{display:block;}
-
-/* нижняя навигация между уровнями */
-.lvlnav{display:flex;gap:14px;justify-content:space-between;padding:34px 0 60px;flex-wrap:wrap;}
-.lvlnav a{flex:1;min-width:220px;border:1px solid #000;padding:14px 16px;text-decoration:none;color:#000;background:#fff;}
-.lvlnav a:hover{background:#fffaf2;border-color:var(--accent);}
-.lvlnav a .k{display:block;font-family:"Courier New",Courier,monospace;font-size:11px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--accent);margin-bottom:4px;}
-.lvlnav a .n{font-weight:bold;font-size:17px;line-height:1.25;}
-.lvlnav a.next{text-align:right;}
-
-/* оглавление + процент */
-.readnav{position:fixed;right:20px;bottom:20px;z-index:45;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
-.readnav .toc{display:none;background:#fff;border:2px solid #000;box-shadow:4px 4px 0 rgba(0,0,0,.18);
-  padding:12px 14px;max-width:260px;max-height:56vh;overflow-y:auto;font-size:14px;line-height:1.35;}
-.readnav.open .toc{display:block;}
-.readnav .toc a{display:block;color:#333;text-decoration:none;padding:4px 0;border-bottom:1px solid #eee;}
-.readnav .toc a:last-child{border-bottom:none;}
-.readnav .toc a.on{color:var(--accent);font-weight:bold;}
-.readnav .toc a.sub{padding-left:12px;font-size:13px;color:#666;}
-.readnav-btns{display:flex;align-items:center;gap:10px;}
-.readnav .rbtn{width:44px;height:44px;background:#fff;border:2px solid #000;box-shadow:3px 3px 0 rgba(0,0,0,.18);
-  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;padding:0;}
-.readnav .rbtn:hover{border-color:var(--accent);color:var(--accent);}
-.readnav .pct{position:relative;width:46px;height:46px;}
-.readnav .pct svg{transform:rotate(-90deg);}
-.readnav .pct span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:"Courier New",Courier,monospace;font-size:12px;font-weight:bold;}
-@media(max-width:560px){.readnav{right:12px;bottom:12px;}.readnav .toc{max-width:200px;}}
-
-/* CTA */
-.softcta{border:1px solid #000;border-left:4px solid var(--accent);background:#fffaf2;padding:16px 18px;margin:26px 0;
-  display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-.softcta .sct{flex:1;min-width:200px;font-size:16px;line-height:1.45;}
-.softcta .sct b{color:var(--accent);}
-.bevel{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-weight:bold;
-  padding:11px 18px;border:2px solid #000;box-shadow:4px 4px 0 #000;font-size:16px;}
-.bevel:hover{background:#000;color:#fff;box-shadow:4px 4px 0 var(--accent);}
-
-/* интерактивы — общая рамка */
-.ix{border:2px solid #000;background:#fff;padding:20px 22px;margin:26px 0;box-shadow:5px 5px 0 rgba(0,0,0,.1);}
-.ix .ixt{font-family:"Courier New",Courier,monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--accent);font-weight:bold;margin-bottom:12px;}
-.ix .ixh{font-size:1.15em;font-weight:bold;line-height:1.25;margin-bottom:14px;}
-.ix .ixhint{font-size:14px;color:#666;margin-top:12px;font-style:italic;}
-.ixbtn{border:1px solid #000;background:#fff;padding:9px 14px;font-size:15px;cursor:pointer;font-family:inherit;}
-.ixbtn:hover{border-color:var(--accent);color:var(--accent);}
-.ixbtn.on{background:var(--accent);border-color:#000;color:#fff;}
-.ix .k{display:block;font-family:"Courier New",Courier,monospace;font-size:11px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--accent);font-weight:bold;margin:12px 0 4px;}
-.ix .ok{color:var(--done);} .ix .bad{color:var(--miss);}
-.ix p{font-size:16px;line-height:1.45;margin:0 0 8px;}
-
-/* диагностика */
-.dg{display:flex;flex-direction:column;gap:7px;}
-.dgr{display:flex;align-items:center;gap:14px;border:1px solid #ccc;background:#fff;padding:11px 14px;
-  cursor:pointer;text-align:left;font-family:inherit;font-size:16px;}
-.dgr:hover{border-color:var(--accent);}
-.dgr.on{border-color:var(--accent);background:#fffaf2;}
-.dgr b{color:var(--accent);font-size:19px;min-width:18px;}
-.dgout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:52px;}
-
-/* замки */
-.lk{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-@media(max-width:560px){.lk{grid-template-columns:repeat(2,1fr);}}
-.lki{border:1px solid #ccc;background:#fff;padding:12px 10px;cursor:pointer;text-align:left;font-family:inherit;}
-.lki:hover{border-color:var(--accent);}
-.lki.on{border-color:var(--accent);background:#fffaf2;}
-.lki .ic{display:block;font-size:22px;line-height:1;}
-.lki .nm{display:block;font-size:15px;font-weight:bold;margin-top:6px;line-height:1.2;}
-.lkout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:70px;}
-
-/* долина */
-.vly{width:100%;height:auto;display:block;margin:6px 0;}
-.vly .vp{cursor:pointer;}
-.vly .vp.on circle{fill:var(--accent);r:15;}
-.vly .vp.on text{fill:#000;}
-.vlyout{margin-top:10px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:60px;}
-
-/* причины */
-.cz{display:flex;flex-direction:column;gap:7px;}
-.czi{display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid #ccc;background:#fff;
-  padding:11px 14px;cursor:pointer;text-align:left;font-family:inherit;font-size:16px;}
-.czi:hover{border-color:var(--accent);}
-.czi.on{border-color:var(--accent);background:#fffaf2;}
-.czi .t{font-weight:bold;}
-.czi .g{font-size:13px;color:var(--accent);white-space:nowrap;}
-.czout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:44px;}
-
-/* ручка громкости */
-.kn{display:flex;gap:22px;align-items:center;flex-wrap:wrap;}
-.knd{flex:0 0 180px;} .knd svg{width:180px;height:180px;}
-.kns{flex:1;min-width:240px;}
-.knm{display:flex;gap:8px;margin-bottom:14px;}
-.knt{font-size:16px;line-height:1.45;min-height:66px;}
-.knc{display:flex;gap:8px;margin-top:8px;}
-.knw{color:var(--miss);font-weight:bold;font-size:15px;margin-top:10px;min-height:20px;}
-
-/* калькулятор */
-.cl label{display:flex;align-items:center;gap:12px;font-size:16px;margin-bottom:12px;flex-wrap:wrap;}
-.cl input[type=range]{flex:1;min-width:180px;accent-color:#e8590c;}
-.cl label b{color:var(--accent);min-width:60px;text-align:right;}
-.clres{display:flex;gap:24px;border-top:1px solid #ddd;padding-top:16px;margin-top:6px;flex-wrap:wrap;}
-.clres > div{flex:1;min-width:180px;}
-.clres .k{margin:0 0 4px;}
-.clres b{display:block;font-size:32px;line-height:1.1;}
-.clres .s{display:block;font-size:14px;color:#666;margin-top:4px;}
-
-/* докрутка */
-.tb{display:flex;flex-wrap:wrap;gap:7px;}
-.tbi{border:1px solid #ccc;background:#fff;padding:9px 13px;cursor:pointer;font-family:inherit;font-size:15px;font-weight:bold;}
-.tbi:hover{border-color:var(--accent);}
-.tbi.on{border-color:var(--accent);background:#fffaf2;}
-.tbout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:70px;}
-
-/* формула */
-.un{display:flex;gap:10px;flex-wrap:wrap;}
-.uni{flex:1;min-width:170px;border:2px solid #000;padding:13px 14px;transition:.2s;}
-.uni.off{opacity:.22;border-style:dashed;}
-.uni b{display:block;font-size:16px;margin:4px 0 6px;}
-.uni p{font-size:14px;color:#555;line-height:1.35;}
-.unout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;line-height:1.45;min-height:44px;}
-
-/* переупаковка */
-.rp{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;}
-@media(max-width:560px){.rp{grid-template-columns:1fr;}}
-.rpi{border:1px dashed #ccc;background:#fff;padding:10px 13px;cursor:pointer;font-family:inherit;font-size:15px;color:#888;text-align:left;}
-.rpi:hover{border-color:var(--accent);}
-.rpi.on{border-style:solid;border-color:var(--accent);background:#fffaf2;color:#000;font-weight:bold;}
-.rpout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:18px;}
-.rpout b{font-size:28px;color:var(--accent);}
-
-/* карта пути */
-.pth{display:flex;flex-direction:column-reverse;gap:6px;}
-.pti{display:flex;align-items:center;gap:12px;border:1px solid #ccc;background:#fff;padding:10px 13px;
-  cursor:pointer;text-align:left;font-family:inherit;font-size:15px;}
-.pti:hover{border-color:var(--accent);}
-.pti.done{border-color:var(--done);background:#f4fbf5;}
-.pti .n{font-weight:bold;color:var(--accent);min-width:16px;}
-.pti.done .n{color:var(--done);}
-.pti .t{font-weight:bold;min-width:150px;}
-.pti .g{flex:1;font-size:13px;color:#666;}
-.pti .ck{opacity:0;color:var(--done);font-weight:bold;}
-.pti.done .ck{opacity:1;}
-.pthout{margin-top:16px;border-top:1px solid #ddd;padding-top:14px;font-size:16px;min-height:30px;}
-
-/* весы */
-.sc{display:flex;height:46px;border:2px solid #000;overflow:hidden;}
-.scl{background:var(--accent);color:#fff;width:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;transition:.3s;}
-.scr{background:#000;color:#fff;width:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;transition:.3s;}
-.scc{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
-.scout{margin-top:16px;font-size:16px;line-height:1.45;min-height:44px;}
-
-/* карусель иллюстраций (%%carousel%% в markdown) */
-.kcar{margin:26px 0;border:1px solid #ddd;background:#fff;padding:18px 18px 14px;}
-.kcfrs{position:relative;cursor:pointer;}
-.kcfr{margin:0;display:none;}
-.kcfr.on{display:block;}
-.kcfr img{width:100%;display:block;border:1px solid #eee;margin:0;}
-.kcfr figcaption{margin-top:14px;min-height:76px;}
-.kcfr figcaption b{display:block;font-size:1.05em;margin-bottom:5px;}
-.kcfr figcaption span{display:block;font-size:.95em;line-height:1.5;color:#444;}
-.kcbar{display:flex;align-items:center;gap:14px;margin-top:12px;border-top:1px solid #eee;padding-top:12px;}
-.kcarrow{width:34px;height:34px;border:1px solid #bbb;background:#fff;cursor:pointer;font-size:18px;
-  line-height:1;font-family:inherit;color:#000;padding:0;}
-.kcarrow:hover:not(:disabled){background:#000;color:#fff;border-color:#000;}
-.kcarrow:disabled{opacity:.28;cursor:default;}
-.kcdots{display:flex;gap:7px;}
-.kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
-.kcdot.on{background:var(--accent);border-color:var(--accent);}
-.kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
-
-</style>
-</head>
-<body>
-<div id="progress"></div>
-
-<header class="arthead"><div class="ahin">
-  <div class="lvlbadge">Поток Спроса</div>
-  <h1>Дискавери</h1>
-  <p class="dek">Раздел поиска: инстаграм сам показывает, что считает интересным тебе. Туда же можно попасть и самому.</p>
-</div></header>
-
-<main class="wrap">
-<section>
-<h2>Дискавери</h2>
-<p>Третий вариант - это лента дискавери</p>
+<p>Чем чаще вы будете лайкать и сохранять контент своих коллег, который залетел и в целом вам отзывается - тем больше такого контента вам будет попадаться</p>
+<p>Третий вариант - это лупа (эксплор, дискавери)</p>
 <p>Вы нажимаете поиск внизу и вам открывается раздел того, что инстаграм вам рекомендует самостоятельно (посты, рилсы, карусели) исходя из ваших интересов</p>
 <img src="/kurs/assets/photo_2026-07-22_08-11-46.jpg" alt="">
+<p>Туда попадают лучшие контентные единицы или те, что прямо сейчас набирают популярность - можно брать оттуда</p>
 <p>Таким образом можно находить интересный контент, который попадает в эту ленту и таким образом - попасть в эту ленту самим</p>
+<p>Если вас мучает совесть - вы всегда можете отмечать автора в описании</p>
+<p>Если вам стремно - повторяю еще раз, мы не КОПИРУЕМ один в один</p>
+<p>Мы заимствуем то, что сработало, и подставляем туда свои идеи / смыслы / позицию</p>
+<p>Еще никто не подавал ни на кого в суд за то, что это предложение написано буквами русского алфавита</p>
 
 </section>
 </main>
@@ -4438,7 +3095,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -4738,6 +3407,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -4769,11 +3445,25 @@ body.rev .todo{display:block;}
 <p>Он начал с "хватит делать полезный контент", и я подумал: а что если развернуть в другую сторону</p>
 <p>В итоге после этого видео название пришло само - "Продающий Контент"</p>
 <p>И после этого я сделал несколько роликов вокруг этой темы и каждый раз они набирали и давали результат</p>
-<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Мои ролики на этом смысле</th><th></th><th></th><th></th></tr></thead><tbody><tr><td><img src="/kurs/assets/photo_2026-06-28_15-31-23.jpg" alt=""></td><td><img src="/kurs/assets/photo_2026-06-28_15-31-13.jpg" alt=""></td><td><img src="/kurs/assets/photo_2026-06-28_15-30-55.jpg" alt=""></td><td><img src="/kurs/assets/photo_2026-06-28_14-46-57.jpg" alt=""></td></tr></tbody></table></div>
+<div class="kcar shots" data-i="0" data-n="4">
+      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/photo_2026-06-28_15-31-23.jpg" alt="">
+         <figcaption></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/photo_2026-06-28_15-31-13.jpg" alt="">
+         <figcaption></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/photo_2026-06-28_15-30-55.jpg" alt="">
+         <figcaption></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/photo_2026-06-28_14-46-57.jpg" alt="">
+         <figcaption></figcaption></figure></div>
+      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button><button class="kcdot" data-i="2"></button><button class="kcdot" data-i="3"></button></div>
+        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 4</span></div>
+    </div>
 <p class="punch">Формат</p>
 <p>Это рабочая тема, которой пользуются многие ребята, на которых вы подписаны</p>
 <p>Я не буду тут перечислять все примеры, просто прикреплю один из последних, что находил</p>
-<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Оригинал</th><th>Копия</th></tr></thead><tbody><tr><td><img src="/kurs/assets/photo_2026-07-22_08-41-03.jpg" alt=""></td><td><img src="/kurs/assets/photo_2026-07-22_08-42-04.jpg" alt=""></td></tr><tr><td><a href="https://www.instagram.com/reel/DTYexzyii5n/" target="_blank" rel="noopener">https://www.instagram.com/reel/DTYexzyii5n/</a></td><td><a href="https://www.instagram.com/reel/DW6fUV2DLoW/" target="_blank" rel="noopener">https://www.instagram.com/reel/DW6fUV2DLoW/</a></td></tr><tr><td>оригинал @andrea.rendl - 1,87 млн просмотров</td><td>копия на русском @coachmatiunin - 3,24 млн</td></tr></tbody></table></div>
+<div class="kcar shots" data-i="0" data-n="2">
+      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/photo_2026-07-22_08-41-03.jpg" alt="">
+         <figcaption><b>Оригинал</b><span>@andrea.rendl, 1,87 млн просмотров <a href="https://www.instagram.com/reel/DTYexzyii5n/" target="_blank" rel="noopener">https://www.instagram.com/reel/DTYexzyii5n/</a></span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/photo_2026-07-22_08-42-04.jpg" alt="">
+         <figcaption><b>Копия на русском</b><span>@coachmatiunin, 3,24 млн просмотров <a href="https://www.instagram.com/reel/DW6fUV2DLoW/" target="_blank" rel="noopener">https://www.instagram.com/reel/DW6fUV2DLoW/</a></span></figcaption></figure></div>
+      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button></div>
+        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 2</span></div>
+    </div>
 <p>Формат "кафе у Вселенной", где человек разговаривает со Вселенной, взят один в один</p>
 <p>И обратите внимание: копия обогнала оригинал почти вдвое</p>
 <p>Вы можете даже не подставлять свои тезисы, если находите какой-то формат, который вам отзывается и подходит - просто хотя бы автора отмечайте, у которого вы это взяли</p>
@@ -5186,7 +3876,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -5486,6 +4188,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -5504,7 +4213,7 @@ body.rev .todo{display:block;}
 
 <p>Я собрал методичку и все необходимые файлы, чтобы вы могли искать рабочие заходы (на русском) не самостоятельно, а через нейронку</p>
 <p>Для этого вам нужен будет компьютер</p>
-<p>Через браузер телефона или приложение работать не будет</p>
+<p>Через браузер телефона или приложение это тоже можно сделать, но это чит-коды для взлома Инстаграма, поэтому я это показываю в своем курсе «Новый Уровень Контента»</p>
 <p>Потому что по сути вы даете доступ нейронке к браузеру, она открывает странички и сама листает ленту, делая скриншоты</p>
 <p>Находит то, какой запрос вы дали и собирает это все в один файл, который выглядит вот так</p>
 <img src="/kurs/assets/pasted-image-20260725162728.png" alt="">
@@ -5915,7 +4624,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -6215,6 +4936,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -6300,20 +5028,6 @@ body.rev .todo{display:block;}
 <p class="punch">На выходе</p>
 <p>У вас должно быть 3-5 основных смыслов, вокруг которые мы дальше будем танцевать и тестировать то, как они работают</p>
 <p>Эта задача на один час - не надо усложнять, пытаться найти что-то уникальное и т.д.</p>
-<h3>Как из одного смысла получается много единиц</h3>
-<p>Один и тот же смысл можно разложить по сетке и получить готовые темы</p>
-<img src="/kurs/assets/shema-chto-pochemu-gde.jpg" alt="">
-<p>Слева три входа: <strong>проблема</strong>, <strong>результат</strong>, <strong>идея</strong></p>
-<p>Дальше по каждому - два вопроса: <strong>почему</strong> это произошло и <strong>где</strong> искать решение</p>
-<ul><li>проблема → почему эта проблема случилась у вас или у клиентов → где найти ее решение</li><li>результат → почему вы получили именно такой результат → где искать, чтобы получить такой же</li><li>идея → какие выгоды дает эта идея → где искать такие же выгоды</li></ul>
-<p>Шесть клеток - шесть разных единиц из одного смысла</p>
-<p>А справа то, чем каждая из них заканчивается</p>
-<p>Для соцсетей: шейр, директ, подписка, сохранение или вообще ничего</p>
-<p>Для телеграма, сторис и почты: сайт, купить, написать в личку</p>
-<p>И да, «вообще ничего» - тоже полноценный вариант</p>
-<p>Это первый шаг в процессе сборки вашей контентной единицы</p>
-<p>Дальше идут две другие составляющие - пруф и упаковка</p>
-<p>Обе разобраны в блоке <i>Общая формула</i>: чем доказывать свой смысл, где брать пруфы, если своих результатов еще нет, и как упаковать так, чтобы человек это взял</p>
 </section>
 <section>
 <h2>Пруф</h2>
@@ -6323,10 +5037,14 @@ body.rev .todo{display:block;}
 <p class="punch">Выкиньте элемент и посмотрите, что сломается:</p>
 <ul><li>выкинули, и утверждение превратилось в мнение, верить стало нечему - это был пруф</li><li>выкинули, и стало скучно, никто не досмотрит - это была упаковка</li></ul>
 <p>Возьмем мою карусель про то, что можно не тратить кучу времени на контент</p>
+<img src="/kurs/assets/sasha-15min-experiment.jpg" alt="">
+<p>Смысл: на контент не нужно тратить часы</p>
+<p>Формат эксперимента: я сделал рилс за 3 минуты и карусель за 15 минут</p>
+<p>Пруф: статистика обеих единиц - 12 297 и 89 140 просмотров</p>
 <p>Выкиньте оттуда статистику двух единиц - останется «не тратьте много времени», то есть чужое мнение, которое человек пролистнет</p>
-<p>Выкиньте формат эксперимента - цифры останутся, но их никто не увидит</p>
+<p>Выкиньте формат эксперимента - цифры останутся, но их никто не увидит: без «я засек время и вот что вышло» это просто скриншот статистики, который не за что зацепить</p>
 <h3>Что может быть пруфом</h3>
-<ul><li>1. <strong>Ваш результат.</strong> Мой эксперимент: рилс за 3 минуты и карусель за 15 минут со скриншотом статистики. Или 40 тысяч подписчиков за пять месяцев на озвучке. Результат не обязан быть огромным: сегодня я разобрался, как засинхронить камеру с экраном - это тоже результат, и про него тоже можно сделать единицу</li><li>2. <strong>Результат клиента.</strong> Наташа с 44 подписчиками, Женя с 470, Вася с 1 500</li><li>3. <strong>Замер, который вы провели специально.</strong> Я загнал два аккаунта в свое приложение и показал, как один и тот же файл дает 5 879 и 360 576 просмотров</li><li>4. <strong>Чужие публичные данные.</strong> 80 роликов главы Инстаграма, которые я отсмотрел за год, официальные документы площадок, отраслевая статистика</li><li>5. <strong>Показ процесса.</strong> Скриншот доски с этапами, таблица с расписанием, запись экрана. Вы пилите доску на виду, и это само по себе доказательство</li><li>6. <strong>Ваш провал.</strong> Мои семь роликов ниже 5 000 просмотров, снятые с профессиональным оператором и краской. Это пруф не слабее победы, а иногда сильнее</li></ul>
+<ul><li>1. <strong>Ваш результат.</strong> Мой эксперимент: рилс за 3 минуты и карусель за 15 минут со скриншотом статистики. Или 40 тысяч подписчиков за пять месяцев на озвучке. Результат не обязан быть огромным: сегодня я разобрался, как засинхронить камеру с экраном - это тоже результат, и про него тоже можно сделать единицу</li><li>2. <strong>Результат клиента.</strong> Наташа с 44 подписчиками - рилс на 168 127 просмотров и 122 подписки с одного ролика. Женя с 470 подписчиками - ролики по 150-250 просмотров выросли до 134 тысяч, 71 тысячи и 54 тысяч. Вася с 1 500 подписчиками - держит 500 тысяч в месяц, в августе рекорд 890 тысяч, купил вторую квартиру</li><li>3. <strong>Замер, который вы провели специально.</strong> Я взял два чужих аккаунта, где авторы перезаливают одни и те же ролики, и прогнал их через свое приложение. У одного коуча один и тот же 13-секундный ролик в одну заливку набрал 5 879 просмотров, а в другую 360 576. Файл один, разница в 61 раз. Это уже не мое мнение, что алгоритм работает как казино, а замер</li><li>4. <strong>Чужие публичные данные.</strong> 80 роликов главы Инстаграма, которые я отсмотрел за год, официальные документы площадок, отраслевая статистика</li><li>5. <strong>Показ процесса.</strong> Скриншот доски с этапами, таблица с расписанием, запись экрана. Вы пилите доску на виду, и это само по себе доказательство</li><li>6. <strong>Ваш провал.</strong> Мои семь роликов ниже 5 000 просмотров, снятые с профессиональным оператором и краской. Это пруф не слабее победы, а иногда сильнее</li></ul>
 <p>Вот как выглядел мой:</p>
 <img src="/kurs/assets/proval-reels-operator.jpg" alt="">
 <p>1 981, 2 316, 1 930 просмотров</p>
@@ -6339,7 +5057,9 @@ body.rev .todo{display:block;}
 <p>Пруфом может быть не результат, а <strong>процесс и честность</strong></p>
 <p>Показывайте, как вы делаете, что пробуете и что из этого выходит, включая то, что не вышло</p>
 <p>Промежуточные результаты - это тоже пруф: было 200 просмотров, стало 1 500</p>
-<p>Вот [мой ролик 2023 года](<a href="https://www.instagram.com/reel/CsGkfbcv5oq/" target="_blank" rel="noopener">https://www.instagram.com/reel/CsGkfbcv5oq/</a>) - первый, который набрал тридцать тысяч</p>
+<p>Вот мой ролик 2023 года - первый, который набрал тридцать тысяч</p>
+<video src="/kurs/assets/sasha-reel-2023.mp4" controls playsinline style="width:100%;margin:20px 0;border:1px solid #ddd"></video>
+<p><a href="https://www.instagram.com/reel/CsGkfbcv5oq/" target="_blank" rel="noopener">https://www.instagram.com/reel/CsGkfbcv5oq/</a></p>
 <p>Никаких результатов у меня тогда не было, я просто показал свою систему создания контента</p>
 <p>37 262 проигрывания, 28 126 просмотров, 1 661 лайк</p>
 <p>Доверие строится из честности, прозрачности и искренности, а не из красивых цифр</p>
@@ -6758,7 +5478,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -7058,6 +5790,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -7510,7 +6249,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -7810,6 +6561,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -8243,7 +7001,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -8543,6 +7313,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -9186,7 +7963,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
