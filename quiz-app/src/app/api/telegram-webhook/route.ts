@@ -1397,6 +1397,45 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
         }
       }
 
+      // «Поток Спроса» — deep-link potok[_<метка источника>], например potok_kanal.
+      // Человек попадает в базу бота, видит ролик и кнопку оплаты с ?u=<tgId>:
+      // вебхук Продамуса выдаст роль `potok` прямо на этот телеграм, без токена.
+      if (startParam === 'potok' || startParam.startsWith('potok_')) {
+        const src = startParam.slice('potok'.length).replace(/^_/, '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || null;
+        const price = formatPrice(CATALOG.potok_sprosa.price);
+        const watchUrl =
+          `https://thesashatoyz.com/potok-sprosa?utm_source=telegram&utm_medium=bot&utm_campaign=potok` +
+          `${src ? `&utm_content=${src}` : ''}`;
+        const payUrl = `${WEBAPP_URL}/pay/potok?u=${chatId}&src=${src ? `bot-${src}` : 'bot'}`;
+
+        await sendMessage(
+          chatId,
+          `${firstName}, держи «Поток Спроса» ⚡
+
+берём заход, который уже сработал, и подставляем свои смыслы. сначала посмотри видео, там всё показано на реальных цифрах.
+
+<b>${price}</b> · доступ откроется здесь, в боте`,
+          {
+            inline_keyboard: [
+              [{ text: '▶️ Смотреть видео', url: watchUrl }],
+              [{ text: `Оплатить ${price} российской картой`, url: payUrl }],
+              [{ text: 'Оплатить зарубежной картой', url: `${payUrl}&card=world` }],
+            ],
+          },
+        );
+
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: src ? `potok_${src}` : startParam,
+          metadata: { product: 'potok', src, startParam },
+        });
+
+        return NextResponse.json({ ok: true });
+      }
+
       if (startParam === 'uroven' || startParam.startsWith('uroven_')) {
         const rest = startParam.startsWith('uroven_') ? startParam.slice('uroven_'.length) : '';
         const parts = rest ? rest.split('_') : [];
