@@ -51,20 +51,35 @@ function useCountdown(deadline: string) {
   return left;
 }
 
+const HIDE_KEY = 'potokOfferHidden';
+
 function OfferCard({ offer, tgId }: { offer: Offer; tgId: number | null }) {
   const left = useCountdown(offer.deadline);
+  // «Скрыть» запоминается в браузере: предложение не мозолит глаза тому, кто не хочет.
+  const [hidden, setHidden] = useState(() => {
+    try { return typeof window !== 'undefined' && localStorage.getItem(HIDE_KEY) === '1'; } catch { return false; }
+  });
   const live = !!offer.deadline && left > 0;
   const s = Math.max(0, Math.floor(left / 1000));
   const p = (n: number) => String(n).padStart(2, '0');
   const d = Math.floor(s / 86400);
   const clock = `${d ? `${d} д ` : ''}${p(Math.floor((s % 86400) / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
   const price = live ? offer.price : offer.full;
+  if (hidden) return null;
   return (
     <div className="pt-card pt-up">
+      <button className="pt-up-x" aria-label="Скрыть предложение"
+        onClick={() => {
+          setHidden(true);
+          try { localStorage.setItem(HIDE_KEY, '1'); } catch { /* noop */ }
+          trackMaterial('potok', 'upsell-hide', 'Новый уровень контента', tgId);
+        }}>
+        Скрыть ✕
+      </button>
       <div className="pt-h">Метод это первый шаг</div>
       <p>
-        Найти заход это половина дела. Дальше его надо наполнить своим смыслом, размножить
-        и докрутить, а это уже курс «Новый Уровень Контента». «Поток Спроса» входит в него целиком.
+        Как превратить это в систему, чтобы каждый месяц получать миллионные охваты и не выгорать,
+        это уже курс «Новый Уровень Контента».
       </p>
       <div className="pt-up-price">
         {live && <s>{rub(offer.full)}</s>} <b>{rub(price)}</b>
@@ -220,6 +235,8 @@ function PotokInner() {
 
       {state === 'ok' && (
         <>
+          {via === 'potok' && offer && <OfferCard offer={offer} tgId={tgId} />}
+
           <div className="pt-card pt-about">
             <p>
               Заход — это первые три секунды ролика или первый слайд карусели. Самая сильная часть
@@ -287,7 +304,6 @@ function PotokInner() {
             </div>
           )}
 
-          {via === 'potok' && offer && <OfferCard offer={offer} tgId={tgId} />}
 
           <div className="pt-card">
             <div className="pt-h">Порядок шагов</div>
@@ -458,7 +474,9 @@ function PotokInner() {
           font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase;
           color: var(--pt-muted); border: 1px solid var(--pt-line); border-radius: 999px; padding: 2px 7px;
         }
-        .pt-up { display: block; text-decoration: none; background: var(--pt-accent-soft); border-color: transparent; }
+        .pt-up { display: block; position: relative; text-decoration: none; background: var(--pt-accent-soft); border-color: transparent; }
+        .pt-up-x { position: absolute; top: 12px; right: 12px; background: none; border: 0; padding: 6px 4px; cursor: pointer; font: inherit; font-size: 12.5px; color: #8a6a55; }
+        .pt-up .pt-h { padding-right: 70px; }
         .pt-up .pt-h { color: var(--pt-accent); }
         .pt-up p { font-size: 13.5px; line-height: 1.5; margin: 0; }
         .pt-up-price { margin-top: 14px; font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 24px; }
