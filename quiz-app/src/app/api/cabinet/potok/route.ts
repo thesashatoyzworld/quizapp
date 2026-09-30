@@ -5,6 +5,7 @@ import { POTOK_FILES } from '@/content/potok';
 import { resolvePotokAccess } from '@/content/potok/access';
 import { POTOK_STEPS } from '@/content/potok/steps';
 import { playerSrc } from '@/lib/cabinet-video';
+import { potokOffer, stepCtaHtml, STEP_CTA_CSS, STEP_CTA_JS, type PotokOffer } from '@/content/potok/upsell';
 
 export const runtime = 'nodejs';
 
@@ -80,6 +81,17 @@ function withVideo(html: string, kinescopeId: string): string {
   return html.replace('<!--VIDEO_SLOT-->', player).replace('</head>', css + '</head>');
 }
 
+// Призыв на курс внутри статьи шага: только покупателю «Потока» без курса
+// и только на шагах из STEP_CTA. Встаёт в конец статьи, над кнопками шагов.
+function withCta(html: string, key: string, offer: PotokOffer | null): string {
+  if (!offer) return html;
+  const block = stepCtaHtml(key, offer);
+  if (!block) return html;
+  const at = html.lastIndexOf('</main>');
+  if (at < 0) return html;
+  return (html.slice(0, at) + block + STEP_CTA_JS + html.slice(at)).replace('</head>', STEP_CTA_CSS + '</head>');
+}
+
 export async function GET(request: NextRequest) {
   try {
     const q = request.nextUrl.searchParams.get('preview');
@@ -107,13 +119,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, identified: true, allowed: false, via: null, tier: access.tier, steps: [], items: [] });
     }
 
+    // В превью (локально, без Telegram) показываем предложение как у свежего покупателя.
+    const offer = bypass
+      ? potokOffer([{ role: 'potok', productSlug: 'potok-sprosa', grantedAt: new Date() }], null)
+      : potokOffer(rows, telegramId);
+
     // Статья шага ветки. Содержимое вырезано из курса скриптом potok-steps.mjs
     // и лежит самодостаточным документом — отдаём как есть, одним файлом.
     const stepKey = request.nextUrl.searchParams.get('step');
     if (stepKey) {
       const st = POTOK_STEPS.find((x) => x.key === stepKey);
       if (!st || !st.html) return NextResponse.json({ success: false, error: 'not found' }, { status: 404 });
-      return new NextResponse(withStepNav(withVideo(st.html, st.kinescopeId), st.key, request.nextUrl.searchParams), {
+      return new NextResponse(withStepNav(withCta(withVideo(st.html, st.kinescopeId), st.key, offer), st.key, request.nextUrl.searchParams), {
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store' },
       });
     }
@@ -153,6 +170,7 @@ export async function GET(request: NextRequest) {
       allowed: true,
       via: access.via,
       tier: access.tier,
+      offer,
       steps: POTOK_STEPS.map(({ key, title, note, group, html }) => ({ key, title, note, group, ready: !!html || key === 'metod' })),
       items: POTOK_FILES.map(({ key, name, label, note, bytes }) => ({ key, name, label, note, bytes })),
     });

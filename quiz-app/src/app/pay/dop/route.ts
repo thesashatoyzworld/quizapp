@@ -15,6 +15,8 @@ import { trackEvent } from '@/lib/notion';
 import { CATALOG } from '@/lib/catalog';
 import { cardFields, readCard } from '@/lib/payform-card';
 import { canBuy, waitlistLink } from '@/lib/sales';
+import { getActiveAccessByTelegram } from '@/lib/access';
+import { potokOffer } from '@/content/potok/upsell';
 
 const FORM = 'https://thesashatoyz.payform.ru';
 const BOT = 'https://t.me/testtoyzbot';
@@ -32,6 +34,23 @@ export async function GET(request: NextRequest) {
   const uid = (request.nextUrl.searchParams.get('u') || '').replace(/\D/g, '').slice(0, 15);
   const from = (request.nextUrl.searchParams.get('t') || '').replace(/[^a-z0-9]/gi, '').slice(0, 64);
   const byTelegram = uid.length >= 3;
+
+  // Зачёт 1 490 живёт семь дней (src/content/potok/upsell.ts). Человека из
+  // кабинета мы знаем по ?u и проверяем срок здесь, а не только таймером на
+  // странице: курс уже есть — в кабинет, срок вышел или «Поток» не покупал —
+  // на полный тариф 1.
+  if (byTelegram) {
+    try {
+      const rows = await getActiveAccessByTelegram(Number(uid));
+      if (rows.some((r) => r.role === 'uroven')) return NextResponse.redirect(`${BOT}?start=kabinet`, 302);
+      const offer = potokOffer(rows, Number(uid));
+      if (!offer || !offer.deadline) {
+        return NextResponse.redirect(new URL(`/pay/t1?u=${uid}&src=potok-late`, request.url), 302);
+      }
+    } catch {
+      // база недоступна — не мешаем оплате, продаём по доплате
+    }
+  }
 
   // base36 без «_», иначе ломается разбор order_id по «_web_»
   const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
