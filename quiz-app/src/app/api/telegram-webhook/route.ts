@@ -12,6 +12,7 @@ import { canBuy, isOnSale, isPersonalKey, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, w
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { getDeal, formatPrice, formatDays } from '@/lib/deals';
 import { handleKbQuestion } from '@/lib/kb/ask';
+import { catchClientReply, isQuestion } from '@/lib/client-bot-reply';
 import { handleSalesQuestion } from '@/lib/sales/ask';
 import {
   handleBusinessMessage, saveConnection, sendSuggestion, regenerate, helpers,
@@ -871,10 +872,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Клиент из базы отвечает боту — чаще всего на пинг «куда пропал».
+      // Сообщение пишется в переписку и уходит Саше; базе знаний отдаём
+      // только вопросы.
+      const caught = await catchClientReply(m);
+
       // Анкета сообщение не забрала — значит человек просто написал вопрос.
       // Отвечаем по материалам курса. Голосовые и файлы база знаний не берёт:
       // эти типы занимает анкета, пересечение сломало бы обе ветки.
-      if (m.text) {
+      if (m.text && (!caught || isQuestion(m.text))) {
         const kb = await handleKbQuestion({
           chatId: m.chat.id,
           telegramId: tgId,
@@ -882,6 +888,7 @@ export async function POST(request: NextRequest) {
         });
         if (kb.handled) return NextResponse.json({ ok: true });
       }
+      if (caught) return NextResponse.json({ ok: true });
     }
 
     // Handle /start command (with or without parameters)
