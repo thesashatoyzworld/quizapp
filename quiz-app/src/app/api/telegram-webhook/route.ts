@@ -1399,7 +1399,8 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
 
       // «Поток Спроса» — deep-link potok[_<метка источника>], например potok_kanal.
       // Человек попадает в базу бота и получает только ролик: об оплате он
-      // узнаёт из самого видео и со страницы, в сообщении её нет.
+      // узнаёт из самого видео и со страницы, в сообщении её нет. Страница
+      // открывается мини-аппом внутри телеграма, а не в браузере.
       if (startParam === 'potok' || startParam.startsWith('potok_')) {
         const src = startParam.slice('potok'.length).replace(/^_/, '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || null;
         const watchUrl =
@@ -1409,7 +1410,7 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
         await sendMessage(
           chatId,
           `${firstName}, держи видео 👇`,
-          { inline_keyboard: [[{ text: '▶️ Смотреть видео', url: watchUrl }]] },
+          { inline_keyboard: [[{ text: '▶️ Смотреть видео', web_app: { url: watchUrl } }]] },
         );
 
         await trackEvent({
