@@ -12,6 +12,8 @@ export interface PotokStep {
   note: string;
   /** подзаголовок-группа в оглавлении ветки; пусто = шаг сам по себе */
   group: string;
+  /** запись в Kinescope, встаёт на место <!--VIDEO_SLOT-->; пусто = без видео */
+  kinescopeId: string;
   /** самодостаточная статья для iframe; пусто = шаг из файлов */
   html: string;
 }
@@ -22,6 +24,7 @@ export const POTOK_STEPS: PotokStep[] = [
     title: "Метод: десять заходов в твоей нише",
     note: "Программа сама листает ленту и приносит то, что уже собрало реакцию. Методичка, правила для нейронки и готовый промпт лежат файлами ниже.",
     group: "",
+    kinescopeId: "",
     html: ``,
   },
   {
@@ -29,6 +32,7 @@ export const POTOK_STEPS: PotokStep[] = [
     title: "Что такое заход и почему его можно брать",
     note: "Первые три секунды или первый слайд. Единственная часть упаковки, которую честно взять у другого автора.",
     group: "",
+    kinescopeId: "",
     html: `<!doctype html>
 <html lang="ru">
 <head>
@@ -306,6 +310,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -805,7 +813,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -828,7 +840,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -856,6 +868,7 @@ body.rev .todo{display:block;}
     title: "Как выбирать то, что сработает",
     note: "Чем заход, который реально выстрелил, отличается от поста, набравшего по подписчикам.",
     group: "",
+    kinescopeId: "",
     html: `<!doctype html>
 <html lang="ru">
 <head>
@@ -1133,6 +1146,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -1175,15 +1192,17 @@ body.rev .todo{display:block;}
 <p>Она там рассказывает про формирование привычки</p>
 <p>27,5 тысяч лайков и 12,6 тысяч сохранений - тема людям заходит, спрос на нее есть</p>
 <p>Причем на англоязычном рынке я видел ролик с тем же смыслом, который набрал 4 миллиона просмотров. Возможно, она взяла заход оттуда</p>
-<p>Я взял этот заход и собрал его три раза:</p>
-<div class="kcar shots" data-i="0" data-n="3">
-      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/l5-moya-karusel-1.jpg" alt="">
-         <figcaption><b>Июнь</b><span>257 826 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/l5-moya-karusel-2.jpg" alt="">
-         <figcaption><b>Июль</b><span>54 610 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/l5-moya-karusel-3.jpg" alt="">
-         <figcaption><b>Август</b><span>19 537 просмотров</span></figcaption></figure></div>
-      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button><button class="kcdot" data-i="2"></button></div>
-        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 3</span></div>
+<p>Я взял этот заход и собрал его четыре раза:</p>
+<div class="kcar shots" data-i="0" data-n="4">
+      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/potok-karusel-1.jpg" alt="">
+         <figcaption><b>29 июня</b><span>259 983 просмотра</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/potok-karusel-2.jpg" alt="">
+         <figcaption><b>7 июля</b><span>93 439 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/potok-karusel-3.jpg" alt="">
+         <figcaption><b>4 августа</b><span>143 031 просмотр</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/potok-karusel-4.jpg" alt="">
+         <figcaption><b>24 августа</b><span>57 257 просмотров</span></figcaption></figure></div>
+      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button><button class="kcdot" data-i="2"></button><button class="kcdot" data-i="3"></button></div>
+        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 4</span></div>
     </div>
+<p>Вместе 553 710 просмотров на одном заходе</p>
 <p>И вот что важно: внутри у каждой свои смыслы, наполнение каждый раз разное</p>
 <p>Я не копировал карусель. Я взял только заход и наполнил его своими смыслами и идеями</p>
 <p>Вторая часть - ваша позиция и то, во что вы верите</p>
@@ -1581,7 +1600,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -1604,7 +1627,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -1632,6 +1655,7 @@ body.rev .todo{display:block;}
     title: "Ютуб",
     note: "Единственная площадка с нормальным поиском по запросам. Шортсы, фильтр по популярности, заходы из первых секунд.",
     group: "Где искать заходы",
+    kinescopeId: "",
     html: `<!doctype html>
 <html lang="ru">
 <head>
@@ -1909,6 +1933,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -2337,7 +2365,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -2360,7 +2392,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -2388,6 +2420,7 @@ body.rev .todo{display:block;}
     title: "Инстаграм: коллеги, лента, лупа",
     note: "Подписки на коллег, лента рекомендаций и лупа: где инстаграм сам показывает то, что уже набирает.",
     group: "Где искать заходы",
+    kinescopeId: "",
     html: `<!doctype html>
 <html lang="ru">
 <head>
@@ -2665,6 +2698,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -3084,7 +3121,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -3107,7 +3148,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -3135,6 +3176,7 @@ body.rev .todo{display:block;}
     title: "Английский сегмент",
     note: "95% форматов и смыслов приезжает оттуда. Смыслы и форматы разобраны на живых примерах с цифрами.",
     group: "Где искать заходы",
+    kinescopeId: "",
     html: `<!doctype html>
 <html lang="ru">
 <head>
@@ -3412,6 +3454,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -3438,7 +3484,7 @@ body.rev .todo{display:block;}
 <p class="punch">Смыслы (идеи, тезисы)</p>
 <p>Таким образом я однажды нашел тему с Продающим Контентом</p>
 <p>В ленте мне попался ролик одного товарища - вот он</p>
-<img src="/kurs/assets/photo_2026-07-22_08-20-36.jpg" alt="">
+<video class="kvid" src="/kurs/assets/reel-ddt6nqviy9j.mp4" controls playsinline preload="metadata"></video>
 <p><a href="https://www.instagram.com/reel/DDt6nqviy9J/" target="_blank" rel="noopener">https://www.instagram.com/reel/DDt6nqviy9J/</a></p>
 <p>У него это называлось whale bait - "ловим китов", и на русском я это название никак повторить не мог</p>
 <p>Я уже видел подобное, но не мог найти подходящего слова, которое бы описывало контент, который направлен именно на привлечение клиентов</p>
@@ -3458,8 +3504,8 @@ body.rev .todo{display:block;}
 <p>Это рабочая тема, которой пользуются многие ребята, на которых вы подписаны</p>
 <p>Я не буду тут перечислять все примеры, просто прикреплю один из последних, что находил</p>
 <div class="kcar shots" data-i="0" data-n="2">
-      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/photo_2026-07-22_08-41-03.jpg" alt="">
-         <figcaption><b>Оригинал</b><span>@andrea.rendl, 1,87 млн просмотров <a href="https://www.instagram.com/reel/DTYexzyii5n/" target="_blank" rel="noopener">https://www.instagram.com/reel/DTYexzyii5n/</a></span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/photo_2026-07-22_08-42-04.jpg" alt="">
+      <div class="kcfrs"><figure class="kcfr on"><video src="/kurs/assets/reel-dtyexzyii5n.mp4" controls playsinline preload="metadata"></video>
+         <figcaption><b>Оригинал</b><span>@andrea.rendl, 1,87 млн просмотров <a href="https://www.instagram.com/reel/DTYexzyii5n/" target="_blank" rel="noopener">https://www.instagram.com/reel/DTYexzyii5n/</a></span></figcaption></figure><figure class="kcfr"><video src="/kurs/assets/reel-dw6fuv2dlow.mp4" controls playsinline preload="metadata"></video>
          <figcaption><b>Копия на русском</b><span>@coachmatiunin, 3,24 млн просмотров <a href="https://www.instagram.com/reel/DW6fUV2DLoW/" target="_blank" rel="noopener">https://www.instagram.com/reel/DW6fUV2DLoW/</a></span></figcaption></figure></div>
       <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button></div>
         <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 2</span></div>
@@ -3865,7 +3911,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -3888,7 +3938,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -3916,6 +3966,7 @@ body.rev .todo{display:block;}
     title: "Нейронка",
     note: "То, что руками заняло бы два-три часа, программа делает за 15-20 минут. Нужен компьютер.",
     group: "Где искать заходы",
+    kinescopeId: "",
     html: `<!doctype html>
 <html lang="ru">
 <head>
@@ -4193,6 +4244,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -4613,7 +4668,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -4636,7 +4695,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -4664,6 +4723,7 @@ body.rev .todo{display:block;}
     title: "Чем наполнять заход",
     note: "Заход чужой, контент твой. Смысл, пруф и что делать, если своих результатов ещё нет.",
     group: "",
+    kinescopeId: "",
     html: `<!doctype html>
 <html lang="ru">
 <head>
@@ -4941,6 +5001,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -4985,7 +5049,7 @@ body.rev .todo{display:block;}
 <p>Но сам факт того, что мы должны начинать именно с этого не оспорим.</p>
 <p>Таким образом и контент становится делать гораздо проще.</p>
 <p>Лучше меня об этом вам расскажет Ди Каприо и фильм "Начало"</p>
-<video src="/kurs/assets/samyy-zhivuchiy-parazit---kino_mem-1080p-h264-.mp4" controls playsinline style="width:100%;margin:20px 0;border:1px solid #ddd"></video>
+<video class="kvid" src="/kurs/assets/samyy-zhivuchiy-parazit---kino_mem-1080p-h264-.mp4" controls playsinline preload="metadata"></video>
 <p>Идея</p>
 <p>И стоит человеку купить вашу идею - избавиться от неё он не сможет.</p>
 <p>Дальше я расскажу как её собрать и как ей пользоваться</p>
@@ -4995,7 +5059,19 @@ body.rev .todo{display:block;}
 <p>Посмотрите на своих коллег и конкурентов, у которых есть аудитория и деньги</p>
 <p>Если свести весь их контент к 3 смыслам - что это будет?</p>
 <p>Вот вам несколько популярных примеров</p>
-<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Ниша</th><th>Смысл</th><th>Пример</th><th>Комментарий</th></tr></thead><tbody><tr><td>Фитнес</td><td>Единственное, почему вы худеете - дефицит калорий</td><td><a href="https://www.instagram.com/reel/DHuT9l8oOgw/?igsh=MWl2aHJ6OHozNXBwcg==" target="_blank" rel="noopener">https://www.instagram.com/reel/DHuT9l8oOgw/?igsh=MWl2aHJ6OHozNXBwcg==</a></td><td>Если вы посмотрите все ролики Макса - они будут сводиться всегда к одному тезису: жри чо хочешь, главное дефицит калорий<br><br>Там вообще у него один смысл, даже не карта</td></tr><tr><td>Психология</td><td>Ваша жизнь - это ваша ответственность</td><td><a href="https://www.instagram.com/reel/DN3ri5HQL89/?igsh=MTF1cXBxNXlxbm56Zw==" target="_blank" rel="noopener">https://www.instagram.com/reel/DN3ri5HQL89/?igsh=MTF1cXBxNXlxbm56Zw==</a></td><td>Если вы посмотрите все ролики Петра - они будут сводиться к тому, что человек перекладывает ответственность на других<br><br>Да это формат публичного выступления, но сути это не меняет</td></tr><tr><td>Маркетинг</td><td>Формат - это то, благодаря чему вы набираете подписчиков</td><td><a href="https://www.instagram.com/reel/DZBZRibsyZn/?igsh=MWVtZWJrazVjdDA1dA==" target="_blank" rel="noopener">https://www.instagram.com/reel/DZBZRibsyZn/?igsh=MWVtZWJrazVjdDA1dA==</a></td><td>Если вы посмотрите ролики Егора - он транслирует одну истину: найди свой формат и все начнет работать</td></tr></tbody></table></div>
+<p class="punch">Фитнес: «Единственное, почему вы худеете - дефицит калорий»</p>
+<p>Если вы посмотрите все ролики Макса - они будут сводиться всегда к одному тезису: жри чо хочешь, главное дефицит калорий</p>
+<p>Там вообще у него один смысл, даже не карта</p>
+<p><a href="https://www.instagram.com/reel/DHuT9l8oOgw/" target="_blank" rel="noopener">https://www.instagram.com/reel/DHuT9l8oOgw/</a></p>
+<p class="punch">Психология: «Ваша жизнь - это ваша ответственность»</p>
+<p>Если вы посмотрите все ролики Петра - они будут сводиться к тому, что человек перекладывает ответственность на других</p>
+<p>Да это формат публичного выступления, но сути это не меняет</p>
+<video class="kvid" src="/kurs/assets/reel-dn3ri5hql89.mp4" controls playsinline preload="metadata"></video>
+<p><a href="https://www.instagram.com/reel/DN3ri5HQL89/" target="_blank" rel="noopener">https://www.instagram.com/reel/DN3ri5HQL89/</a></p>
+<p class="punch">Маркетинг: «Формат - это то, благодаря чему вы набираете подписчиков»</p>
+<p>Если вы посмотрите ролики Егора - он транслирует одну истину: найди свой формат и все начнет работать</p>
+<video class="kvid" src="/kurs/assets/reel-dzbzribsyzn.mp4" controls playsinline preload="metadata"></video>
+<p><a href="https://www.instagram.com/reel/DZBZRibsyZn/" target="_blank" rel="noopener">https://www.instagram.com/reel/DZBZRibsyZn/</a></p>
 <p>Почему это работает?</p>
 <p>Потому что это то, что нужно людям</p>
 <p>На это есть спрос</p>
@@ -5058,7 +5134,7 @@ body.rev .todo{display:block;}
 <p>Показывайте, как вы делаете, что пробуете и что из этого выходит, включая то, что не вышло</p>
 <p>Промежуточные результаты - это тоже пруф: было 200 просмотров, стало 1 500</p>
 <p>Вот мой ролик 2023 года - первый, который набрал тридцать тысяч</p>
-<video src="/kurs/assets/sasha-reel-2023.mp4" controls playsinline style="width:100%;margin:20px 0;border:1px solid #ddd"></video>
+<video class="kvid" src="/kurs/assets/sasha-reel-2023.mp4" controls playsinline preload="metadata"></video>
 <p><a href="https://www.instagram.com/reel/CsGkfbcv5oq/" target="_blank" rel="noopener">https://www.instagram.com/reel/CsGkfbcv5oq/</a></p>
 <p>Никаких результатов у меня тогда не было, я просто показал свою систему создания контента</p>
 <p>37 262 проигрывания, 28 126 просмотров, 1 661 лайк</p>
@@ -5467,7 +5543,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -5490,7 +5570,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -5518,6 +5598,7 @@ body.rev .todo{display:block;}
     title: "Из одного смысла двенадцать единиц",
     note: "Один рабочий заход даёт не один пост. Как разложить его на серию и проверять гипотезами.",
     group: "",
+    kinescopeId: "",
     html: `<!doctype html>
 <html lang="ru">
 <head>
@@ -5795,6 +5876,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -5839,6 +5924,44 @@ body.rev .todo{display:block;}
 <p>Иногда лучше, иногда хуже</p>
 <p>Но какая разница, если у вас уже все готово и лежит в телефоне?</p>
 <p>Выложить 3-4 раза то, что дало результаты - это две минуты</p>
+<h3>Пробные ролики: одно видео - двенадцать публикаций</h3>
+<p>У инсты есть пробные ролики (trial reels)</p>
+<p>Их показывают только тем, кто на вас не подписан</p>
+<p>Задумывались они для того, чтобы проверить ролик перед публикацией на странице</p>
+<p>Но люди быстро поняли, что туда можно заливать свои лучшие ролики снова и снова - и каждый раз их видит новая аудитория</p>
+<p>Инста это прикрыла: если ролик уже был у вас на странице или в пробных, повторно в пробные его не пустят, и он уйдет в теневой бан</p>
+<p>Но обход есть</p>
+<p>Разбор взял у Девина Джато: его команда за июнь собрала 40 миллионов просмотров на одних пробных роликах, не сняв ни одного нового видео</p>
+<p><a href="https://youtu.be/zBRbnwXk19M" target="_blank" rel="noopener">https://youtu.be/zBRbnwXk19M</a></p>
+<p>Способов три, и каждый умножает одно видео сильнее предыдущего</p>
+<p class="punch">1. Двойной заход - каждый ролик, без исключений</p>
+<p>Проверку на повтор инста запускает только когда вы публикуете пробный ролик</p>
+<p>Обычную публикацию она не проверяет</p>
+<p>Поэтому:</p>
+<ul><li>перед тем как нажать «поделиться», сохраните ролик в черновики</li><li>откройте черновики, три точки рядом с роликом - «дублировать»</li><li>первый черновик публикуете как пробный ролик</li><li>второй - как обычный рилс</li></ul>
+<p>Обычный рилс увидят подписчики, пробный - только те, кто на вас не подписан</p>
+<p>Одно видео - две публикации. Минусов нет, поэтому так делаем с каждым роликом</p>
+<p class="punch">2. Тройной заход - только для тех, что выстрелили</p>
+<p>Инста отличает повтор по картинке</p>
+<p>Значит, картинку надо поменять ровно настолько, чтобы она перестала совпадать:</p>
+<ul><li>отзеркалить видео</li><li>ускорить на 5%</li></ul>
+<p>Этого хватает, чтобы пройти проверку</p>
+<p>Это уже работа монтажера, поэтому делаем только для роликов, которые набрали в 3 раза больше обычного по аккаунту (это тот же критерий выброса, по которому мы ищем заходы)</p>
+<p>Пример из разбора: пробный ролик - 281 тысяча просмотров за сутки, тот же ролик на странице - 5,6 миллиона, третья публикация (зеркало + ускорение) - еще 1,1 миллиона просмотров от тех, кто не подписан</p>
+<p>Одна оговорка: если в ролике почти нет вашего лица, а в основном запись экрана или графика, зеркала не хватит</p>
+<p>Тогда меняйте цвета: например, запись экрана в светлой теме вместо темной</p>
+<p>Попросите монтажера хранить проекты минимум две недели - если ролик начнет набирать, переделка займет пару минут</p>
+<p class="punch">3. Бесконечный заход - для самых лучших</p>
+<p>Отзеркалить можно только один раз</p>
+<p>Дальше нужна другая большая перемена в картинке, и проще всего - поменять фон</p>
+<p>Для этого нужен хромакей (зеленый фон), это недорого</p>
+<p>Монтажер делает вам пять разных фонов к одному ролику</p>
+<p>Пять версий уходят в пробные, потом каждую зеркалите - еще пять</p>
+<p>Итого одно видео выложено 12 раз, и 11 из них видят только люди, которые на вас не подписаны</p>
+<p class="punch">Как это собрать в систему</p>
+<ul><li>двойной заход - на каждый ролик</li><li>тройной - на те, что выстрелили</li><li>бесконечный - на самые лучшие</li></ul>
+<p>Вам не нужно снимать больше</p>
+<p>Вам нужно выжать максимум из того, что уже сработало</p>
 </section>
 <section>
 <h2>Метод гипотез</h2>
@@ -6238,7 +6361,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -6261,7 +6388,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -6289,6 +6416,7 @@ body.rev .todo{display:block;}
     title: "Не зашло: куда смотреть и что докручивать",
     note: "Метрики по порядку: где отвалились и что чинить именно там, а не переснимать всё.",
     group: "",
+    kinescopeId: "",
     html: `<!doctype html>
 <html lang="ru">
 <head>
@@ -6566,6 +6694,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -6587,6 +6719,11 @@ body.rev .todo{display:block;}
 <p><strong>Мало просмотров</strong> - вы не цепляете внимание, то есть неинтересные первые 3-4 секунды</p>
 <p>Что делать:</p>
 <ul><li>подумать над отличительной фишкой, создать якорь</li><li>сделать заголовок интереснее (люди преследуют свою выгоду - покажите, что у вас есть ответы)</li><li>выбрать другую, более интересную идею</li></ul>
+<p>Если вы взяли идею из потока спроса и она у вас не сработала даже с нескольких раз - значит эта тема не актуальна вашей аудитории</p>
+<p>Алгоритм определяет группу людей, которой он будет показывать ваш контент, по их интересам и взаимодействиям</p>
+<p>И бывает так, что даже идеи из потока спроса не прорываются</p>
+<p>Это нормально - мы просто берем следующую</p>
+<p>Выводы делаем в разрезе месяца, а не по 2-3 единицам контента</p>
 <p><strong>Мало сохранений</strong> - нет ценности, нечего сохранять</p>
 <p>Что делать:</p>
 <ul><li>покажите визуально решение их проблемы: на доске, в тетрадке, на компьютере, графикой в монтаже</li><li>поменяйте идею на такую, которую можно показать визуально</li></ul>
@@ -6990,7 +7127,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -7013,7 +7154,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
@@ -7041,6 +7182,7 @@ body.rev .todo{display:block;}
     title: "Разборы на живых примерах",
     note: "Один смысл разложен тремя инструментами на реальных ролях: тренер, психолог, коуч по отношениям.",
     group: "",
+    kinescopeId: "msXsGVMTLT1Yqmpbpxq6rS",
     html: `<!doctype html>
 <html lang="ru">
 <head>
@@ -7318,6 +7460,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -7331,7 +7477,7 @@ body.rev .todo{display:block;}
   <h1>Разборы на живых примерах</h1>
   <p class="dek">Один смысл разложен тремя инструментами на реальных ролях: тренер, психолог, коуч по отношениям.</p>
 </div></header>
-
+<!--VIDEO_SLOT-->
 <main class="wrap">
 <section>
 <p>Это запись практикума, а не лекция</p>
@@ -7952,7 +8098,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -7975,7 +8125,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });

@@ -4,6 +4,7 @@ import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { POTOK_FILES } from '@/content/potok';
 import { resolvePotokAccess } from '@/content/potok/access';
 import { POTOK_STEPS } from '@/content/potok/steps';
+import { playerSrc } from '@/lib/cabinet-video';
 
 export const runtime = 'nodejs';
 
@@ -62,6 +63,23 @@ function withStepNav(html: string, key: string, params: URLSearchParams): string
   return at < 0 ? html : html.slice(0, at) + nav + html.slice(at);
 }
 
+// Запись к шагу (например, практикум в «Разборах»): плеер Kinescope под шапкой,
+// в той же рамке с оранжевой тенью, что и видео в уроках курса.
+function withVideo(html: string, kinescopeId: string): string {
+  if (!kinescopeId || !html.includes('<!--VIDEO_SLOT-->')) return html;
+  const player =
+    `<div class="pvwrap"><div class="pv"><iframe src="${esc(playerSrc(kinescopeId))}" ` +
+    `allow="autoplay; fullscreen; picture-in-picture; encrypted-media;" allowfullscreen frameborder="0" title="Видео"></iframe></div>` +
+    `<p class="pvnote">Ниже то же самое текстом, с картинками. Смотреть или читать, как удобнее.</p></div>`;
+  const css =
+    `<style>.pvwrap{max-width:620px;margin:0 auto;padding:30px 24px 4px;}` +
+    `.pv{position:relative;width:100%;aspect-ratio:16/9;background:#000;border:1px solid #000;box-shadow:6px 6px 0 #e8590c;}` +
+    `.pv iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}` +
+    `.pvnote{font-size:15px;color:#666;margin:12px 0 0;line-height:1.45;}` +
+    `@media(max-width:640px){.pvwrap{padding:22px 16px 4px;}.pv{box-shadow:4px 4px 0 #e8590c;}}</style>`;
+  return html.replace('<!--VIDEO_SLOT-->', player).replace('</head>', css + '</head>');
+}
+
 export async function GET(request: NextRequest) {
   try {
     const q = request.nextUrl.searchParams.get('preview');
@@ -95,7 +113,7 @@ export async function GET(request: NextRequest) {
     if (stepKey) {
       const st = POTOK_STEPS.find((x) => x.key === stepKey);
       if (!st || !st.html) return NextResponse.json({ success: false, error: 'not found' }, { status: 404 });
-      return new NextResponse(withStepNav(st.html, st.key, request.nextUrl.searchParams), {
+      return new NextResponse(withStepNav(withVideo(st.html, st.kinescopeId), st.key, request.nextUrl.searchParams), {
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store' },
       });
     }

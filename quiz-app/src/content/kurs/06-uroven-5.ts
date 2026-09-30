@@ -279,6 +279,10 @@ body.rev .todo{display:block;}
 .kcfr figcaption a{word-break:break-all;}
 /* %%carousel shots%%: скриншоты с телефона одной высоты */
 .kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcfr video{width:100%;display:block;background:#000;}
+.kcar.shots .kcfr video{height:min(68vh,560px);}
+/* видео в тексте: вертикальный рилс не растягивается на весь экран */
+.kvid{display:block;width:100%;max-height:min(75vh,640px);background:#000;margin:20px 0;border:1px solid #ddd;}
 .kcar.shots .kcfr figcaption{min-height:0;}
 @media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
@@ -457,15 +461,17 @@ body.rev .todo{display:block;}
 <p>Она там рассказывает про формирование привычки</p>
 <p>27,5 тысяч лайков и 12,6 тысяч сохранений - тема людям заходит, спрос на нее есть</p>
 <p>Причем на англоязычном рынке я видел ролик с тем же смыслом, который набрал 4 миллиона просмотров. Возможно, она взяла заход оттуда</p>
-<p>Я взял этот заход и собрал его три раза:</p>
-<div class="kcar shots" data-i="0" data-n="3">
-      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/l5-moya-karusel-1.jpg" alt="">
-         <figcaption><b>Июнь</b><span>257 826 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/l5-moya-karusel-2.jpg" alt="">
-         <figcaption><b>Июль</b><span>54 610 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/l5-moya-karusel-3.jpg" alt="">
-         <figcaption><b>Август</b><span>19 537 просмотров</span></figcaption></figure></div>
-      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button><button class="kcdot" data-i="2"></button></div>
-        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 3</span></div>
+<p>Я взял этот заход и собрал его четыре раза:</p>
+<div class="kcar shots" data-i="0" data-n="4">
+      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/potok-karusel-1.jpg" alt="">
+         <figcaption><b>29 июня</b><span>259 983 просмотра</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/potok-karusel-2.jpg" alt="">
+         <figcaption><b>7 июля</b><span>93 439 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/potok-karusel-3.jpg" alt="">
+         <figcaption><b>4 августа</b><span>143 031 просмотр</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/potok-karusel-4.jpg" alt="">
+         <figcaption><b>24 августа</b><span>57 257 просмотров</span></figcaption></figure></div>
+      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button><button class="kcdot" data-i="2"></button><button class="kcdot" data-i="3"></button></div>
+        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 4</span></div>
     </div>
+<p>Вместе 553 710 просмотров на одном заходе</p>
 <p>И вот что важно: внутри у каждой свои смыслы, наполнение каждый раз разное</p>
 <p>Я не копировал карусель. Я взял только заход и наполнил его своими смыслами и идеями</p>
 <p>Вторая часть - ваша позиция и то, во что вы верите</p>
@@ -984,7 +990,11 @@ body.rev .todo{display:block;}
       const set = i => {
         i = Math.max(0, Math.min(frames.length - 1, i));
         car.dataset.i = i;
-        frames.forEach((f, j) => f.classList.toggle('on', j === i));
+        frames.forEach((f, j) => {
+          f.classList.toggle('on', j === i);
+          const v = f.querySelector('video');
+          if (v && j !== i) v.pause();
+        });
         dots.forEach((d, j) => d.classList.toggle('on', j === i));
         cnt.textContent = (i + 1) + ' / ' + frames.length;
         car.querySelectorAll('.kcarrow').forEach(b => {
@@ -1007,7 +1017,7 @@ body.rev .todo{display:block;}
       });
       box.addEventListener('click', e => {
         if (swiped) { swiped = false; return; }
-        if (e.target.closest('a')) return;
+        if (e.target.closest('a, video')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
