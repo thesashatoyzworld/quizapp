@@ -274,6 +274,13 @@ body.rev .todo{display:block;}
 .kcdot{width:9px;height:9px;padding:0;border:1px solid #000;background:#fff;cursor:pointer;}
 .kcdot.on{background:var(--accent);border-color:var(--accent);}
 .kccnt{margin-left:auto;font-family:"Courier New",Courier,monospace;font-size:12px;color:#888;}
+.kfrs,.kcfrs{touch-action:pan-y;}
+.kcfr figcaption:empty{display:none;}
+.kcfr figcaption a{word-break:break-all;}
+/* %%carousel shots%%: скриншоты с телефона одной высоты */
+.kcar.shots .kcfr img{height:min(68vh,560px);object-fit:contain;background:#f4f4f4;}
+.kcar.shots .kcfr figcaption{min-height:0;}
+@media (max-width:600px){.kcar{padding:12px 12px 10px;margin:22px -4px;}}
 
 </style>
 </head>
@@ -451,10 +458,16 @@ body.rev .todo{display:block;}
 <p>27,5 тысяч лайков и 12,6 тысяч сохранений - тема людям заходит, спрос на нее есть</p>
 <p>Причем на англоязычном рынке я видел ролик с тем же смыслом, который набрал 4 миллиона просмотров. Возможно, она взяла заход оттуда</p>
 <p>Я взял этот заход и собрал его три раза:</p>
-<p><img src="/kurs/assets/l5-moya-karusel-1.jpg" alt=""> <img src="/kurs/assets/l5-moya-karusel-2.jpg" alt=""> <img src="/kurs/assets/l5-moya-karusel-3.jpg" alt=""></p>
-<p>257 826 просмотров в июне, 54 610 в июле, 19 537 в августе</p>
+<div class="kcar shots" data-i="0" data-n="3">
+      <div class="kcfrs"><figure class="kcfr on"><img src="/kurs/assets/l5-moya-karusel-1.jpg" alt="">
+         <figcaption><b>Июнь</b><span>257 826 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/l5-moya-karusel-2.jpg" alt="">
+         <figcaption><b>Июль</b><span>54 610 просмотров</span></figcaption></figure><figure class="kcfr"><img src="/kurs/assets/l5-moya-karusel-3.jpg" alt="">
+         <figcaption><b>Август</b><span>19 537 просмотров</span></figcaption></figure></div>
+      <div class="kcbar"><button class="kcarrow" data-d="-1">‹</button><div class="kcdots"><button class="kcdot on" data-i="0"></button><button class="kcdot" data-i="1"></button><button class="kcdot" data-i="2"></button></div>
+        <button class="kcarrow" data-d="1">›</button><span class="kccnt">1 / 3</span></div>
+    </div>
 <p>И вот что важно: внутри у каждой свои смыслы, наполнение каждый раз разное</p>
-<p>Я не копировал карусель. Я взял только заход и наполнил его собой</p>
+<p>Я не копировал карусель. Я взял только заход и наполнил его своими смыслами и идеями</p>
 <p>Вторая часть - ваша позиция и то, во что вы верите</p>
 <p class="punch">ВАША ПРАВДА</p>
 <p>Когда эти две вещи стыкуются - получаются цифры</p>
@@ -982,7 +995,19 @@ body.rev .todo{display:block;}
       car.querySelectorAll('.kcarrow').forEach(b =>
         b.addEventListener('click', () => set(Number(car.dataset.i) + Number(b.dataset.d))));
       dots.forEach(d => d.addEventListener('click', () => set(Number(d.dataset.i))));
-      car.querySelector('.kcfrs').addEventListener('click', () => {
+      // свайп пальцем: влево — дальше, вправо — назад
+      const box = car.querySelector('.kcfrs');
+      let x0 = null, y0 = 0, swiped = false;
+      box.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; swiped = false; }, { passive: true });
+      box.addEventListener('touchend', e => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { swiped = true; set(Number(car.dataset.i) + (dx < 0 ? 1 : -1)); }
+      });
+      box.addEventListener('click', e => {
+        if (swiped) { swiped = false; return; }
+        if (e.target.closest('a')) return;
         const i = Number(car.dataset.i);
         set(i >= frames.length - 1 ? 0 : i + 1);
       });
