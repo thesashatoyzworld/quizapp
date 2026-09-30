@@ -5,6 +5,7 @@ import { POTOK_FILES } from '@/content/potok';
 import { resolvePotokAccess } from '@/content/potok/access';
 import { POTOK_STEPS } from '@/content/potok/steps';
 import { playerSrc } from '@/lib/cabinet-video';
+import { isAdminUser } from '@/lib/admin-auth';
 import { potokOffer, stepCtaHtml, STEP_CTA_CSS, STEP_CTA_JS, type PotokOffer } from '@/content/potok/upsell';
 
 export const runtime = 'nodejs';
@@ -111,7 +112,10 @@ export async function GET(request: NextRequest) {
     }
 
     const rows = telegramId ? await getActiveAccessByTelegram(telegramId) : [];
-    const access = bypass
+    // ?preview=cta — Саша смотрит ветку глазами покупателя «Потока»: с призывами
+    // на курс и таймером. Только для админа, остальным параметр ничего не даёт.
+    const demo = q === 'cta' && !!telegramId && isAdminUser(String(telegramId));
+    const access = bypass || demo
       ? { allowed: true, via: 'potok' as const, tier: 0 }
       : resolvePotokAccess(rows.map((r) => ({ role: r.role, productSlug: r.productSlug })));
 
@@ -120,7 +124,7 @@ export async function GET(request: NextRequest) {
     }
 
     // В превью (локально, без Telegram) показываем предложение как у свежего покупателя.
-    const offer = bypass
+    const offer = bypass || demo
       ? potokOffer([{ role: 'potok', productSlug: 'potok-sprosa', grantedAt: new Date() }], null)
       : potokOffer(rows, telegramId);
 
