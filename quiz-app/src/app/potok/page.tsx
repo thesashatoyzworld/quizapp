@@ -30,6 +30,55 @@ interface FileItem {
 
 const BOT_URL = 'https://t.me/testtoyzbot';
 
+/** Предложение курса покупателю «Потока» (считает сервер, см. content/potok/upsell.ts). */
+interface Offer {
+  /** ISO; пусто — зачёт сгорел, курс по полной цене */
+  deadline: string;
+  price: number;
+  full: number;
+  href: string;
+}
+
+const rub = (n: number) => n.toLocaleString('ru-RU') + ' ₽';
+
+function useCountdown(deadline: string) {
+  const [left, setLeft] = useState(() => (deadline ? new Date(deadline).getTime() - Date.now() : 0));
+  useEffect(() => {
+    if (!deadline) return;
+    const t = setInterval(() => setLeft(new Date(deadline).getTime() - Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [deadline]);
+  return left;
+}
+
+function OfferCard({ offer, tgId }: { offer: Offer; tgId: number | null }) {
+  const left = useCountdown(offer.deadline);
+  const live = !!offer.deadline && left > 0;
+  const s = Math.max(0, Math.floor(left / 1000));
+  const p = (n: number) => String(n).padStart(2, '0');
+  const d = Math.floor(s / 86400);
+  const clock = `${d ? `${d} д ` : ''}${p(Math.floor((s % 86400) / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
+  const price = live ? offer.price : offer.full;
+  return (
+    <div className="pt-card pt-up">
+      <div className="pt-h">Метод это первый шаг</div>
+      <p>
+        Найти заход это половина дела. Дальше его надо наполнить своим смыслом, размножить
+        и докрутить, а это уже курс «Новый Уровень Контента». «Поток Спроса» входит в него целиком.
+      </p>
+      <div className="pt-up-price">
+        {live && <s>{rub(offer.full)}</s>} <b>{rub(price)}</b>
+      </div>
+      {live && <div className="pt-up-note">1 490 ₽ за «Поток» уже зачтены</div>}
+      <a className="pt-up-btn" href={offer.href} target="_blank" rel="noopener noreferrer"
+        onClick={() => trackMaterial('potok', 'upsell-uroven', 'Новый уровень контента', tgId)}>
+        Забрать курс за {rub(price)}
+      </a>
+      {live && <div className="pt-up-timer">скидка сгорит через <b>{clock}</b></div>}
+    </div>
+  );
+}
+
 function TelegramLoginButton() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -54,6 +103,7 @@ function PotokInner() {
   // Каким ключом открыта ветка: 'potok' — куплена отдельно за 1 490,
   // 'uroven' — человек и так на курсе. От этого зависит, звать ли на курс.
   const [via, setVia] = useState<'potok' | 'uroven' | null>(null);
+  const [offer, setOffer] = useState<Offer | null>(null);
   const [tgId, setTgId] = useState<number | null>(null);
   // Метку превью читаем один раз при создании состояния: на сервере window нет,
   // а ссылки с ней рисуются только после загрузки, то есть уже на клиенте.
@@ -84,6 +134,7 @@ function PotokInner() {
           setItems(data.items || []);
           setSteps(data.steps || []);
           setVia(data.via ?? null);
+          setOffer(data.offer ?? null);
           setState('ok');
           trackSection('potok', id);
         }
@@ -236,6 +287,8 @@ function PotokInner() {
             </div>
           )}
 
+          {via === 'potok' && offer && <OfferCard offer={offer} tgId={tgId} />}
+
           <div className="pt-card">
             <div className="pt-h">Порядок шагов</div>
             <ol className="pt-steps">
@@ -282,19 +335,6 @@ function PotokInner() {
             </div>
           ))}
 
-          {via === 'potok' && (
-            <a className="pt-card pt-up" href="https://thesashatoyz.com/uroven"
-              target="_blank" rel="noopener noreferrer"
-              onClick={() => trackMaterial('potok', 'upsell-uroven', 'Новый уровень контента', tgId)}>
-              <div className="pt-h">Метод это первый шаг</div>
-              <p>
-                Найти заход это половина дела. Дальше его надо наполнить своим смыслом, размножить
-                и докрутить, а это уже курс «Новый уровень контента». «Поток спроса» входит в него
-                целиком, и 1 490 зачтутся в стоимость.
-              </p>
-              <span className="pt-up-go">Посмотреть курс →</span>
-            </a>
-          )}
 
           <div className="pt-card pt-both">
             <div className="pt-h">Нужны оба файла</div>
@@ -421,7 +461,11 @@ function PotokInner() {
         .pt-up { display: block; text-decoration: none; background: var(--pt-accent-soft); border-color: transparent; }
         .pt-up .pt-h { color: var(--pt-accent); }
         .pt-up p { font-size: 13.5px; line-height: 1.5; margin: 0; }
-        .pt-up-go { display: inline-block; margin-top: 12px; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14px; color: var(--pt-accent); }
+        .pt-up-price { margin-top: 14px; font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 24px; }
+        .pt-up-price s { font-weight: 700; font-size: 15px; color: #999; margin-right: 4px; }
+        .pt-up-note { font-size: 12.5px; opacity: .7; margin-top: 2px; }
+        .pt-up-btn { display: block; margin-top: 14px; padding: 14px 16px; text-align: center; text-decoration: none; background: #c94f0a; color: #fff; border-radius: 10px; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 15px; }
+        .pt-up-timer { margin-top: 10px; text-align: center; font-size: 13px; color: var(--pt-accent); font-variant-numeric: tabular-nums; }
         .pt-login-title { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px; }
         .pt-login-sub { color: var(--pt-muted); font-size: 12.5px; margin: 4px 0 12px; line-height: 1.4; }
         .pt-tg-login { margin-top: 4px; min-height: 46px; }
