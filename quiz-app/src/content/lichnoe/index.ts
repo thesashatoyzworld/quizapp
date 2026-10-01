@@ -52,6 +52,8 @@ import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_09_29 } from './lichnyy-sozvon-ramil-
 
 import { LICHNOE_LICHNYY_SOZVON_NIA_2026_09_29 } from './lichnyy-sozvon-nia-2026-09-29';
 
+import { LICHNOE_LICHNYY_SOZVON_LEV_2026_10_01 } from './lichnyy-sozvon-lev-2026-10-01';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -74,6 +76,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-lev-2026-10-01',
+    telegramIds: [802601283, 788334680],
+    client: "Лев @levpavlovichq",
+    title: "Всё на 10 октября",
+    subtitle: "Оффер и структура вебинара, оффер обучения через результат, контент до 10-го",
+    date: '2026-10-01',
+    duration: "64 мин",
+    tags: ["вебинар", "оффер", "контент"],
+    kinescopeId: 'jKpRPCB3ut1oBYqFyJvJj5',
+    html: LICHNOE_LICHNYY_SOZVON_LEV_2026_10_01,
+  },
   {
     slug: 'lichnyy-sozvon-nia-2026-09-29',
     telegramIds: [104934039, 788334680],
