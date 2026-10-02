@@ -54,6 +54,10 @@ import { LICHNOE_LICHNYY_SOZVON_NIA_2026_09_29 } from './lichnyy-sozvon-nia-2026
 
 import { LICHNOE_LICHNYY_SOZVON_LEV_2026_10_01 } from './lichnyy-sozvon-lev-2026-10-01';
 
+import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_02 } from './lichnyy-sozvon-evgeniya-2026-10-02';
+
+import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_02 } from './lichnyy-sozvon-leonid-2026-10-02';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -76,6 +80,30 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-leonid-2026-10-02',
+    telegramIds: [167259877, 788334680],
+    client: "Леонид Коновалов",
+    title: "Первая версия живее двухсотой",
+    subtitle: "Ролики в четырёх версиях и пробные рилсы, фристайл для своих, шапка профиля, подготовка ко второму контент-созвону, Claude Code и идея платформы по подписке",
+    date: '2026-10-02',
+    duration: "46 мин",
+    tags: ["контент", "пробные рилсы", "профиль", "нейронки"],
+    kinescopeId: 'rrRPDtssHna11oaaipGYJM',
+    html: LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_02,
+  },
+  {
+    slug: 'lichnyy-sozvon-evgeniya-2026-10-02',
+    telegramIds: [934091008, 788334680],
+    client: "Женя Сокольчик",
+    title: "Упрощаем воронку, чтобы цифры начали говорить",
+    subtitle: "Сентябрь от охвата до продаж, две карусели с оффером и две анкеты, рилс «как сказать мужу», карусель по рабочему заходу и сторис три раза в неделю",
+    date: '2026-10-02',
+    duration: "63 мин",
+    tags: ["воронка", "оффер", "контент", "сторис"],
+    kinescopeId: 'hGfS7nzuZxevNth7h57ZPC',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_02,
+  },
   {
     slug: 'lichnyy-sozvon-lev-2026-10-01',
     telegramIds: [802601283, 788334680],
