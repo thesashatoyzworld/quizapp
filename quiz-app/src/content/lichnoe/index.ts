@@ -58,6 +58,8 @@ import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_02 } from './lichnyy-sozvon-evg
 
 import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_02 } from './lichnyy-sozvon-leonid-2026-10-02';
 
+import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_02 } from './lichnyy-sozvon-stas-2026-10-02';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -80,6 +82,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-stas-2026-10-02',
+    telegramIds: [204608959, 788334680],
+    client: "Стас",
+    title: "Куда целимся: бабки и передача бизнеса детям",
+    subtitle: "Два направления оффера, монтаж следующей недели, инструкция по загрузке",
+    date: '2026-10-02',
+    duration: "61 мин",
+    tags: ["оффер", "позиционирование", "контент"],
+    kinescopeId: 'bwAtARjqhbBwGgK7Dwjxbi',
+    html: LICHNOE_LICHNYY_SOZVON_STAS_2026_10_02,
+  },
   {
     slug: 'lichnyy-sozvon-leonid-2026-10-02',
     telegramIds: [167259877, 788334680],
