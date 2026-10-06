@@ -60,6 +60,8 @@ import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_02 } from './lichnyy-sozvon-leoni
 
 import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_02 } from './lichnyy-sozvon-stas-2026-10-02';
 
+import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_06 } from './lichnyy-sozvon-ramil-2026-10-06';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -82,6 +84,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-ramil-2026-10-06',
+    telegramIds: [1556129897, 788334680],
+    client: "Рамиль",
+    title: "Первые страницы книги",
+    subtitle: "Аккаунт как пример, метод это не психология, длинный оффер откладываем и собираем оффер на две демоверсии",
+    date: '2026-10-06',
+    duration: "20 мин",
+    tags: ["оффер", "демоверсии", "метод", "позиционирование"],
+    kinescopeId: 'sm9J1o52ie9Vxyin5KJEHx',
+    html: LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_06,
+  },
   {
     slug: 'lichnyy-sozvon-stas-2026-10-02',
     telegramIds: [204608959, 788334680],
