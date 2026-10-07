@@ -18,11 +18,28 @@ import {
   parseBatchKey,
   type BatchRow,
 } from './batch';
-import { SYSTEM, parseReply, renderExamples, type Correction, type ShotPair } from './prompt';
+import { SYSTEM, leaksMeta, parseReply, renderExamples, type Correction, type ShotPair } from './prompt';
 import { fileBlocks, linkBlocks, type ContentBlock } from './sources';
 import { sendDraftToAdmin } from './admin';
 
 const anthropic = new Anthropic();
+
+/** Ответ через инструмент: так модель не вернёт текст мимо формата. */
+const DRAFT_TOOL: Anthropic.Tool = {
+  name: 'draft_reply',
+  description: 'Черновик ответа Саши ученику',
+  input_schema: {
+    type: 'object',
+    properties: {
+      reply: {
+        type: ['string', 'null'],
+        description: 'текст ответа как он уйдёт в чат, или null, если отвечать не надо',
+      },
+      note: { type: 'string', description: 'заметка для Саши, пусто если нечего сказать' },
+    },
+    required: ['reply', 'note'],
+  },
+};
 
 /** Одно место на файл: по этой строке считается цена вызова. */
 const MODEL = 'claude-sonnet-5';
@@ -90,6 +107,49 @@ function cabinetIndex(): string {
     .join('\n');
 }
 
+/**
+ * Когда Саша последний раз отвечал этому человеку в теме: reply на его
+ * сообщение или упоминание по юзернейму.
+ */
+async function lastOwnerTouch(
+  chatId: string,
+  threadId: number | null,
+  userId: string,
+  since: Date,
+  now: Date,
+): Promise<Date | null> {
+  const theirs = await prisma.tgGroupMsg.findMany({
+    where: { chatId, threadId, userId, createdAt: { gt: since, lte: now } },
+    select: { id: true, username: true },
+  });
+  if (!theirs.length) return null;
+  const ids = theirs.map((r) => messageIdOf(r.id));
+  const username = theirs.find((r) => r.username)?.username;
+  const touch = await prisma.tgGroupMsg.findFirst({
+    where: {
+      chatId,
+      threadId,
+      userId: { in: ownerIds() },
+      createdAt: { gt: since, lte: now },
+      OR: [
+        { replyToId: { in: ids } },
+        ...(username ? [{ text: { contains: '@' + username, mode: 'insensitive' as const } }] : []),
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  return touch?.createdAt ?? null;
+}
+
+/** Постоянная ссылка на созвоны: Саша кидает её в «Календарь» перед каждым. */
+async function callLink(chatId: string): Promise<string | null> {
+  const row = await prisma.tgGroupMsg.findFirst({
+    where: { chatId, userId: { in: ownerIds() }, text: { contains: 'zoom.us/j/' } },
+    orderBy: { createdAt: 'desc' },
+  });
+  return row?.text.match(/https:\/\/\S*zoom\.us\/j\/\S+/)?.[0] ?? null;
+}
+
 export type DraftResult =
   | { done: true; reason: string; draft?: string | null; note?: string }
   | { done: false; retryInSec: number };
@@ -108,7 +168,12 @@ export async function runDraft(key: string, now = new Date(), opts: { dry?: bool
     orderBy: { lastAt: 'desc' },
   });
   const floor = new Date(now.getTime() - MAX_AGE_MS);
-  const since = prev && prev.lastAt > floor ? prev.lastAt : floor;
+  let since = prev && prev.lastAt > floor ? prev.lastAt : floor;
+
+  // Саша мог ответить человеку сам, мимо черновиков. Всё, что было до его
+  // последнего ответа этому человеку, уже закрыто и в пачку не идёт.
+  const touch = await lastOwnerTouch(chatId, threadId, userId, since, now);
+  if (touch && touch > since) since = touch;
 
   const mine = await prisma.tgGroupMsg.findMany({
     where: { chatId, threadId, userId, createdAt: { gt: since, lte: now } },
@@ -164,11 +229,12 @@ export async function runDraft(key: string, now = new Date(), opts: { dry?: bool
   }
 
   const files = mine.filter((r) => r.fileId && (r.mediaType === 'photo' || r.mediaType === 'file'));
-  const [fb, lb, pairs, fixes] = await Promise.all([
+  const [fb, lb, pairs, fixes, zoom] = await Promise.all([
     fileBlocks(files.map((r) => ({ fileId: r.fileId!, mime: r.fileMime }))),
     linkBlocks(question),
     shotPairs(chatId),
     corrections(),
+    callLink(chatId),
   ]);
 
   const transcript = thread
@@ -186,16 +252,21 @@ export async function runDraft(key: string, now = new Date(), opts: { dry?: bool
     ...fb.blocks,
     ...lb.blocks,
   ];
+  // Старые строки лога писались без file_id: такие вложения не скачать.
+  const blind = mine.filter((r) => !r.fileId && (r.mediaType === 'photo' || r.mediaType === 'file')).length;
   const unseen: string[] = [];
-  if (fb.missed) unseen.push(`не открылось файлов: ${fb.missed}`);
+  if (fb.missed + blind) unseen.push(`не открылось файлов: ${fb.missed + blind}`);
   if (lb.missed.length) unseen.push(`не открылись ссылки: ${lb.missed.join(', ')}`);
+  if (/instagram\.com/.test(question)) unseen.push('инстаграм без входа не открывается, пост не видно');
   if (unseen.length) content.push({ type: 'text', text: `Внимание: ${unseen.join('; ')}.` });
 
   const system = [
     { type: 'text' as const, text: SYSTEM },
     {
       type: 'text' as const,
-      text: `## Оглавление кабинета (для вопросов «где найти»)\n\n${cabinetIndex()}\n\n${renderExamples(pairs, fixes)}`,
+      text:
+        `## Факты\n\nСозвоны группы утром и вечером, ссылка всегда одна: ${zoom || 'не найдена'}\n\n` +
+        `## Оглавление кабинета (для вопросов «где найти»)\n\n${cabinetIndex()}\n\n${renderExamples(pairs, fixes)}`,
       cache_control: { type: 'ephemeral' as const },
     },
   ];
@@ -207,21 +278,30 @@ export async function runDraft(key: string, now = new Date(), opts: { dry?: bool
       model: MODEL,
       max_tokens: 1500,
       system,
+      tools: [DRAFT_TOOL],
+      tool_choice: { type: 'tool', name: DRAFT_TOOL.name },
       messages: [{ role: 'user', content: content as Anthropic.ContentBlockParam[] }],
     });
     await recordAnthropicUsage(MODEL, res.usage, 'group');
-    const raw = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
-    ({ reply, note } = parseReply(raw));
+    const call = res.content.find((b) => b.type === 'tool_use');
+    ({ reply, note } = parseReply(call ? JSON.stringify(call.input) : ''));
   } catch (e) {
     console.error('[group-draft] модель упала', e);
     note = 'модель не ответила, черновика нет';
+  }
+  if (reply && leaksMeta(reply)) {
+    note = [note, 'черновик выкинул: в нём было служебное для тебя'].filter(Boolean).join('\n');
+    reply = null;
   }
   if (unseen.length) note = [note, unseen.join('; ')].filter(Boolean).join('\n');
 
   if (opts.dry) return { done: true, reason: 'dry', draft: reply, note };
 
-  // Отвечать не на что: черновик молча закрываем, Сашу не дёргаем.
-  if (!reply && !note.startsWith('модель')) {
+  // Отвечать не на что: черновик молча закрываем, Сашу не дёргаем. Но если
+  // Сашу позвали по имени, модель упала или вложение не открылось, показываем
+  // без черновика: пусть решит сам.
+  const calledSasha = /@thesashatoyz|саш/i.test(question);
+  if (!reply && !calledSasha && !unseen.length && !note.startsWith('модель')) {
     await prisma.groupDraft.update({ where: { id: draftId }, data: { status: 'silent', note } });
     return { done: true, reason: 'отвечать не на что' };
   }

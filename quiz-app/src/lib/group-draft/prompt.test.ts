@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseReply, renderExamples } from './prompt';
+import { leaksMeta, parseReply, renderExamples } from './prompt';
 
 test('JSON с ответом и заметкой', () => {
   const r = parseReply('{"reply": "гуд\\nдавай дальше", "note": "смотрел pdf"}');
@@ -26,4 +26,11 @@ test('примеры собираются в блоки, пустые пропу
   const s = renderExamples([{ question: 'q', answer: 'a' }], [{ question: 'q2', draft: 'd', sent: 's' }]);
   assert.match(s, /ученик: q\nСаша: a/);
   assert.match(s, /Саша отправил: s/);
+});
+
+test('служебное для Саши в ответе ученику ловится', () => {
+  assert.equal(leaksMeta('не видел файл с оффером, скинь ещё раз'), true);
+  assert.equal(leaksMeta('по цене это не ко мне'), true);
+  assert.equal(leaksMeta('цену сам не подтверждаю'), true);
+  assert.equal(leaksMeta('гуд\nподсуши текст и вешай в закреп'), false);
 });
