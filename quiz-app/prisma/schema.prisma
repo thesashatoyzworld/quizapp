@@ -883,6 +883,19 @@ model GroupDraft {
   @@map("group_draft")
 }
 
+/**
+ * Корпус «вопрос ученика → ответ Саши» из истории группы. Лежит в базе, а не
+ * в репозитории: репозиторий публичный, а тут переписка учеников.
+ */
+model GroupVoicePair {
+  id        Int      @id @default(autoincrement())
+  question  String
+  answer    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("group_voice_pair")
+}
+
 /** Скриншот переписки, присланный боту. Альбом собирается по groupId. */
 model TgShot {
   id        String   @id

@@ -1,9 +1,9 @@
 // Корпус «вопрос → ответ Саши» из всей истории «Коннекторов»: ручные выгрузки
-// с 27.07 по 20.09 плюс база tg_group_msg. Пишет src/content/group-voice/pairs.json,
-// его черновики читают как примеры голоса.
+// с 27.07 по 20.09 плюс база tg_group_msg. Пишет в таблицу group_voice_pair,
+// не в репозиторий: репозиторий публичный, а тут переписка учеников.
 //
 // npx tsx --env-file=.env.local scripts/group-voice-build.mts <папка с выгрузками>
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { buildPairs, type Msg } from '@/lib/group-draft/pairs';
@@ -90,7 +90,9 @@ for (const r of rows) {
 
 const all = [...msgs.values()].sort((a, b) => a.id - b.id);
 const pairs = buildPairs(all);
-mkdirSync('src/content/group-voice', { recursive: true });
-writeFileSync('src/content/group-voice/pairs.json', JSON.stringify(pairs, null, 1));
+await prisma.$transaction([
+  prisma.groupVoicePair.deleteMany({}),
+  prisma.groupVoicePair.createMany({ data: pairs }),
+]);
 console.log(`сообщений ${all.length}, ответов Саши ${all.filter((m) => m.owner).length}, пар ${pairs.length}, символов ${JSON.stringify(pairs).length}`);
 await prisma.$disconnect();

@@ -22,7 +22,6 @@ import { SYSTEM, leaksMeta, parseReply, renderExamples, type Correction, type Sh
 import { fileBlocks, linkBlocks, type ContentBlock } from './sources';
 import { sendDraftToAdmin } from './admin';
 import { buildPairs, type Msg } from './pairs';
-import corpus from '@/content/group-voice/pairs.json';
 
 const anthropic = new Anthropic();
 
@@ -95,13 +94,17 @@ async function shotPairs(chatId: string): Promise<ShotPair[]> {
 const CORPUS_UNTIL = new Date('2026-10-07T07:30:00Z');
 
 /** Вся история ответов Саши в группе с 27.07: голос и подход, кэшируется. */
-function corpusText(): string {
-  return (
+let corpusCache: string | null = null;
+
+async function corpusText(): Promise<string> {
+  if (corpusCache) return corpusCache;
+  const pairs = await prisma.groupVoicePair.findMany({ orderBy: { id: 'asc' } });
+  corpusCache =
     '## Как Саша отвечал в группе с 27.07 (все пары)\n\n' +
     'Пары собраны по соседству сообщений: иногда ответ адресован другому ученику. ' +
     'Бери из них голос, длину и подход, а не факты про конкретного человека.\n\n' +
-    (corpus as ShotPair[]).map((p) => `ученик: ${p.question}\nСаша: ${p.answer}`).join('\n\n')
-  );
+    pairs.map((p) => `ученик: ${p.question}\nСаша: ${p.answer}`).join('\n\n');
+  return corpusCache;
 }
 
 /** Черновики, которые Саша переписал: самое ценное, что есть для стиля. */
@@ -282,7 +285,7 @@ export async function runDraft(key: string, now = new Date(), opts: { dry?: bool
   const system = [
     {
       type: 'text' as const,
-      text: `${SYSTEM}\n\n## Оглавление кабинета (для вопросов «где найти»)\n\n${cabinetIndex()}\n\n${corpusText()}`,
+      text: `${SYSTEM}\n\n## Оглавление кабинета (для вопросов «где найти»)\n\n${cabinetIndex()}\n\n${await corpusText()}`,
       cache_control: { type: 'ephemeral' as const },
     },
     {
