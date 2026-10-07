@@ -61,3 +61,30 @@ test('пишем только те группы, которые названы',
   assert.equal(isLoggedGroup('-1002115856669'), true);
   assert.equal(isLoggedGroup(-5496403099), false); // DANIEL x TOYZ, там свой бот
 });
+
+test('картинка: берётся самый крупный размер, mime jpeg', () => {
+  const row = rowFromMessage(
+    msg({ text: undefined, photo: [{ file_id: 'small' }, { file_id: 'big' }] }),
+  );
+  assert.equal(row.fileId, 'big');
+  assert.equal(row.fileMime, 'image/jpeg');
+  assert.equal(row.mediaType, 'photo');
+});
+
+test('pdf файлом: file_id и mime документа', () => {
+  const row = rowFromMessage(
+    msg({ document: { file_id: 'doc1', file_name: 'оффер.pdf', mime_type: 'application/pdf' } }),
+  );
+  assert.equal(row.fileId, 'doc1');
+  assert.equal(row.fileMime, 'application/pdf');
+});
+
+test('ответ на сообщение пишется, корень темы форума нет', () => {
+  const inTopic = rowFromMessage(
+    msg({ message_thread_id: 2331, reply_to_message: { message_id: 2331, forum_topic_created: { name: 'вопросы' } } }),
+  );
+  assert.equal(inTopic.replyToId, null);
+
+  const reply = rowFromMessage(msg({ message_thread_id: 2331, reply_to_message: { message_id: 9800 } }));
+  assert.equal(reply.replyToId, 9800);
+});

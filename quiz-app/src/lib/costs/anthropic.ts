@@ -26,7 +26,7 @@ const PRICES: Record<string, { input: number; output: number }> = {
 const MTOK = 1_000_000;
 
 /** Кто сжёг. Подписи для кабинета лежат в view.ts. */
-export type CostConsumer = 'sales' | 'kb' | 'roadmap' | 'zoom' | 'other';
+export type CostConsumer = 'sales' | 'kb' | 'roadmap' | 'zoom' | 'group' | 'other';
 
 /** Шаг лестницы порогов за день, в долларах. */
 const ALERT_STEP_USD = Number(process.env.COSTS_ALERT_USD || 5);
