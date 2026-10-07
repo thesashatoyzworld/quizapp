@@ -7,6 +7,7 @@ import { floorPrice } from '@/content/prices';
 import { grantAccess } from '@/lib/access';
 import { getDeal, countPayment, dealProduct, parseDealOrderId, alreadyProcessed } from '@/lib/deals';
 import { markDuePaid } from '@/lib/payment-dues';
+import { matchPayer } from '@/lib/payer-match';
 import { sendWelcomeT2, sendWelcomeT3, startIntake } from '@/lib/onboarding';
 import { notifyAdmin } from '@/lib/telegram';
 import { INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
@@ -259,6 +260,59 @@ async function notifyAdminMkDengiWeb(amount: number, email: string, phone: strin
   await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
 
+type DealRow = NonNullable<Awaited<ReturnType<typeof getDeal>>>;
+type DealProduct = NonNullable<ReturnType<typeof dealProduct>>;
+
+/**
+ * Провести оплату по прайс-ссылке человеку с известным телеграмом: покупка,
+ * доступ на срок позиции, приветствие тарифа с интервью, закрытие платежа по
+ * графику. Один путь и для обычной оплаты по ссылке, и для счёта из кабинета
+ * Продамуса, который опознали по почте.
+ */
+async function fulfillDeal(deal: DealRow, product: DealProduct, tgUserId: number, amount: number, orderId: string) {
+  await Promise.all([
+    createPurchase(tgUserId, product.slug, amount, 'uroven', orderId),
+    grantAccess({ product, telegramId: tgUserId, source: orderId, days: deal.days })
+      .catch((e) => console.error('[Access] deal grant failed:', e)),
+  ]);
+
+  // Дальше человек идёт тем же путём, что и обычная оплата тарифа:
+  // приветственный пакет своего тарифа, а внутри него интервью.
+  const welcomed =
+    product.slug === T2_PRODUCT_SLUG
+      ? await sendWelcomeT2(tgUserId)
+      : product.slug === INTAKE_PRODUCT_SLUG
+        ? await sendWelcomeT3(tgUserId)
+        : false;
+
+  if (!welcomed && BOT_TOKEN) {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: tgUserId,
+        text: `готово ⚡
+
+оплата принята: <b>${deal.title}</b>.
+
+все материалы в кабинете, жми кнопку ниже.`,
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
+      }),
+    }).catch(() => {});
+  }
+
+  // Приветствие т3 запускает анкету само; здесь добираем случай, когда
+  // приветствие не ушло, потому что человеку уже здоровались раньше.
+  if (product.slug === INTAKE_PRODUCT_SLUG && !welcomed) {
+    await startIntake(tgUserId, 't3');
+  }
+
+  // Платёж по графику закрываем сам, чтобы крон не напомнил об оплаченном.
+  await markDuePaid(tgUserId, deal.id, orderId)
+    .catch((e) => console.error('[Payment Dues] mark paid failed:', e));
+}
+
 async function notifyAdminUroven(productName: string, amount: number, contact: string, orderId: string, heading = 'Новый уровень контента') {
   const text = `💳 Оплата «${heading}»\n\n${productName}\n${amount.toLocaleString('ru-RU')} ₽\nКонтакт: ${contact}\nOrder: ${orderId}`;
   await notifyAdmin(text, { alsoWork: true, parseMode: null });
@@ -293,7 +347,7 @@ async function notifyAdminUnderpaid(
 // не узнавал, пока человек сам не написал.
 async function notifyAdminUnknownPayment(
   productName: string, amount: string, email: string, phone: string,
-  orderId: string, init: string,
+  orderId: string, init: string, hint = '',
 ) {
   let name = productName;
   try { name = decodeURIComponent(productName); } catch { /* keep as-is */ }
@@ -307,8 +361,10 @@ async function notifyAdminUnknownPayment(
     `Контакт: ${contact}`,
     `Order: ${orderId || 'пустой'}${init ? ` · ${init}` : ''}`,
     '',
-    'Доступ НЕ выдан: order_id не наш. Если это оплата тарифа — выдай ссылкой',
-    'node scripts/grant-gift-link.mjs <username> uroven-t2',
+    hint,
+    'Доступ НЕ выдан: order_id не наш, а по почте платёж по графику не нашёлся.',
+    'Если это оплата тарифа, выдай ссылкой:',
+    'node scripts/grant-paid-link.mjs <username> <uroven-t2|uroven-t3> <сумма>',
   ].filter((l) => l !== '').join('\n');
   await notifyAdmin(text, { alsoWork: true, parseMode: null });
 }
@@ -493,47 +549,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (tgUserId && tgUserId > 1000) {
-        await Promise.all([
-          createPurchase(tgUserId, product.slug, amount, isPotok ? 'potok' : 'uroven', orderId as string),
-          grantAccess({ product, telegramId: tgUserId, source: orderId as string, days: deal.days })
-            .catch((e) => console.error('[Access] deal grant failed:', e)),
-        ]);
-
-        // Дальше человек идёт тем же путём, что и обычная оплата тарифа:
-        // приветственный пакет своего тарифа, а внутри него интервью.
-        const welcomed =
-          product.slug === T2_PRODUCT_SLUG
-            ? await sendWelcomeT2(tgUserId)
-            : product.slug === INTAKE_PRODUCT_SLUG
-              ? await sendWelcomeT3(tgUserId)
-              : false;
-
-        if (!welcomed && BOT_TOKEN) {
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: tgUserId,
-              text: `готово ⚡
-
-оплата принята: <b>${deal.title}</b>.
-
-все материалы в кабинете, жми кнопку ниже.`,
-              parse_mode: 'HTML',
-              reply_markup: { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
-            }),
-          }).catch(() => {});
-        }
-
-        // Приветствие т3 запускает анкету само; здесь добираем случай, когда
-        // приветствие не ушло, потому что человеку уже здоровались раньше.
-        if (product.slug === INTAKE_PRODUCT_SLUG && !welcomed) {
-          await startIntake(tgUserId, 't3');
-        }
-
-        // Платёж по графику закрываем сам, чтобы крон не напомнил об оплаченном.
-        await markDuePaid(tgUserId, deal.id, orderId as string)
-          .catch((e) => console.error('[Payment Dues] mark paid failed:', e));
+        await fulfillDeal(deal, product, tgUserId, amount, orderId as string);
       } else {
         // Телеграма нет: платили не из бота. Доступ вешаем
         // на order_id, привяжется при входе в бота, и зовём Сашу разобраться.
@@ -853,6 +869,49 @@ export async function POST(request: NextRequest) {
         console.error('No tg_user_id in order_id:', orderId);
         const unkProds = body.products as Record<string, Record<string, string>> | undefined;
         const unkFirst = unkProds?.['0'] || (Array.isArray(unkProds) ? unkProds[0] : undefined);
+        const unkEmail = String(body.customer_email ?? '');
+        const unkAmount = parseInt(String(unkFirst?.sum ?? unkFirst?.price ?? body.sum ?? ''), 10) || 0;
+        // У Продамуса свой номер заказа есть всегда, им и ключуем покупку.
+        const unkOrder = String(orderId || body.order_id || '');
+
+        // Счёт из кабинета Продамуса: пробуем узнать человека по почте и
+        // провести как очередной платёж по его графику (см. payer-match.ts).
+        const match = unkEmail && unkAmount && unkOrder
+          ? await matchPayer(unkEmail, unkAmount).catch((e) => {
+            console.error('[Prodamus Webhook] matchPayer failed:', e);
+            return null;
+          })
+          : null;
+        if (match?.kind === 'due') {
+          const deal = await getDeal(match.dealId);
+          const product = deal ? dealProduct(deal.tier) : null;
+          if (deal && product) {
+            if (await alreadyProcessed(unkOrder)) {
+              console.log('[Prodamus Webhook] email match: повторный вебхук, пропускаем', unkOrder);
+              return NextResponse.json({ success: true });
+            }
+            await prisma.product.upsert({
+              where: { slug: product.slug },
+              create: { slug: product.slug, name: product.name, price: product.price, type: product.type },
+              update: { name: product.name },
+            });
+            await fulfillDeal(deal, product, match.telegramId, unkAmount, unkOrder);
+            await countPayment(deal.id);
+            await notifyAdminUroven(
+              `${deal.title} (прайс ${deal.id}, ${deal.days} дн.)
+`
+                + `Счёт из кабинета, опознан по почте: ${match.label || 'платёж по графику'} закрыт`,
+              unkAmount, `TG user ${match.telegramId}, ${unkEmail}`, unkOrder,
+            );
+            console.log(`[Prodamus Webhook] email match ${unkEmail} → tg ${match.telegramId}, deal ${deal.id}`);
+            return NextResponse.json({ success: true });
+          }
+        }
+        const hint = match?.kind === 'person' || match?.kind === 'due'
+          ? `С этой почты раньше платил TG ${match.telegramId}, но платежа по графику на эту сумму у него нет.`
+          : match?.kind === 'none' && match.candidates.length > 1
+            ? `С этой почты платили несколько человек: TG ${match.candidates.join(', ')}.`
+            : '';
         await notifyAdminUnknownPayment(
           String(unkFirst?.name ?? ''),
           String(unkFirst?.sum ?? unkFirst?.price ?? body.sum ?? ''),
@@ -860,6 +919,7 @@ export async function POST(request: NextRequest) {
           String(body.customer_phone ?? ''),
           String(orderId || ''),
           String(body.payment_init ?? ''),
+          hint,
         ).catch((e) => console.error('notifyAdminUnknownPayment failed', e));
         return NextResponse.json({ success: true });
       }
