@@ -115,3 +115,26 @@ export async function schedulePaidReminder(orderId: string, delaySec = 60 * 60) 
     console.error(`[QStash] Failed to schedule paid reminder for ${orderId}:`, error);
   }
 }
+
+/**
+ * Черновик ответа на вопрос в «Коннекторах». Ставится на каждое сообщение
+ * ученика с задержкой: задача сама проверит, замолчал ли человек, и
+ * перепланирует себя, если нет. Дубли гасит уникальный ключ черновика.
+ */
+export async function scheduleGroupDraft(key: string, delaySec = 150) {
+  if (!WEBAPP_URL) {
+    console.error('[QStash] WEBAPP_URL not set, cannot schedule group draft');
+    return;
+  }
+
+  try {
+    await qstash.publishJSON({
+      url: `${WEBAPP_URL}/api/group-draft`,
+      body: { key },
+      delay: delaySec,
+      retries: 1,
+    });
+  } catch (error) {
+    console.error(`[QStash] Failed to schedule group draft for ${key}:`, error);
+  }
+}

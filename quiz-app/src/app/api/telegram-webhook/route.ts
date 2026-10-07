@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isLoggedGroup, saveGroupMessage } from '@/lib/group-log';
+import { onGroupMessage } from '@/lib/group-draft/hook';
+import { CB as DRAFT_CB, handleDraftButton, catchDraftEdit, isDraftAdmin } from '@/lib/group-draft/admin';
 import { after } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { notifyAdmin, sendBotMessage, editAdminMarkup, type NotifyRef } from '@/lib/telegram';
@@ -377,15 +379,37 @@ export async function POST(request: NextRequest) {
     // и упоминания, то есть ветка почти всегда простаивает. Это нормально.
     if (update.message && isLoggedGroup(update.message.chat.id)) {
       await saveGroupMessage(update.message);
+      // Черновик ответа Саше в личку, либо закрыть висящий, если Саша ответил сам.
+      await onGroupMessage(update.message);
       if (!update.message.text?.startsWith('/')) {
         return NextResponse.json({ ok: true });
       }
+    }
+
+    // Саша прислал свой вариант ответа на вопрос из группы. Ловим до разбора
+    // лички ниже, иначе текст уйдёт в бота по материалам.
+    if (update.message?.reply_to_message && isDraftAdmin(update.message.chat.id)) {
+      if (await catchDraftEdit(update.message)) return NextResponse.json({ ok: true });
     }
 
     // Handle inline button callbacks
     if (update.callback_query) {
       const cb = update.callback_query;
       const data = cb.data || '';
+
+      // Кнопки под черновиком ответа в «Коннекторы».
+      if (
+        (data.startsWith(DRAFT_CB.send) || data.startsWith(DRAFT_CB.edit) || data.startsWith(DRAFT_CB.skip)) &&
+        cb.message
+      ) {
+        if (!isDraftAdmin(cb.message.chat.id)) {
+          await answerCallbackQuery(cb.id, 'не твоя кнопка');
+          return NextResponse.json({ ok: true });
+        }
+        const said = await handleDraftButton(data, cb.message.chat.id);
+        await answerCallbackQuery(cb.id, said);
+        return NextResponse.json({ ok: true });
+      }
 
       // Кнопка уже отработала — на повторное нажатие просто отвечаем.
       if (data === 'noop') {

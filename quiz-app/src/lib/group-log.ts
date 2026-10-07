@@ -34,10 +34,10 @@ export interface GroupMessage {
   text?: string;
   caption?: string;
   from?: { id?: number; first_name?: string; last_name?: string; username?: string };
-  voice?: { duration?: number };
-  video_note?: { duration?: number };
-  photo?: unknown[];
-  document?: { file_name?: string };
+  voice?: { file_id?: string; duration?: number };
+  video_note?: { file_id?: string; duration?: number };
+  photo?: { file_id?: string; file_size?: number }[];
+  document?: { file_id?: string; file_name?: string; mime_type?: string };
   reply_to_message?: {
     message_id?: number;
     forum_topic_created?: { name?: string };
@@ -54,6 +54,9 @@ export interface GroupMessageRow {
   name: string | null;
   text: string;
   mediaType: string | null;
+  fileId: string | null;
+  fileMime: string | null;
+  replyToId: number | null;
   createdAt: Date;
 }
 
@@ -86,6 +89,18 @@ export function rowFromMessage(msg: GroupMessage): GroupMessageRow {
   if (!text && media === 'photo') text = '[картинка]';
   if (!text && media === 'file') text = `[файл ${msg.document?.file_name || ''}`.trim() + ']';
 
+  // Картинка приходит набором размеров по возрастанию, берём самую крупную.
+  const photo = msg.photo?.length ? msg.photo[msg.photo.length - 1] : undefined;
+  const fileId =
+    photo?.file_id || msg.document?.file_id || msg.voice?.file_id || msg.video_note?.file_id || null;
+
+  // В форуме каждое сообщение темы «отвечает» на её корень. Это не ответ
+  // человеку, поэтому такой reply не пишем.
+  const reply = msg.reply_to_message;
+  const isTopicRoot =
+    !!reply?.forum_topic_created || (reply?.message_id !== undefined && reply.message_id === msg.message_thread_id);
+  const replyToId = reply?.message_id !== undefined && !isTopicRoot ? reply.message_id : null;
+
   return {
     id: `${msg.chat.id}:${msg.message_id ?? 0}`,
     chatId: String(msg.chat.id),
@@ -96,6 +111,9 @@ export function rowFromMessage(msg: GroupMessage): GroupMessageRow {
     name: name || null,
     text,
     mediaType: media,
+    fileId,
+    fileMime: msg.document?.mime_type || (photo ? 'image/jpeg' : null),
+    replyToId,
     createdAt: new Date((msg.date ?? Math.floor(Date.now() / 1000)) * 1000),
   };
 }

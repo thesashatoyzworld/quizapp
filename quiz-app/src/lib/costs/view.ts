@@ -82,6 +82,7 @@ export const CONSUMER_LABEL: Record<string, string> = {
   kb: 'бот по материалам',
   roadmap: 'маршрутные карты',
   zoom: 'конвейер созвонов',
+  group: 'черновики в группу',
   other: 'прочее',
 };
 
