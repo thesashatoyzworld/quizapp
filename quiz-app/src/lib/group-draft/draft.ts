@@ -21,6 +21,8 @@ import {
 import { SYSTEM, leaksMeta, parseReply, renderExamples, type Correction, type ShotPair } from './prompt';
 import { fileBlocks, linkBlocks, type ContentBlock } from './sources';
 import { sendDraftToAdmin } from './admin';
+import { buildPairs, type Msg } from './pairs';
+import corpus from '@/content/group-voice/pairs.json';
 
 const anthropic = new Anthropic();
 
@@ -67,24 +69,39 @@ const toBatch = (r: Row): BatchRow => ({
 
 const who = (r: Row) => (r.username ? '@' + r.username : r.name || 'кто-то');
 
-/** Живые пары «вопрос → ответ Саши» из группы, свежие первыми. */
+/**
+ * Свежие пары из базы, которых ещё нет в корпусе: после сборки pairs.json.
+ * Корпус пересобирается скриптом scripts/group-voice-build.mts.
+ */
 async function shotPairs(chatId: string): Promise<ShotPair[]> {
-  const answers = await prisma.tgGroupMsg.findMany({
-    where: { chatId, userId: { in: ownerIds() }, replyToId: { not: null } },
-    orderBy: { createdAt: 'desc' },
-    take: 40,
+  const rows = await prisma.tgGroupMsg.findMany({
+    where: { chatId, createdAt: { gt: CORPUS_UNTIL } },
+    orderBy: { createdAt: 'asc' },
+    take: 400,
   });
-  const ids = answers.map((a) => `${chatId}:${a.replyToId}`);
-  const questions = await prisma.tgGroupMsg.findMany({ where: { id: { in: ids } } });
-  const byId = new Map(questions.map((q) => [q.id, q]));
-  const pairs: ShotPair[] = [];
-  for (const a of answers) {
-    const q = byId.get(`${chatId}:${a.replyToId}`);
-    if (!q || isOwner(q.userId) || a.text.length < 15) continue;
-    pairs.push({ question: q.text.slice(0, 600), answer: a.text.slice(0, 900) });
-    if (pairs.length >= 15) break;
-  }
-  return pairs;
+  const msgs: Msg[] = rows.map((r) => ({
+    id: messageIdOf(r.id),
+    at: r.createdAt,
+    owner: isOwner(r.userId),
+    who: r.username ? '@' + r.username : r.name || '?',
+    text: r.text,
+    replyTo: r.replyToId,
+    thread: r.threadId,
+  }));
+  return buildPairs(msgs).slice(-20);
+}
+
+/** Корпус собран по базе до этого момента. */
+const CORPUS_UNTIL = new Date('2026-10-07T07:30:00Z');
+
+/** Вся история ответов Саши в группе с 27.07: голос и подход, кэшируется. */
+function corpusText(): string {
+  return (
+    '## Как Саша отвечал в группе с 27.07 (все пары)\n\n' +
+    'Пары собраны по соседству сообщений: иногда ответ адресован другому ученику. ' +
+    'Бери из них голос, длину и подход, а не факты про конкретного человека.\n\n' +
+    (corpus as ShotPair[]).map((p) => `ученик: ${p.question}\nСаша: ${p.answer}`).join('\n\n')
+  );
 }
 
 /** Черновики, которые Саша переписал: самое ценное, что есть для стиля. */
@@ -260,14 +277,19 @@ export async function runDraft(key: string, now = new Date(), opts: { dry?: bool
   if (/instagram\.com/.test(question)) unseen.push('инстаграм без входа не открывается, пост не видно');
   if (unseen.length) content.push({ type: 'text', text: `Внимание: ${unseen.join('; ')}.` });
 
+  // Неизменная часть (правила, корпус, оглавление) кэшируется, свежие пары и
+  // правки Саши идут следом и кэш не ломают.
   const system = [
-    { type: 'text' as const, text: SYSTEM },
+    {
+      type: 'text' as const,
+      text: `${SYSTEM}\n\n## Оглавление кабинета (для вопросов «где найти»)\n\n${cabinetIndex()}\n\n${corpusText()}`,
+      cache_control: { type: 'ephemeral' as const },
+    },
     {
       type: 'text' as const,
       text:
         `## Факты\n\nСозвоны группы утром и вечером, ссылка всегда одна: ${zoom || 'не найдена'}\n\n` +
-        `## Оглавление кабинета (для вопросов «где найти»)\n\n${cabinetIndex()}\n\n${renderExamples(pairs, fixes)}`,
-      cache_control: { type: 'ephemeral' as const },
+        renderExamples(pairs, fixes),
     },
   ];
 
