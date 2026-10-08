@@ -896,6 +896,25 @@ model GroupVoicePair {
   @@map("group_voice_pair")
 }
 
+/**
+ * Ответы Саши вне группы: личка клиентов, их личные группы, разборы созвонов.
+ * Под каждый вопрос из группы подбираются похожие по полнотекстовому поиску.
+ * source: lichka | klient-gruppa | sozvon. ref: чат или созвон, откуда пара.
+ */
+model SashaVoiceItem {
+  id        Int       @id @default(autoincrement())
+  source    String
+  ref       String?
+  at        DateTime?
+  topic     String?
+  question  String
+  answer    String
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([source])
+  @@map("sasha_voice_item")
+}
+
 /** Скриншот переписки, присланный боту. Альбом собирается по groupId. */
 model TgShot {
   id        String   @id
