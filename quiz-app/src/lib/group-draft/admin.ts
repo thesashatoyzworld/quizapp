@@ -209,9 +209,11 @@ export async function catchDraftEdit(msg: {
 
 /**
  * Саша ответил в группе сам, мимо черновика. Висящий черновик закрываем,
- * чтобы потом случайно не отправить второй ответ на тот же вопрос.
+ * чтобы потом случайно не отправить второй ответ на тот же вопрос, а его
+ * ответ сохраняем рядом с черновиком: по этой разнице модель учится голосу.
+ * Если Саша дописывает ещё сообщения в ответ на ту же пачку, они клеятся.
  */
-export async function closeAnsweredDrafts(chatId: string, replyToId: number | null): Promise<void> {
+export async function closeAnsweredDrafts(chatId: string, replyToId: number | null, text = ''): Promise<void> {
   if (replyToId === null) return;
   const open = await prisma.groupDraft.findMany({
     where: { chatId, status: 'pending', messageIds: { has: replyToId } },
@@ -219,10 +221,25 @@ export async function closeAnsweredDrafts(chatId: string, replyToId: number | nu
   for (const d of open) {
     const claimed = await prisma.groupDraft.updateMany({
       where: { id: d.id, status: 'pending' },
-      data: { status: 'answered', decidedAt: new Date() },
+      data: { status: 'answered', sentText: text || null, decidedAt: new Date() },
     });
     if (claimed.count && d.adminChatId && d.adminMsgId) {
       await editAdminMarkup({ chatId: d.adminChatId, messageId: d.adminMsgId }, done('💬 ответил сам'));
     }
   }
+  if (!text) return;
+  const recent = new Date(Date.now() - ANSWER_TAIL_MS);
+  const closed = await prisma.groupDraft.findMany({
+    where: { chatId, status: 'answered', draft: { not: null }, messageIds: { has: replyToId }, decidedAt: { gt: recent } },
+  });
+  for (const d of closed) {
+    if (open.some((o) => o.id === d.id)) continue;
+    await prisma.groupDraft.update({
+      where: { id: d.id },
+      data: { sentText: [d.sentText, text].filter(Boolean).join('\n\n').slice(0, 4000) },
+    });
+  }
 }
+
+/** Сколько после первого ответа Саши его следующие сообщения считаются тем же ответом. */
+const ANSWER_TAIL_MS = 30 * 60 * 1000;

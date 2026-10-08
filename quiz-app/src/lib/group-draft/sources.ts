@@ -7,10 +7,16 @@ import { htmlToText } from '@/lib/kb/map';
 
 /** Bot API отдаёт файлы до 20 МБ, модели больше и не надо. */
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
-const MAX_FILES = 8;
+/** Карусель приходит пачкой по 10-13 слайдов: меньше лимит резал её конец. */
+const MAX_FILES = 20;
 const MAX_LINKS = 3;
+const MAX_SHOTS = 2;
 const LINK_TEXT_LIMIT = 15000;
 const LINK_TIMEOUT_MS = 8000;
+/** Рендер в браузере идёт дольше простого запроса. */
+const READER_TIMEOUT_MS = 40000;
+/** Меньше этого текста в HTML: страницу рисует скрипт, без браузера её не прочесть. */
+const MIN_PAGE_TEXT = 400;
 
 export type ContentBlock =
   | { type: 'text'; text: string }
@@ -103,31 +109,110 @@ export function exportUrl(url: string): string | null {
   return url;
 }
 
+async function fetchWithTimeout(url: string, ms: number, init: RequestInit = {}): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { redirect: 'follow', ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Страницу открывает r.jina.ai в настоящем браузере: так читаются лендинги на
+ * скриптах и артефакты Claude, которые простым запросом отдают пустую оболочку.
+ */
+const READER = 'https://r.jina.ai/';
+
+function readerHeaders(extra: Record<string, string>): Record<string, string> {
+  const key = process.env.JINA_API_KEY?.trim();
+  return { ...extra, ...(key ? { Authorization: `Bearer ${key}` } : {}) };
+}
+
+async function readerText(url: string): Promise<string> {
+  const res = await fetchWithTimeout(READER + url, READER_TIMEOUT_MS, {
+    headers: readerHeaders({ 'X-Return-Format': 'markdown', 'X-Timeout': '30' }),
+  });
+  if (!res.ok) throw new Error(`reader ${res.status}`);
+  return res.text();
+}
+
+/** Первый экран страницы картинкой: дизайн лендинга текстом не передать. */
+async function readerShot(url: string): Promise<ContentBlock | null> {
+  const res = await fetchWithTimeout(READER + url, READER_TIMEOUT_MS, {
+    headers: readerHeaders({ Accept: 'application/json', 'X-Return-Format': 'screenshot', 'X-Timeout': '30' }),
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { data?: { screenshotUrl?: string } };
+  const shotUrl = json.data?.screenshotUrl;
+  if (!shotUrl) return null;
+  const img = await fetchWithTimeout(shotUrl, LINK_TIMEOUT_MS);
+  if (!img.ok) return null;
+  const buf = Buffer.from(await img.arrayBuffer());
+  if (!buf.byteLength || buf.byteLength > MAX_FILE_BYTES) return null;
+  return { type: 'image', source: { type: 'base64', media_type: 'image/png', data: buf.toString('base64') } };
+}
+
+/** Приватный артефакт Claude и любая страница за входом. */
+export function isLoginWall(text: string): boolean {
+  return /sign in to view|log in to (view|continue)|войдите, чтобы/i.test(text);
+}
+
+/** Артефакты Claude рисуются скриптом всегда, простой запрос там бесполезен. */
+export function needsBrowser(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    return host === 'claude.ai' || host.endsWith('.claude.site') || host === 'claude.site';
+  } catch {
+    return false;
+  }
+}
+
 export async function linkBlocks(text: string): Promise<{ blocks: ContentBlock[]; missed: string[] }> {
   const blocks: ContentBlock[] = [];
   const missed: string[] = [];
+  let shots = 0;
   for (const url of extractUrls(text).slice(0, MAX_LINKS)) {
     const target = exportUrl(url);
     if (!target) continue;
+    const isDoc = target !== url;
     try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), LINK_TIMEOUT_MS);
-      const res = await fetch(target, { redirect: 'follow', signal: ctrl.signal });
-      clearTimeout(timer);
-      const type = res.headers.get('content-type') || '';
-      // Закрытый гугл-док редиректит на страницу входа.
-      if (!res.ok || res.url.includes('accounts.google.com')) {
-        missed.push(url);
+      let plain = '';
+      let page = false;
+      if (!needsBrowser(url)) {
+        const res = await fetchWithTimeout(target, LINK_TIMEOUT_MS);
+        // Закрытый гугл-док редиректит на страницу входа.
+        if (!res.ok || res.url.includes('accounts.google.com')) {
+          missed.push(isDoc ? `${url} (закрыт доступ)` : url);
+          continue;
+        }
+        const type = res.headers.get('content-type') || '';
+        const body = await res.text();
+        page = type.includes('html');
+        plain = page ? htmlToText(body) : body;
+      }
+      if (!isDoc && (needsBrowser(url) || plain.trim().length < MIN_PAGE_TEXT)) {
+        plain = await readerText(url);
+        page = true;
+      }
+      if (isLoginWall(plain)) {
+        missed.push(`${url} (закрыта, нужен публичный доступ по ссылке)`);
         continue;
       }
-      const body = await res.text();
-      const plain = type.includes('html') ? htmlToText(body) : body;
       const clipped = plain.replace(/\n{3,}/g, '\n\n').trim().slice(0, LINK_TEXT_LIMIT);
       if (!clipped) {
         missed.push(url);
         continue;
       }
       blocks.push({ type: 'text', text: `Содержимое ссылки ${url}:\n\n${clipped}` });
+      if (page && shots < MAX_SHOTS) {
+        const shot = await readerShot(url).catch(() => null);
+        if (shot) {
+          shots++;
+          blocks.push({ type: 'text', text: `Первый экран ${url}:` }, shot);
+        }
+      }
     } catch {
       missed.push(url);
     }
