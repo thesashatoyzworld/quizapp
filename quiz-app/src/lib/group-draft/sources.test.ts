@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { exportUrl, extractUrls } from './sources';
+import { exportUrl, extractUrls, isLoginWall, needsBrowser } from './sources';
 
 test('гугл-док, таблица с вкладкой и презентация идут в экспорт', () => {
   assert.equal(
@@ -25,4 +25,14 @@ test('инстаграм и телеграм не открываем, ленди
 
 test('ссылки без хвостовой пунктуации и без повторов', () => {
   assert.deepEqual(extractUrls('глянь https://a.com/x, и https://a.com/x.'), ['https://a.com/x']);
+});
+
+test('артефакты Claude открываем через браузер, лендинги сначала простым запросом', () => {
+  assert.equal(needsBrowser('https://claude.ai/artifact/MLdm#a8c3'), true);
+  assert.equal(needsBrowser('https://mysite-ashen.vercel.app/'), false);
+});
+
+test('страница входа вместо содержимого считается закрытой', () => {
+  assert.equal(isLoginWall('## Sign in to view this page\n[Sign in](https://claude.ai/login)'), true);
+  assert.equal(isLoginWall('Алексей Кузнецов, персональное сопровождение 90 дней'), false);
 });

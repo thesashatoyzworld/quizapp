@@ -107,10 +107,13 @@ async function corpusText(): Promise<string> {
   return corpusCache;
 }
 
-/** Черновики, которые Саша переписал: самое ценное, что есть для стиля. */
+/**
+ * Черновики, которые Саша переписал или не взял и ответил сам: самое ценное,
+ * что есть для стиля.
+ */
 async function corrections(): Promise<Correction[]> {
   const rows = await prisma.groupDraft.findMany({
-    where: { status: 'edited', draft: { not: null }, sentText: { not: null } },
+    where: { status: { in: ['edited', 'answered'] }, draft: { not: null }, sentText: { not: null } },
     orderBy: { decidedAt: 'desc' },
     take: 12,
   });
@@ -118,6 +121,7 @@ async function corrections(): Promise<Correction[]> {
     question: r.question.slice(0, 500),
     draft: (r.draft || '').slice(0, 700),
     sent: (r.sentText || '').slice(0, 700),
+    own: r.status === 'answered',
   }));
 }
 

@@ -20,7 +20,7 @@ export async function onGroupMessage(msg: GroupMessage): Promise<void> {
     if (!row.userId || msg.text?.startsWith('/')) return;
 
     if (isOwner(row.userId)) {
-      await closeAnsweredDrafts(row.chatId, row.replyToId);
+      await closeAnsweredDrafts(row.chatId, row.replyToId, row.text);
       return;
     }
 
