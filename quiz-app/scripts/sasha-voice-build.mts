@@ -7,7 +7,7 @@
 //
 // Группы клиентов лежат в базе agent-hub: строка подключения в
 // AGENT_HUB_DATABASE_URL. Без неё этот источник пропускается.
-// --calls: папка с index.json ([{i, src}]) и out/<i>.json ([{situation, answer, topic}]),
+// --calls: папка с index.json ([{id, src}]) и out/<id>.json ([{situation, answer, topic}]),
 // то есть разбор расшифровок моделью. Без флага созвоны в базе не трогаются.
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -108,10 +108,10 @@ const TOPICS = new Set([
 ]);
 
 function calls(dir: string): Item[] {
-  const index = JSON.parse(readFileSync(join(dir, 'index.json'), 'utf8')) as { i: number; src: string }[];
+  const index = JSON.parse(readFileSync(join(dir, 'index.json'), 'utf8')) as { id: string; src: string }[];
   const out: Item[] = [];
-  for (const { i, src } of index) {
-    const f = join(dir, 'out', `${i}.json`);
+  for (const { id, src } of index) {
+    const f = join(dir, 'out', `${id}.json`);
     if (!existsSync(f)) continue;
     const raw = readFileSync(f, 'utf8');
     let list: { situation?: string; answer?: string; topic?: string }[];

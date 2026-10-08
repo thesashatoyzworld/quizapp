@@ -31,18 +31,20 @@ export interface RecallItem {
  * Сколько документов корпуса содержат каждую основу слова. Нужна, чтобы искать
  * по редким словам вопроса («нумерология», «закреп»), а не по общим («делать»,
  * «контент»): иначе наверх всплывают длинные расшифровки голосовых, где есть
- * всё. Корпус меняется только пересборкой, поэтому считается раз на процесс.
+ * всё. Корпус меняется только пересборкой, поэтому держится в памяти несколько часов.
  */
-let stats: { total: number; df: Map<string, number> } | null = null;
+let stats: { total: number; df: Map<string, number>; at: number } | null = null;
+const STATS_TTL_MS = 6 * 60 * 60 * 1000;
 
 async function corpusStats() {
-  if (stats) return stats;
+  // Корпус пересобирается раз в неделю, живой процесс не должен держать старые цифры.
+  if (stats && Date.now() - stats.at < STATS_TTL_MS) return stats;
   const [rows, [{ total }]] = await Promise.all([
     prisma.$queryRaw<{ word: string; ndoc: number }[]>`
       select word, ndoc from ts_stat($$select to_tsvector('russian', question || ' ' || answer) from sasha_voice_item$$)`,
     prisma.$queryRaw<{ total: number }[]>`select count(*)::int as total from sasha_voice_item`,
   ]);
-  stats = { total, df: new Map(rows.map((r) => [r.word, Number(r.ndoc)])) };
+  stats = { total, df: new Map(rows.map((r) => [r.word, Number(r.ndoc)])), at: Date.now() };
   return stats;
 }
 
@@ -95,12 +97,49 @@ export async function rerank(question: string, items: RecallItem[], keep: number
   }
 }
 
+/**
+ * Ученик формулирует по-своему, а Саша о том же говорит другими словами:
+ * «не набирает охваты» против «не долистывают», «шапка» против «био». Модель
+ * дописывает к вопросу слова, которыми о такой ситуации говорят в переписке,
+ * и поиск ищет и по ним. Эмбеддингов у API Claude нет, это их замена.
+ */
+export async function expand(question: string): Promise<string> {
+  try {
+    const res = await anthropic.messages.create({
+      model: RERANK_MODEL,
+      max_tokens: 200,
+      messages: [
+        {
+          role: 'user',
+          content:
+            `Вопрос ученика ментору по онлайн-продажам экспертов (оффер, карусели, рилсы, лендинг, продажи в переписке):\n` +
+            `${question.slice(0, 2000)}\n\n` +
+            'Выпиши 15-25 слов и коротких фраз, которыми о такой ситуации говорят ментор и ученики в чате: ' +
+            'синонимы, сленг, конкретные термины, то, что ментор скорее всего ответит. ' +
+            'Только слова через запятую, без пояснений.',
+        },
+      ],
+    });
+    await recordAnthropicUsage(RERANK_MODEL, res.usage, 'group');
+    return res.content.map((b) => (b.type === 'text' ? b.text : '')).join(' ');
+  } catch (e) {
+    console.error('[group-draft] расширение вопроса упало', e);
+    return '';
+  }
+}
+
+async function lexemes(text: string): Promise<string[]> {
+  if (!text.trim()) return [];
+  const [{ lex }] = await prisma.$queryRaw<{ lex: string[] }[]>`
+    select coalesce(array_agg(lexeme), '{}') as lex from unnest(to_tsvector('russian', ${text.slice(0, 4000)}))`;
+  return lex;
+}
+
 export async function recall(question: string): Promise<{ chats: RecallItem[]; calls: RecallItem[] }> {
   try {
-    const { total, df } = await corpusStats();
-    const [{ lex }] = await prisma.$queryRaw<{ lex: string[] }[]>`
-      select coalesce(array_agg(lexeme), '{}') as lex from unnest(to_tsvector('russian', ${question.slice(0, 4000)}))`;
-    const terms = pickTerms(lex, df, total);
+    const [{ total, df }, extra] = await Promise.all([corpusStats(), expand(question)]);
+    const [own, more] = await Promise.all([lexemes(question), lexemes(extra)]);
+    const terms = [...new Set([...pickTerms(own, df, total), ...pickTerms(more, df, total)])];
     if (!terms.length) return { chats: [], calls: [] };
     const [chatPool, callPool] = await Promise.all([search(terms, true, CANDIDATES), search(terms, false, CANDIDATES)]);
     const [chats, calls] = await Promise.all([
