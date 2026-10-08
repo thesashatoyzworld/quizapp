@@ -22,6 +22,7 @@ import { SYSTEM, leaksMeta, parseReply, renderExamples, type Correction, type Sh
 import { fileBlocks, linkBlocks, type ContentBlock } from './sources';
 import { sendDraftToAdmin } from './admin';
 import { buildPairs, type Msg } from './pairs';
+import { recall, renderRecall } from './recall';
 
 const anthropic = new Anthropic();
 
@@ -253,12 +254,13 @@ export async function runDraft(key: string, now = new Date(), opts: { dry?: bool
   }
 
   const files = mine.filter((r) => r.fileId && (r.mediaType === 'photo' || r.mediaType === 'file'));
-  const [fb, lb, pairs, fixes, zoom] = await Promise.all([
+  const [fb, lb, pairs, fixes, zoom, similar] = await Promise.all([
     fileBlocks(files.map((r) => ({ fileId: r.fileId!, mime: r.fileMime }))),
     linkBlocks(question),
     shotPairs(chatId),
     corrections(),
     callLink(chatId),
+    recall(question),
   ]);
 
   const transcript = thread
@@ -296,7 +298,7 @@ export async function runDraft(key: string, now = new Date(), opts: { dry?: bool
       type: 'text' as const,
       text:
         `## Факты\n\nСозвоны группы утром и вечером, ссылка всегда одна: ${zoom || 'не найдена'}\n\n` +
-        renderExamples(pairs, fixes),
+        [renderRecall(similar), renderExamples(pairs, fixes)].filter(Boolean).join('\n\n'),
     },
   ];
 
