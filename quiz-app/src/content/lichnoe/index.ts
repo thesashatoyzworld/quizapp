@@ -62,6 +62,8 @@ import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_02 } from './lichnyy-sozvon-stas-20
 
 import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_06 } from './lichnyy-sozvon-ramil-2026-10-06';
 
+import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_09 } from './lichnyy-sozvon-evgeniya-2026-10-09';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -84,6 +86,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-evgeniya-2026-10-09',
+    telegramIds: [934091008, 788334680],
+    client: "Евгения Сокольчик",
+    title: "Меняем не тебя, а среду",
+    subtitle: "Портрет аудитории и поток спроса, рамка «мы не меняем тебя», адвокат людей, три острых боли и оффер на созвон для мужиков",
+    date: '2026-10-09',
+    duration: "73 мин",
+    tags: ["портрет аудитории", "оффер", "рамка", "контент", "боли"],
+    kinescopeId: '4bayVPKmhtDeEWjk7NMLqS',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_09,
+  },
   {
     slug: 'lichnyy-sozvon-ramil-2026-10-06',
     telegramIds: [1556129897, 788334680],
