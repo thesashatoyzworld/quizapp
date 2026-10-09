@@ -64,6 +64,8 @@ import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_06 } from './lichnyy-sozvon-ramil-
 
 import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_09 } from './lichnyy-sozvon-evgeniya-2026-10-09';
 
+import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_09 } from './lichnyy-sozvon-leonid-2026-10-09';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -86,6 +88,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-leonid-2026-10-09',
+    telegramIds: [167259877, 788334680],
+    client: "Леонид",
+    title: "Не как обойти, а как делать правильно",
+    subtitle: "Записали ответы под ролики: блокировки по 115-ФЗ, АИС Налог 3 и давление с октября, расчёт поставки вбелую, станки из Китая, карта рисков в шапку профиля и первый пробный рилс",
+    date: '2026-10-09',
+    duration: "46 мин",
+    tags: ["контент", "налоги", "лид-магнит", "пробные рилсы", "хейт"],
+    kinescopeId: '0GkKBHLEKrwTEMErQpHRKi',
+    html: LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_09,
+  },
   {
     slug: 'lichnyy-sozvon-evgeniya-2026-10-09',
     telegramIds: [934091008, 788334680],
