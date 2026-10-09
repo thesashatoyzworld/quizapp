@@ -66,6 +66,8 @@ import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_09 } from './lichnyy-sozvon-evg
 
 import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_09 } from './lichnyy-sozvon-leonid-2026-10-09';
 
+import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_09 } from './lichnyy-sozvon-stas-2026-10-09';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -88,6 +90,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-stas-2026-10-09',
+    telegramIds: [204608959, 788334680],
+    client: "Стас",
+    title: "Мы торгаши идеями",
+    subtitle: "Черновик оффера, который не склеился, целимся в малый оффлайн-бизнес в кризисе, рамка про возможности в непростые времена, пять смыслов для контента, книгу откладываем и открываем первые ролики в профиль",
+    date: '2026-10-09',
+    duration: "54 мин",
+    tags: ["оффер", "смыслы", "целевая аудитория", "контент", "пробные рилсы"],
+    kinescopeId: '4krJ8i6vGPuZLjj3AKVK38',
+    html: LICHNOE_LICHNYY_SOZVON_STAS_2026_10_09,
+  },
   {
     slug: 'lichnyy-sozvon-leonid-2026-10-09',
     telegramIds: [167259877, 788334680],
