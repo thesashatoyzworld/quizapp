@@ -68,6 +68,8 @@ import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_09 } from './lichnyy-sozvon-leoni
 
 import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_09 } from './lichnyy-sozvon-stas-2026-10-09';
 
+import { LICHNOE_LICHNYY_SOZVON_EVGENIY_2026_10_09 } from './lichnyy-sozvon-evgeniy-2026-10-09';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -90,6 +92,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-evgeniy-2026-10-09',
+    telegramIds: [516096201, 788334680],
+    client: "Евгений Соколов",
+    title: "Эльбрус или до магазина сходить",
+    subtitle: "Почему заходим через монтаж и съёмку для платёжеспособных клиентов, а обучение для монтажёров откладываем, экономика пяти постоянных клиентов против мини-продукта, как собрать оффер из проблем и решений, кейсы с Анной Асти и автодилерами и отзывы текстом",
+    date: '2026-10-09',
+    duration: "51 мин",
+    tags: ["оффер", "монтаж", "кейсы", "клиенты", "продюсирование"],
+    kinescopeId: '',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIY_2026_10_09,
+  },
   {
     slug: 'lichnyy-sozvon-stas-2026-10-09',
     telegramIds: [204608959, 788334680],
