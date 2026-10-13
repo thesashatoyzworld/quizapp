@@ -72,6 +72,8 @@ import { LICHNOE_LICHNYY_SOZVON_EVGENIY_2026_10_09 } from './lichnyy-sozvon-evge
 
 import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_10_13 } from './lichnyy-sozvon-daniel-2026-10-13';
 
+import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_13 } from './lichnyy-sozvon-ramil-2026-10-13';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -94,6 +96,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-ramil-2026-10-13',
+    telegramIds: [1556129897, 788334680],
+    client: "Рамиль",
+    title: "Чеснок в колбасе",
+    subtitle: "Где искать то, что уже работает: аутлайеры в шортсах вместо выдумывания из головы, оффер узкий, а контент широкий, демоверсия как вход, три смысла (вкус жизни, самотрансформация, знакомство с собой), чужой заход плюс своя призма и созвон с вопросами вместо писанины",
+    date: '2026-10-13',
+    duration: "55 мин",
+    tags: ["контент", "смысловые ядра", "аутлайеры", "карусель", "демоверсия"],
+    kinescopeId: 'iAnqsL3dpmSJhZxzdM3mZP',
+    html: LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_13,
+  },
   {
     slug: 'lichnyy-sozvon-daniel-2026-10-13',
     telegramIds: [397715074, 788334680],
