@@ -70,6 +70,8 @@ import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_09 } from './lichnyy-sozvon-stas-20
 
 import { LICHNOE_LICHNYY_SOZVON_EVGENIY_2026_10_09 } from './lichnyy-sozvon-evgeniy-2026-10-09';
 
+import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_10_13 } from './lichnyy-sozvon-daniel-2026-10-13';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -92,6 +94,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-daniel-2026-10-13',
+    telegramIds: [397715074, 788334680],
+    client: "Даниэл Осипов",
+    title: "Влюбляйте их в себя",
+    subtitle: "Переписываем оффер с инструментов и процесса на результат, которого человек хочет: от «смешите их» к признанию и вниманию зала, фазы обучения подробнее, карусель в закреп как конвертер на сайт и разговор про страх первого клиента",
+    date: '2026-10-13',
+    duration: "53 мин",
+    tags: ["оффер", "сайт", "результат", "карусель", "страхи"],
+    kinescopeId: '9MUe5RcchFpLVxUDGJYHCx',
+    html: LICHNOE_LICHNYY_SOZVON_DANIEL_2026_10_13,
+  },
   {
     slug: 'lichnyy-sozvon-evgeniy-2026-10-09',
     telegramIds: [516096201, 788334680],
