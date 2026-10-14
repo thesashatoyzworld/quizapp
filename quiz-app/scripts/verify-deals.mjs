@@ -22,6 +22,8 @@ const PRODAMUS = process.env.PRODAMUS_SECRET_KEY || '';
 const TG_PAYS = 999000101; // платит полностью
 const TG_AGAIN = 999000103; // платит по той же ссылке следом за первым
 const TG_UNDER = 999000102; // недоплачивает
+const TG_INTAKE = 999000104; // платит предоплату с флагом «зовёт на интервью»
+const TG_NOINTAKE = 999000105; // платит такую же предоплату, но без флага
 
 const db = new pg.Client({
   connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
@@ -94,11 +96,11 @@ const purchasesOf = async (tg) =>
     [tg],
   )).rows;
 
-const newDeal = async (tier, price, days, title) => {
+const newDeal = async (tier, price, days, title, startsIntake = false) => {
   const id = 'probe' + Math.random().toString(36).slice(2, 8);
   await db.query(
-    "INSERT INTO deals (id, tier, price, days, title, note) VALUES ($1,$2,$3,$4,$5,'проверка')",
-    [id, tier, price, days, title],
+    "INSERT INTO deals (id, tier, price, days, title, note, starts_intake) VALUES ($1,$2,$3,$4,$5,'проверка',$6)",
+    [id, tier, price, days, title, startsIntake],
   );
   return id;
 };
@@ -186,9 +188,33 @@ check('бот на закрытой позиции не падает', r8.ok, `H
 const r9 = await start(TG_PAYS, 'deal_netakoy');
 check('бот не падает на несуществующей позиции', r9.ok, `HTTP ${r9.status}`);
 
+// ── 10. Предоплата зовёт на интервью ────────────────────────────
+// Предоплата открывает предобучение по тарифу 1, а вопросы человеку задаются
+// на полном тарифе 3. Без флага после брони места разговор не начинался.
+await wipe(TG_INTAKE);
+const preId = await newDeal('t1', 10000, 365, 'Проверка: предоплата с интервью', true);
+const pre = await payLink(preId, TG_INTAKE);
+const r10 = await pay(pre.order, 10000);
+check('вебхук принял предоплату', r10.ok, `HTTP ${r10.status}`);
+
+const preAcc = await accessOf(TG_INTAKE);
+check('предоплата открыла предобучение', preAcc[0]?.product_slug === 'uroven-t1', preAcc[0]?.product_slug);
+
+const intake = await db.query('SELECT track, status FROM intakes WHERE telegram_id = $1', [TG_INTAKE]);
+check('интервью заведено', intake.rows.length === 1, `анкет: ${intake.rows.length}`);
+check('трек менторский', intake.rows[0]?.track === 't3', intake.rows[0]?.track);
+
+// Без флага интервью по-прежнему не заводится: чтобы галочка что-то значила.
+await wipe(TG_NOINTAKE);
+const plainId = await newDeal('t1', 10000, 365, 'Проверка: предоплата без интервью');
+const plain = await payLink(plainId, TG_NOINTAKE);
+await pay(plain.order, 10000);
+const none = await db.query('SELECT id FROM intakes WHERE telegram_id = $1', [TG_NOINTAKE]);
+check('без флага интервью не заводится', none.rows.length === 0, `анкет: ${none.rows.length}`);
+
 // ── Уборка ──────────────────────────────────────────────────────
 await db.query("DELETE FROM deals WHERE id LIKE 'probe%'");
-for (const tg of [TG_PAYS, TG_AGAIN, TG_UNDER]) await wipe(tg);
+for (const tg of [TG_PAYS, TG_AGAIN, TG_UNDER, TG_INTAKE, TG_NOINTAKE]) await wipe(tg);
 await db.end();
 
 console.log('');

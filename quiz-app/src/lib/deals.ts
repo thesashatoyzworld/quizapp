@@ -107,6 +107,7 @@ export interface DealRow {
   title: string;
   note: string | null;
   status: string;
+  startsIntake: boolean;
   paidCount: number;
   lastPaidAt: string | null;
   link: string;
@@ -123,6 +124,7 @@ export async function listDeals(): Promise<DealRow[]> {
     title: d.title,
     note: d.note,
     status: d.status,
+    startsIntake: d.startsIntake,
     paidCount: d.paidCount,
     lastPaidAt: d.lastPaidAt ? d.lastPaidAt.toISOString() : null,
     link: dealLink(d.id),
@@ -135,6 +137,8 @@ export interface NewDeal {
   days: number;
   title: string;
   note?: string | null;
+  /** Предоплата: после неё сразу зовём человека на интервью. */
+  startsIntake?: boolean;
 }
 
 /** Идентификатор без «_»: подчёркивание разделяет части order_id. */
@@ -151,6 +155,7 @@ export async function createDeal(input: NewDeal): Promise<DealRow[]> {
       days: input.days,
       title: input.title,
       note: input.note ?? null,
+      startsIntake: input.startsIntake ?? false,
     },
   });
   return listDeals();
@@ -168,7 +173,7 @@ export async function setDealStatus(id: string, status: 'active' | 'off'): Promi
  */
 export async function updateDeal(
   id: string,
-  patch: Partial<Pick<NewDeal, 'price' | 'days' | 'title' | 'note'>>,
+  patch: Partial<Pick<NewDeal, 'price' | 'days' | 'title' | 'note' | 'startsIntake'>>,
 ): Promise<DealRow[]> {
   const deal = await prisma.deal.findUnique({ where: { id } });
   if (!deal) throw new Error('нет такой позиции');
@@ -176,6 +181,7 @@ export async function updateDeal(
   const data: Record<string, unknown> = {};
   if (patch.title !== undefined) data.title = patch.title;
   if (patch.note !== undefined) data.note = patch.note;
+  if (patch.startsIntake !== undefined) data.startsIntake = patch.startsIntake;
   if (deal.paidCount === 0) {
     if (patch.price !== undefined) data.price = patch.price;
     if (patch.days !== undefined) data.days = patch.days;

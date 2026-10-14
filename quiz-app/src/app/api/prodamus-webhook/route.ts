@@ -277,10 +277,11 @@ async function fulfillDeal(deal: DealRow, product: DealProduct, tgUserId: number
   ]);
 
   // Дальше человек идёт тем же путём, что и обычная оплата тарифа:
-  // приветственный пакет своего тарифа, а внутри него интервью.
+  // приветственный пакет своего тарифа, а внутри него интервью. Галочка
+  // «зовёт на интервью» переключает вопросы на полную менторскую анкету.
   const welcomed =
     product.slug === T2_PRODUCT_SLUG
-      ? await sendWelcomeT2(tgUserId)
+      ? await sendWelcomeT2(tgUserId, false, deal.startsIntake ? 't3' : 't2')
       : product.slug === INTAKE_PRODUCT_SLUG
         ? await sendWelcomeT3(tgUserId)
         : false;
@@ -302,9 +303,9 @@ async function fulfillDeal(deal: DealRow, product: DealProduct, tgUserId: number
     }).catch(() => {});
   }
 
-  // Приветствие т3 запускает анкету само; здесь добираем случай, когда
-  // приветствие не ушло, потому что человеку уже здоровались раньше.
-  if (product.slug === INTAKE_PRODUCT_SLUG && !welcomed) {
+  // Приветствие запускает анкету само; здесь добираем случай, когда приветствия
+  // нет (тариф 1, предоплата) или оно не ушло, потому что уже здоровались раньше.
+  if ((product.slug === INTAKE_PRODUCT_SLUG || deal.startsIntake) && !welcomed) {
     await startIntake(tgUserId, 't3');
   }
 
