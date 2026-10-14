@@ -64,11 +64,15 @@ async function intakeDone(telegramId: number): Promise<boolean> {
  *
  * Возвращает false, если ничего не отправляли: так вызывающий понимает, что
  * человеку надо показать обычное сообщение про доступ, а не молчать.
+ *
+ * `intakeTrack` нужен, когда вопросы не совпадают с тарифом: предоплата за
+ * длинный т2 открывает т2, а спрашивать надо по-менторски, полной анкетой т3.
  */
 export async function sendWelcome(
   telegramId: number,
   tier: IntakeTrack,
   force = false,
+  intakeTrack: IntakeTrack = tier,
 ): Promise<boolean> {
   if (!force && (await alreadyWelcomed(telegramId))) return false;
 
@@ -101,13 +105,17 @@ export async function sendWelcome(
     })
     .catch((e) => console.error('[onboarding] отметку welcome_sent записать не смог:', e));
 
-  if (withIntake) await startIntake(telegramId, tier);
+  if (withIntake) await startIntake(telegramId, intakeTrack);
   return true;
 }
 
 /** Совместимость с прежними вызовами: тариф 2 здоровается так же, как раньше. */
-export async function sendWelcomeT2(telegramId: number, force = false): Promise<boolean> {
-  return sendWelcome(telegramId, 't2', force);
+export async function sendWelcomeT2(
+  telegramId: number,
+  force = false,
+  intakeTrack: IntakeTrack = 't2',
+): Promise<boolean> {
+  return sendWelcome(telegramId, 't2', force, intakeTrack);
 }
 
 /** Тариф 3: то же самое, свой текст и менторский трек анкеты. */

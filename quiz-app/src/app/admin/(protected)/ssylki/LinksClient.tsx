@@ -45,7 +45,7 @@ function when(iso: string | null): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 }
 
-const EMPTY = { tier: 't3', price: '', days: '90', title: '', note: '' };
+const EMPTY = { tier: 't3', price: '', days: '90', title: '', note: '', startsIntake: false };
 
 export default function LinksClient({ initial }: { initial: DealRow[] }) {
   const [deals, setDeals] = useState(initial);
@@ -81,8 +81,8 @@ export default function LinksClient({ initial }: { initial: DealRow[] }) {
 
   async function submit() {
     const payload = editing
-      ? { action: 'update', id: editing, title: form.title, note: form.note, price: Number(form.price), days: Number(form.days) }
-      : { action: 'create', tier: form.tier, price: Number(form.price), days: Number(form.days), title: form.title, note: form.note };
+      ? { action: 'update', id: editing, title: form.title, note: form.note, price: Number(form.price), days: Number(form.days), startsIntake: form.startsIntake }
+      : { action: 'create', tier: form.tier, price: Number(form.price), days: Number(form.days), title: form.title, note: form.note, startsIntake: form.startsIntake };
     if (await send(payload)) {
       setForm({ ...EMPTY });
       setEditing(null);
@@ -91,7 +91,7 @@ export default function LinksClient({ initial }: { initial: DealRow[] }) {
 
   function startEdit(d: DealRow) {
     setEditing(d.id);
-    setForm({ tier: d.tier, price: String(d.price), days: String(d.days), title: d.title, note: d.note || '' });
+    setForm({ tier: d.tier, price: String(d.price), days: String(d.days), title: d.title, note: d.note || '', startsIntake: d.startsIntake });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -191,6 +191,17 @@ export default function LinksClient({ initial }: { initial: DealRow[] }) {
             value={form.note}
             onChange={(e) => setForm({ ...form, note: e.target.value })}
           />
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem',
+            color: 'var(--text-muted)', whiteSpace: 'nowrap', cursor: 'pointer',
+          }}>
+            <input
+              type="checkbox"
+              checked={form.startsIntake}
+              onChange={(e) => setForm({ ...form, startsIntake: e.target.checked })}
+            />
+            зовёт на интервью
+          </label>
           <button style={{ ...btn, opacity: busy ? 0.5 : 1 }} disabled={busy} onClick={submit}>
             {editing ? 'сохранить' : 'создать ссылку'}
           </button>
@@ -201,7 +212,9 @@ export default function LinksClient({ initial }: { initial: DealRow[] }) {
           )}
         </div>
         <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 10 }}>
-          Позиция это разовый платёж на срок. Автопродления у неё нет: карточка подписки в Продамусе держит
+          Галочка «зовёт на интервью» нужна предоплатам: они открывают предобучение по тарифу 1, а вопросы
+          человеку задаются только на полном тарифе 3, и после брони места он остаётся без разговора.
+          {' '}Позиция это разовый платёж на срок. Автопродления у неё нет: карточка подписки в Продамусе держит
           фиксированную сумму, произвольную под каждого не выставить. Следующий срок продаётся той же ссылкой
           ещё раз, доступ при этом продлевается от текущей даты окончания.
           {editing && ' Цену и срок можно менять, пока по позиции не было ни одной оплаты.'}
