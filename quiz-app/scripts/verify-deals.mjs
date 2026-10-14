@@ -24,6 +24,7 @@ const TG_AGAIN = 999000103; // платит по той же ссылке сле
 const TG_UNDER = 999000102; // недоплачивает
 const TG_INTAKE = 999000104; // платит предоплату с флагом «зовёт на интервью»
 const TG_NOINTAKE = 999000105; // платит такую же предоплату, но без флага
+const TG_T2FULL = 999000106; // предоплата за т2 с флагом: доступ т2, анкета т3
 
 const db = new pg.Client({
   connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
@@ -212,9 +213,20 @@ await pay(plain.order, 10000);
 const none = await db.query('SELECT id FROM intakes WHERE telegram_id = $1', [TG_NOINTAKE]);
 check('без флага интервью не заводится', none.rows.length === 0, `анкет: ${none.rows.length}`);
 
+// ── 11. Предоплата за т2 с флагом: доступ т2, вопросы полной анкеты т3 ──
+await wipe(TG_T2FULL);
+const t2Id = await newDeal('t2', 5000, 30, 'Проверка: предоплата т2 с полным интервью', true);
+const t2 = await payLink(t2Id, TG_T2FULL);
+const r11 = await pay(t2.order, 5000);
+check('вебхук принял предоплату т2', r11.ok, `HTTP ${r11.status}`);
+const t2Acc = await accessOf(TG_T2FULL);
+check('предоплата открыла т2', t2Acc[0]?.product_slug === 'uroven-t2', t2Acc[0]?.product_slug);
+const t2Intake = await db.query('SELECT track FROM intakes WHERE telegram_id = $1', [TG_T2FULL]);
+check('анкета на треке т3', t2Intake.rows[0]?.track === 't3', t2Intake.rows[0]?.track);
+
 // ── Уборка ──────────────────────────────────────────────────────
 await db.query("DELETE FROM deals WHERE id LIKE 'probe%'");
-for (const tg of [TG_PAYS, TG_AGAIN, TG_UNDER, TG_INTAKE, TG_NOINTAKE]) await wipe(tg);
+for (const tg of [TG_PAYS, TG_AGAIN, TG_UNDER, TG_INTAKE, TG_NOINTAKE, TG_T2FULL]) await wipe(tg);
 await db.end();
 
 console.log('');
