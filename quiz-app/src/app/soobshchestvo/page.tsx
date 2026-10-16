@@ -596,6 +596,7 @@ function Thread({ id, me, cats, focusComment, onClose, onDeleted, onImage, onLin
     if (!a) return;
     a.style.height = 'auto';
     a.style.height = `${Math.min(a.scrollHeight, 180)}px`;
+    a.style.overflowY = a.scrollHeight > 180 ? 'auto' : 'hidden';
   }, [text]);
 
   async function act(payload: Record<string, unknown>) {
@@ -814,7 +815,7 @@ const CSS = `
   .sq-flex { flex: 1; }
   .sq-ghost {
     background: none; border: none; cursor: pointer; color: var(--sq-muted); font-weight: 600; font-size: 13.5px;
-    padding: 9px 8px; border-radius: 9px;
+    padding: 9px 8px; border-radius: 9px; white-space: nowrap;
   }
   .sq-ghost:hover { color: var(--sq-text); background: var(--sq-bg); }
   .sq-btn {
@@ -966,7 +967,7 @@ const CSS = `
   .sq-reply-to span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sq-reply-to button { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--sq-muted); line-height: 1; padding: 0 2px; }
   .sq-reply-row { display: flex; align-items: flex-end; gap: 8px; }
-  .sq-reply-area { resize: none; line-height: 1.45; padding: 10px 13px; border-radius: 20px; min-height: 42px; max-height: 180px; }
+  .sq-reply-area { resize: none; line-height: 1.45; padding: 10px 13px; border-radius: 20px; min-height: 42px; max-height: 180px; overflow-y: hidden; }
   .sq-attach {
     flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--sq-line);
     background: var(--sq-bg); cursor: pointer; font-size: 17px;
