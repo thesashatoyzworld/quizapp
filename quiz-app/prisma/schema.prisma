@@ -1181,3 +1181,79 @@ model IdeaInbox {
   @@index([batchKey, ideaId])
   @@map("idea_inbox")
 }
+
+// ═══════════════════════════════════════
+// СООБЩЕСТВО (форум кабинета, как Skool)
+// ═══════════════════════════════════════
+// Общий чат «Коннекторов» сливал все вопросы в одну ленту: ответы Саши не
+// привязаны к вопросу, работы тонут. Здесь у каждого запроса своя ветка,
+// обсуждение идёт в комментариях под ней.
+//
+// Таблицы создаёт scripts/forum-create-tables.mjs (db push на общей базе
+// запрещён, см. intake-create-tables.mjs).
+
+/** Ветка: один запрос одного человека. */
+model ForumPost {
+  id             String    @id @default(uuid())
+  authorTg       BigInt    @map("author_tg")
+  /** question | review | win | report | announce */
+  category       String
+  title          String
+  body           String
+  /** id картинок из forum_image, в порядке показа */
+  images         String[]  @default([])
+  pinned         Boolean   @default(false)
+  solved         Boolean   @default(false)
+  deleted        Boolean   @default(false)
+  commentCount   Int       @default(0) @map("comment_count")
+  /** Последнее слово в ветке: по нему видно, что ветка ждёт ответа Саши. */
+  lastAuthorTg   BigInt    @map("last_author_tg")
+  lastActivityAt DateTime  @default(now()) @map("last_activity_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([deleted, pinned, lastActivityAt])
+  @@index([authorTg])
+  @@map("forum_post")
+}
+
+/** Комментарий. parentId = ответ на комментарий (один уровень, как в Skool). */
+model ForumComment {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  parentId  String?  @map("parent_id")
+  authorTg  BigInt   @map("author_tg")
+  body      String
+  images    String[] @default([])
+  deleted   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([postId, createdAt])
+  @@map("forum_comment")
+}
+
+/** Имя и ник автора: берём из подписанной initData, в браузере — из прошлых заходов. */
+model ForumMember {
+  telegramId BigInt   @id @map("telegram_id")
+  name       String
+  username   String?
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("forum_member")
+}
+
+/**
+ * Картинка к ветке или комментарию. Хранится в базе: Storage Supabase упирается
+ * в квоту, а сжатая на клиенте картинка весит 150-400 КБ.
+ */
+model ForumImage {
+  id        String   @id @default(uuid())
+  ownerTg   BigInt   @map("owner_tg")
+  mime      String
+  data      Bytes
+  width     Int
+  height    Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("forum_image")
+}
