@@ -74,6 +74,8 @@ import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_10_13 } from './lichnyy-sozvon-danie
 
 import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_13 } from './lichnyy-sozvon-ramil-2026-10-13';
 
+import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_16 } from './lichnyy-sozvon-stas-2026-10-16';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -96,6 +98,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-stas-2026-10-16',
+    telegramIds: [204608959, 788334680],
+    client: "Стас",
+    title: "Всё по любви",
+    subtitle: "Пересобираем оффер на созвон без цены и без ощущения прайса, архитектура сайта из трёх разделов с примером Говорухина, страх открытого профиля и почему первый ролик надо выложить сегодня, файл со смыслами и первые фразы к пятничной записи",
+    date: '2026-10-16',
+    duration: "74 мин",
+    tags: ["оффер", "сайт", "страх публикации", "смыслы", "пробные рилсы"],
+    kinescopeId: 'dgUKh1GESMx37cAktsosWa',
+    html: LICHNOE_LICHNYY_SOZVON_STAS_2026_10_16,
+  },
   {
     slug: 'lichnyy-sozvon-ramil-2026-10-13',
     telegramIds: [1556129897, 788334680],
