@@ -80,6 +80,18 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
+    // Сообщество: форум вместо общего чата. Каждый запрос — своя ветка,
+    // ответы комментариями под ней, уведомления в личку бота.
+    key: 'soobshchestvo',
+    role: 'uroven',
+    title: 'Сообщество',
+    subtitle: 'Вопросы, работы на проверку, победы — у каждой темы своя ветка',
+    landingUrl: 'https://thesashatoyz.com/uroven',
+    materials: [
+      { kind: 'chat', title: 'Открыть сообщество', url: '/soobshchestvo', note: 'Создай ветку со своим запросом, ответ придёт в комментариях и в личку бота.', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
+    ],
+  },
+  {
     key: 'free',
     role: null,
     title: 'Бесплатные материалы',
