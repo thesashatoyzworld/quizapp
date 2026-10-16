@@ -174,7 +174,9 @@ h1 {
   function render() {
     var t = TIERS[tier];
     document.getElementById('tierName').textContent = t.name;
-    document.getElementById('price').innerHTML = t.price.toLocaleString('ru-RU') + '&nbsp;₽';
+    // По svoi10 витрина обязана совпадать с карточкой 2356023, которая списывает 10 000.
+    var shown = oldPrice() ? 10000 : t.price;
+    document.getElementById('price').innerHTML = shown.toLocaleString('ru-RU') + '&nbsp;₽';
     // Цифры выше это запасной вариант на случай, если запрос не дошёл.
     // Правда живёт на сервере: 13 сентября цены меняются сами, и страница,
     // пролежавшая в кэше со вчера, не должна показывать вчерашнюю цену.
