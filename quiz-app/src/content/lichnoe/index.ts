@@ -76,6 +76,8 @@ import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_13 } from './lichnyy-sozvon-ramil-
 
 import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_16 } from './lichnyy-sozvon-stas-2026-10-16';
 
+import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_16 } from './lichnyy-sozvon-evgeniya-2026-10-16';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -98,6 +100,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-evgeniya-2026-10-16',
+    telegramIds: [934091008, 788334680],
+    client: "Евгения Сокольчик",
+    title: "Какие хрупкие существа",
+    subtitle: "Снимаем видеореакции сразу, пока бомбит, и без десяти фильтров, разбираем свои пять смыслов на язык дела, добавляем ветку про современную женщину, заходим в директ с лайков, три захода в сторис, проект для тренеров откладываем и даём фул фокус в рилсы",
+    date: '2026-10-16',
+    duration: "47 мин",
+    tags: ["рилсы", "видеореакции", "смыслы", "директ", "сторис"],
+    kinescopeId: 'rBRnyGxGhQcdSsLK6MmD9j',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_16,
+  },
   {
     slug: 'lichnyy-sozvon-stas-2026-10-16',
     telegramIds: [204608959, 788334680],
