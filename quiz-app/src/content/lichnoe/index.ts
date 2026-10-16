@@ -78,6 +78,8 @@ import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_16 } from './lichnyy-sozvon-stas-20
 
 import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_16 } from './lichnyy-sozvon-evgeniya-2026-10-16';
 
+import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_16 } from './lichnyy-sozvon-leonid-2026-10-16';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -100,6 +102,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-leonid-2026-10-16',
+    telegramIds: [167259877, 788334680],
+    client: "Леонид",
+    title: "Одна идея тысячей способов",
+    subtitle: "Собираем финальное ТЗ подрядчикам: оформление страниц, загрузка и монтаж на их стороне, идеи и тексты на нашей, разбираем зачем одна контентная единица идёт в четырёх вариациях и почему повторять одну и ту же идею правильно, план съёмок в Китае, расписание загрузки и список тем под спрос",
+    date: '2026-10-16',
+    duration: "15 мин",
+    tags: ["тз подрядчикам", "вариации роликов", "смыслы", "китай", "расписание контента"],
+    kinescopeId: 'sM28uXmaYT1jxMeZibxQr4',
+    html: LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_16,
+  },
   {
     slug: 'lichnyy-sozvon-evgeniya-2026-10-16',
     telegramIds: [934091008, 788334680],
