@@ -20,8 +20,26 @@ import { notifyAdmin } from './telegram';
 export const FORUM_ROLE = 'uroven';
 export const FORUM_MIN_TIER = 2;
 
-/** Саша: личный и рабочий аккаунт. Видят всё, закрепляют, удаляют чужое. */
-export const FORUM_ADMINS = new Set([788334680, 6013902004]);
+/**
+ * Тестеры: пускаем до открытия и показываем им раздел глазами ученика, даже
+ * если это аккаунт Саши. Так рабочий аккаунт проверяет, что видит и получает
+ * ученик. Список в env FORUM_TESTERS через запятую.
+ */
+const FORUM_TESTERS = new Set(
+  (process.env.FORUM_TESTERS || '').split(',').map((s) => Number(s.trim())).filter(Boolean),
+);
+
+/** Саша: личный и рабочий аккаунт (кроме тех, кто сейчас в тестерах). Видят всё, закрепляют, удаляют чужое. */
+export const FORUM_ADMINS = new Set([788334680, 6013902004].filter((id) => !FORUM_TESTERS.has(id)));
+
+/**
+ * Открыт ли раздел ученикам. Пока FORUM_OPEN не равно 1, внутрь попадают только
+ * Саша и тестеры, а ученик с прямой ссылкой видит «скоро откроется».
+ */
+const FORUM_OPEN = process.env.FORUM_OPEN === '1';
+
+/** Дублировать Саше на рабочий аккаунт, если тот сейчас не играет ученика. */
+const ALSO_WORK = !FORUM_TESTERS.has(6013902004);
 
 export const CATEGORIES = [
   { key: 'question', label: 'Вопрос', emoji: '❓' },
@@ -46,6 +64,8 @@ export interface Viewer {
   isAdmin: boolean;
   tier: number;
   allowed: boolean;
+  /** Раздел ещё не открыт ученикам (а у этого человека тариф подходит). */
+  soon: boolean;
 }
 
 function tierFromSlug(slug: string): number | null {
@@ -78,7 +98,9 @@ export async function resolveViewer(request: NextRequest): Promise<Viewer | null
     .filter((r) => r.role === FORUM_ROLE)
     .reduce((max, r) => Math.max(max, tierFromSlug(r.productSlug) ?? 0), 0);
 
-  return { telegramId, isAdmin, tier, allowed: isAdmin || tier >= FORUM_MIN_TIER };
+  const tierOk = tier >= FORUM_MIN_TIER;
+  const allowed = isAdmin || FORUM_TESTERS.has(telegramId) || (FORUM_OPEN && tierOk);
+  return { telegramId, isAdmin, tier, allowed, soon: !allowed && tierOk };
 }
 
 async function rememberMember(telegramId: number, initData: string) {
@@ -203,7 +225,7 @@ export async function notifyNewPost(post: { id: string; title: string; body: str
   const cat = CATEGORIES.find((c) => c.key === post.category);
   const text = `${cat?.emoji ?? '🆕'} <b>Новая ветка в сообществе</b> · ${esc(cat?.label ?? '')}\n`
     + `<b>${esc(authorName)}</b>: «${esc(post.title)}»\n\n${esc(excerpt(post.body))}`;
-  await notifyAdmin(text, { alsoWork: true, disableLinkPreview: true, replyMarkup: openButton(post.id) });
+  await notifyAdmin(text, { alsoWork: ALSO_WORK, disableLinkPreview: true, replyMarkup: openButton(post.id) });
 }
 
 /**
@@ -242,7 +264,7 @@ export async function notifyComment(opts: {
   if (!commenterIsAdmin) {
     jobs.push(notifyAdmin(
       `💬 <b>${esc(commenterName)}</b> в ветке «${esc(post.title)}»:\n\n${quote}`,
-      { alsoWork: true, disableLinkPreview: true, replyMarkup: markup },
+      { alsoWork: ALSO_WORK, disableLinkPreview: true, replyMarkup: markup },
     ));
   }
   await Promise.all(jobs);

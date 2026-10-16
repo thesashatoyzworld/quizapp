@@ -17,8 +17,8 @@ export const runtime = 'nodejs';
 
 const FEED_LIMIT = 200;
 
-function deny(identified: boolean, tier = 0) {
-  return NextResponse.json({ success: true, identified, allowed: false, tier });
+function deny(identified: boolean, tier = 0, soon = false) {
+  return NextResponse.json({ success: true, identified, allowed: false, tier, soon });
 }
 
 /** «Ждёт ответа»: последнее слово не за Сашей и ветка не закрыта. */
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   try {
     const viewer = await resolveViewer(request);
     if (!viewer) return deny(false);
-    if (!viewer.allowed) return deny(true, viewer.tier);
+    if (!viewer.allowed) return deny(true, viewer.tier, viewer.soon);
 
     const me = { id: String(viewer.telegramId), isAdmin: viewer.isAdmin };
     const admins = new Set([...FORUM_ADMINS].map(String));
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
   try {
     const viewer = await resolveViewer(request);
     if (!viewer) return deny(false);
-    if (!viewer.allowed) return deny(true, viewer.tier);
+    if (!viewer.allowed) return deny(true, viewer.tier, viewer.soon);
     const me = viewer.telegramId;
     const meTg = BigInt(me);
 

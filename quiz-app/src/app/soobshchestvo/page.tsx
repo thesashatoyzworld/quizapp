@@ -238,7 +238,7 @@ function ImageGrid({ ids, onOpen }: { ids: string[]; onOpen: (i: number) => void
 // ─── страница ─────────────────────────────────────────────────
 
 function SoobshchestvoInner() {
-  const [phase, setPhase] = useState<'load' | 'guest' | 'locked' | 'ok'>('load');
+  const [phase, setPhase] = useState<'load' | 'guest' | 'locked' | 'soon' | 'ok'>('load');
   const [tier, setTier] = useState(0);
   const [me, setMe] = useState<Me | null>(null);
   const [cats, setCats] = useState<Category[]>(FALLBACK_CATEGORIES);
@@ -257,11 +257,11 @@ function SoobshchestvoInner() {
 
   const loadFeed = useCallback(async () => {
     const data = await api<{
-      identified: boolean; allowed: boolean; tier?: number; me?: Me; categories?: Category[]; posts?: Card[];
+      identified: boolean; allowed: boolean; soon?: boolean; tier?: number; me?: Me; categories?: Category[]; posts?: Card[];
     }>('/api/cabinet/forum');
     setTier(data.tier || 0);
     if (!data.identified) { setPhase('guest'); return null; }
-    if (!data.allowed) { setPhase('locked'); return null; }
+    if (!data.allowed) { setPhase(data.soon ? 'soon' : 'locked'); return null; }
     setMe(data.me ?? null);
     if (data.categories) setCats(data.categories);
     setPosts(data.posts || []);
@@ -377,6 +377,17 @@ function SoobshchestvoInner() {
             {tier > 0 && <> Сейчас у тебя тариф {tier}.</>}
           </p>
           <a className="sq-cta" href="https://thesashatoyz.com/uroven">Посмотреть тарифы →</a>
+        </div>
+      )}
+
+      {phase === 'soon' && (
+        <div className="sq-card">
+          <div className="sq-lock-badge">🛠 Готовим</div>
+          <h1 className="sq-lock-h1">Сообщество скоро откроется</h1>
+          <p className="sq-lock-p">
+            Здесь у каждого вопроса и каждой работы будет своя ветка, а ответы будут приходить в бот.
+            Как только откроем, напишем в группе.
+          </p>
         </div>
       )}
 
