@@ -1257,3 +1257,65 @@ model ForumImage {
 
   @@map("forum_image")
 }
+
+// ═══════════════════════════════════════
+// РОЛИКИ КЛИЕНТОВ ЛИЧКИ: от ТЗ монтажёру до выложенного рилса
+// Таблицы созданы scripts/reels-create-tables.mjs (не prisma db push).
+// ═══════════════════════════════════════
+
+/** Шапка пространства клиента: имя и инстаграм для заголовка. */
+model ReelSpace {
+  telegramId BigInt   @id @map("telegram_id")
+  clientName String?  @map("client_name")
+  igHandle   String?  @map("ig_handle") // без @
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("reel_spaces")
+}
+
+/** ТЗ монтажёру: карточка и сам документ (HTML) для просмотра в кабинете. */
+model ReelBrief {
+  id         String        @id @default(uuid())
+  telegramId BigInt        @map("telegram_id")
+  order      Int           @default(0)
+  title      String
+  label      String? // короткая подпись на карточке версии, например «25.09 v3»
+  summary    String?
+  state      String        @default("wait") // ok | wait | go
+  stateLabel String?       @map("state_label")
+  html       String?
+  versions   ReelVersion[]
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  @@index([telegramId])
+  @@map("reel_briefs")
+}
+
+/** Одна версия ролика. Этап: tz | done | up | skip; done + planDate = в расписании. */
+model ReelVersion {
+  id         String    @id @default(uuid())
+  telegramId BigInt    @map("telegram_id")
+  briefId    String    @map("brief_id")
+  brief      ReelBrief @relation(fields: [briefId], references: [id], onDelete: Restrict)
+  reel       String // номер ролика в ТЗ
+  title      String
+  version    String?
+  order      Int       @default(0)
+  stage      String    @default("tz")
+  planDate   DateTime? @map("plan_date") @db.Date
+  code       String? // shortcode рилса
+  uploadedAt DateTime? @map("uploaded_at") @db.Date
+  plays      Int?
+  likes      Int?
+  comments   Int?
+  statsAt    DateTime? @map("stats_at")
+  note       String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@index([telegramId])
+  @@index([briefId])
+  @@map("reel_versions")
+}
