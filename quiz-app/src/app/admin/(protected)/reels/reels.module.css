@@ -1,0 +1,157 @@
+/* Ролики клиентов лички. Обвязка в теме админки, сама доска светлая:
+   тот же рендер, что видит клиент в кабинете. */
+
+.page {
+  max-width: 1280px;
+}
+
+.h1 {
+  font-family: var(--font-display);
+  color: var(--neon-cyan);
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+}
+
+.sub {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 20px;
+}
+
+.back {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  display: block;
+  padding: 14px 16px;
+  text-decoration: none;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  border-radius: 10px;
+}
+
+.card:hover {
+  border-color: rgba(0, 240, 255, 0.45);
+}
+
+.cardName {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.cardMeta {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.btn {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btnPrimary {
+  background: var(--neon-cyan);
+  border-color: var(--neon-cyan);
+  color: #000;
+}
+
+.status {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.warn {
+  color: var(--neon-yellow);
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.panel {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: grid;
+  gap: 10px;
+  max-width: 720px;
+}
+
+.panelTitle {
+  font-weight: 700;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.input {
+  font: inherit;
+  font-size: 16px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.surface {
+  background: oklch(0.97 0.006 75);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.skipped {
+  margin-top: 16px;
+  color: oklch(0.46 0.012 55);
+  font-size: 13px;
+}
+
+.skipped li {
+  margin: 4px 0;
+}

@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { href: '/admin/dashboard', label: 'Дашборд' },
   { href: '/admin/idei', label: 'Идеи' },
   { href: '/admin/roadmaps', label: 'Карты клиентов' },
+  { href: '/admin/reels', label: 'Ролики' },
   { href: '/admin/na-kontrole', label: 'Деньги на столе' },
   { href: '/admin/analytics', label: 'Аналитика' },
   { href: '/admin/uroven', label: 'Лиды · Уровень' },
