@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
-  CATEGORIES, FORUM_ADMINS, LIMITS, cleanText, ensureMember, isCategory, loadAuthors,
-  notifyComment, notifyNewPost, ownImages, resolveViewer,
+  CATEGORIES, FORUM_ADMINS, LIMITS, addComment, cleanText, ensureMember, isCategory, loadAuthors,
+  notifyNewPost, ownImages, postTitle, resolveViewer,
 } from '@/lib/forum';
 
 export const runtime = 'nodejs';
@@ -125,10 +125,10 @@ export async function POST(request: NextRequest) {
     const action = body.action;
 
     if (action === 'post') {
-      const title = cleanText(body.title, LIMITS.title).replace(/\n+/g, ' ');
       const text = cleanText(body.body, LIMITS.body);
+      const title = postTitle(body.title, text);
       const category = body.category;
-      if (!title) return bad('Напиши заголовок');
+      if (!title) return bad('Напиши, что нужно');
       if (!isCategory(category)) return bad('Выбери категорию');
       if (category === 'announce' && !viewer.isAdmin) return bad('Анонсы пишет только Саша');
       const images = await ownImages(body.images, me);
@@ -147,39 +147,9 @@ export async function POST(request: NextRequest) {
       const text = cleanText(body.body, LIMITS.comment);
       const images = await ownImages(body.images, me);
       if (!text && !images.length) return bad('Пустой комментарий');
-
-      const post = await prisma.forumPost.findFirst({ where: { id: postId, deleted: false } });
-      if (!post) return bad('Ветка не найдена', 404);
-
-      // Ответ на ответ вешаем на корневой комментарий: вложенность одна, как в Skool.
-      let parentId: string | null = null;
-      let parentAuthorTg: bigint | null = null;
-      if (body.parentId) {
-        const parent = await prisma.forumComment.findFirst({ where: { id: String(body.parentId), postId } });
-        if (parent) {
-          parentId = parent.parentId ?? parent.id;
-          parentAuthorTg = parent.authorTg;
-        }
-      }
-
-      const member = await ensureMember(me);
-      const now = new Date();
-      const comment = await prisma.forumComment.create({
-        data: { postId, parentId, authorTg: meTg, body: text, images, createdAt: now },
-      });
-      await prisma.forumPost.update({
-        where: { id: postId },
-        data: {
-          commentCount: { increment: 1 }, lastAuthorTg: meTg, lastActivityAt: now,
-          // Автор дописал в закрытую ветку — значит, вопрос снова открыт.
-          ...(post.solved && post.authorTg === meTg ? { solved: false } : {}),
-        },
-      });
-      await notifyComment({
-        post, commentId: comment.id, body: text || '📷 картинка',
-        commenterTg: me, commenterName: member.name, parentAuthorTg,
-      });
-      return NextResponse.json({ success: true, id: comment.id });
+      const id = await addComment({ postId, parentId: body.parentId ? String(body.parentId) : null, me, text, images });
+      if (!id) return bad('Ветка не найдена', 404);
+      return NextResponse.json({ success: true, id });
     }
 
     if (action === 'delete') {
