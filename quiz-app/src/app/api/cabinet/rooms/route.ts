@@ -3,6 +3,7 @@ import { getActiveAccessByTelegram } from '@/lib/access';
 import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { forTelegram } from '@/content/lichnoe';
 import { prisma } from '@/lib/prisma';
+import { forumTabVisible } from '@/lib/forum';
 
 export const runtime = 'nodejs';
 
@@ -71,10 +72,14 @@ export async function GET(request: NextRequest) {
       where: { telegramId: BigInt(telegramId), clientVisible: true, archived: false },
     })) > 0;
 
+    // «Сообщество» в закрытой бете: вкладку видят только Саша и тестеры.
+    // Сам доступ внутри всё равно проверяет форум по подписанной initData.
+    const hasForum = forumTabVisible(telegramId);
+
     // identified — знаем ЛИ мы, кто это (по Telegram или сессии). Кабинет так
     // отличает «вошёл, но без покупок» (показать разделы под замком) от «не вошёл»
     // (показать кнопку входа).
-    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, hasPersonal, hasRoadmap, pending: false, token: null });
+    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, hasPersonal, hasRoadmap, hasForum, pending: false, token: null });
   } catch (error) {
     console.error('[Cabinet] rooms error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
