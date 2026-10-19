@@ -30,6 +30,16 @@ function shiftMonth(month: string, by: number): string {
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
+/** Сегодня по Москве, YYYY-MM-DD: с ним сравниваются даты ожидаемых оплат. */
+function todayMsk(): string {
+  return new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
+}
+
+const EXPECTED_KIND: Record<string, string> = {
+  agreed: 'договорились',
+  auto: 'спишется само',
+  renewal: 'продление руками',
+};
 
 const EMPTY = { paidAt: today(), amount: '', payout: '', who: '', product: '', channel: 'manual', note: '' };
 
@@ -55,6 +65,14 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
   const donePct = hasTarget ? (t.gross / t.target) * 100 : 0;
   const planPct = hasTarget ? Math.min((t.planToDate / t.target) * 100, 100) : 0;
   const overshoot = t.gross - t.target;
+
+  // Ожидаемые деньги. Дата в прошлом — оплаты не видно, хотя срок прошёл:
+  // либо человек не заплатил, либо прошло автосписание, о котором Продамус молчит.
+  const expected = report.expected ?? [];
+  const expectedSum = expected.reduce((s, e) => s + e.amount, 0);
+  const now = todayMsk();
+  const overdueSum = expected.filter((e) => e.dueAt < now).reduce((s, e) => s + e.amount, 0);
+  const forecast = t.gross + expectedSum;
 
   async function send(payload: Record<string, unknown>) {
     setBusy(true);
@@ -269,6 +287,57 @@ export default function RevenueClient({ initial }: { initial: MonthReport }) {
         </div>
       </div>
 
+      {expected.length > 0 && (
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 10, padding: 16, marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+            <div style={cardLabel}>ждём до конца месяца</div>
+            <span style={{ flex: 1 }} />
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.35rem', color: '#ffd166' }}>{money(expectedSum)}</div>
+          </div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+            {expected.length} {expected.length === 1 ? 'оплата' : expected.length < 5 ? 'оплаты' : 'оплат'}
+            {hasTarget && <> · если придёт всё, месяц закроется на {money(forecast)}, это {Math.round((forecast / t.target) * 100)}% цели</>}
+            {overdueSum > 0 && <span style={{ color: '#ef476f' }}> · {money(overdueSum)} уже просрочено</span>}
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={th}>дата</th>
+                  <th style={th}>кто</th>
+                  <th style={th}>за что</th>
+                  <th style={{ ...th, textAlign: 'right' }}>сумма</th>
+                  <th style={th}>как придёт</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expected.map((e) => {
+                  const late = e.dueAt < now;
+                  return (
+                    <tr key={e.key}>
+                      <td style={{ ...td, whiteSpace: 'nowrap', color: late ? '#ef476f' : undefined }}>
+                        {e.dueAt.slice(8)}.{e.dueAt.slice(5, 7)}
+                      </td>
+                      <td style={td}>{e.who}</td>
+                      <td style={{ ...td, color: 'var(--text-muted)' }}>{e.label}</td>
+                      <td style={{ ...tdNum, fontFamily: 'var(--font-display)' }} title={e.amountGuessed ? 'оплат человека в базе нет, сумма по прайсу' : undefined}>
+                        {e.amountGuessed ? '≈ ' : ''}{money(e.amount)}
+                      </td>
+                      <td style={{ ...td, color: late ? '#ef476f' : 'var(--text-muted)', fontSize: '0.78rem' }}>
+                        {late ? 'срок прошёл, оплаты не видно' : EXPECTED_KIND[e.kind]}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 10, opacity: 0.8 }}>
+            Источники: график платежей и помесячные доступы т2/т3, которые кончаются в этом месяце. Об автосписании
+            Продамус нам не сообщает, поэтому такая строка уходит, только когда доступ продлён.
+          </div>
+        </div>
+      )}
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(0,240,255,0.15)', borderRadius: 10, padding: '16px 16px 10px', marginBottom: 18 }}>
         <div style={{ ...cardLabel, marginBottom: 12 }}>по дням, пунктир — дневной план</div>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', gap: 3, height: 120 }}>
