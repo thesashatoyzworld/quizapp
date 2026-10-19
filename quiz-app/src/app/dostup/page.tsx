@@ -47,6 +47,7 @@ function DostupInner() {
   const [hasPersonal, setHasPersonal] = useState(false);
   // Открыта ли человеку его маршрутная карта. Раздел «Карта» без неё не рисуем.
   const [hasRoadmap, setHasRoadmap] = useState(false);
+  const [hasForum, setHasForum] = useState(false);
   // Telegram id of the viewer — forwarded to gated cross-domain materials
   // (kabinet.thesashatoyz.com workshops) so their soft-gate can identify the user.
   const [tgId, setTgId] = useState<number | null>(null);
@@ -80,6 +81,7 @@ function DostupInner() {
           setTiers(data.tiers || {});
           setHasPersonal(!!data.hasPersonal);
           setHasRoadmap(!!data.hasRoadmap);
+          setHasForum(!!data.hasForum);
           setUnlocked(data.unlockedRoles || []);
           trackCabinetOpen(tgId ?? data.telegramId ?? null);
         } else {
@@ -145,7 +147,7 @@ function DostupInner() {
       {/* Показываем ВСЕ разделы. Открытые (бесплатные + купленные) — с материалами.
           Закрытые платные — под замком с кнопкой на лендинг: «это есть, но закрыто». */}
       {unlocked && SECTIONS
-        .filter((s) => (!s.personal || hasPersonal) && (!s.roadmap || hasRoadmap))
+        .filter((s) => (!s.personal || hasPersonal) && (!s.roadmap || hasRoadmap) && (!s.forum || hasForum))
         // Раздел, который входит в состав старшего продукта, владельцу старшего не рисуем.
         .filter((s) => !s.hideForRoles?.some((r) => unlocked.includes(r)))
         .map((s) => (

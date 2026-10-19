@@ -103,6 +103,15 @@ export async function resolveViewer(request: NextRequest): Promise<Viewer | null
   return { telegramId, isAdmin, tier, allowed, soon: !allowed && tierOk };
 }
 
+/**
+ * Показывать ли вкладку «Сообщество» в кабинете. До открытия её видят только
+ * Саша и тестеры; после FORUM_OPEN=1 — все, а замок по тарифу рисует кабинет.
+ */
+export function forumTabVisible(telegramId: number | null): boolean {
+  if (FORUM_OPEN) return true;
+  return telegramId != null && (FORUM_ADMINS.has(telegramId) || FORUM_TESTERS.has(telegramId));
+}
+
 async function rememberMember(telegramId: number, initData: string) {
   try {
     const user = JSON.parse(new URLSearchParams(initData).get('user') || '{}') as {

@@ -56,6 +56,11 @@ export interface Section {
    * и второй карточкой он бы только двоился.
    */
   hideForRoles?: string[];
+  /**
+   * Сообщество: пока закрытая бета, раздел видят только Саша и тестеры
+   * (rooms-эндпоинт отдаёт hasForum). После открытия — все.
+   */
+  forum?: boolean;
 }
 
 export const SECTIONS: Section[] = [
@@ -77,6 +82,19 @@ export const SECTIONS: Section[] = [
     subtitle: 'Твои личные созвоны — видишь только ты',
     materials: [
       { kind: 'live', title: 'Записи личных созвонов', url: '/lichnoe', note: 'Видео встреч и конспект по таймкодам: что решили и что делать дальше.' },
+    ],
+  },
+  {
+    // Сообщество: форум вместо общего чата. Каждый запрос — своя ветка,
+    // ответы комментариями под ней, уведомления в личку бота.
+    key: 'soobshchestvo',
+    role: 'uroven',
+    forum: true,
+    title: 'Сообщество',
+    subtitle: 'Вопросы, работы на проверку, победы — у каждой темы своя ветка',
+    landingUrl: 'https://thesashatoyz.com/uroven',
+    materials: [
+      { kind: 'chat', title: 'Открыть сообщество', url: '/soobshchestvo', note: 'Создай ветку со своим запросом, ответ придёт в комментариях и в личку бота.', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
     ],
   },
   {
