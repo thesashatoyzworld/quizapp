@@ -34,6 +34,10 @@ export interface OrphanPayment {
   paidAt: string;
   amount: number;
   source: string;
+  /** Вал минус `commission_sum` из вебхука Продамуса; null — вебхука нет (оплата мимо кассы). */
+  payout: number | null;
+  /** Почта плательщика из вебхука, чтобы строка реестра не была безымянной. */
+  email: string;
   /**
    * Похожая строка реестра: та же сумма в пределах трёх дней. Одна и та же
    * оплата приходит к нам под разными номерами (счёт Продамуса против
@@ -137,12 +141,57 @@ export async function listEntries(month: string): Promise<RevenueEntry[]> {
  */
 export async function listOrphans(month: string): Promise<OrphanPayment[]> {
   const { from, to } = monthRange(month);
+  // Источников два. `purchases` — всё, что выдало доступ. `web_paid` — оплата
+  // картой с сайта: в `purchases` она ляжет только когда человек зайдёт в бота
+  // по /start paid_<token>, а не зайдёт — деньги есть, строки нет (25.09 так
+  // пропал «Поток Спроса» за 1 490). Берём событие, только если под ним есть
+  // успешный вебхук: админские ссылки тоже пишут web_paid, но денег за ними нет.
+  //
+  // Одна web-оплата живёт под двумя номерами с общим токеном: `paid_<token>`
+  // в purchases и `…_web_<token>` в вебхуке и событии. Сверяем по токену,
+  // иначе строка, внесённая под одним номером, висит сиротой под другим.
   const rows = await prisma.$queryRaw<Record<string, unknown>[]>`
-    SELECT p.prodamus_order_id AS order_id,
+    WITH src AS (
+      SELECT pu.prodamus_order_id AS order_id, pu.created_at, pu.amount::numeric AS amount, pu.source
+        FROM purchases pu
+       WHERE pu.created_at >= ${from} AND pu.created_at < ${to}
+         AND pu.prodamus_order_id IS NOT NULL
+      UNION ALL
+      SELECT ev.metadata->>'orderId', ev.created_at, (ev.metadata->>'amount')::numeric, 'web'
+        FROM events ev
+       WHERE ev.type IN ('web_paid', 'mk_web_paid')
+         AND ev.created_at >= ${from} AND ev.created_at < ${to}
+         AND ev.metadata->>'orderId' IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM purchases pu WHERE pu.prodamus_order_id = 'paid_' || (ev.metadata->>'token')
+         )
+         AND EXISTS (
+           SELECT 1 FROM events w
+            WHERE w.type = 'wh_debug' AND w.metadata->>'paymentStatus' = 'success'
+              AND w.metadata->>'order' = ev.metadata->>'orderId'
+         )
+    ),
+    p AS (
+      SELECT s.*, regexp_replace(s.order_id, '^(paid_|.*_web_)', '') AS tok FROM src s
+    )
+    SELECT p.order_id,
            (p.created_at AT TIME ZONE 'Europe/Moscow')::date::text AS paid_day,
            p.amount, p.source,
+           wh.commission_sum::text AS commission_sum, wh.email,
            d.paid_at::text AS dup_paid_at, d.who AS dup_who, d.product AS dup_product
-      FROM purchases p
+      FROM p
+      LEFT JOIN LATERAL (
+        -- sample — сырое тело вебхука строкой; достаём регуляркой, чтобы
+        -- кривой JSON в одном событии не ронял всю страницу.
+        SELECT substring(w.metadata->>'sample' from '"commission_sum":"([0-9.]+)"')::numeric AS commission_sum,
+               coalesce(w.metadata->>'email', '') AS email
+          FROM events w
+         WHERE w.type = 'wh_debug' AND w.metadata->>'paymentStatus' = 'success'
+           AND (w.metadata->>'order' = p.order_id
+                OR (p.tok <> p.order_id AND w.metadata->>'order' LIKE '%_web_' || p.tok))
+         ORDER BY w.created_at
+         LIMIT 1
+      ) wh ON true
       LEFT JOIN LATERAL (
         SELECT e.paid_at, e.who, e.product
           FROM revenue_entries e
@@ -157,10 +206,10 @@ export async function listOrphans(month: string): Promise<OrphanPayment[]> {
          ORDER BY abs(e.paid_at - (p.created_at AT TIME ZONE 'Europe/Moscow')::date)
          LIMIT 1
       ) d ON true
-     WHERE p.created_at >= ${from} AND p.created_at < ${to}
-       AND p.prodamus_order_id IS NOT NULL
-       AND NOT EXISTS (
-         SELECT 1 FROM revenue_entries e WHERE e.order_id = p.prodamus_order_id
+     WHERE NOT EXISTS (
+         SELECT 1 FROM revenue_entries e
+          WHERE e.order_id = p.order_id
+             OR (p.tok <> p.order_id AND regexp_replace(e.order_id, '^(paid_|.*_web_)', '') = p.tok)
        )
      ORDER BY p.created_at DESC`;
   return rows.map((r) => ({
@@ -168,6 +217,8 @@ export async function listOrphans(month: string): Promise<OrphanPayment[]> {
     paidAt: isoDay(r.paid_day),
     amount: num(r.amount),
     source: (r.source as string) || '',
+    payout: r.commission_sum == null ? null : Math.round((num(r.amount) - num(r.commission_sum)) * 100) / 100,
+    email: (r.email as string) || '',
     duplicateOf: r.dup_paid_at
       ? {
         paidAt: isoDay(r.dup_paid_at),
@@ -275,12 +326,14 @@ export async function importOrphans(month: string): Promise<number> {
     await createEntry({
       paidAt: o.paidAt,
       amount: o.amount,
-      payout: null,
-      who: '',
+      payout: o.payout,
+      who: o.email,
       product: o.source,
       channel: 'prodamus',
       orderId: o.orderId,
-      note: 'подтянуто из базы',
+      note: o.payout == null
+        ? 'подтянуто из базы, вебхука нет — комиссию внести руками'
+        : `подтянуто из базы, комиссия ${(o.amount - o.payout).toFixed(2)} из вебхука`,
     });
   }
   return orphans.length;
