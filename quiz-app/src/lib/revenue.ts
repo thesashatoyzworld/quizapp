@@ -14,6 +14,7 @@
 
 import { randomUUID } from 'crypto';
 import { prisma } from './prisma';
+import { prices } from '@/content/prices';
 
 export const DEFAULT_TARGET = 1_500_000;
 
@@ -57,10 +58,29 @@ export interface MonthTotals {
   byDay: { day: number; amount: number }[];
 }
 
+/**
+ * Деньги, которых ждём до конца месяца.
+ *   agreed   — строка в графике платежей (payment_dues): сумма и дата договорные;
+ *   auto     — подписка из бота, Продамус спишет сам (но вебхук об этом не шлёт,
+ *              строка уйдёт, только когда доступ продлят);
+ *   renewal  — помесячный доступ без автосписания, продление руками.
+ */
+export interface ExpectedPayment {
+  key: string;
+  dueAt: string;          // YYYY-MM-DD по Москве
+  who: string;
+  label: string;
+  amount: number;
+  /** сумма взята из прайса, а не из прошлой оплаты человека */
+  amountGuessed: boolean;
+  kind: 'agreed' | 'auto' | 'renewal';
+}
+
 export interface MonthReport {
   month: string;
   entries: RevenueEntry[];
   orphans: OrphanPayment[];
+  expected: ExpectedPayment[];
   totals: MonthTotals;
 }
 
@@ -178,6 +198,99 @@ export async function listOrphans(month: string): Promise<OrphanPayment[]> {
   }));
 }
 
+/**
+ * Кто и сколько должен занести до конца месяца. Источники те же, что у
+ * «Денег на столе» (src/lib/kontrol.ts), только окно — календарный месяц.
+ * Прошедшим месяцам ждать нечего, там пусто.
+ */
+export async function listExpected(month: string, now = new Date()): Promise<ExpectedPayment[]> {
+  if (month < currentMonth(now)) return [];
+  const { from, to } = monthRange(month);
+
+  // Время в обеих таблицах — UTC без зоны; день считаем по Москве.
+  const dues = await prisma.$queryRaw<Record<string, unknown>[]>`
+    SELECT id, telegram_id::text AS tg, who, amount, label,
+           (due_at + interval '3 hours')::date::text AS due_day
+      FROM payment_dues
+     WHERE status = 'pending'
+       AND due_at + interval '3 hours' >= ${from}
+       AND due_at + interval '3 hours' < ${to}
+     ORDER BY due_at`;
+
+  // Помесячные доступы, которые кончаются в этом месяце. Кто держит другой
+  // доступ дальше конца месяца или стоит в графике с любой датой (его деньги
+  // уже посчитаны договорённостью), не считается дважды.
+  // Сумма — последняя оплата того же тарифа, иначе цена из прайса.
+  const access = await prisma.$queryRaw<Record<string, unknown>[]>`
+    SELECT DISTINCT ON (pa.telegram_id)
+           pa.telegram_id::text AS tg, pa.product_slug, pa.source,
+           (pa.expires_at + interval '3 hours')::date::text AS due_day,
+           u.username, u.first_name,
+           (SELECT p.amount FROM purchases p
+              JOIN users pu ON pu.id = p.user_id
+              JOIN products pr ON pr.id = p.product_id
+             WHERE pu.telegram_id = pa.telegram_id AND pr.slug = pa.product_slug
+             ORDER BY p.created_at DESC LIMIT 1) AS last_paid,
+           -- Кого нет в боте (Стас), того знаем только по графику платежей.
+           (SELECT d.amount FROM payment_dues d
+             WHERE d.telegram_id = pa.telegram_id AND d.status = 'paid'
+             ORDER BY d.paid_at DESC NULLS LAST LIMIT 1) AS last_due,
+           (SELECT d.who FROM payment_dues d
+             WHERE d.telegram_id = pa.telegram_id AND d.who <> ''
+             ORDER BY d.created_at DESC LIMIT 1) AS due_who
+      FROM product_access pa
+      LEFT JOIN users u ON u.telegram_id = pa.telegram_id
+     WHERE pa.role = 'uroven'
+       AND pa.product_slug IN ('uroven-t2', 'uroven-t3')
+       AND pa.status = 'active'
+       AND pa.telegram_id IS NOT NULL
+       AND pa.expires_at + interval '3 hours' >= ${from}
+       AND pa.expires_at + interval '3 hours' < ${to}
+       AND NOT EXISTS (
+         SELECT 1 FROM product_access o
+          WHERE o.telegram_id = pa.telegram_id AND o.status = 'active'
+            AND o.product_slug IN ('uroven-t2', 'uroven-t3')
+            AND o.expires_at + interval '3 hours' >= ${to}
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM payment_dues d
+          WHERE d.telegram_id = pa.telegram_id AND d.status = 'pending'
+       )
+     ORDER BY pa.telegram_id, pa.expires_at DESC`;
+
+  const price = prices(now);
+  const out: ExpectedPayment[] = dues.map((d) => ({
+    key: `due:${d.id}`,
+    dueAt: isoDay(d.due_day),
+    who: (d.who as string) || (d.tg as string) || '—',
+    label: (d.label as string) || 'платёж по договорённости',
+    amount: num(d.amount),
+    amountGuessed: false,
+    kind: 'agreed' as const,
+  }));
+
+  for (const a of access) {
+    const t3 = a.product_slug === 'uroven-t3';
+    // uroven_t2_<tg> — оплата из бота через карточку подписки: Продамус спишет сам.
+    const auto = /^uroven_t\d_\d+$/.test((a.source as string) || '');
+    const last = a.last_paid ?? a.last_due;
+    const paid = last == null ? null : num(last);
+    const name = a.username ? `@${a.username}` : '';
+    out.push({
+      key: `tg:${a.tg}`,
+      dueAt: isoDay(a.due_day),
+      who: [name, a.first_name ? `(${a.first_name})` : ''].filter(Boolean).join(' ')
+        || (a.due_who as string) || String(a.tg),
+      label: `${t3 ? 'тариф 3' : 'тариф 2'}, ${auto ? 'автосписание' : 'продление руками'}`,
+      amount: paid ?? (t3 ? price.t3Month : price.t2Month),
+      amountGuessed: paid == null,
+      kind: auto ? 'auto' : 'renewal',
+    });
+  }
+
+  return out.sort((x, y) => x.dueAt.localeCompare(y.dueAt));
+}
+
 export function computeTotals(
   month: string,
   entries: RevenueEntry[],
@@ -220,12 +333,13 @@ export function computeTotals(
 }
 
 export async function getMonthReport(month: string): Promise<MonthReport> {
-  const [entries, orphans, target] = await Promise.all([
+  const [entries, orphans, expected, target] = await Promise.all([
     listEntries(month),
     listOrphans(month),
+    listExpected(month),
     getTarget(month),
   ]);
-  return { month, entries, orphans, totals: computeTotals(month, entries, target) };
+  return { month, entries, orphans, expected, totals: computeTotals(month, entries, target) };
 }
 
 export interface EntryInput {
