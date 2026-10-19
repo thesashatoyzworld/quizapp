@@ -8,7 +8,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import type { MapEntry } from '@/lib/kb/map';
-import { SYSTEM, buildUserPrompt } from './prompt';
+import { systemFor, buildUserPrompt } from './prompt';
 import { materialUrl, type RoadmapSource } from './source';
 
 const MODEL = process.env.ROADMAP_MODEL || 'claude-opus-5';
@@ -277,7 +277,7 @@ export async function generateRoadmap(source: RoadmapSource, startedAt: Date, ac
     .messages.stream({
       model: MODEL,
       max_tokens: 32000,
-      system: SYSTEM,
+      system: systemFor(source.tier),
       thinking: { type: 'adaptive' },
       output_config: { effort: 'high' },
       tools: [
