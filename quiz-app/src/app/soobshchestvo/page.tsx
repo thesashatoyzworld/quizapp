@@ -352,7 +352,7 @@ function SoobshchestvoInner() {
       <header className="sq-top">
         <a className="sq-back" href="/dostup">‹ Кабинет</a>
         <div className="sq-brand">Сообщество</div>
-        <div className="sq-sub">Свой вопрос или работу выкладывай отдельной веткой. Когда ответят, придёт сообщение в бот.</div>
+        <div className="sq-sub">Свой вопрос или работу выкладывай отдельной веткой. Когда ответят, придёт сообщение в бот, и ответить можно прямо там.</div>
         <OpenInBrowser path="/soobshchestvo" className="sq-browser" />
       </header>
 
@@ -497,7 +497,8 @@ function SoobshchestvoInner() {
 
 function Composer({ me, cats, onDone }: { me: Me; cats: Category[]; onDone: (id: string) => void }) {
   const [open, setOpen] = useState(false);
-  const [category, setCategory] = useState('');
+  // Чаще всего приходят с вопросом: категорию не спрашиваем, её можно сменить.
+  const [category, setCategory] = useState('question');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [err, setErr] = useState('');
@@ -509,7 +510,7 @@ function Composer({ me, cats, onDone }: { me: Me; cats: Category[]; onDone: (id:
   async function submit() {
     setErr('');
     if (!category) { setErr('Выбери, что это: вопрос, работа на проверку…'); return; }
-    if (!title.trim()) { setErr('Напиши заголовок: одной строкой, о чём ветка'); return; }
+    if (!body.trim() && !up.ids.length) { setErr('Напиши, что нужно, или приложи картинки'); return; }
     setSending(true);
     try {
       const res = await api<{ success: boolean; id?: string; error?: string }>('/api/cabinet/forum', {
@@ -517,7 +518,7 @@ function Composer({ me, cats, onDone }: { me: Me; cats: Category[]; onDone: (id:
         body: JSON.stringify({ action: 'post', category, title, body, images: up.ids }),
       });
       if (!res.success || !res.id) { setErr(res.error || 'Не получилось опубликовать'); return; }
-      setOpen(false); setCategory(''); setTitle(''); setBody(''); up.reset();
+      setOpen(false); setCategory('question'); setTitle(''); setBody(''); up.reset();
       onDone(res.id);
     } catch {
       setErr('Нет связи, попробуй ещё раз');
@@ -545,11 +546,11 @@ function Composer({ me, cats, onDone }: { me: Me; cats: Category[]; onDone: (id:
           </button>
         ))}
       </div>
-      <input className="sq-input sq-title-input" placeholder="Заголовок: о чём ветка" maxLength={140}
-        value={title} onChange={(e) => setTitle(e.target.value)} />
-      <textarea className="sq-input sq-textarea" rows={5}
-        placeholder="Подробнее: что делал, что получилось, в чём вопрос. Ссылки можно вставлять как есть."
+      <textarea className="sq-input sq-textarea" rows={5} autoFocus
+        placeholder="Что случилось, что делал, в чём вопрос. Ссылки можно вставлять как есть."
         value={body} onChange={(e) => setBody(e.target.value)} />
+      <input className="sq-input sq-title-input sq-title-opt" placeholder="Заголовок, если хочешь. Нет — возьмём первую строку" maxLength={140}
+        value={title} onChange={(e) => setTitle(e.target.value)} />
       <UploadStrip u={up} />
       {err && <div className="sq-err">{err}</div>}
       <div className="sq-compose-actions">
@@ -821,6 +822,7 @@ const CSS = `
   }
   .sq-input:focus { outline: none; border-color: var(--sq-accent); }
   .sq-title-input { font-weight: 700; margin-bottom: 8px; }
+  .sq-title-opt { font-weight: 400; margin: 8px 0 0; }
   .sq-textarea { resize: vertical; min-height: 110px; line-height: 1.5; }
   .sq-compose-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
   .sq-flex { flex: 1; }

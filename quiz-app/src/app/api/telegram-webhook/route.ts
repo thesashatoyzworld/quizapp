@@ -8,6 +8,7 @@ import { notifyAdmin, sendBotMessage, editAdminMarkup, type NotifyRef } from '@/
 import { leadKeyboard, parseLeadCallback } from '@/lib/lead-keyboard';
 import { STATUS_LABEL, type LeadStatus } from '@/content/lead-status';
 import { prisma } from '@/lib/prisma';
+import { catchForumReply } from '@/lib/forum';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { canBuy, isOnSale, isPersonalKey, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
@@ -108,6 +109,9 @@ interface TelegramUpdate {
     reply_to_message?: {
       message_id?: number;
       forum_topic_created?: { name?: string };
+      // Кнопка «Открыть ветку» под уведомлением сообщества: по ней узнаём,
+      // в какую ветку ушёл ответ реплаем.
+      reply_markup?: unknown;
     };
   };
   callback_query?: {
@@ -390,6 +394,11 @@ export async function POST(request: NextRequest) {
     // лички ниже, иначе текст уйдёт в бота по материалам.
     if (update.message?.reply_to_message && isDraftAdmin(update.message.chat.id)) {
       if (await catchDraftEdit(update.message)) return NextResponse.json({ ok: true });
+    }
+
+    // Ответ реплаем на уведомление сообщества — комментарий в ветку.
+    if (update.message?.reply_to_message?.reply_markup) {
+      if (await catchForumReply(update.message)) return NextResponse.json({ ok: true });
     }
 
     // Handle inline button callbacks

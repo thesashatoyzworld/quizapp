@@ -91,7 +91,11 @@ export async function resolveViewer(request: NextRequest): Promise<Viewer | null
     telegramId = verifySession(request.cookies.get(SESSION_COOKIE)?.value, secret);
   }
   if (!telegramId) return null;
+  return viewerById(telegramId);
+}
 
+/** Доступ по уже опознанному id: из запроса кабинета или из апдейта бота. */
+export async function viewerById(telegramId: number): Promise<Viewer> {
   const isAdmin = FORUM_ADMINS.has(telegramId);
   const rows = await getActiveAccessByTelegram(telegramId);
   const tier = rows
@@ -194,6 +198,140 @@ export async function ownImages(ids: unknown, ownerTg: number): Promise<string[]
   return clean.filter((id) => ok.has(id));
 }
 
+/**
+ * Заголовок ветки. Писать его необязательно: пустой берём из первой строки
+ * текста, чтобы задать вопрос было не сложнее, чем написать в чат.
+ */
+export function postTitle(title: unknown, body: string): string {
+  const t = cleanText(title, LIMITS.title).replace(/\n+/g, ' ');
+  if (t) return t;
+  const first = body.split('\n').map((l) => l.trim()).find(Boolean) ?? '';
+  return first.length > 80 ? `${first.slice(0, 79).trimEnd()}…` : first;
+}
+
+/**
+ * Комментарий в ветку: из кабинета и из ответа на уведомление бота.
+ * null — ветки нет (удалили).
+ */
+export async function addComment(opts: {
+  postId: string; parentId?: string | null; me: number; text: string; images: string[];
+}): Promise<string | null> {
+  const { postId, me, text, images } = opts;
+  const meTg = BigInt(me);
+  const post = await prisma.forumPost.findFirst({ where: { id: postId, deleted: false } });
+  if (!post) return null;
+
+  // Ответ на ответ вешаем на корневой комментарий: вложенность одна, как в Skool.
+  let parentId: string | null = null;
+  let parentAuthorTg: bigint | null = null;
+  if (opts.parentId) {
+    const parent = await prisma.forumComment.findFirst({ where: { id: opts.parentId, postId } });
+    if (parent) {
+      parentId = parent.parentId ?? parent.id;
+      parentAuthorTg = parent.authorTg;
+    }
+  }
+
+  const member = await ensureMember(me);
+  const now = new Date();
+  const comment = await prisma.forumComment.create({
+    data: { postId, parentId, authorTg: meTg, body: text, images, createdAt: now },
+  });
+  await prisma.forumPost.update({
+    where: { id: postId },
+    data: {
+      commentCount: { increment: 1 }, lastAuthorTg: meTg, lastActivityAt: now,
+      // Автор дописал в закрытую ветку — значит, вопрос снова открыт.
+      ...(post.solved && post.authorTg === meTg ? { solved: false } : {}),
+    },
+  });
+  await notifyComment({
+    post, commentId: comment.id, body: text || '📷 картинка',
+    commenterTg: me, commenterName: member.name, parentAuthorTg,
+  });
+  return comment.id;
+}
+
+/** Ветка и комментарий из кнопки «Открыть ветку» под уведомлением. */
+function threadFromMarkup(markup: unknown): { postId: string; commentId: string | null } | null {
+  const rows = (markup as { inline_keyboard?: { web_app?: { url?: string }; url?: string }[][] } | undefined)?.inline_keyboard;
+  for (const btn of (rows ?? []).flat()) {
+    const raw = btn.web_app?.url || btn.url;
+    if (!raw || !raw.startsWith(PAGE_URL)) continue;
+    const u = new URL(raw);
+    const postId = u.searchParams.get('post');
+    if (postId && /^[0-9a-f-]{36}$/.test(postId)) {
+      const c = u.searchParams.get('c');
+      return { postId, commentId: c && /^[0-9a-f-]{36}$/.test(c) ? c : null };
+    }
+  }
+  return null;
+}
+
+async function tgFile(fileId: string): Promise<Uint8Array<ArrayBuffer> | null> {
+  const token = process.env.BOT_TOKEN;
+  const res = await fetch(`https://api.telegram.org/bot${token}/getFile`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file_id: fileId }),
+  });
+  const data = await res.json();
+  if (!data.ok || !data.result?.file_path) return null;
+  const file = await fetch(`https://api.telegram.org/file/bot${token}/${data.result.file_path}`);
+  return file.ok ? new Uint8Array(await file.arrayBuffer()) : null;
+}
+
+/**
+ * Ответ реплаем на уведомление бота о ветке уходит в неё комментарием. Так и
+ * Саше, и ученику не нужно открывать кабинет, чтобы ответить: пишут, как в чате.
+ * true — апдейт наш и обработан.
+ */
+export async function catchForumReply(msg: {
+  chat: { id: number; type?: string };
+  from?: { id?: number };
+  text?: string;
+  caption?: string;
+  photo?: { file_id: string; width?: number; height?: number }[];
+  reply_to_message?: { reply_markup?: unknown };
+}): Promise<boolean> {
+  if (msg.chat.type && msg.chat.type !== 'private') return false;
+  const thread = threadFromMarkup(msg.reply_to_message?.reply_markup);
+  if (!thread) return false;
+
+  const me = msg.from?.id ?? msg.chat.id;
+  const say = (text: string) => sendDm(msg.chat.id, text, {});
+  const viewer = await viewerById(me);
+  if (!viewer.allowed) {
+    await say('Сообщество пока закрыто, ответ не ушёл.');
+    return true;
+  }
+
+  const text = cleanText(msg.text ?? msg.caption, LIMITS.comment);
+  const images: string[] = [];
+  const photo = msg.photo?.[msg.photo.length - 1];
+  if (photo) {
+    const data = await tgFile(photo.file_id).catch(() => null);
+    if (data) {
+      const row = await prisma.forumImage.create({
+        data: {
+          ownerTg: BigInt(me), mime: 'image/jpeg', data,
+          width: photo.width ?? 1, height: photo.height ?? 1,
+        },
+        select: { id: true },
+      });
+      images.push(row.id);
+    }
+  }
+  if (!text && !images.length) {
+    await say('Сюда пока доходят текст и картинки. Голосовое и файлы прикрепи в самой ветке.');
+    return true;
+  }
+
+  const id = await addComment({ postId: thread.postId, parentId: thread.commentId, me, text, images });
+  if (id) await sendDm(msg.chat.id, '✅ Ответ в ветке', openButton(thread.postId, id));
+  else await say('Ветку удалили, ответ не ушёл.');
+  return true;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Уведомления. Человеку — в личку бота с кнопкой, которая открывает ветку
 // прямо в Mini App. Саше — через notifyAdmin (личный + рабочий аккаунт).
@@ -207,6 +345,9 @@ function excerpt(s: string, n = 300): string {
   const t = s.replace(/\s+/g, ' ').trim();
   return t.length > n ? `${t.slice(0, n - 1)}…` : t;
 }
+
+/** Подсказка под уведомлением: отвечать можно, не открывая кабинет. */
+const REPLY_HINT = '\n\n<i>Ответь на это сообщение, и ответ уйдёт в ветку.</i>';
 
 function openButton(postId: string, commentId?: string) {
   const url = `${PAGE_URL}?post=${postId}${commentId ? `&c=${commentId}` : ''}`;
@@ -233,7 +374,7 @@ async function sendDm(chatId: number, text: string, replyMarkup: object) {
 export async function notifyNewPost(post: { id: string; title: string; body: string; category: string }, authorName: string) {
   const cat = CATEGORIES.find((c) => c.key === post.category);
   const text = `${cat?.emoji ?? '🆕'} <b>Новая ветка в сообществе</b> · ${esc(cat?.label ?? '')}\n`
-    + `<b>${esc(authorName)}</b>: «${esc(post.title)}»\n\n${esc(excerpt(post.body))}`;
+    + `<b>${esc(authorName)}</b>: «${esc(post.title)}»\n\n${esc(excerpt(post.body))}${REPLY_HINT}`;
   await notifyAdmin(text, { alsoWork: ALSO_WORK, disableLinkPreview: true, replyMarkup: openButton(post.id) });
 }
 
@@ -260,19 +401,19 @@ export async function notifyComment(opts: {
   if (!sent.has(authorTg) && !FORUM_ADMINS.has(authorTg)) {
     sent.add(authorTg);
     jobs.push(sendDm(authorTg,
-      `💬 <b>${esc(commenterName)}</b> ответил в твоей ветке «${esc(post.title)}»:\n\n${quote}`, markup));
+      `💬 <b>${esc(commenterName)}</b> ответил в твоей ветке «${esc(post.title)}»:\n\n${quote}${REPLY_HINT}`, markup));
   }
   if (parentAuthorTg) {
     const p = Number(parentAuthorTg);
     if (!sent.has(p) && !FORUM_ADMINS.has(p)) {
       sent.add(p);
       jobs.push(sendDm(p,
-        `↩️ <b>${esc(commenterName)}</b> ответил на твой комментарий в ветке «${esc(post.title)}»:\n\n${quote}`, markup));
+        `↩️ <b>${esc(commenterName)}</b> ответил на твой комментарий в ветке «${esc(post.title)}»:\n\n${quote}${REPLY_HINT}`, markup));
     }
   }
   if (!commenterIsAdmin) {
     jobs.push(notifyAdmin(
-      `💬 <b>${esc(commenterName)}</b> в ветке «${esc(post.title)}»:\n\n${quote}`,
+      `💬 <b>${esc(commenterName)}</b> в ветке «${esc(post.title)}»:\n\n${quote}${REPLY_HINT}`,
       { alsoWork: ALSO_WORK, disableLinkPreview: true, replyMarkup: markup },
     ));
   }
