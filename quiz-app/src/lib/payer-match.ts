@@ -24,16 +24,23 @@ import { tgFromOrderId } from './order-id';
 export async function telegramsByEmail(email: string): Promise<number[]> {
   const e = email.trim().toLowerCase();
   if (!e.includes('@')) return [];
-  const rows = await prisma.$queryRaw<{ order: string }[]>`
-    SELECT DISTINCT metadata->>'order' AS "order"
-      FROM events
-     WHERE type = 'wh_debug'
-       AND lower(metadata->>'email') = ${e}
-       AND metadata->>'paymentStatus' = 'success'
-       AND metadata->>'order' IS NOT NULL`;
+  // Телеграм берём не только из нашего order_id. Если человек всегда платит
+  // счётом из кабинета (Женя Сокольчик: 27.08 и 09.10), order_id — голый номер
+  // Продамуса, телеграма в нём нет. Такой платёж Саша закрывает в графике руками,
+  // и номер заказа ложится в payment_dues.order_id рядом с телеграмом. С этой
+  // сверки следующий счёт с той же почты опознаётся сам.
+  const rows = await prisma.$queryRaw<{ order: string; dueTg: bigint | null }[]>`
+    SELECT DISTINCT w.metadata->>'order' AS "order", d.telegram_id AS "dueTg"
+      FROM events w
+      LEFT JOIN payment_dues d
+        ON d.order_id = w.metadata->>'order' AND d.telegram_id IS NOT NULL
+     WHERE w.type = 'wh_debug'
+       AND lower(w.metadata->>'email') = ${e}
+       AND w.metadata->>'paymentStatus' = 'success'
+       AND w.metadata->>'order' IS NOT NULL`;
   const tgs = new Set<number>();
   for (const r of rows) {
-    const tg = tgFromOrderId(r.order);
+    const tg = tgFromOrderId(r.order) ?? (r.dueTg != null ? Number(r.dueTg) : null);
     if (tg) tgs.add(tg);
   }
   return [...tgs];
