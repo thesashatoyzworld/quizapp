@@ -80,6 +80,8 @@ import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_16 } from './lichnyy-sozvon-evg
 
 import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_16 } from './lichnyy-sozvon-leonid-2026-10-16';
 
+import { LICHNOE_LICHNYY_SOZVON_NIA_2026_10_20 } from './lichnyy-sozvon-nia-2026-10-20';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -102,6 +104,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-nia-2026-10-20',
+    telegramIds: [104934039, 788334680],
+    client: "NIA",
+    title: "Одно место из тридцати",
+    subtitle: "Заходим в личку к своим, берём одного-двух человек, собираем лестницу оплаты и возвращаем уверенность",
+    date: '2026-10-20',
+    duration: "64 мин",
+    tags: ["личные продажи", "оффер", "уверенность", "рассрочка", "созвоны"],
+    kinescopeId: '6eGUuHt8ncKj7cLtVoKkvT',
+    html: LICHNOE_LICHNYY_SOZVON_NIA_2026_10_20,
+  },
   {
     slug: 'lichnyy-sozvon-leonid-2026-10-16',
     telegramIds: [167259877, 788334680],
