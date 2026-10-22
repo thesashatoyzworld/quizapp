@@ -82,6 +82,8 @@ import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_16 } from './lichnyy-sozvon-leoni
 
 import { LICHNOE_LICHNYY_SOZVON_NIA_2026_10_20 } from './lichnyy-sozvon-nia-2026-10-20';
 
+import { LICHNOE_LICHNYY_SOZVON_YANA_2026_10_22 } from './lichnyy-sozvon-yana-2026-10-22';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -104,6 +106,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-yana-2026-10-22',
+    telegramIds: [1007391583, 788334680],
+    client: "Яна",
+    title: "У тебя есть методология",
+    subtitle: "Сворачиваем расфокус из пяти продуктов в один оффер на групповое обучение через результат, выбираем проявленность как общую рамку, разбираем денежную линию и фокус на горячих и тёплых, уходим от запусков с дедлайнами к асинхронным продажам, ставим анкету перед безоплатной диагностикой и разбираем цепочку вопросов «зачем»",
+    date: '2026-10-22',
+    duration: "68 мин",
+    tags: ["оффер", "расфокус", "мана", "анкета", "воронка"],
+    kinescopeId: '2h73B9CtTRRjUvtodD7wvQ',
+    html: LICHNOE_LICHNYY_SOZVON_YANA_2026_10_22,
+  },
   {
     slug: 'lichnyy-sozvon-nia-2026-10-20',
     telegramIds: [104934039, 788334680],
