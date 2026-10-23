@@ -84,6 +84,8 @@ import { LICHNOE_LICHNYY_SOZVON_NIA_2026_10_20 } from './lichnyy-sozvon-nia-2026
 
 import { LICHNOE_LICHNYY_SOZVON_YANA_2026_10_22 } from './lichnyy-sozvon-yana-2026-10-22';
 
+import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_23 } from './lichnyy-sozvon-stas-2026-10-23';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -106,6 +108,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-stas-2026-10-23',
+    telegramIds: [204608959, 788334680],
+    client: "Стас",
+    title: "Я действую в контексте",
+    subtitle: "Разбираем узкое горлышко: придумывать легко, а выкладывать нет, поэтому создаём контекст и планку требований вместо ожидания мотивации, договариваемся копить десять роликов в пробниках и только потом открывать паблик по одному, очерчиваем редлайны по ресторанам и записываем сырьё для роликов: туалет за восемь миллионов, цена нерешительности, почему закрываются рестораны, тупые решения и ИИ как ракета",
+    date: '2026-10-23',
+    duration: "61 мин",
+    tags: ["приоритеты", "контекст", "пробники", "темы роликов", "редлайны"],
+    kinescopeId: 'aP4Vt4ratBUVHwBnxRRzxy',
+    html: LICHNOE_LICHNYY_SOZVON_STAS_2026_10_23,
+  },
   {
     slug: 'lichnyy-sozvon-yana-2026-10-22',
     telegramIds: [1007391583, 788334680],
