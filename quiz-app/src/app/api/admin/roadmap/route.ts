@@ -125,7 +125,7 @@ async function notifyClientRoadmapOpen(
       [{ text: '🗺 Открыть карту', web_app: { url: KARTA_URL } }],
       [{ text: 'Открыть в браузере', url: KARTA_URL }],
     ],
-  }, null);
+  }, null, 'roadmap-open');
 
   await prisma.event.create({
     data: {

@@ -596,7 +596,13 @@ export async function adminSendInvite(arg: string): Promise<string> {
   if (intake.status === 'done') return `у ${arg} анкета уже собрана`;
   if (intake.status === 'in_progress') return `${arg} уже проходит, сейчас на вопросе ${intake.currentStep + 1}`;
 
-  const sent = await sendBotMessage(tg, withCount(trackContent(intake.track).invite, intakeTotal(intake)));
+  const sent = await sendBotMessage(
+    tg,
+    withCount(trackContent(intake.track).invite, intakeTotal(intake)),
+    undefined,
+    'Markdown',
+    'intake-invite',
+  );
   if (!sent.ok) {
     const link = await adminCreateLink(arg);
     return `бот не смог написать ${arg} (не начинал диалог или заблокировал).\n\n${link}`;
@@ -668,7 +674,7 @@ export async function adminAddQuestion(arg: string, question: string): Promise<s
     data: { intakeId: intake.id, step: EXTRA_STEP, kind: 'question', extraQuestion: question },
   });
 
-  const sent = await sendBotMessage(tg, `${INTAKE_EXTRA_INTRO}\n\n${question}`);
+  const sent = await sendBotMessage(tg, `${INTAKE_EXTRA_INTRO}\n\n${question}`, undefined, 'Markdown', 'intake-question');
   return sent.ok ? `вопрос ушёл ${arg}` : `не смог написать ${arg}`;
 }
 

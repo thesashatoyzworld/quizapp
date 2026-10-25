@@ -85,9 +85,13 @@ export async function sendWelcome(
   const invite = await createGroupInvite(telegramId, cfg.label);
   if (!invite) console.warn('[onboarding] ссылка в группу не выписалась', telegramId);
 
-  const sent = await sendBotMessage(telegramId, cfg.text(invite, withIntake), {
-    inline_keyboard: [[{ text: cfg.button, web_app: { url: CABINET_URL } }]],
-  });
+  const sent = await sendBotMessage(
+    telegramId,
+    cfg.text(invite, withIntake),
+    { inline_keyboard: [[{ text: cfg.button, web_app: { url: CABINET_URL } }]] },
+    'Markdown',
+    'welcome',
+  );
   if (!sent.ok) {
     console.error('[onboarding] приветствие не ушло', telegramId, sent);
     return false;
@@ -137,7 +141,13 @@ export async function startIntake(telegramId: number, track: IntakeTrack): Promi
     if (existing && existing.status !== 'invited') return;
 
     const intake = await ensureIntake(telegramId, undefined, undefined, undefined, track);
-    await sendBotMessage(telegramId, withCount(trackContent(intake.track).invite, intakeTotal(intake)));
+    await sendBotMessage(
+      telegramId,
+      withCount(trackContent(intake.track).invite, intakeTotal(intake)),
+      undefined,
+      'Markdown',
+      'intake-invite',
+    );
     await sendPreamble(telegramId, intake);
   } catch (e) {
     console.error('[onboarding] интервью не запустилось', telegramId, e);

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { formatFollowers } from '@/content/dwy';
 import { sendBotMessage } from '@/lib/telegram';
+import { SENT_BY_PREFIX } from '@/lib/bot-sent-log';
 import { transcribeTgVoice, TG_FILE_LIMIT_BYTES } from '@/lib/whisper';
 import { suggestFromThread, type SalesStep } from './answer';
 import { pushDigest } from './digest';
@@ -666,6 +667,7 @@ export async function sendAs(
         name: known?.name ?? null,
         text: body,
         leadId: known?.leadId ?? null,
+        mediaRef: `${SENT_BY_PREFIX}cabinet`,
         createdAt: new Date(out.result.date * 1000),
       },
     })
@@ -698,12 +700,43 @@ export async function sendSuggestion(id: string): Promise<{ ok: boolean; error?:
       text: s.text,
     }),
   });
-  const body = (await res.json()) as { ok: boolean; description?: string };
+  const body = (await res.json()) as {
+    ok: boolean;
+    description?: string;
+    result?: { message_id: number; date: number };
+  };
   if (!body.ok) {
     console.error('[business] отправка не прошла', body.description);
     return { ok: false, error: body.description || 'телеграм отказал' };
   }
 
   await prisma.tgSuggestion.update({ where: { id }, data: { sentAt: new Date() } });
+
+  // Как в sendAs: кладём сразу, не дожидаясь эха business_message. Эхо с тем
+  // же ключом потом отвалится дедупом. Не записалось — сообщение всё равно ушло.
+  if (body.result) {
+    const known = await prisma.tgBusinessMsg
+      .findFirst({
+        where: { chatId: s.chatId },
+        orderBy: { createdAt: 'desc' },
+        select: { username: true, name: true, leadId: true },
+      })
+      .catch(() => null);
+    await prisma.tgBusinessMsg
+      .create({
+        data: {
+          id: `${s.chatId}:${body.result.message_id}`,
+          chatId: s.chatId,
+          side: 'us',
+          username: known?.username ?? null,
+          name: known?.name ?? null,
+          text: s.text,
+          leadId: known?.leadId ?? null,
+          mediaRef: `${SENT_BY_PREFIX}suggestion`,
+          createdAt: new Date(body.result.date * 1000),
+        },
+      })
+      .catch(() => {});
+  }
   return { ok: true };
 }

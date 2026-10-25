@@ -192,7 +192,7 @@ export async function approveAndSend(roadmapId: string): Promise<string> {
 
   const sent = await sendBotMessage(Number(roadmap.telegramId), text, {
     inline_keyboard: [[{ text: ROADMAP_BUTTON, web_app: { url: `${CABINET}/karta` } }]],
-  }, 'HTML');
+  }, 'HTML', 'roadmap-ready');
 
   if (!sent.ok) {
     return `карта открыта (${shared} строк), но сообщение не ушло: человек не начинал диалог с ботом или заблокировал его`;
