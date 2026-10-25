@@ -7,6 +7,8 @@ import { transcribeTgVoice, TG_FILE_LIMIT_BYTES } from '@/lib/whisper';
 import { suggestFromThread, type SalesStep } from './answer';
 import { pushDigest } from './digest';
 import { inBase, workAccount } from '@/lib/clients-base';
+import { onLehaMessage } from '@/lib/leha/run';
+import { outgoingRow } from '@/lib/leha/log';
 
 // Личка рабочего аккаунта.
 //
@@ -435,6 +437,15 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
     return;
   }
 
+  // Лёха: первое сообщение после анкеты заводит черновик, наше закрывает его.
+  await onLehaMessage({
+    chatId: String(msg.chat.id),
+    side,
+    username: msg.chat.username || null,
+    name: msg.chat.first_name || null,
+    leadId: lead?.id ?? null,
+  });
+
   let text = said;
   let voiceFailed = false;
   if (voice) {
@@ -616,6 +627,7 @@ export async function regenerate(chatId: string): Promise<boolean> {
 export async function sendAs(
   chatId: string,
   text: string,
+  sentBy = 'cabinet',
 ): Promise<{ ok: boolean; error?: string }> {
   const body = text.trim();
   if (!body) return { ok: false, error: 'пустой текст' };
@@ -658,19 +670,7 @@ export async function sendAs(
   });
 
   await prisma.tgBusinessMsg
-    .create({
-      data: {
-        id: `${chatId}:${out.result.message_id}`,
-        chatId,
-        side: 'us',
-        username: known?.username ?? null,
-        name: known?.name ?? null,
-        text: body,
-        leadId: known?.leadId ?? null,
-        mediaRef: `${SENT_BY_PREFIX}cabinet`,
-        createdAt: new Date(out.result.date * 1000),
-      },
-    })
+    .create({ data: { ...outgoingRow(chatId, out.result, body, known), mediaRef: `${SENT_BY_PREFIX}${sentBy}` } })
     .catch(() => {});
 
   return { ok: true };
