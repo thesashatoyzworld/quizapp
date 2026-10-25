@@ -1,9 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
-  CATEGORIES, FORUM_ADMINS, LIMITS, addComment, cleanText, ensureMember, isCategory, loadAuthors,
-  notifyNewPost, ownImages, postTitle, resolveViewer,
+  BOT_AUTHOR_TG, CATEGORIES, FORUM_ADMINS, LIMITS, addComment, cleanText, ensureMember, isCategory,
+  loadAuthors, notifyNewPost, ownImages, postTitle, resolveViewer,
 } from '@/lib/forum';
+import { botEnabled } from '@/lib/community-bot/route';
+import { handleNewPost } from '@/lib/community-bot';
+import { liveDeps } from '@/lib/community-bot/ask';
 
 export const runtime = 'nodejs';
 
@@ -23,6 +26,8 @@ function deny(identified: boolean, tier = 0, soon = false) {
 
 /** «Ждёт ответа»: последнее слово не за Сашей и ветка не закрыта. */
 function waiting(p: { lastAuthorTg: bigint; solved: boolean; category: string }, admins: Set<string>) {
+  // Ответил бот-помощник — ветка тоже не ждёт: допишет автор, станет ждать снова.
+  if (p.lastAuthorTg === BOT_AUTHOR_TG) return false;
   return !p.solved && p.category !== 'announce' && !admins.has(String(p.lastAuthorTg));
 }
 
@@ -138,7 +143,17 @@ export async function POST(request: NextRequest) {
       const post = await prisma.forumPost.create({
         data: { authorTg: meTg, category, title, body: text, images, lastAuthorTg: meTg },
       });
-      if (!viewer.isAdmin) await notifyNewPost(post, member.name);
+      if (!viewer.isAdmin) {
+        // Бот-помощник (COMMUNITY_BOT=1) отвечает на рутину сам и сообщает Саше,
+        // что сделал. Модель думает несколько секунд — ветку человек видит сразу.
+        if (botEnabled()) {
+          after(() => handleNewPost(post, member.name, liveDeps).then(() => undefined).catch(async (e) => {
+            console.error('[community-bot] failed', e);
+            await notifyNewPost(post, member.name);
+          }));
+        }
+        else await notifyNewPost(post, member.name);
+      }
       return NextResponse.json({ success: true, id: post.id });
     }
 

@@ -157,7 +157,14 @@ export async function ensureMember(telegramId: number) {
   return prisma.forumMember.create({ data: { telegramId: BigInt(telegramId), name, username } });
 }
 
-export interface Author { id: string; name: string; username: string | null; isAdmin: boolean }
+export interface Author { id: string; name: string; username: string | null; isAdmin: boolean; isBot?: boolean }
+
+/**
+ * Автор комментариев бота-помощника. Ноль не совпадает ни с одним Telegram id,
+ * поэтому строки forum_member для бота нет: имя подставляется здесь.
+ */
+export const BOT_AUTHOR_TG = BigInt(0);
+export const BOT_AUTHOR_NAME = 'Бот-помощник';
 
 /** Авторы пачкой: одна выборка на всю ленту. */
 export async function loadAuthors(ids: bigint[]): Promise<Map<string, Author>> {
@@ -167,6 +174,10 @@ export async function loadAuthors(ids: bigint[]): Promise<Map<string, Author>> {
     : [];
   const map = new Map<string, Author>();
   for (const id of uniq) {
+    if (id === String(BOT_AUTHOR_TG)) {
+      map.set(id, { id, name: BOT_AUTHOR_NAME, username: null, isAdmin: false, isBot: true });
+      continue;
+    }
     const row = rows.find((r) => String(r.telegramId) === id);
     map.set(id, {
       id,
@@ -418,4 +429,57 @@ export async function notifyComment(opts: {
     ));
   }
   await Promise.all(jobs);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Бот-помощник (src/lib/community-bot). Работает только при COMMUNITY_BOT=1.
+// ─────────────────────────────────────────────────────────────
+
+/** Ответ бота в ветку: комментарий от его имени и уведомление автору ветки. */
+export async function addBotComment(postId: string, text: string): Promise<void> {
+  const post = await prisma.forumPost.findFirst({ where: { id: postId, deleted: false } });
+  if (!post) return;
+  const now = new Date();
+  const comment = await prisma.forumComment.create({
+    data: { postId, parentId: null, authorTg: BOT_AUTHOR_TG, body: text, images: [], createdAt: now },
+  });
+  await prisma.forumPost.update({
+    where: { id: postId },
+    data: { commentCount: { increment: 1 }, lastAuthorTg: BOT_AUTHOR_TG, lastActivityAt: now },
+  });
+  await sendDm(Number(post.authorTg),
+    `🤖 <b>${BOT_AUTHOR_NAME}</b> ответил в твоей ветке «${esc(post.title)}»:
+
+${esc(excerpt(text))}${REPLY_HINT}`,
+    openButton(postId, comment.id));
+}
+
+const BOT_LABEL: Record<'personal' | 'method' | 'review' | 'social', string> = {
+  method: '❓ <b>Вопрос по методу</b>',
+  review: '👀 <b>Работа на проверку</b>',
+  personal: '🙋 <b>Вопрос к тебе</b> (доступ, оплата, договорённости)',
+  social: '🆕 <b>Новая ветка в сообществе</b>',
+};
+
+/**
+ * Уведомление Саше о новой ветке, когда бот включён: вместо общего «новая
+ * ветка» — что бот с ней сделал. Ответил сам — Саша видит ответ и может
+ * поправить, ответив на сообщение. Не ответил — сразу видно, что ветка ждёт его.
+ */
+export async function notifyBotPost(
+  post: { id: string; title: string; body: string },
+  authorName: string,
+  notice: { kind: 'personal' | 'method' | 'review' | 'social' } | { kind: 'answered'; answer: string },
+) {
+  const head = notice.kind === 'answered'
+    ? '🤖 <b>Бот ответил в новой ветке</b>'
+    : BOT_LABEL[notice.kind];
+  const answer = notice.kind === 'answered' ? `
+
+<b>Ответ бота:</b> ${esc(excerpt(notice.answer))}` : '';
+  const text = `${head}
+<b>${esc(authorName)}</b>: «${esc(post.title)}»
+
+${esc(excerpt(post.body))}${answer}${REPLY_HINT}`;
+  await notifyAdmin(text, { alsoWork: ALSO_WORK, disableLinkPreview: true, replyMarkup: openButton(post.id) });
 }
