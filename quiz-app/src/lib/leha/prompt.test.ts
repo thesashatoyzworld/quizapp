@@ -55,3 +55,10 @@ test('в промпте нет цитат и имён из живой переп
   assert.doesNotMatch(LEHA_SYSTEM, /#\d{2,}/);
   assert.doesNotMatch(LEHA_SYSTEM, /@\w/);
 });
+
+test('рассуждения модели и женский род о себе не уходят', () => {
+  assert.equal(cleanReply('Тест привет, видела.. нет, видел твою анкету\n\nоткуда клиенты?').problem, 'служебное в тексте');
+  assert.equal(cleanReply('Тест привет, видела…\n\nСтоп, пишу как Саша, в мужском роде:\n\nвидел анкету?').text, null);
+  assert.equal(cleanReply('Тест привет, видела твою анкету\n\nоткуда клиенты?').problem, 'о себе в женском роде');
+  assert.equal(cleanReply('Тест привет, видел твою анкету\n\nоткуда клиенты?').problem, null);
+});
