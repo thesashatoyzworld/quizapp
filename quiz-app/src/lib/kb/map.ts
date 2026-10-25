@@ -14,6 +14,7 @@ import { POTOK_ROLE, COURSE_ROLE, COURSE_MIN_TIER } from '@/content/potok/access
 import { RAZBORY, RAZBORY_ROLE, RAZBORY_MIN_TIER } from '@/content/razbory';
 import { SOZVONY, SOZVONY_ROLE, SOZVONY_MIN_TIER } from '@/content/sozvony';
 import { NEYRONKI, NEYRONKI_ROLE, NEYRONKI_MIN_TIER } from '@/content/neyronki';
+import { GUIDE, GUIDE_ROLE, GUIDE_MIN_TIER } from '@/content/kabinet-guide';
 import { WORKSHOPS_KB } from '@/content/workshops';
 import contentJson from '@/content/formula/content.json';
 import type { Content, Block, Rich, NavNode } from '@/content/formula/types';
@@ -45,7 +46,7 @@ const FORMULA_MIN_TIER = 1;
 
 export type Section =
   | 'kurs' | 'prompty' | 'potok' | 'formula' | 'razbory' | 'sozvony' | 'workshops'
-  | 'neyronki';
+  | 'neyronki' | 'guide';
 
 /** Роль плюс минимальный тариф. Тариф 0 = роли достаточно самой по себе. */
 export interface AccessRule {
@@ -311,6 +312,22 @@ export function buildMap(): MapEntry[] {
     });
   }
 
+  // Справка по кабинету: предобучение, карта оффера, порядок работы. Уроками
+  // это не покрыто, а спрашивают об этом чаще всего.
+  for (const g of GUIDE) {
+    entries.push({
+      section: 'guide',
+      slug: g.slug,
+      title: `Справка · ${g.title}`,
+      note: g.note,
+      headings: [],
+      access: [{ role: GUIDE_ROLE, minTier: GUIDE_MIN_TIER }],
+      path: g.path,
+      external: g.path.startsWith('/w/') || undefined,
+      people: [],
+    });
+  }
+
   cached = entries;
   return entries;
 }
@@ -433,6 +450,13 @@ export function materialText(entry: MapEntry): string {
     case 'neyronki': {
       const n = NEYRONKI.find((x) => x.slug === entry.slug);
       text = n ? htmlToText(n.html) : '';
+      break;
+    }
+    case 'guide': {
+      const g = GUIDE.find((x) => x.slug === entry.slug);
+      text = g ? `${g.title}
+
+${g.text}` : '';
       break;
     }
   }

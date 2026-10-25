@@ -11,7 +11,7 @@ import OpenInBrowser from '@/components/OpenInBrowser';
 // Опознание: в Mini App шлём подписанную initData заголовком x-tg-init-data,
 // в браузере работает сессия-cookie после Login Widget.
 
-interface Author { id: string; name: string; username: string | null; isAdmin: boolean }
+interface Author { id: string; name: string; username: string | null; isAdmin: boolean; isBot?: boolean }
 interface Category { key: string; label: string; emoji: string; adminOnly?: boolean }
 interface Card {
   id: string; category: string; title: string; excerpt: string;
@@ -112,6 +112,9 @@ function hueOf(id: string) {
 }
 
 function Avatar({ a, size = 36 }: { a: Author; size?: number }) {
+  if (a.isBot) {
+    return <span className="sq-ava" style={{ width: size, height: size, fontSize: size * 0.5, background: 'var(--sq-text)' }} aria-hidden>🤖</span>;
+  }
   const letters = a.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '·';
   const style = a.isAdmin
     ? { width: size, height: size, fontSize: size * 0.38, background: 'var(--sq-text)', color: 'var(--sq-bg)' }
@@ -124,6 +127,7 @@ function Name({ a }: { a: Author }) {
     <span className="sq-name">
       {a.name}
       {a.isAdmin && <span className="sq-admin">автор курса</span>}
+      {a.isBot && <span className="sq-admin">бот</span>}
     </span>
   );
 }
