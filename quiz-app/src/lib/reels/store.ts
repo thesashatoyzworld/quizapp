@@ -7,6 +7,12 @@ import { verifyInitData, verifySession, SESSION_COOKIE } from '@/lib/telegram-lo
 import { fetchProfileReels, fetchReelStats, type ProfileReel } from './apify';
 import type { ReelBriefView, ReelVersionView, Stage } from './plan';
 
+/**
+ * Открыт ли раздел клиентам. Пока REELS_CLIENTS_OPEN не равно 1, «Ролики»
+ * видит только Саша (админы): решаем с монтажом и правками, прежде чем показывать.
+ */
+export const REELS_CLIENTS_OPEN = process.env.REELS_CLIENTS_OPEN === '1';
+
 // Личка = действующий тариф 3 на треке lichka. SQL, а не prisma: колонки
 // track в схеме нет, она есть только в базе.
 export async function isLichka(telegramId: number | bigint): Promise<boolean> {

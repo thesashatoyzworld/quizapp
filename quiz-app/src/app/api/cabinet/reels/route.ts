@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { isLichka, loadSpace, verifiedViewer } from '@/lib/reels/store';
+import { isLichka, loadSpace, REELS_CLIENTS_OPEN, verifiedViewer } from '@/lib/reels/store';
 import { FORUM_ADMINS } from '@/lib/forum';
 import { codeOf, todayIso } from '@/lib/reels/plan';
 
@@ -34,7 +34,7 @@ async function ownerOf(viewer: number, picked: string | null) {
     const id = clients.find((c) => c.telegramId === picked)?.telegramId ?? clients[0]?.telegramId;
     return { owner: id ? BigInt(id) : null, clients };
   }
-  return { owner: (await isLichka(viewer)) ? BigInt(viewer) : null, clients: null };
+  return { owner: REELS_CLIENTS_OPEN && (await isLichka(viewer)) ? BigInt(viewer) : null, clients: null };
 }
 
 export async function GET(request: NextRequest) {

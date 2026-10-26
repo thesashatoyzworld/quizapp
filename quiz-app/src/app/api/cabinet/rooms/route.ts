@@ -4,7 +4,7 @@ import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { forTelegram } from '@/content/lichnoe';
 import { prisma } from '@/lib/prisma';
 import { FORUM_ADMINS, forumTabVisible } from '@/lib/forum';
-import { isLichka } from '@/lib/reels/store';
+import { isLichka, REELS_CLIENTS_OPEN } from '@/lib/reels/store';
 
 export const runtime = 'nodejs';
 
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     const hasForum = forumTabVisible(telegramId);
     // Раздел «Ролики» — клиентам лички, у которых доска уже заведена.
     // Админам вкладка видна всегда: внутри доски всех клиентов.
-    const hasReels = telegramId != null && (FORUM_ADMINS.has(telegramId) || ((await isLichka(telegramId)) && (
+    const hasReels = telegramId != null && (FORUM_ADMINS.has(telegramId) || (REELS_CLIENTS_OPEN && (await isLichka(telegramId)) && (
       (await prisma.reelBrief.count({ where: { telegramId: BigInt(telegramId) } })) +
       (await prisma.reelVersion.count({ where: { telegramId: BigInt(telegramId) } }))
     ) > 0));
