@@ -22,8 +22,14 @@ export function isDialogChat(chatId: string, raw?: string): boolean {
 /** Не больше стольких сообщений Лёхи в одном чате за сутки по Алмате. */
 export const DIALOG_DAILY_LIMIT = 20;
 
-/** Сообщение длиннее этого не уходит само: оффер целиком укладывается в 700. */
-export const DIALOG_MAX_LEN = 700;
+/** Сообщение длиннее этого не уходит само: оффер тарифа 3 по шаблону около 1100. */
+export const DIALOG_MAX_LEN = 1500;
+
+/**
+ * Оффер группы (тариф 3), как Саша пишет его сам в октябре 2026: одним
+ * платежом, 50 / 50 через 45 дней. Отличается от прайса сайта (prices.ts).
+ */
+export const T3_OFFER = { once: 170000, split: 200000, half: 100000 } as const;
 
 /** Модель думает до минуты; дольше пяти минут «пишет» только упавшая задача. */
 export const COMPOSING_STALE_MS = 5 * 60 * 1000;
@@ -146,7 +152,7 @@ export const MATERIALS: { path: string; what: string }[] = [
 /** Оплата тарифа 1 с привязкой к его телеграму: доступ выдастся сам. */
 export const payT1Link = (chatId: string) => `https://${PAY}/t1?u=${chatId}`;
 
-/** Личные ссылки на тарифы 2 и 3: доступ привяжется к его телеграму. */
+/** Личная ссылка на оплату: доступ привяжется к его телеграму. */
 export const personalLink = (tier: 't2' | 't3', chatId: string) => `https://${PAY}/${tier}?k=svoi&u=${chatId}`;
 
 /** Ссылка к сравнимому виду: без протокола, www, хвоста и параметров. */
@@ -170,12 +176,13 @@ export function extractLinks(text: string): string[] {
 export type LinkVerdict = 'ok' | 'personal' | 'foreign';
 
 /**
- * ok: материалы; personal: личная ссылка на оплату т2/т3, тоже уходит сама.
- * Тариф 1 сейчас не предлагаем, его ссылка чужая.
+ * ok: материалы; personal: личная ссылка на оплату т2, тоже уходит сама.
+ * Тариф 1 не предлагаем, а ссылку на т3 шлёт Саша под вариант оплаты:
+ * обе чужие.
  */
 export function checkLinks(text: string): { verdict: LinkVerdict; bad: string[] } {
   const ok = new Set(MATERIALS.map((m) => m.path.toLowerCase()));
-  const personal = new Set([`${PAY}/t2`, `${PAY}/t3`]);
+  const personal = new Set([`${PAY}/t2`]);
   const bad: string[] = [];
   let hasPersonal = false;
   for (const raw of extractLinks(text)) {
@@ -208,6 +215,9 @@ export function allowedAmounts(p: PriceSet): Set<number> {
     Math.round(p.t1 / 24),
     p.t2Month - p.t1,
     p.t3Month * 3,
+    T3_OFFER.once,
+    T3_OFFER.split,
+    T3_OFFER.half,
   ]);
 }
 

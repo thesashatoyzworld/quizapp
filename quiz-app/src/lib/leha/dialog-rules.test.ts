@@ -188,11 +188,14 @@ test('доставка: live шлёт сам только чистое днём'
 
 test('промпт: прайс, ссылка оплаты с его id, без длинного тире', () => {
   const text = dialogRules(P, '450843326');
-  assert.ok(text.includes('https://world.thesashatoyz.com/pay/t3?k=svoi&u=450843326'));
+  assert.ok(text.includes('https://world.thesashatoyz.com/pay/t2?k=svoi&u=450843326'));
+  assert.ok(!text.includes('/pay/t3'));
+  assert.ok(text.includes('170 000р (если одним платежом)'));
+  assert.ok(text.includes('200 000р - если разбиваем 50 / 50 (100 000 в начале и 100 000 через 45 дней)'));
   assert.ok(!text.includes('/pay/t1'));
   assert.ok(text.includes('бесплатные материалы'));
   assert.ok(text.includes('12 000'));
-  assert.ok(text.includes('155 000'));
+  assert.ok(!text.includes('155 000'));
   assert.ok(!text.includes('—'));
   assert.ok(!/«|»/.test(text.replace(/«[^»]*»/g, '')), 'ёлочки только парные в названиях');
 });
@@ -225,4 +228,10 @@ test('напоминание через сутки, ночью переноси�
   assert.deepEqual(remindAt(almaty(26, 12)), almaty(27, 12));
   assert.deepEqual(remindAt(almaty(26, 20, 30)), almaty(27, 20, 30));
   assert.deepEqual(remindAt(almaty(26, 22)), almaty(28, 9));
+});
+
+test('оффер тарифа 3: суммы шаблона проходят, ссылка на т3 нет', () => {
+  const offer = 'стоимость: 170 000р (если одним платежом)\n\n200 000р - если разбиваем 50 / 50 (100 000 в начале и 100 000 через 45 дней)';
+  assert.equal(cleanDialogReply(offer, P).problem, null);
+  assert.equal(checkLinks('лови https://world.thesashatoyz.com/pay/t3?k=svoi&u=1').verdict, 'foreign');
 });
