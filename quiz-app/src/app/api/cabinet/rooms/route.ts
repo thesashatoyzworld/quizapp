@@ -3,7 +3,7 @@ import { getActiveAccessByTelegram } from '@/lib/access';
 import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { forTelegram } from '@/content/lichnoe';
 import { prisma } from '@/lib/prisma';
-import { forumTabVisible } from '@/lib/forum';
+import { FORUM_ADMINS, forumTabVisible } from '@/lib/forum';
 import { isLichka } from '@/lib/reels/store';
 
 export const runtime = 'nodejs';
@@ -77,10 +77,11 @@ export async function GET(request: NextRequest) {
     // Сам доступ внутри всё равно проверяет форум по подписанной initData.
     const hasForum = forumTabVisible(telegramId);
     // Раздел «Ролики» — клиентам лички, у которых доска уже заведена.
-    const hasReels = telegramId != null && (await isLichka(telegramId)) && (
+    // Админам вкладка видна всегда: внутри доски всех клиентов.
+    const hasReels = telegramId != null && (FORUM_ADMINS.has(telegramId) || ((await isLichka(telegramId)) && (
       (await prisma.reelBrief.count({ where: { telegramId: BigInt(telegramId) } })) +
       (await prisma.reelVersion.count({ where: { telegramId: BigInt(telegramId) } }))
-    ) > 0;
+    ) > 0));
 
     // identified — знаем ЛИ мы, кто это (по Telegram или сессии). Кабинет так
     // отличает «вошёл, но без покупок» (показать разделы под замком) от «не вошёл»
