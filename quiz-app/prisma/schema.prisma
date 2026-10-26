@@ -1349,4 +1349,65 @@ model ReelVersion {
   @@index([telegramId])
   @@index([briefId])
   @@map("reel_versions")
+
+// ШТАБ (задачи и ночные смены в админке)
+// ═══════════════════════════════════════
+// Содержимое пишет только скрипт синхронизации из локального репозитория
+// штаба (shtab/scripts/sync-kabinet.mjs). Таблицы создаёт
+// scripts/shtab-create-tables.mjs (db push на общей базе запрещён).
+
+/** Строка трекера задач. Синк заменяет таблицу целиком. */
+model ShtabTask {
+  id           String    @id
+  section      String
+  sectionOrder Int       @map("section_order")
+  /** Подзаголовок внутри раздела (жирная строка над списком), если есть. */
+  grp          String?
+  position     Int
+  /** Текст задачи в markdown. */
+  text         String
+  /** Остальные колонки строки таблицы: статус, где сейчас, следующий шаг. */
+  detail       String?
+  /** open | wip | paused | done | frozen */
+  status       String
+  /** Дата из начала строки («25.10 · ...»). */
+  lineDate     DateTime? @map("line_date") @db.Date
+  /** Когда синк впервые увидел задачу сделанной. */
+  doneAt       DateTime? @map("done_at")
+  syncedAt     DateTime  @default(now()) @map("synced_at")
+
+  @@index([sectionOrder, position])
+  @@map("shtab_task")
+}
+
+/** Утренний отчёт ночной смены. id = дата утра (2026-10-26). */
+model ShtabReport {
+  id            String   @id
+  shiftDate     DateTime @map("shift_date") @db.Date
+  title         String
+  forSasha      String   @map("for_sasha")
+  forStrategist String?  @map("for_strategist")
+  /** Бриф ночи (что было поставлено), markdown. */
+  brief         String?
+  /** [{ kind: 'pr' | 'file' | 'url', label, url?, fileId? }] */
+  links         Json     @default("[]")
+  syncedAt      DateTime @default(now()) @map("synced_at")
+
+  @@map("shtab_report")
+}
+
+/** Файл результата: HTML показываем как есть, markdown (карточки) рендерим. */
+model ShtabFile {
+  id        String   @id
+  path      String   @unique
+  title     String
+  /** html | md */
+  kind      String
+  body      String
+  /** Как файл упомянут в текстах (полный путь, имя файла): по ним ставим ссылки. */
+  aliases   String[] @default([])
+  updatedAt DateTime @map("updated_at")
+  syncedAt  DateTime @default(now()) @map("synced_at")
+
+  @@map("shtab_file")
 }
