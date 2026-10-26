@@ -41,7 +41,6 @@ function TelegramLoginButton() {
 function RolikiInner() {
   const [state, setState] = useState<'load' | 'guest' | 'empty' | 'ok'>('load');
   const [space, setSpace] = useState<Space | null>(null);
-  const [tgId, setTgId] = useState<number | null>(null);
   const initData = useRef('');
   const [open, setOpen] = useState<{ title: string; html: string } | null>(null);
   const [publishing, setPublishing] = useState<string | null>(null);
@@ -58,10 +57,8 @@ function RolikiInner() {
       if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
       const id = tg?.initDataUnsafe?.user?.id ?? null;
       initData.current = typeof tg?.initData === 'string' ? tg.initData : '';
-      setTgId(id);
       try {
-        const qs = id ? `?telegramId=${id}` : '';
-        const res = await fetch(`/api/cabinet/reels${qs}`);
+        const res = await fetch('/api/cabinet/reels', { headers: authHeaders(), credentials: 'same-origin' });
         const data = await res.json();
         if (stop) return;
         if (!data.identified) setState('guest');
@@ -74,11 +71,14 @@ function RolikiInner() {
     return () => { stop = true; };
   }, []);
 
+  // Опознание только подписанное: initData из Mini App, в браузере сессия-cookie.
+  function authHeaders(): Record<string, string> {
+    return initData.current ? { 'x-tg-init-data': initData.current } : {};
+  }
+
   async function openBrief(b: ReelBriefView) {
-    const qs = new URLSearchParams({ brief: b.id });
-    if (tgId) qs.set('telegramId', String(tgId));
     try {
-      const res = await fetch(`/api/cabinet/reels?${qs}`);
+      const res = await fetch(`/api/cabinet/reels?brief=${encodeURIComponent(b.id)}`, { headers: authHeaders(), credentials: 'same-origin' });
       const data = await res.json();
       if (data.html) setOpen({ title: b.title, html: data.html });
     } catch { /* noop */ }
@@ -90,8 +90,7 @@ function RolikiInner() {
     setSaving(true);
     setErr('');
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (initData.current) headers['x-tg-init-data'] = initData.current;
+      const headers = { ...authHeaders(), 'Content-Type': 'application/json' };
       const res = await fetch('/api/cabinet/reels', {
         method: 'POST', headers, credentials: 'same-origin',
         body: JSON.stringify({ versionId: v.id, link }),

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
 import { prisma } from '@/lib/prisma';
 import { isLichka, loadSpace, verifiedViewer } from '@/lib/reels/store';
 import { codeOf, todayIso } from '@/lib/reels/plan';
@@ -13,20 +12,12 @@ export const runtime = 'nodejs';
 //   GET  /api/cabinet/reels?brief=<id> → { html } — документ ТЗ
 //   POST /api/cabinet/reels            → отметить версию выложенной по ссылке
 //
-// Чтение опознаёт как /api/cabinet/roadmap. Запись — только по подписанной
-// initData или сессии-cookie.
-
-/** Кто смотрит: id из Mini App initData, иначе подписанная сессия-cookie. */
-function viewerId(request: NextRequest): number | null {
-  const raw = request.nextUrl.searchParams.get('telegramId');
-  if (raw && /^\d+$/.test(raw)) return Number(raw);
-  const secret = process.env.SESSION_SECRET || process.env.BOT_TOKEN || '';
-  return verifySession(request.cookies.get(SESSION_COOKIE)?.value, secret);
-}
+// И чтение, и запись — только по подписанной initData или сессии-cookie:
+// внутри лежат ТЗ клиента, голому ?telegramId их не отдаём.
 
 export async function GET(request: NextRequest) {
   try {
-    const telegramId = viewerId(request);
+    const telegramId = verifiedViewer(request);
     if (!telegramId) return NextResponse.json({ success: true, identified: false, hasReels: false, space: null });
     if (!(await isLichka(telegramId))) {
       return NextResponse.json({ success: true, identified: true, hasReels: false, space: null });
