@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from '@upstash/qstash';
 import { runLeha } from '@/lib/leha/run';
-import { runLehaDialog } from '@/lib/leha/dialog';
+import { runLehaDialog, runLehaReminder } from '@/lib/leha/dialog';
 import { scheduleLehaDialog, scheduleLehaDraft } from '@/lib/qstash';
 
 export const runtime = 'nodejs';
@@ -22,13 +22,13 @@ export async function POST(request: NextRequest) {
     .catch(() => false);
   if (!valid) return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
 
-  const { draftId, dialogChatId } = JSON.parse(body) as { draftId?: string; dialogChatId?: string };
+  const { draftId, dialogChatId, remind } = JSON.parse(body) as { draftId?: string; dialogChatId?: string; remind?: boolean };
 
   // Диалог: Лёха ведёт разговор целиком в чатах из LEHA_DIALOG_CHATS.
   if (dialogChatId) {
-    const res = await runLehaDialog(dialogChatId);
+    const res = remind ? await runLehaReminder(dialogChatId) : await runLehaDialog(dialogChatId);
     if (!res.done) {
-      await scheduleLehaDialog(dialogChatId, res.retryInSec);
+      await scheduleLehaDialog(dialogChatId, res.retryInSec, Boolean(remind));
       return NextResponse.json({ ok: true, rescheduled: true });
     }
     return NextResponse.json({ ok: true, status: res.status });
