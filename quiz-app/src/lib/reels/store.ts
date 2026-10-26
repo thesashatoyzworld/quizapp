@@ -4,7 +4,7 @@
 import type { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyInitData, verifySession, SESSION_COOKIE } from '@/lib/telegram-login';
-import { fetchReelStats } from './apify';
+import { fetchProfileReels, fetchReelStats, type ProfileReel } from './apify';
 import type { ReelBriefView, ReelVersionView, Stage } from './plan';
 
 // Личка = действующий тариф 3 на треке lichka. SQL, а не prisma: колонки
@@ -113,22 +113,55 @@ export async function loadSpace(telegramId: bigint) {
   };
 }
 
+/** Новые ролики из профиля заводим, только если они не старше этого. */
+const DISCOVER_DAYS = 45;
+
+/** Куда складываем найденные в профиле ролики, которых не было в ТЗ. */
+const autoBriefId = (telegramId: bigint) => `auto-${telegramId}`;
+
+/** Подпись рилса → её первая строка, коротко; без подписи — дата. */
+function titleFromCaption(caption: string, at: Date): string {
+  const line = caption.split('\n').map((l) => l.trim()).find(Boolean) ?? '';
+  if (!line) return `Ролик от ${at.toISOString().slice(8, 10)}.${at.toISOString().slice(5, 7)}`;
+  return line.length > 80 ? `${line.slice(0, 77).trimEnd()}…` : line;
+}
+
 /**
- * Свежие просмотры по выложенным версиям: одного клиента или всех на личке.
- * Один запуск Apify на все коды. Что не вернулось, остаётся как было:
- * пустое не превращаем в ноль.
+ * Раз в день по всем клиентам (или по одному из админки):
+ * 1. Вкладка «Reels» их профилей одним запуском Apify: там видны и пробные.
+ * 2. Известным роликам — свежие просмотры. Новые — на доску, выложенными.
+ * 3. Известные, которых на вкладке не нашлось, добираем по прямым ссылкам.
+ * Что Apify не вернул, остаётся как было: пустое не превращаем в ноль.
  */
 export async function refreshStats(telegramIds: bigint[]) {
-  const versions = await prisma.reelVersion.findMany({
-    where: { telegramId: { in: telegramIds }, stage: 'up', code: { not: null } },
-    select: { id: true, code: true },
-  });
-  const codes = versions.map((v) => v.code as string);
-  const stats = await fetchReelStats(codes);
   const now = new Date();
+  const spaces = await prisma.reelSpace.findMany({
+    where: { telegramId: { in: telegramIds }, igHandle: { not: null } },
+    select: { telegramId: true, igHandle: true },
+  });
+  let profiles = new Map<string, ProfileReel[]>();
+  try {
+    profiles = await fetchProfileReels(spaces.map((s) => s.igHandle as string));
+  } catch (err) {
+    // Без вкладки «Reels» всё равно обновим известные по прямым ссылкам.
+    console.error('[reels] вкладка Reels не собралась:', err);
+  }
+
+  const versions = await prisma.reelVersion.findMany({
+    where: { telegramId: { in: telegramIds }, code: { not: null } },
+    select: { id: true, code: true, stage: true, telegramId: true },
+  });
+  const known = new Set(versions.map((v) => v.code as string));
+  const fromProfile = new Map([...profiles.values()].flat().map((r) => [r.code, r]));
+
+  // Не нашлось на вкладке: удалён, скрыт или старше лимита — пробуем по ссылке.
+  const up = versions.filter((v) => v.stage === 'up');
+  const direct = await fetchReelStats(up.map((v) => v.code as string).filter((c) => !fromProfile.has(c)))
+    .catch((err) => { console.error('[reels] прямые ссылки не собрались:', err); return new Map(); });
+
   let updated = 0;
-  for (const v of versions) {
-    const s = stats.get(v.code as string);
+  for (const v of up) {
+    const s = fromProfile.get(v.code as string) ?? direct.get(v.code as string);
     if (!s) continue;
     await prisma.reelVersion.update({
       where: { id: v.id },
@@ -136,5 +169,37 @@ export async function refreshStats(telegramIds: bigint[]) {
     });
     updated++;
   }
-  return { reels: versions.length, updated, missing: versions.length - updated };
+
+  let discovered = 0;
+  const since = new Date(now.getTime() - DISCOVER_DAYS * 864e5);
+  for (const space of spaces) {
+    const fresh = (profiles.get((space.igHandle as string).replace(/^@/, '').toLowerCase()) ?? [])
+      .filter((r) => !known.has(r.code) && r.timestamp && new Date(r.timestamp) >= since);
+    if (!fresh.length) continue;
+    const briefId = autoBriefId(space.telegramId);
+    await prisma.reelBrief.upsert({
+      where: { id: briefId },
+      create: {
+        id: briefId, telegramId: space.telegramId, order: 99, title: 'Найдено в профиле', label: '',
+        summary: 'Ролики, которые нашлись в профиле, но не были в ТЗ. Сопоставить с ТЗ можно в админке.',
+        state: 'ok', stateLabel: 'не из ТЗ',
+      },
+      update: {},
+    });
+    for (const r of fresh) {
+      const at = new Date(r.timestamp as string);
+      await prisma.reelVersion.create({
+        data: {
+          id: `ig-${r.code}`, telegramId: space.telegramId, briefId, reel: '', title: titleFromCaption(r.caption, at),
+          version: '', order: 900, stage: 'up', code: r.code, uploadedAt: new Date(`${r.timestamp!.slice(0, 10)}T00:00:00Z`),
+          plays: r.plays, likes: r.likes, comments: r.comments, statsAt: now,
+          note: 'Найден в профиле автоматически, с ТЗ не сопоставлен',
+        },
+      });
+      known.add(r.code);
+      discovered++;
+    }
+  }
+
+  return { reels: up.length, updated, missing: up.length - updated, discovered };
 }

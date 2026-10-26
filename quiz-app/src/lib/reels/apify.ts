@@ -60,6 +60,53 @@ export async function fetchReelStats(codes: string[]): Promise<Map<string, ReelS
   return out;
 }
 
+const REELS_TAB_URL = 'https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items';
+/** Сколько последних роликов брать с вкладки «Reels» каждого профиля. */
+const REELS_PER_PROFILE = 40;
+
+export interface ProfileReel extends ReelStats {
+  code: string;
+  caption: string;
+}
+
+/**
+ * Вкладка «Reels» профилей, один запуск на всех. Здесь видны и пробные ролики,
+ * которых нет в сетке профиля: так узнаём о выложенном без ссылок от клиента.
+ * Ключ ответа — ник без @, в нижнем регистре.
+ */
+export async function fetchProfileReels(handles: string[]): Promise<Map<string, ProfileReel[]>> {
+  const out = new Map<string, ProfileReel[]>();
+  const unique = [...new Set(handles.map((h) => h.replace(/^@/, '').toLowerCase()).filter(Boolean))];
+  if (!unique.length) return out;
+
+  const token = process.env.APIFY_TOKEN;
+  if (!token) throw new Error('нет APIFY_TOKEN');
+
+  const res = await fetch(`${REELS_TAB_URL}?token=${encodeURIComponent(token)}&timeout=${RUN_TIMEOUT_SEC}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: unique, resultsLimit: REELS_PER_PROFILE }),
+  });
+  await recordRun(unique.length * REELS_PER_PROFILE, res.ok);
+  if (!res.ok) throw new Error(`apify reels ${res.status}: ${(await res.text()).slice(0, 200)}`);
+
+  const items = (await res.json()) as (ApifyItem & { ownerUsername?: string; caption?: string })[];
+  for (const it of Array.isArray(items) ? items : []) {
+    const owner = it.ownerUsername?.toLowerCase();
+    if (!it.shortCode || it.error || !owner) continue;
+    if (!out.has(owner)) out.set(owner, []);
+    out.get(owner)!.push({
+      code: it.shortCode,
+      caption: it.caption ?? '',
+      plays: num(it.videoPlayCount) ?? num(it.videoViewCount),
+      likes: num(it.likesCount),
+      comments: num(it.commentsCount),
+      timestamp: it.timestamp ?? null,
+    });
+  }
+  return out;
+}
+
 /** Запуск Apify в общий учёт расходов: сколько раз и сколько рилсов за день. */
 async function recordRun(reels: number, ok: boolean) {
   const date = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
