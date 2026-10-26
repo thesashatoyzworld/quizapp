@@ -160,3 +160,25 @@ export async function scheduleLehaDraft(draftId: string, delaySec: number) {
     console.error(`[QStash] Failed to schedule leha draft ${draftId}:`, error);
   }
 }
+
+/**
+ * Лёха отвечает в диалоге. Ставится на каждую реплику человека: сработавшая
+ * задача сама увидит, что человек дописал, и перепланирует себя.
+ */
+export async function scheduleLehaDialog(chatId: string, delaySec: number) {
+  if (!WEBAPP_URL) {
+    console.error('[QStash] WEBAPP_URL not set, cannot schedule leha dialog');
+    return;
+  }
+
+  try {
+    await qstash.publishJSON({
+      url: `${WEBAPP_URL}/api/leha`,
+      body: { dialogChatId: chatId },
+      delay: Math.max(0, Math.round(delaySec)),
+      retries: 1,
+    });
+  } catch (error) {
+    console.error(`[QStash] Failed to schedule leha dialog ${chatId}:`, error);
+  }
+}

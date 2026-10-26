@@ -22,24 +22,16 @@ import {
   type SkipReason,
 } from './rules';
 import { cleanReply, renderLead, systemWithExamples } from './prompt';
+import { done, esc, isLehaAdmin, lehaChatId, tg } from './bot';
+import { isDialogChat } from './dialog-rules';
+import { catchDialogEdit, onDialogMessage } from './dialog';
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
+export { isLehaAdmin, lehaChatId };
+
 const MODEL = 'claude-sonnet-5';
 const anthropic = new Anthropic();
 
 export const CB = { send: 'lhs:', edit: 'lhe:', skip: 'lhx:' } as const;
-
-/** Куда слать черновики: личка Саши с ботом. */
-export function lehaChatId(): string {
-  return (process.env.LEHA_CHAT_ID || process.env.ADMIN_CHAT_ID || '').trim();
-}
-
-export function isLehaAdmin(chatId: number | string): boolean {
-  return [lehaChatId(), process.env.ADMIN_CHAT_ID, process.env.ADMIN_CHAT_ID_WORK]
-    .map((v) => (v || '').trim())
-    .filter(Boolean)
-    .includes(String(chatId));
-}
 
 /** Анкета пишется до первого сообщения, но часы у телеграма и базы разные. */
 const CLOCK_SLACK_MS = 60 * 1000;
@@ -60,11 +52,18 @@ async function ourSince(chatId: string, leadCreatedAt: Date): Promise<number> {
 export async function onLehaMessage(m: {
   chatId: string;
   side: string;
+  text: string;
   username: string | null;
   name: string | null;
   leadId: number | null;
-}): Promise<SkipReason | 'queued' | 'closed' | null> {
+}): Promise<SkipReason | 'queued' | 'closed' | 'dialog' | null> {
   try {
+    // Чат, где Лёха ведёт весь разговор: первое сообщение тоже его забота.
+    if (isDialogChat(m.chatId)) {
+      if (m.side !== 'client') await closeAnswered(m.chatId);
+      await onDialogMessage(m);
+      return 'dialog';
+    }
     if (m.side !== 'client') {
       await closeAnswered(m.chatId);
       return 'closed';
@@ -112,8 +111,6 @@ export async function onLehaMessage(m: {
   }
 }
 
-const done = (label: string) => ({ inline_keyboard: [[{ text: label, callback_data: 'noop' }]] });
-
 /** Саша ответил сам: висящие черновики по этому чату больше не нужны. */
 async function closeAnswered(chatId: string): Promise<void> {
   const open = await prisma.lehaDraft.findMany({ where: { chatId, status: { in: ['queued', 'pending'] } } });
@@ -126,26 +123,6 @@ async function closeAnswered(chatId: string): Promise<void> {
       await editAdminMarkup({ chatId: d.adminChatId, messageId: d.adminMsgId }, done('💬 ответил сам'));
     }
   }
-}
-
-async function tg(method: string, body: object): Promise<{ ok: boolean; result?: { message_id?: number }; description?: string }> {
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!data.ok) console.error(`[leha] ${method}: ${data.error_code} ${data.description}`);
-    return data;
-  } catch (e) {
-    console.error(`[leha] ${method} упал`, e);
-    return { ok: false };
-  }
-}
-
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /** Модель пишет черновик по анкете и тому, что человек успел сказать. */
@@ -331,7 +308,7 @@ export async function catchLehaEdit(msg: {
   const promptId = msg.reply_to_message?.message_id;
   if (!promptId || !isLehaAdmin(msg.chat.id)) return false;
   const d = await prisma.lehaDraft.findFirst({ where: { promptMsgId: promptId } });
-  if (!d) return false;
+  if (!d) return catchDialogEdit(msg);
 
   const reply = (t: string) =>
     tg('sendMessage', { chat_id: msg.chat.id, text: t, reply_parameters: { message_id: promptId, allow_sending_without_reply: true } });
