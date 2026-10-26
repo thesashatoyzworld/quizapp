@@ -1001,6 +1001,37 @@ model TgSuggestion {
   @@map("tg_suggestion")
 }
 
+/**
+ * Лёха: первое сообщение тому, кто заполнил анкету и написал на рабочий
+ * аккаунт. Одна строка на анкету: второй раз по той же анкете не пишем.
+ */
+model LehaDraft {
+  id          String    @id @default(uuid())
+  leadId      Int       @unique @map("lead_id")
+  chatId      String    @map("chat_id")
+  username    String?
+  name        String?
+  /** queued | pending | sent | edited | skipped | answered | failed | off */
+  status      String    @default("queued")
+  /** Когда собирать: через паузу днём, в 9:00 по Алмате ночью. */
+  dueAt       DateTime  @map("due_at")
+  draft       String?
+  /** Что смутило в черновике: ссылка, цена, нет вопроса. Саше рядом с текстом. */
+  note        String?
+  /** Что ушло человеку на самом деле. С draft вместе это пара для обучения. */
+  sentText    String?   @map("sent_text")
+  mode        String    @default("shadow")
+  adminChatId String?   @map("admin_chat_id")
+  adminMsgId  Int?      @map("admin_msg_id")
+  promptMsgId Int?      @map("prompt_msg_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  decidedAt   DateTime? @map("decided_at")
+
+  @@index([dueAt])
+  @@index([chatId, status])
+  @@map("leha_draft")
+}
+
 // ═══════════════════════════════════════
 // ПРАЙС-ССЫЛКИ (цена и срок вне каталога)
 // ═══════════════════════════════════════

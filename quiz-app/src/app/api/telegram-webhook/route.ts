@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isLoggedGroup, saveGroupMessage } from '@/lib/group-log';
 import { onGroupMessage } from '@/lib/group-draft/hook';
 import { CB as DRAFT_CB, handleDraftButton, catchDraftEdit, isDraftAdmin } from '@/lib/group-draft/admin';
+import { CB as LEHA_CB, handleLehaButton, catchLehaEdit, isLehaAdmin } from '@/lib/leha/run';
 import { after } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { notifyAdmin, sendBotMessage, editAdminMarkup, type NotifyRef } from '@/lib/telegram';
@@ -396,6 +397,11 @@ export async function POST(request: NextRequest) {
       if (await catchDraftEdit(update.message)) return NextResponse.json({ ok: true });
     }
 
+    // Саша прислал свой текст вместо черновика Лёхи.
+    if (update.message?.reply_to_message && isLehaAdmin(update.message.chat.id)) {
+      if (await catchLehaEdit(update.message)) return NextResponse.json({ ok: true });
+    }
+
     // Ответ реплаем на уведомление сообщества — комментарий в ветку.
     if (update.message?.reply_to_message?.reply_markup) {
       if (await catchForumReply(update.message)) return NextResponse.json({ ok: true });
@@ -416,6 +422,20 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ ok: true });
         }
         const said = await handleDraftButton(data, cb.message.chat.id);
+        await answerCallbackQuery(cb.id, said);
+        return NextResponse.json({ ok: true });
+      }
+
+      // Кнопки под черновиком Лёхи: первое сообщение по анкете.
+      if (
+        (data.startsWith(LEHA_CB.send) || data.startsWith(LEHA_CB.edit) || data.startsWith(LEHA_CB.skip)) &&
+        cb.message
+      ) {
+        if (!isLehaAdmin(cb.message.chat.id)) {
+          await answerCallbackQuery(cb.id, 'не твоя кнопка');
+          return NextResponse.json({ ok: true });
+        }
+        const said = await handleLehaButton(data, cb.message.chat.id);
         await answerCallbackQuery(cb.id, said);
         return NextResponse.json({ ok: true });
       }

@@ -138,3 +138,25 @@ export async function scheduleGroupDraft(key: string, delaySec = 150) {
     console.error(`[QStash] Failed to schedule group draft for ${key}:`, error);
   }
 }
+
+/**
+ * Лёха собирает первое сообщение по анкете. Задача одна на анкету; ночью
+ * назначается на утро, поэтому задержка бывает и в двенадцать часов.
+ */
+export async function scheduleLehaDraft(draftId: string, delaySec: number) {
+  if (!WEBAPP_URL) {
+    console.error('[QStash] WEBAPP_URL not set, cannot schedule leha draft');
+    return;
+  }
+
+  try {
+    await qstash.publishJSON({
+      url: `${WEBAPP_URL}/api/leha`,
+      body: { draftId },
+      delay: Math.max(0, Math.round(delaySec)),
+      retries: 1,
+    });
+  } catch (error) {
+    console.error(`[QStash] Failed to schedule leha draft ${draftId}:`, error);
+  }
+}
