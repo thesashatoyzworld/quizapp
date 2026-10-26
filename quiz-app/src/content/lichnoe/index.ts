@@ -88,6 +88,8 @@ import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_23 } from './lichnyy-sozvon-stas-20
 
 import { LICHNOE_LICHNYY_SOZVON_DANIIL_2026_10_26 } from './lichnyy-sozvon-daniil-2026-10-26';
 
+import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_23 } from './lichnyy-sozvon-evgeniya-2026-10-23';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -110,6 +112,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-evgeniya-2026-10-23',
+    telegramIds: [934091008, 788334680],
+    client: "Евгения Сокольчик",
+    title: "Килограммы в голове",
+    subtitle: "Разбираем, почему неделя встала в расфокусе и как поднять задачи в системе приоритетов, смотрим не на твой профиль изолированно, а на всю нишу фитнеса и ищем угол, в котором тебя нельзя повторить, забираем два козыря (диплом реабилитолога и то, что ты сама результат своего продукта) и два вектора на две недели: худеем не тело, а голову, и острая боль в спине, пояснице и шее, плюс почему карусели на маленьком аккаунте не поедут и зачем снимать по три-четыре версии",
+    date: '2026-10-23',
+    duration: "64 мин",
+    tags: ["расфокус", "ниша", "козыри", "векторы контента", "приоритеты"],
+    kinescopeId: 'akkfSL3Q8hNnTqCvvDH3Cz',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_23,
+  },
   {
     slug: 'lichnyy-sozvon-daniil-2026-10-26',
     telegramIds: [715268152, 788334680],
