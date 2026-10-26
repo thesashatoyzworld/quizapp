@@ -9,7 +9,7 @@ import { getDeal, countPayment, dealProduct, parseDealOrderId, alreadyProcessed 
 import { markDuePaid } from '@/lib/payment-dues';
 import { matchPayer } from '@/lib/payer-match';
 import { sendWelcomeT2, sendWelcomeT3, startIntake } from '@/lib/onboarding';
-import { notifyAdmin } from '@/lib/telegram';
+import { notifyAdmin, sendBotMessage } from '@/lib/telegram';
 import { INTAKE_PRODUCT_SLUG } from '@/content/intake-tarif3';
 import { T2_PRODUCT_SLUG } from '@/content/intake-tarif2';
 import { isEmail } from '@/lib/mail';
@@ -287,20 +287,19 @@ async function fulfillDeal(deal: DealRow, product: DealProduct, tgUserId: number
         : false;
 
   if (!welcomed && BOT_TOKEN) {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: tgUserId,
-        text: `готово ⚡
+    // Прайс-ссылки выписываются клиентам (доплаты, платежи по графику): чек
+    // кладём в переписку, иначе после оплаты мяч по базе висит на Саше.
+    await sendBotMessage(
+      tgUserId,
+      `готово ⚡
 
 оплата принята: <b>${deal.title}</b>.
 
 все материалы в кабинете, жми кнопку ниже.`,
-        parse_mode: 'HTML',
-        reply_markup: { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
-      }),
-    }).catch(() => {});
+      { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
+      'HTML',
+      'payment-receipt',
+    );
   }
 
   // Приветствие запускает анкету само; здесь добираем случай, когда приветствия

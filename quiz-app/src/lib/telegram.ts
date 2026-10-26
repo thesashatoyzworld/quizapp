@@ -1,4 +1,5 @@
 import { getAdminChatId } from '@/lib/notion';
+import { logBotSent } from '@/lib/bot-sent-log';
 
 // Re-export client-safe functions for backward compatibility
 export { buildPaymentUrl, buildConnectorsPaymentUrl } from '@/lib/payment';
@@ -93,6 +94,9 @@ export async function sendBotMessage(
   // null = слать как есть. Нужно для сообщений с юзернеймами: подчёркивание
   // в «dariya_basinaa» Markdown понимает как курсив и роняет разметку.
   parseMode: 'Markdown' | 'HTML' | null = 'Markdown',
+  // Клиенту от имени Саши: после отправки кладём в переписку (bot-sent-log),
+  // иначе статус клиента считает, что мяч у Саши. Значение = кто отправил.
+  logAs?: string,
 ): Promise<{ ok: boolean; blocked?: boolean; messageId?: number }> {
   if (!BOT_TOKEN) return { ok: false };
 
@@ -113,7 +117,12 @@ export async function sendBotMessage(
     // Телеграм не даёт написать первым, это не наша ошибка.
     if (data.ok === false && data.error_code === 403) return { ok: false, blocked: true };
 
-    return { ok: data.ok === true, messageId: data.result?.message_id };
+    const messageId: number | undefined = data.result?.message_id;
+    if (data.ok === true && logAs) {
+      await logBotSent({ chatId, messageId, text, by: logAs, parseMode });
+    }
+
+    return { ok: data.ok === true, messageId };
   } catch (error) {
     console.error(`sendBotMessage failed for ${chatId}:`, error);
     return { ok: false };

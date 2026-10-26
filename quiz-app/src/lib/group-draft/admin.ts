@@ -5,6 +5,7 @@
  */
 import { prisma } from '@/lib/prisma';
 import { editAdminMarkup } from '@/lib/telegram';
+import { logBotSent } from '@/lib/bot-sent-log';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
@@ -95,15 +96,29 @@ export async function sendDraftToAdmin(
   }
 }
 
-/** Текст уходит в группу ответом на последнее сообщение пачки, в ту же тему. */
-async function postToGroup(d: { chatId: string; threadId: number | null; lastMessageId: number }, text: string) {
-  return tg('sendMessage', {
+/**
+ * Текст уходит в группу ответом на последнее сообщение пачки, в ту же тему.
+ *
+ * Свои сообщения бот в группе не получает, поэтому в tg_group_msg ответа нет.
+ * Кладём его в переписку с этим человеком от бота: так статус клиента видит,
+ * что на вопрос ответили. Номер сообщения с префиксом g, чтобы не пересечься
+ * с номерами лички.
+ */
+async function postToGroup(
+  d: { chatId: string; threadId: number | null; lastMessageId: number; userId: string | null },
+  text: string,
+) {
+  const res = await tg('sendMessage', {
     chat_id: d.chatId,
     text,
     ...(d.threadId ? { message_thread_id: d.threadId } : {}),
     reply_parameters: { message_id: d.lastMessageId, allow_sending_without_reply: true },
     link_preview_options: { is_disabled: true },
   });
+  if (res.ok && d.userId) {
+    await logBotSent({ chatId: d.userId, messageId: `g${res.result?.message_id ?? Date.now()}`, text, by: 'group-reply' });
+  }
+  return res;
 }
 
 /**

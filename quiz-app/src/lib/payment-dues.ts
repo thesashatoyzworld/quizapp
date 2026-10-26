@@ -135,6 +135,7 @@ export async function runPaymentReminders(now = new Date(), dryRun = false): Pro
       kind === 'before' ? beforeText(d) : dueText(d),
       button,
       null,
+      'payment-reminder',
     );
     if (!sent.ok) {
       res.failed.push(`${line}${sent.blocked ? ' (бот заблокирован)' : ''}`);
