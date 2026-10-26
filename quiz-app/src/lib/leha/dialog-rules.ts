@@ -146,7 +146,7 @@ export const MATERIALS: { path: string; what: string }[] = [
 /** Оплата тарифа 1 с привязкой к его телеграму: доступ выдастся сам. */
 export const payT1Link = (chatId: string) => `https://${PAY}/t1?u=${chatId}`;
 
-/** Личные ссылки на закрытые тарифы: только с Сашиного ок. */
+/** Личные ссылки на тарифы 2 и 3: доступ привяжется к его телеграму. */
 export const personalLink = (tier: 't2' | 't3', chatId: string) => `https://${PAY}/${tier}?k=svoi&u=${chatId}`;
 
 /** Ссылка к сравнимому виду: без протокола, www, хвоста и параметров. */
@@ -169,9 +169,12 @@ export function extractLinks(text: string): string[] {
 
 export type LinkVerdict = 'ok' | 'personal' | 'foreign';
 
-/** ok: можно слать само; personal: личная ссылка на т2/т3, только с Сашиного ок. */
+/**
+ * ok: материалы; personal: личная ссылка на оплату т2/т3, тоже уходит сама.
+ * Тариф 1 сейчас не предлагаем, его ссылка чужая.
+ */
 export function checkLinks(text: string): { verdict: LinkVerdict; bad: string[] } {
-  const ok = new Set([...MATERIALS.map((m) => m.path), `${PAY}/t1`].map((l) => l.toLowerCase()));
+  const ok = new Set(MATERIALS.map((m) => m.path.toLowerCase()));
   const personal = new Set([`${PAY}/t2`, `${PAY}/t3`]);
   const bad: string[] = [];
   let hasPersonal = false;
@@ -254,10 +257,53 @@ export function cleanDialogReply(raw: string, p: PriceSet): { text: string | nul
 
 export type Delivery = 'send' | 'review' | 'escalate';
 
+// ─── Напоминание про материалы ─────────────────────────────────────────────
+
+/** Через сколько молчания после материала Лёха спрашивает, посмотрел ли. */
+export const REMIND_AFTER_MS = 24 * 60 * 60 * 1000;
+
+export const REMIND_TEXT = 'получилось посмотреть?';
+
+/** В тексте ссылка на бесплатный материал (не на оплату). */
+export function hasMaterialLink(text: string): boolean {
+  const materials = new Set(MATERIALS.map((m) => m.path.toLowerCase()));
+  return extractLinks(text).some((l) => materials.has(normalizeLink(l)));
+}
+
+/** Когда напоминать про материал, отправленный в момент sentAt. */
+export function remindAt(sentAt: Date): Date {
+  return nextWorkMoment(new Date(sentAt.getTime() + REMIND_AFTER_MS));
+}
+
 /**
- * Что делать с готовым ответом. Модель позвала Сашу, текст с изъяном или
- * личная ссылка: человеку ничего, Саше карточка. Иначе live шлёт сам, shadow
- * отдаёт на кнопки.
+ * Проснулось напоминание. Шлём, только если с материала никто ничего не писал:
+ * последнее сообщение в чате всё ещё Лёхин материал.
+ */
+export function decideReminder(f: {
+  mode: LehaMode;
+  inList: boolean;
+  status: string;
+  sashaWrote: boolean;
+  last: { side: string; text: string } | null;
+  lastSentText: string | null;
+  now: Date;
+}): { kind: 'send' } | { kind: 'wait'; until: Date } | { kind: 'noop'; why: string } {
+  if (!f.inList) return { kind: 'noop', why: 'чат не в LEHA_DIALOG_CHATS' };
+  if (f.mode !== 'live') return { kind: 'noop', why: `LEHA_MODE=${f.mode}` };
+  if (f.status !== 'active') return { kind: 'noop', why: `статус ${f.status}` };
+  if (f.sashaWrote) return { kind: 'noop', why: 'Саша писал сам' };
+  if (!f.last || f.last.side === 'client') return { kind: 'noop', why: 'человек ответил' };
+  if (!f.lastSentText || f.last.text.trim() !== f.lastSentText.trim() || !hasMaterialLink(f.lastSentText)) {
+    return { kind: 'noop', why: 'последнее сообщение не материал' };
+  }
+  if (!inWorkHours(f.now)) return { kind: 'wait', until: nextWorkMoment(f.now) };
+  return { kind: 'send' };
+}
+
+/**
+ * Что делать с готовым ответом. Модель позвала Сашу или текст с изъяном:
+ * человеку ничего, Саше карточка. Иначе live шлёт сам (и ссылку на оплату
+ * т2/т3 тоже), shadow отдаёт на кнопки.
  */
 export function dialogDelivery(f: {
   mode: LehaMode;
@@ -267,7 +313,7 @@ export function dialogDelivery(f: {
   hasText: boolean;
   now: Date;
 }): Delivery {
-  if (f.callSasha || f.personal || !f.hasText) return 'escalate';
+  if (f.callSasha || !f.hasText) return 'escalate';
   if (f.problem) return f.mode === 'live' ? 'escalate' : 'review';
   return f.mode === 'live' && inWorkHours(f.now) ? 'send' : 'review';
 }

@@ -165,7 +165,8 @@ export async function scheduleLehaDraft(draftId: string, delaySec: number) {
  * Лёха отвечает в диалоге. Ставится на каждую реплику человека: сработавшая
  * задача сама увидит, что человек дописал, и перепланирует себя.
  */
-export async function scheduleLehaDialog(chatId: string, delaySec: number) {
+/** remind: напоминание «получилось посмотреть?» вместо ответа. */
+export async function scheduleLehaDialog(chatId: string, delaySec: number, remind = false) {
   if (!WEBAPP_URL) {
     console.error('[QStash] WEBAPP_URL not set, cannot schedule leha dialog');
     return;
@@ -174,7 +175,7 @@ export async function scheduleLehaDialog(chatId: string, delaySec: number) {
   try {
     await qstash.publishJSON({
       url: `${WEBAPP_URL}/api/leha`,
-      body: { dialogChatId: chatId },
+      body: remind ? { dialogChatId: chatId, remind: true } : { dialogChatId: chatId },
       delay: Math.max(0, Math.round(delaySec)),
       retries: 1,
     });

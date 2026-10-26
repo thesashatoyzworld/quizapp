@@ -4,8 +4,12 @@ import { newPrices } from '@/content/prices';
 import {
   DIALOG_DAILY_LIMIT,
   DIALOG_MAX_LEN,
+  REMIND_TEXT,
   checkLinks,
   cleanDialogReply,
+  decideReminder,
+  hasMaterialLink,
+  remindAt,
   decideDialogRun,
   dialogChats,
   dialogDelivery,
@@ -118,7 +122,8 @@ test('Саша в чате: своя реплика после включени�
 test('ссылки: нормализация и список', () => {
   assert.equal(normalizeLink('https://www.TheSashaToyz.com/cases/vasya/?utm_source=telegram&utm_medium=dm'), 'thesashatoyz.com/cases/vasya');
   assert.equal(checkLinks('глянь https://thesashatoyz.com/cases/vasya?utm_source=telegram').verdict, 'ok');
-  assert.equal(checkLinks('вот https://world.thesashatoyz.com/pay/t1?u=450843326').verdict, 'ok');
+  // тариф 1 сейчас не предлагаем: ссылка чужая, разговор встаёт
+  assert.equal(checkLinks('вот https://world.thesashatoyz.com/pay/t1?u=450843326').verdict, 'foreign');
   assert.equal(checkLinks('вот https://world.thesashatoyz.com/pay/t2?k=svoi&u=1').verdict, 'personal');
   assert.equal(checkLinks('youtu.be/yPVe749WQIc').verdict, 'ok');
   const bad = checkLinks('вот https://thesashatoyz.com/cases/kto-to и t.me/sashatoyz');
@@ -173,7 +178,8 @@ test('доставка: live шлёт сам только чистое днём'
   assert.equal(dialogDelivery(base), 'send');
   assert.equal(dialogDelivery({ ...base, now: almaty(26, 21, 5) }), 'review');
   assert.equal(dialogDelivery({ ...base, callSasha: 'просит созвон' }), 'escalate');
-  assert.equal(dialogDelivery({ ...base, personal: true }), 'escalate');
+  // ссылка на оплату т2/т3 уходит сама
+  assert.equal(dialogDelivery({ ...base, personal: true }), 'send');
   assert.equal(dialogDelivery({ ...base, problem: 'цена не из прайса' }), 'escalate');
   assert.equal(dialogDelivery({ ...base, hasText: false }), 'escalate');
   assert.equal(dialogDelivery({ ...base, mode: 'shadow' }), 'review');
@@ -182,9 +188,41 @@ test('доставка: live шлёт сам только чистое днём'
 
 test('промпт: прайс, ссылка оплаты с его id, без длинного тире', () => {
   const text = dialogRules(P, '450843326');
-  assert.ok(text.includes('https://world.thesashatoyz.com/pay/t1?u=450843326'));
-  assert.ok(text.includes('6 550'));
+  assert.ok(text.includes('https://world.thesashatoyz.com/pay/t3?k=svoi&u=450843326'));
+  assert.ok(!text.includes('/pay/t1'));
+  assert.ok(text.includes('бесплатные материалы'));
+  assert.ok(text.includes('12 000'));
   assert.ok(text.includes('155 000'));
   assert.ok(!text.includes('—'));
   assert.ok(!/«|»/.test(text.replace(/«[^»]*»/g, '')), 'ёлочки только парные в названиях');
+});
+
+test('напоминание: только про материал и только если никто не писал', () => {
+  const mat = 'посмотри, чтоб понимать как я работаю\nhttps://thesashatoyz.com/cases/danya?utm_source=telegram&utm_medium=dm';
+  assert.equal(hasMaterialLink(mat), true);
+  assert.equal(hasMaterialLink('лови https://world.thesashatoyz.com/pay/t3?k=svoi&u=1'), false);
+  assert.equal(hasMaterialLink('а ты смотрел мои материалы?'), false);
+
+  const base = {
+    mode: 'live' as const,
+    inList: true,
+    status: 'active',
+    sashaWrote: false,
+    last: { side: 'us', text: mat },
+    lastSentText: mat,
+    now: almaty(27, 12),
+  };
+  assert.equal(decideReminder(base).kind, 'send');
+  assert.equal(decideReminder({ ...base, last: { side: 'client', text: 'посмотрел' } }).kind, 'noop');
+  assert.equal(decideReminder({ ...base, last: { side: 'us', text: REMIND_TEXT }, lastSentText: REMIND_TEXT }).kind, 'noop');
+  assert.equal(decideReminder({ ...base, sashaWrote: true }).kind, 'noop');
+  assert.equal(decideReminder({ ...base, mode: 'shadow' }).kind, 'noop');
+  assert.equal(decideReminder({ ...base, status: 'stopped' }).kind, 'noop');
+  assert.deepEqual(decideReminder({ ...base, now: almaty(27, 23) }), { kind: 'wait', until: almaty(28, 9) });
+});
+
+test('напоминание через сутки, ночью переносится на 9:00', () => {
+  assert.deepEqual(remindAt(almaty(26, 12)), almaty(27, 12));
+  assert.deepEqual(remindAt(almaty(26, 20, 30)), almaty(27, 20, 30));
+  assert.deepEqual(remindAt(almaty(26, 22)), almaty(28, 9));
 });

@@ -24,8 +24,12 @@ import { threadOf } from '@/lib/sales/dialogs';
 import { awaitingPayment, describePayment, theirMove } from '@/lib/sales/payment';
 import { almatyDayStart, lehaMode } from './rules';
 import {
+  REMIND_TEXT,
   cleanDialogReply,
   decideDialogRun,
+  decideReminder,
+  hasMaterialLink,
+  remindAt,
   dialogDelivery,
   dialogDueAt,
   isDialogChat,
@@ -199,6 +203,35 @@ export async function runLehaDialog(chatId: string): Promise<{ done: true; statu
   return { done: true, status: delivery === 'review' ? 'pending' : 'escalated' };
 }
 
+/** Задача QStash: напомнить про материал, если человек так и не ответил. */
+export async function runLehaReminder(chatId: string): Promise<{ done: true; status: string } | { done: false; retryInSec: number }> {
+  const d = await prisma.lehaDialog.findUnique({ where: { chatId } });
+  if (!d) return { done: true, status: 'missing' };
+  const now = new Date();
+  const last = await prisma.tgBusinessMsg.findFirst({
+    where: { chatId },
+    orderBy: { createdAt: 'desc' },
+    select: { side: true, text: true },
+  });
+  const ours = await prisma.tgBusinessMsg.findMany({
+    where: { chatId, side: 'us', createdAt: { gte: d.enabledAt } },
+    select: { side: true, mediaRef: true, text: true, createdAt: true },
+  });
+  const step = decideReminder({
+    mode: lehaMode(),
+    inList: isDialogChat(chatId),
+    status: d.status,
+    sashaWrote: sashaTookOver(ours, d.enabledAt, d.lastSentText),
+    last,
+    lastSentText: d.lastSentText,
+    now,
+  });
+  if (step.kind === 'noop') return { done: true, status: `noop: ${step.why}` };
+  if (step.kind === 'wait') return { done: false, retryInSec: (step.until.getTime() - now.getTime()) / 1000 };
+  const res = await deliverDialog(chatId, REMIND_TEXT, { auto: true, from: ['active'], reminder: true });
+  return { done: true, status: res.ok ? 'reminded' : `not sent: ${res.error}` };
+}
+
 /** Ответ модели по анкете и всей переписке. */
 async function compose(d: LehaDialog, rows: Awaited<ReturnType<typeof threadOf>>): Promise<SalesStep> {
   const tail = rows[rows.length - 1];
@@ -237,12 +270,13 @@ async function compose(d: LehaDialog, rows: Awaited<ReturnType<typeof threadOf>>
 async function deliverDialog(
   chatId: string,
   text: string,
-  opts: { auto: boolean; from: string[] },
+  opts: { auto: boolean; from: string[]; reminder?: boolean },
 ): Promise<{ ok: boolean; error?: string }> {
   const d = await prisma.lehaDialog.findUnique({ where: { chatId } });
   if (!d) return { ok: false, error: 'диалог не найден' };
   const last = await prisma.tgBusinessMsg.findFirst({ where: { chatId }, orderBy: { createdAt: 'desc' }, select: { side: true } });
-  if (last && last.side !== 'client') return { ok: false, error: 'последнее сообщение уже наше, жду человека' };
+  // Единственное исключение: напоминание про материал, его проверил decideReminder.
+  if (!opts.reminder && last && last.side !== 'client') return { ok: false, error: 'последнее сообщение уже наше, жду человека' };
 
   const claimed = await prisma.lehaDialog.updateMany({
     where: { chatId, status: { in: opts.from } },
@@ -268,6 +302,11 @@ async function deliverDialog(
       dayCount: sentToday(d.dayStart, d.dayCount, now) + 1,
     },
   });
+
+  // Дал материал: через сутки молчания спросит, получилось ли посмотреть.
+  if (hasMaterialLink(text)) {
+    await scheduleLehaDialog(chatId, (remindAt(now).getTime() - now.getTime()) / 1000, true);
+  }
 
   // Саша видит каждое сообщение, ушедшее без него.
   const chat = lehaChatId();
