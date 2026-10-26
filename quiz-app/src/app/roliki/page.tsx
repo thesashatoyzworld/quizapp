@@ -10,6 +10,7 @@ import { codeOf, todayIso, type Column, type ReelBriefView, type ReelVersionView
 // что когда выкладываем и сколько набрало выложенное. Доступ строго по
 // Telegram id, данные приезжают уже отфильтрованными (/api/cabinet/reels).
 // Клиент здесь только смотрит и отмечает выложенное ссылкой на рилс.
+// Саша видит переключатель клиентов: API отдаёт ему доски всех, у кого они есть.
 
 interface Space {
   clientName: string;
@@ -47,6 +48,22 @@ function RolikiInner() {
   const [link, setLink] = useState('');
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
+  // Только у админа: чьи доски есть и чья открыта.
+  const [clients, setClients] = useState<{ telegramId: string; name: string }[] | null>(null);
+  const [client, setClient] = useState<string | undefined>(undefined);
+
+  async function load(pick?: string) {
+    const qs = pick ? `?client=${encodeURIComponent(pick)}` : '';
+    const res = await fetch(`/api/cabinet/reels${qs}`, { headers: authHeaders(), credentials: 'same-origin' });
+    const data = await res.json();
+    setClients(Array.isArray(data.clients) ? data.clients : null);
+    setClient(data.client);
+    setPublishing(null);
+    if (!data.identified) setState('guest');
+    else if (!data.hasReels) { setSpace(null); setState('empty'); }
+    else { setSpace(data.space); setState('ok'); }
+    return data;
+  }
 
   useEffect(() => {
     let stop = false;
@@ -58,12 +75,8 @@ function RolikiInner() {
       const id = tg?.initDataUnsafe?.user?.id ?? null;
       initData.current = typeof tg?.initData === 'string' ? tg.initData : '';
       try {
-        const res = await fetch('/api/cabinet/reels', { headers: authHeaders(), credentials: 'same-origin' });
-        const data = await res.json();
-        if (stop) return;
-        if (!data.identified) setState('guest');
-        else if (!data.hasReels) setState('empty');
-        else { setSpace(data.space); setState('ok'); trackSection('roliki', id); }
+        const data = await load();
+        if (!stop && data.hasReels && !data.clients) trackSection('roliki', id);
       } catch {
         if (!stop) setState('guest');
       }
@@ -78,7 +91,9 @@ function RolikiInner() {
 
   async function openBrief(b: ReelBriefView) {
     try {
-      const res = await fetch(`/api/cabinet/reels?brief=${encodeURIComponent(b.id)}`, { headers: authHeaders(), credentials: 'same-origin' });
+      const qs = new URLSearchParams({ brief: b.id });
+      if (client) qs.set('client', client);
+      const res = await fetch(`/api/cabinet/reels?${qs}`, { headers: authHeaders(), credentials: 'same-origin' });
       const data = await res.json();
       if (data.html) setOpen({ title: b.title, html: data.html });
     } catch { /* noop */ }
@@ -93,7 +108,7 @@ function RolikiInner() {
       const headers = { ...authHeaders(), 'Content-Type': 'application/json' };
       const res = await fetch('/api/cabinet/reels', {
         method: 'POST', headers, credentials: 'same-origin',
-        body: JSON.stringify({ versionId: v.id, link }),
+        body: JSON.stringify({ versionId: v.id, link, client }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(res.status === 400 && data.error ? data.error : FAIL);
@@ -154,6 +169,18 @@ function RolikiInner() {
           {space?.igHandle ? `@${space.igHandle} · ` : ''}от ТЗ монтажёру до выложенного рилса
         </div>
       </header>
+
+      {clients && clients.length > 0 && (
+        <nav className="rk-clients" aria-label="Клиент">
+          {clients.map((c) => (
+            <button key={c.telegramId} type="button" aria-pressed={c.telegramId === client}
+              className={`rk-chip${c.telegramId === client ? ' rk-chip-on' : ''}`}
+              onClick={() => { if (c.telegramId !== client) load(c.telegramId).catch(() => setState('guest')); }}>
+              {c.name}
+            </button>
+          ))}
+        </nav>
+      )}
 
       {state === 'load' && (
         <div className="rk-state"><div className="rk-spinner" /><p>Загрузка…</p></div>
@@ -217,6 +244,13 @@ function RolikiInner() {
         .rk-back:hover { color: var(--rk-accent); }
         .rk-brand { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -0.025em; }
         .rk-sub { color: var(--rk-muted); font-size: 13px; margin-top: 3px; line-height: 1.4; }
+        .rk-clients { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 18px; }
+        .rk-chip {
+          cursor: pointer; border: 1px solid var(--rk-line); background: var(--rk-surface); color: var(--rk-text);
+          font: 600 13px 'Manrope', system-ui, sans-serif; padding: 7px 14px; border-radius: 999px; min-height: 36px;
+        }
+        .rk-chip:hover { border-color: var(--rk-accent); }
+        .rk-chip-on { background: var(--rk-text); color: var(--rk-surface); border-color: var(--rk-text); }
         .rk-card { max-width: 540px; background: var(--rk-surface); border: 1px solid var(--rk-line); border-radius: 18px; padding: 18px; }
         .rk-login-title { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px; }
         .rk-login-sub { color: var(--rk-muted); font-size: 12.5px; margin: 4px 0 12px; line-height: 1.4; }
