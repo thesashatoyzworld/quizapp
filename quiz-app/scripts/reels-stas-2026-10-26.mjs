@@ -72,13 +72,22 @@ const REELS = [
   ['02', 'Почему простое работает лучше', false, null],
   ['07', 'Зачем ресторану ИИ', true, null],
   ['05', 'С первого раза ничего не бывает', false, null],
-  ['03', 'Самый дорогой туалет в моей жизни', true, 'Ждёт от Стаса фразу про второй зал и фото туалета'],
+  ['03', 'Самый дорогой туалет в моей жизни', true, 'Нужно от тебя: фраза про второй зал и фото туалета'],
 ];
 let order = 400;
 for (const [n, title, long, note] of REELS) {
   const vs = ['short'].concat(long ? ['long'] : []).flatMap((l) => [`${l}-gg`, `${l}-broll`]);
   for (const v of vs) await version(`z2310-${n}-${v}`, 't2310', n, title, `${n}-${v}.mp4`, order++, 'tz', note);
 }
+
+// Клиентский вид: убираем то, что выкладывать не будем.
+// 17.09: эти ролики так и не смонтировали. Химзавод v3: Стас 25.10 убрал плашку «Риски одинаковые», вместо него перезапуск.
+await client.query(
+  `UPDATE reel_versions SET stage = 'skip', plan_date = NULL, updated_at = now()
+    WHERE telegram_id = $1 AND stage IN ('tz', 'done')
+      AND (brief_id = 't1709' OR id IN ('v3-07-short-gg', 'v3-07-long-gg', 'v3-07-long-broll'))`,
+  [TELEGRAM_ID],
+);
 
 const check = await client.query(
   `SELECT brief_id, stage, count(*)::int AS n FROM reel_versions WHERE telegram_id = $1 GROUP BY 1, 2 ORDER BY 1, 2`,
