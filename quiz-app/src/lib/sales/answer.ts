@@ -469,7 +469,12 @@ export async function suggestFromThread(params: {
    * Тогда про паузу молчим: мы ему ничего не должны.
    */
   theirMove?: boolean;
+  /** Модель на этот вызов. По умолчанию та же, что у кабинета. */
+  model?: string;
+  /** Ещё правила поверх базы: их кладёт Лёха, когда ведёт диалог сам. */
+  extraSystem?: string;
 }): Promise<SalesStep> {
+  const model = params.model || MODEL;
   // Чему научились на правках: что предлагали и что Саша отправил вместо.
   const lessons = await recentCorrections();
   // Цены берутся на момент запроса: 13 сентября они меняются сами.
@@ -485,7 +490,7 @@ export async function suggestFromThread(params: {
 
   async function ask(): Promise<SalesStep> {
     const res = await anthropic.messages.create({
-      model: MODEL,
+      model,
       max_tokens: 6000,
       // ⚠️ Порядок здесь стоит денег. Кэш совпадает по префиксу: всё, что стоит
       // ДО метки, входит в ключ. Пока изменчивый SYSTEM шёл первым, каждая
@@ -504,6 +509,7 @@ export async function suggestFromThread(params: {
         { type: "text" as const, text: systemText(now) },
         ...(deadline ? [{ type: "text" as const, text: deadline }] : []),
         ...(lessons ? [{ type: "text" as const, text: lessons }] : []),
+        ...(params.extraSystem ? [{ type: "text" as const, text: params.extraSystem }] : []),
       ],
       messages: [
         {
@@ -531,7 +537,7 @@ ${params.steer}
       output_config: { format: { type: "json_schema", schema: SCHEMA } },
     });
 
-    await recordAnthropicUsage(MODEL, res.usage, "sales");
+    await recordAnthropicUsage(model, res.usage, "sales");
 
     if (process.env.SALES_DEBUG) {
       console.error(

@@ -1032,6 +1032,36 @@ model LehaDraft {
   @@map("leha_draft")
 }
 
+/// Лёха ведёт весь диалог в чатах из LEHA_DIALOG_CHATS. Строка на чат.
+model LehaDialog {
+  chatId        String    @id @map("chat_id")
+  leadId        Int?      @map("lead_id")
+  username      String?
+  name          String?
+  /** active | composing | pending | escalated | stopped */
+  status        String    @default("active")
+  /** Когда отвечать: через паузу после последней реплики человека, ночью в 9:00. */
+  dueAt         DateTime? @map("due_at")
+  draft         String?
+  note          String?
+  /** Что Лёха отправил последним: узнать эхо своего же сообщения. */
+  lastSentText  String?   @map("last_sent_text")
+  /** Сутки по Алмате и сколько Лёха отправил за них. */
+  dayStart      DateTime? @map("day_start")
+  dayCount      Int       @default(0) @map("day_count")
+  adminChatId   String?   @map("admin_chat_id")
+  adminMsgId    Int?      @map("admin_msg_id")
+  promptMsgId   Int?      @map("prompt_msg_id")
+  stopReason    String?   @map("stop_reason")
+  /** С этого момента Сашины реплики в чате останавливают Лёху. */
+  enabledAt     DateTime  @default(now()) @map("enabled_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([promptMsgId])
+  @@map("leha_dialog")
+}
+
 // ═══════════════════════════════════════
 // ПРАЙС-ССЫЛКИ (цена и срок вне каталога)
 // ═══════════════════════════════════════

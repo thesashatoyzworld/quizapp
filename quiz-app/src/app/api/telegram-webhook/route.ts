@@ -3,6 +3,7 @@ import { isLoggedGroup, saveGroupMessage } from '@/lib/group-log';
 import { onGroupMessage } from '@/lib/group-draft/hook';
 import { CB as DRAFT_CB, handleDraftButton, catchDraftEdit, isDraftAdmin } from '@/lib/group-draft/admin';
 import { CB as LEHA_CB, handleLehaButton, catchLehaEdit, isLehaAdmin } from '@/lib/leha/run';
+import { DCB as LEHA_DCB, handleDialogButton } from '@/lib/leha/dialog';
 import { after } from 'next/server';
 import { trackEvent } from '@/lib/notion';
 import { notifyAdmin, sendBotMessage, editAdminMarkup, type NotifyRef } from '@/lib/telegram';
@@ -436,6 +437,17 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ ok: true });
         }
         const said = await handleLehaButton(data, cb.message.chat.id);
+        await answerCallbackQuery(cb.id, said);
+        return NextResponse.json({ ok: true });
+      }
+
+      // Кнопки под карточкой Лёхи в диалоге.
+      if (Object.values(LEHA_DCB).some((p) => data.startsWith(p)) && cb.message) {
+        if (!isLehaAdmin(cb.message.chat.id)) {
+          await answerCallbackQuery(cb.id, 'не твоя кнопка');
+          return NextResponse.json({ ok: true });
+        }
+        const said = await handleDialogButton(data, cb.message.chat.id, cb.message.message_id);
         await answerCallbackQuery(cb.id, said);
         return NextResponse.json({ ok: true });
       }

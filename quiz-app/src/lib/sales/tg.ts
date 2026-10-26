@@ -441,6 +441,7 @@ export async function handleBusinessMessage(msg: TgBusinessMessage): Promise<voi
   await onLehaMessage({
     chatId: String(msg.chat.id),
     side,
+    text: said,
     username: msg.chat.username || null,
     name: msg.chat.first_name || null,
     leadId: lead?.id ?? null,
@@ -669,9 +670,14 @@ export async function sendAs(
     select: { username: true, name: true, leadId: true },
   });
 
+  // Эхо business_message могло лечь в базу раньше нас, без метки. Тогда метку
+  // ставим поверх: по ней Лёха отличает своё сообщение от Сашиного.
+  const row = outgoingRow(chatId, out.result, body, known);
   await prisma.tgBusinessMsg
-    .create({ data: { ...outgoingRow(chatId, out.result, body, known), mediaRef: `${SENT_BY_PREFIX}${sentBy}` } })
-    .catch(() => {});
+    .create({ data: { ...row, mediaRef: `${SENT_BY_PREFIX}${sentBy}` } })
+    .catch(() =>
+      prisma.tgBusinessMsg.update({ where: { id: row.id }, data: { mediaRef: `${SENT_BY_PREFIX}${sentBy}` } }).catch(() => {}),
+    );
 
   return { ok: true };
 }
