@@ -19,13 +19,11 @@ function stamp(d: Date): string {
 }
 
 function TaskList({ tasks, codeHref }: { tasks: TaskRow[]; codeHref: (c: string) => string | null }) {
-  let grp: string | null = null;
   return (
     <ul className={styles.tasks}>
-      {tasks.flatMap((t) => {
+      {tasks.flatMap((t, i) => {
         const items = [];
-        if (t.grp && t.grp !== grp) items.push(<li key={`g-${t.id}`} className={styles.grp}>{t.grp}</li>);
-        grp = t.grp;
+        if (t.grp && t.grp !== tasks[i - 1]?.grp) items.push(<li key={`g-${t.id}`} className={styles.grp}>{t.grp}</li>);
         items.push(
           <li key={t.id} className={styles.task}>
             <span className={styles.mark}>{MARK[t.status] ?? '•'}</span>

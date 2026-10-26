@@ -141,6 +141,17 @@ details[open] > .summary::before {
   min-width: 0;
 }
 
+.taskBody a {
+  color: var(--neon-cyan);
+}
+
+.taskBody code {
+  font-size: 0.82em;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
 .detail {
   color: var(--text-muted);
   font-size: 0.8rem;
@@ -287,6 +298,14 @@ details[open] > .summary::before {
 .md ul,
 .md ol {
   padding-left: 1.3em;
+}
+
+.md ul {
+  list-style: disc;
+}
+
+.md ol {
+  list-style: decimal;
 }
 
 .md li {
