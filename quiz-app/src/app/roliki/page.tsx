@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import { trackSection } from '@/lib/cabinet-track';
 import ReelsBoard, { REELS_BOARD_CSS } from '@/components/ReelsBoard';
+import ReelsClientView, { REELS_CLIENT_CSS } from '@/components/ReelsClientView';
 import { codeOf, todayIso, type Column, type ReelBriefView, type ReelVersionView } from '@/lib/reels/plan';
 
 // Раздел «Ролики» — для клиентов лички: ТЗ монтажёру, что смонтировано,
@@ -176,7 +177,7 @@ function RolikiInner() {
         <a className="rk-back" href="/dostup">‹ Кабинет</a>
         <div className="rk-brand">Ролики</div>
         <div className="rk-sub">
-          {space?.igHandle ? `@${space.igHandle} · ` : ''}от ТЗ монтажёру до выложенного рилса
+          {space?.igHandle ? `@${space.igHandle} · ` : ''}{clients && !asClient ? 'от ТЗ монтажёру до выложенного рилса' : 'что выкладывать и сколько набрало'}
         </div>
       </header>
 
@@ -223,7 +224,12 @@ function RolikiInner() {
         </div>
       )}
 
-      {state === 'ok' && space && (
+      {state === 'ok' && space && (!clients || asClient) && (
+        <ReelsClientView briefs={space.briefs} versions={space.versions} today={todayIso()}
+          publish={(v) => versionExtra(v, 'done')} onOpenBrief={openBrief} />
+      )}
+
+      {state === 'ok' && space && clients && !asClient && (
         <>
           <ReelsBoard briefs={space.briefs} versions={space.versions} today={todayIso()}
             onOpenBrief={openBrief} versionExtra={versionExtra} />
@@ -311,6 +317,7 @@ function RolikiInner() {
         .rk-viewer-pad { flex: 0 0 auto; width: 60px; }
         .rk-viewer-frame { flex: 1 1 auto; width: 100%; border: none; background: var(--rk-bg); }
         ${REELS_BOARD_CSS}
+        ${REELS_CLIENT_CSS}
       `}</style>
     </main>
   );
