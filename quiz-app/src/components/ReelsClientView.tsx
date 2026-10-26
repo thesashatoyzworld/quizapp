@@ -112,7 +112,7 @@ export default function ReelsClientView({ briefs, versions, today, publish, onOp
                   <div className="rc-row-m">
                     {recordLabel(r.brief)}
                     {r.brief?.hasHtml && onOpenBrief && (
-                      <> · <button type="button" className="rc-link" onClick={() => onOpenBrief(r.brief!)}>текст ролика</button></>
+                      <> · <button type="button" className="rc-link" onClick={() => onOpenBrief(r.brief!)}>ТЗ монтажёру</button></>
                     )}
                   </div>
                   {note && <div className="rc-need">{note}</div>}
@@ -156,6 +156,11 @@ export const REELS_CLIENT_CSS = `
   .rc-next-t { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 22px; line-height: 1.2; margin: 6px 0 4px; text-wrap: balance; }
   .rc-next-v { color: var(--rk-muted); font-size: 14px; line-height: 1.45; margin-bottom: 12px; }
   .rc-next-empty .rc-next-v { margin: 6px 0 0; }
+  .rc-next .rl-btn { min-height: 44px; padding: 10px 22px; font-size: 15px; font-weight: 700; border-radius: 12px;
+    background: var(--rk-accent); color: #fff; border-color: var(--rk-accent); }
+  .rc-next .rl-btn:hover { filter: brightness(1.05); }
+  .rc-next .rl-form .rl-btn { background: var(--rk-surface); color: var(--rk-text); border-color: var(--rk-line); }
+  .rc-next .rl-form .rl-btn-primary { background: var(--rk-accent); color: #fff; border-color: var(--rk-accent); }
   .rc-hint { color: var(--rk-muted); font-size: 12.5px; line-height: 1.45; margin: 12px 0 0; }
   .rc-h { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 17px; margin: 0 0 10px; }
   .rc-h span { color: var(--rk-muted); font-weight: 600; margin-left: 4px; }
