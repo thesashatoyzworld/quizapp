@@ -86,6 +86,8 @@ import { LICHNOE_LICHNYY_SOZVON_YANA_2026_10_22 } from './lichnyy-sozvon-yana-20
 
 import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_23 } from './lichnyy-sozvon-stas-2026-10-23';
 
+import { LICHNOE_LICHNYY_SOZVON_DANIIL_2026_10_26 } from './lichnyy-sozvon-daniil-2026-10-26';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -108,6 +110,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-daniil-2026-10-26',
+    telegramIds: [715268152, 788334680],
+    client: "Даниил",
+    title: "Казино нас выиграло",
+    subtitle: "Разбираем статистику рилсов по доле пропусков и среднему времени просмотра, выводим три вопроса к каждому сценарию (остановят ли внимание, есть ли причина досмотреть, почему отправят), пересобираем ролик про дикцию через упаковку со стендаперами и хеклерами, откладываем карусели из-за другого алгоритма и берём в работу два формата: уровни новичок-середнячок-продвинутый и разделённый экран",
+    date: '2026-10-26',
+    duration: "59 мин",
+    tags: ["статистика рилсов", "хуки", "упаковка", "сценарий", "карусели"],
+    kinescopeId: '6EqqfYecrXmnr5GZUuh6Hs',
+    html: LICHNOE_LICHNYY_SOZVON_DANIIL_2026_10_26,
+  },
   {
     slug: 'lichnyy-sozvon-stas-2026-10-23',
     telegramIds: [204608959, 788334680],
