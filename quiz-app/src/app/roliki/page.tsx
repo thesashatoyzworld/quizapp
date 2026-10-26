@@ -51,6 +51,16 @@ function RolikiInner() {
   // Только у админа: чьи доски есть и чья открыта.
   const [clients, setClients] = useState<{ telegramId: string; name: string }[] | null>(null);
   const [client, setClient] = useState<string | undefined>(undefined);
+  // Режим «как видит клиент»: прячет всё админское, страница ровно как у него.
+  const [asClient, setAsClient] = useState(false);
+  useEffect(() => {
+    try { setAsClient(localStorage.getItem('roliki-as-client') === '1'); } catch { /* noop */ }
+  }, []);
+  function toggleAsClient(on: boolean) {
+    setAsClient(on);
+    try { localStorage.setItem('roliki-as-client', on ? '1' : '0'); } catch { /* noop */ }
+  }
+  const clientName = clients?.find((c) => c.telegramId === client)?.name ?? 'клиент';
 
   async function load(pick?: string) {
     const qs = pick ? `?client=${encodeURIComponent(pick)}` : '';
@@ -170,7 +180,14 @@ function RolikiInner() {
         </div>
       </header>
 
-      {clients && clients.length > 0 && (
+      {clients && asClient && (
+        <div className="rk-asclient">
+          <span>Так видит {clientName}</span>
+          <button type="button" className="rk-chip" onClick={() => toggleAsClient(false)}>Вернуться</button>
+        </div>
+      )}
+
+      {clients && !asClient && clients.length > 0 && (
         <nav className="rk-clients" aria-label="Клиент">
           {clients.map((c) => (
             <button key={c.telegramId} type="button" aria-pressed={c.telegramId === client}
@@ -179,6 +196,11 @@ function RolikiInner() {
               {c.name}
             </button>
           ))}
+          {state === 'ok' && (
+            <button type="button" className="rk-chip rk-chip-view" onClick={() => toggleAsClient(true)}>
+              Как видит {clientName}
+            </button>
+          )}
         </nav>
       )}
 
@@ -250,6 +272,13 @@ function RolikiInner() {
           font: 600 13px 'Manrope', system-ui, sans-serif; padding: 7px 14px; border-radius: 999px; min-height: 36px;
         }
         .rk-chip:hover { border-color: var(--rk-accent); }
+        .rk-chip-view { margin-left: auto; border-style: dashed; color: var(--rk-muted); }
+        .rk-asclient {
+          position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 900;
+          display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 16px; border-radius: 999px;
+          background: var(--rk-text); color: var(--rk-surface); font: 600 13px 'Manrope', system-ui, sans-serif;
+          box-shadow: 0 6px 24px oklch(0 0 0 / 0.18); white-space: nowrap;
+        }
         .rk-chip-on { background: var(--rk-text); color: var(--rk-surface); border-color: var(--rk-text); }
         .rk-card { max-width: 540px; background: var(--rk-surface); border: 1px solid var(--rk-line); border-radius: 18px; padding: 18px; }
         .rk-login-title { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px; }
