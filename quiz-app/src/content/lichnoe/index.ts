@@ -90,6 +90,8 @@ import { LICHNOE_LICHNYY_SOZVON_DANIIL_2026_10_26 } from './lichnyy-sozvon-danii
 
 import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_23 } from './lichnyy-sozvon-evgeniya-2026-10-23';
 
+import { LICHNOE_LICHNYY_SOZVON_MARIYA_2026_10_27 } from './lichnyy-sozvon-mariya-2026-10-27';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -112,6 +114,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-mariya-2026-10-27',
+    telegramIds: [5393791951, 788334680],
+    client: "Мария Фокина",
+    title: "Когда всё хорошо, а тебе так плохо",
+    subtitle: "Решаем, что группу наверх контента не выносим и продаём её через созвон, меняем второй сегмент с содержанок на коллег из твоей базы, собираем цепочку по одному сегменту (оффер на созвон, карусель в закрепе, контент на неё), находим обещание созвона и первые два смысла для предпринимательниц, плюс как добрать четверых в группу 18.11 и не потерять пятерых через преворк и возвратную предоплату",
+    date: '2026-10-27',
+    duration: "54 мин",
+    tags: ["сегменты", "оффер на созвон", "карта смыслов", "набор группы", "преворк"],
+    kinescopeId: 's4nvdGcCbta72oTQArPrbA',
+    html: LICHNOE_LICHNYY_SOZVON_MARIYA_2026_10_27,
+  },
   {
     slug: 'lichnyy-sozvon-evgeniya-2026-10-23',
     telegramIds: [934091008, 788334680],
