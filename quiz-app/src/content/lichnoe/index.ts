@@ -92,6 +92,8 @@ import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_10_23 } from './lichnyy-sozvon-evg
 
 import { LICHNOE_LICHNYY_SOZVON_MARIYA_2026_10_27 } from './lichnyy-sozvon-mariya-2026-10-27';
 
+import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_27 } from './lichnyy-sozvon-ramil-2026-10-27';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -114,6 +116,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-ramil-2026-10-27',
+    telegramIds: [1556129897, 788334680],
+    client: "Рамиль",
+    title: "Труба в поток спроса",
+    subtitle: "Смещаем фокус с каруселей на рилсы, потому что у карусели выход к новой аудитории зависит от своих подписчиков, разбираем пробные рилсы и пятнадцать версий одного ролика, учимся читать долю пропусков, глубину просмотра и пересылы, ставим первую задачу снизить долю пропусков с сорока семи до двадцати-тридцати процентов, берём заголовки из потока спроса и аутлайеры с иксом к подписчикам, прогоняем сценарий через три вопроса и начинаем с одной ветки: отношения",
+    date: '2026-10-27',
+    duration: "47 мин",
+    tags: ["рилсы", "пробные рилсы", "доля пропусков", "поток спроса", "аутлайеры"],
+    kinescopeId: '8GZ6yNAdii7Md3voJ2F7iq',
+    html: LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_27,
+  },
   {
     slug: 'lichnyy-sozvon-mariya-2026-10-27',
     telegramIds: [5393791951, 788334680],
