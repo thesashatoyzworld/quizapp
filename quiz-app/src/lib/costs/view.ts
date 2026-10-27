@@ -83,6 +83,7 @@ export const CONSUMER_LABEL: Record<string, string> = {
   roadmap: 'маршрутные карты',
   zoom: 'конвейер созвонов',
   group: 'черновики в группу',
+  optimizator: 'оптимизатор рилсов',
   other: 'прочее',
 };
 
