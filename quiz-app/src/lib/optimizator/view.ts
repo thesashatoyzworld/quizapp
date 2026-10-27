@@ -110,12 +110,18 @@ export function reachPotential(criteria: { id: string; score: number }[]): numbe
 
 /** Safety net: the model sometimes leaks the English goal names into Russian text. */
 function localizeGoals(text: string): string {
-  return text.replace(/\bconversion\b/gi, 'заявки').replace(/\bvirality\b/gi, 'охват');
+  return text
+    .replace(/\bconversion\b/gi, 'заявки')
+    .replace(/\bvirality\b/gi, 'охват')
+    .replace(/\bstage\s*[:=]?\s*filmed\b/gi, 'ролик снят')
+    .replace(/\bstage\s*[:=]?\s*draft\b/gi, 'сценарий до съёмки')
+    .replace(/\bfilmed\b/gi, 'снятый ролик')
+    .replace(/\breach_potential\b/gi, 'потенциал охвата');
 }
 
 /** Apply localizeGoals to every string value; enum fields are left as they are. */
 function localizeDeep<T>(val: T, key?: string): T {
-  if (typeof val === 'string') return (key === 'goal' ? val : localizeGoals(val)) as T;
+  if (typeof val === 'string') return (key === 'goal' || key === 'stage' ? val : localizeGoals(val)) as T;
   if (Array.isArray(val)) return val.map((v) => localizeDeep(v)) as T;
   if (val && typeof val === 'object') {
     const o: Record<string, unknown> = {};

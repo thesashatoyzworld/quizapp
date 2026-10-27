@@ -102,6 +102,26 @@ const FILL_RE = /^\[(вставь|твоя|твой|твоё|твои)(?![а-я�
  * for the edit and get a calmer style.
  */
 function WithPlaceholders({ text, editPlan }: { text: string; editPlan?: boolean }) {
+  if (editPlan) {
+    // A directive on its own line becomes a calm block; the line break after it is dropped.
+    const lines = text.split('\n');
+    return (
+      <>
+        {lines.map((line, i) => {
+          const t = line.trim();
+          const last = i === lines.length - 1;
+          if (/^\[[^\]]*\]$/.test(t) && !FILL_RE.test(t)) {
+            return <span key={i} className="op-edit-line">{t.slice(1, -1)}</span>;
+          }
+          return <Fragment key={i}><Inline text={line} editPlan />{last ? '' : '\n'}</Fragment>;
+        })}
+      </>
+    );
+  }
+  return <Inline text={text} />;
+}
+
+function Inline({ text, editPlan }: { text: string; editPlan?: boolean }) {
   const parts = text.split(/(\[[^\]]*\])/g);
   return (
     <>
@@ -262,7 +282,7 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
         {filmed ? (
           <p className="op-p op-muted">
             Ролик не переснимаешь: режешь, переставляешь, добавляешь плашки и свой закадр. Указания для монтажа
-            в рамке{a.rewrite.placeholders.length > 0 ? ', жёлтым то, что нужно принести тебе' : ''}.
+            выделены цветом{a.rewrite.placeholders.length > 0 ? ', жёлтым то, что нужно принести тебе' : ''}.
           </p>
         ) : a.rewrite.placeholders.length > 0 && (
           <p className="op-p op-muted">
@@ -759,6 +779,13 @@ function OptimizatorInner() {
           border: 1px dashed var(--op-accent); border-radius: 6px; padding: 1px 5px;
           box-decoration-break: clone; -webkit-box-decoration-break: clone;
         }
+        .op-edit-line {
+          display: block; margin: 8px 0; padding: 7px 10px 7px 11px; border-left: 3px solid var(--op-accent);
+          background: var(--op-accent-soft); border-radius: 4px 8px 8px 4px;
+          font-size: 13px; line-height: 1.45; font-weight: 600; color: var(--op-text);
+        }
+        .op-edit-line:first-child { margin-top: 0; }
+        .op-edit-line:last-child { margin-bottom: 0; }
         .op-changes { margin-top: 14px; }
 
         .op-fix { list-style: none; counter-reset: fix; padding: 0; margin: 0; }
