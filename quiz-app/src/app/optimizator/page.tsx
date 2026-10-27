@@ -609,7 +609,7 @@ function OptimizatorInner() {
         .op-more summary::-webkit-details-marker { display: none; }
         .op-more summary::before { content: '+ '; color: var(--op-accent); }
         .op-more[open] summary::before { content: '− '; }
-        .op-more summary span { font-weight: 500; color: var(--op-muted); font-size: 12px; margin-left: 4px; }
+        .op-more summary span { display: block; font-weight: 500; color: var(--op-muted); font-size: 12px; margin: 2px 0 0 14px; }
         .op-field { display: block; margin-top: 10px; }
         .op-field span { display: block; font-size: 12px; font-weight: 600; color: var(--op-muted); margin-bottom: 4px; }
         .op-field input {
@@ -654,7 +654,7 @@ function OptimizatorInner() {
         .op-core { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--op-line); }
         .op-core p { margin: 0; font-size: 14px; line-height: 1.5; }
         .op-assume { margin-top: 12px; }
-        .op-assume ul, .op-changes ul, .op-warn ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: var(--op-muted); }
+        .op-assume ul, .op-changes ul, .op-warn ul { margin: 0; padding-left: 16px; list-style: disc; font-size: 13px; line-height: 1.5; color: var(--op-muted); }
         .op-assume li + li, .op-changes li + li, .op-warn li + li { margin-top: 4px; }
 
         .op-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; font-size: 14px; line-height: 1.45; }
