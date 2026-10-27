@@ -21,6 +21,7 @@ const PRICES: Record<string, { input: number; output: number }> = {
   'claude-opus-4-8': { input: 5, output: 25 },
   'claude-sonnet-5-5': { input: 2, output: 10 },
   'claude-sonnet-5': { input: 2, output: 10 },
+  'claude-haiku-5-5': { input: 0.1, output: 0.5 },
   'claude-haiku-4-5': { input: 1, output: 5 },
 };
 
