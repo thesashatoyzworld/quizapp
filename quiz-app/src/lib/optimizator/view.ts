@@ -97,7 +97,25 @@ export function reachPotential(criteria: { id: string; score: number }[]): numbe
   return Math.round(((pick('topic') + pick('angle') + pick('hook')) / 30) * 100);
 }
 
-export function toStudent(a: Analysis): StudentAnalysis {
+/** Safety net: the model sometimes leaks the English goal names into Russian text. */
+function localizeGoals(text: string): string {
+  return text.replace(/\bconversion\b/gi, 'заявки').replace(/\bvirality\b/gi, 'охват');
+}
+
+/** Apply localizeGoals to every string value; enum fields are left as they are. */
+function localizeDeep<T>(val: T, key?: string): T {
+  if (typeof val === 'string') return (key === 'goal' ? val : localizeGoals(val)) as T;
+  if (Array.isArray(val)) return val.map((v) => localizeDeep(v)) as T;
+  if (val && typeof val === 'object') {
+    const o: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(val)) o[k] = localizeDeep(v, k);
+    return o as T;
+  }
+  return val;
+}
+
+export function toStudent(raw: Analysis): StudentAnalysis {
+  const a = localizeDeep(raw);
   const { caps_applied: _caps, criteria, ...rest } = a;
   void _caps;
   return {
