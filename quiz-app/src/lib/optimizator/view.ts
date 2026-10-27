@@ -179,6 +179,9 @@ function localizeGoals(text: string): string {
     .replace(/\bno_data\b/gi, 'мало данных')
     .replace(/\block-in\b/gi, 'удержание после хука')
     .replace(/\bCTA\b/g, 'призыв')
+    // Mostly «позиции/методика Kallaway»: genitive reads right.
+    .replace(/\bKallaway\b/g, 'Каллавея')
+    .replace(/\bInstagram\b/g, 'Инстаграм')
     // Internal rule codes of the prompt («(Д6)», «(Д3, Д4)», «(по данным Саши: Д1)», «[S45]») mean nothing to a student.
     .replace(/\s*\((?:по данным Саши:?\s*)?Д\d+(?:\s*(?:,|и)\s*Д\d+)*\)/g, '')
     .replace(/\s*\[S\d+\]/g, '');
