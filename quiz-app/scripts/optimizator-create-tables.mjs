@@ -52,6 +52,10 @@ await db.query(`
 `);
 // v4 prompt: draft (script before filming) or filmed (transcript, rewrite = editing plan).
 await db.query(`ALTER TABLE optimizator_runs ADD COLUMN IF NOT EXISTS stage TEXT NOT NULL DEFAULT 'draft';`);
+// v5 prompt: no stage input any more. Old runs keep theirs, new ones write NULL.
+await db.query(`ALTER TABLE optimizator_runs ALTER COLUMN stage DROP NOT NULL;`);
+// v5: demand evidence sent to the model (with Instagram urls) and the links it matched.
+await db.query(`ALTER TABLE optimizator_runs ADD COLUMN IF NOT EXISTS demand JSONB;`);
 await db.query(
   `CREATE INDEX IF NOT EXISTS optimizator_runs_telegram_id_created_at_idx
      ON optimizator_runs (telegram_id, created_at DESC);`,

@@ -1464,12 +1464,14 @@ model OptimizatorRun {
   createdAt    DateTime @default(now()) @map("created_at")
   /// conversion | virality
   goal         String
-  /// draft | filmed (filmed = transcript of a shot reel, rewrite is an editing plan)
-  stage        String   @default("draft")
+  /// v4 only: draft | filmed. v5 runs (goal and format detected from the text) write NULL.
+  stage        String?  @default("draft")
   niche        String?
   audience     String?
   script       String
   result       Json?
+  /// v5: { window_days, searched, coverage_posts, items (with urls), links } from findDemand
+  demand       Json?
   model        String
   inputTokens  Int?     @map("input_tokens")
   outputTokens Int?     @map("output_tokens")
