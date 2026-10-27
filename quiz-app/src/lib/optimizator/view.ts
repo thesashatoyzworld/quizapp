@@ -3,6 +3,9 @@
 
 export type Goal = 'conversion' | 'virality';
 
+/** draft = script before filming; filmed = transcript of a filmed reel (rewrite is an editing plan). */
+export type Stage = 'draft' | 'filmed';
+
 export type CriterionId = 'topic' | 'angle' | 'hook' | 'proof' | 'clarity' | 'retention' | 'cta';
 
 export interface Criterion {
@@ -28,8 +31,12 @@ export interface Analysis {
   schema_version: string;
   input_ok: boolean;
   goal: Goal;
+  /** v4+: echo of the input stage. Old saved runs have none. */
+  stage?: Stage;
   verdict: string;
   overall_score: number;
+  /** v4+: predicted reach vs the author's usual reel, 0-100. Old saved runs have none. */
+  reach_potential?: number;
   readiness: 'ready' | 'needs_work' | 'rewrite';
   core_idea: string;
   assumptions: string[];
@@ -63,16 +70,19 @@ export interface Analysis {
 }
 
 /** What the student sees: the analysis without internal math (weights, caps). */
-export type StudentAnalysis = Omit<Analysis, 'caps_applied' | 'criteria'> & {
+export type StudentAnalysis = Omit<Analysis, 'caps_applied' | 'criteria' | 'reach_potential'> & {
   criteria: Omit<Criterion, 'weight'>[];
-  /** topic + angle + hook, normalized to 0-100. */
+  /** The model's reach_potential (v4+); for old runs topic + angle + hook, normalized to 0-100. */
   reach_potential: number;
+  /** true when reach_potential came from the model (v4 scale), false for the old derived value. */
+  reach_from_model: boolean;
 };
 
 export interface HistoryItem {
   id: string;
   createdAt: string;
   goal: Goal;
+  stage: Stage;
   score: number | null;
   firstLine: string;
 }
@@ -81,6 +91,7 @@ export interface SavedRun {
   id: string;
   createdAt: string;
   goal: Goal;
+  stage: Stage;
   niche: string | null;
   audience: string | null;
   script: string;
@@ -91,7 +102,7 @@ export const SCRIPT_MIN = 80;
 export const SCRIPT_MAX = 6000;
 export const FIELD_MAX = 300;
 
-/** Reach potential: the three criteria that decide reach (topic, angle, hook), 0-100. */
+/** Fallback for runs saved before v4: the three criteria that decide reach (topic, angle, hook), 0-100. */
 export function reachPotential(criteria: { id: string; score: number }[]): number {
   const pick = (id: string) => criteria.find((c) => c.id === id)?.score ?? 0;
   return Math.round(((pick('topic') + pick('angle') + pick('hook')) / 30) * 100);
@@ -116,13 +127,22 @@ function localizeDeep<T>(val: T, key?: string): T {
 
 export function toStudent(raw: Analysis): StudentAnalysis {
   const a = localizeDeep(raw);
-  const { caps_applied: _caps, criteria, ...rest } = a;
+  const { caps_applied: _caps, criteria, reach_potential: modelReach, ...rest } = a;
   void _caps;
+  const fromModel = typeof modelReach === 'number' && Number.isFinite(modelReach);
   return {
     ...rest,
     criteria: (criteria || []).map(({ weight: _w, ...c }) => { void _w; return c; }),
-    reach_potential: reachPotential(criteria || []),
+    reach_potential: fromModel ? Math.max(0, Math.min(100, Math.round(modelReach))) : reachPotential(criteria || []),
+    reach_from_model: fromModel,
+    // v4 runs: the label follows the v4 scale even if the model drifts; old runs keep their own.
+    readiness: fromModel && typeof rest.overall_score === 'number' ? readinessFor(rest.overall_score) : rest.readiness,
   };
+}
+
+/** v4 scale: ordinary reel ~65, hit 75+; ready from 65, needs work 45-64, rewrite below 45. */
+export function readinessFor(score: number): Analysis['readiness'] {
+  return score >= 65 ? 'ready' : score >= 45 ? 'needs_work' : 'rewrite';
 }
 
 /** Kallaway link in the result: youtu.be/ID?t=N → full URL. */

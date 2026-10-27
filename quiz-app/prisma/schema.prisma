@@ -1464,6 +1464,8 @@ model OptimizatorRun {
   createdAt    DateTime @default(now()) @map("created_at")
   /// conversion | virality
   goal         String
+  /// draft | filmed (filmed = transcript of a shot reel, rewrite is an editing plan)
+  stage        String   @default("draft")
   niche        String?
   audience     String?
   script       String

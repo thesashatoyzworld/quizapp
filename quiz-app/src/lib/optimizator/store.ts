@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@/generated/prisma/client';
 import { monthKey } from './config';
-import type { Analysis, Goal, HistoryItem, SavedRun } from './view';
+import type { Analysis, Goal, HistoryItem, SavedRun, Stage } from './view';
 import { toStudent } from './view';
 
 export async function usedThisMonth(telegramId: number): Promise<number> {
@@ -39,6 +39,7 @@ export async function releaseSlot(telegramId: number, month: string): Promise<vo
 export async function saveRun(data: {
   telegramId: number;
   goal: Goal;
+  stage: Stage;
   niche: string | null;
   audience: string | null;
   script: string;
@@ -54,6 +55,7 @@ export async function saveRun(data: {
     data: {
       telegramId: BigInt(data.telegramId),
       goal: data.goal,
+      stage: data.stage,
       niche: data.niche,
       audience: data.audience,
       script: data.script,
@@ -78,7 +80,7 @@ export async function history(telegramId: number, take = 10): Promise<HistoryIte
     where: { telegramId: BigInt(telegramId), status: 'ok' },
     orderBy: { createdAt: 'desc' },
     take,
-    select: { id: true, createdAt: true, goal: true, script: true, result: true },
+    select: { id: true, createdAt: true, goal: true, stage: true, script: true, result: true },
   });
   return rows.map((r) => {
     const res = r.result as { overall_score?: number } | null;
@@ -86,6 +88,7 @@ export async function history(telegramId: number, take = 10): Promise<HistoryIte
       id: r.id,
       createdAt: r.createdAt.toISOString(),
       goal: r.goal as Goal,
+      stage: (r.stage === 'filmed' ? 'filmed' : 'draft') as Stage,
       score: typeof res?.overall_score === 'number' ? res.overall_score : null,
       firstLine: firstLine(r.script),
     };
@@ -102,6 +105,7 @@ export async function getRun(telegramId: number, id: string): Promise<SavedRun |
     id: r.id,
     createdAt: r.createdAt.toISOString(),
     goal: r.goal as Goal,
+    stage: (r.stage === 'filmed' ? 'filmed' : 'draft') as Stage,
     niche: r.niche,
     audience: r.audience,
     script: r.script,

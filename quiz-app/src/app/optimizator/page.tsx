@@ -6,7 +6,7 @@ import { trackSection } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
 import {
   FIELD_MAX, SCRIPT_MAX, SCRIPT_MIN, sourceUrl,
-  type Goal, type HistoryItem, type SavedRun, type StudentAnalysis,
+  type Goal, type HistoryItem, type SavedRun, type Stage, type StudentAnalysis,
 } from '@/lib/optimizator/view';
 
 // Раздел «Оптимизатор рилсов»: ученик вставляет сценарий, сервер разбирает его
@@ -27,10 +27,9 @@ const STEPS = [
 /** Typical run is 70-135 s; steps are spread over ~110 s. */
 const STEP_MS = 16_000;
 
-const READINESS: Record<string, string> = {
-  ready: 'Можно снимать',
-  needs_work: 'Нужны правки',
-  rewrite: 'Лучше переписать',
+const READINESS: Record<Stage, Record<string, string>> = {
+  draft: { ready: 'Можно снимать', needs_work: 'Нужны правки', rewrite: 'Лучше переписать' },
+  filmed: { ready: 'Можно публиковать', needs_work: 'Нужны правки в монтаже', rewrite: 'Лучше перемонтировать' },
 };
 const FORMAT_LEVEL: Record<string, string> = {
   facts: 'факты', explanation: 'объяснение', application: 'применение', story: 'история',
@@ -94,14 +93,23 @@ function Source({ source }: { source: string | null }) {
   );
 }
 
-/** Placeholders like [вставь цифру: ...] are highlighted: the student must fill them. */
-function WithPlaceholders({ text }: { text: string }) {
+/** Material only the student has: [вставь ...], [твоя цифра ...]. */
+const FILL_RE = /^\[(вставь|твоя|твой|твоё|твои)(?![а-яё])/i;
+
+/**
+ * Placeholders like [вставь цифру: ...] are highlighted: the student must fill them.
+ * In an editing plan the other brackets ([плашка: ...], [вырезать ...]) are instructions
+ * for the edit and get a calmer style.
+ */
+function WithPlaceholders({ text, editPlan }: { text: string; editPlan?: boolean }) {
   const parts = text.split(/(\[[^\]]*\])/g);
   return (
     <>
-      {parts.map((p, i) => (p.startsWith('[') && p.endsWith(']')
-        ? <mark key={i} className="op-ph">{p}</mark>
-        : <Fragment key={i}>{p}</Fragment>))}
+      {parts.map((p, i) => {
+        if (!(p.startsWith('[') && p.endsWith(']'))) return <Fragment key={i}>{p}</Fragment>;
+        if (editPlan && !FILL_RE.test(p)) return <span key={i} className="op-edit">{p.slice(1, -1)}</span>;
+        return <mark key={i} className="op-ph">{p}</mark>;
+      })}
     </>
   );
 }
@@ -109,6 +117,11 @@ function WithPlaceholders({ text }: { text: string }) {
 function scoreTone(score: number, max: number) {
   const r = score / max;
   return r >= 0.75 ? 'op-good' : r >= 0.5 ? 'op-mid' : 'op-low';
+}
+
+/** 0-100 scores on the v4 scale: ready from 65, weak below 45. */
+function scoreTone100(score: number) {
+  return score >= 65 ? 'op-good' : score >= 45 ? 'op-mid' : 'op-low';
 }
 
 function fmtDate(iso: string) {
@@ -129,6 +142,8 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
     );
   }
   const g = a.hook_gate;
+  const stage: Stage = run.stage === 'filmed' || a.stage === 'filmed' ? 'filmed' : 'draft';
+  const filmed = stage === 'filmed';
   const checks: [string, boolean][] = [
     ['про зрителя', g.subject], ['есть ставки', g.stakes], ['понятно', g.clear], ['быстро', g.fast],
   ];
@@ -136,18 +151,21 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
     <div className="op-result">
       <section className="op-card op-hero">
         <div className="op-eyebrow">
-          Разбор · {run.goal === 'conversion' ? 'цель: заявки' : 'цель: охват'} · {fmtDate(run.createdAt)}
+          Разбор · {run.goal === 'conversion' ? 'цель: заявки' : 'цель: охват'}{filmed ? ' · ролик снят' : ''} · {fmtDate(run.createdAt)}
         </div>
         <div className="op-scores">
-          <div className={`op-score ${scoreTone(a.overall_score, 100)}`}>
+          <div className={`op-score ${a.reach_from_model ? scoreTone100(a.overall_score) : scoreTone(a.overall_score, 100)}`}>
             <div className="op-score-n">{a.overall_score}</div>
-            <div className="op-score-l">Общая оценка<br /><span>{READINESS[a.readiness] || ''}</span></div>
+            <div className="op-score-l">Общая оценка<br /><span>{READINESS[stage][a.readiness] || ''}</span></div>
           </div>
-          <div className={`op-score op-score-alt ${scoreTone(a.reach_potential, 100)}`}>
+          <div className={`op-score op-score-alt ${a.reach_from_model ? scoreTone100(a.reach_potential) : scoreTone(a.reach_potential, 100)}`}>
             <div className="op-score-n">{a.reach_potential}</div>
-            <div className="op-score-l">Потенциал охвата<br /><span>тема, угол и хук</span></div>
+            <div className="op-score-l">Потенциал охвата<br /><span>{a.reach_from_model ? 'против твоего обычного ролика' : 'тема, угол и хук'}</span></div>
           </div>
         </div>
+        {a.reach_from_model && (
+          <p className="op-scale">Обычный ролик около 65, уровень залёта от 75</p>
+        )}
         <p className="op-verdict">{a.verdict}</p>
         <div className="op-core">
           <div className="op-label">Главная мысль ролика</div>
@@ -240,15 +258,20 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
       </section>
 
       <section className="op-card">
-        <h2 className="op-h2">Переписанный сценарий</h2>
-        {a.rewrite.placeholders.length > 0 && (
+        <h2 className="op-h2">{filmed ? 'Монтажный план' : 'Переписанный сценарий'}</h2>
+        {filmed ? (
+          <p className="op-p op-muted">
+            Ролик не переснимаешь: режешь, переставляешь, добавляешь плашки и свой закадр. Указания для монтажа
+            в рамке{a.rewrite.placeholders.length > 0 ? ', жёлтым то, что нужно принести тебе' : ''}.
+          </p>
+        ) : a.rewrite.placeholders.length > 0 && (
           <p className="op-p op-muted">
             Жёлтым отмечено то, что знаешь только ты: впиши свой пример, цифру или лид-магнит.
           </p>
         )}
-        <pre className="op-script"><WithPlaceholders text={a.rewrite.script} /></pre>
+        <pre className="op-script"><WithPlaceholders text={a.rewrite.script} editPlan={filmed} /></pre>
         <div className="op-row">
-          <CopyButton text={a.rewrite.script} label="Скопировать сценарий" primary />
+          <CopyButton text={a.rewrite.script} label={filmed ? 'Скопировать план' : 'Скопировать сценарий'} primary />
         </div>
         {a.rewrite.changes.length > 0 && (
           <div className="op-changes">
@@ -320,6 +343,7 @@ function OptimizatorInner() {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [script, setScript] = useState('');
   const [goal, setGoal] = useState<Goal | null>(null);
+  const [stage, setStage] = useState<Stage>('draft');
   const [niche, setNiche] = useState('');
   const [audience, setAudience] = useState('');
   const [busySince, setBusySince] = useState<number | null>(null);
@@ -385,7 +409,7 @@ function OptimizatorInner() {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...authHeaders() },
         credentials: 'same-origin',
-        body: JSON.stringify({ script, goal, niche, audience }),
+        body: JSON.stringify({ script, goal, stage, niche, audience }),
       });
       const data = await res.json().catch(() => ({}));
       if (typeof data.used === 'number') setUsed(data.used);
@@ -397,7 +421,7 @@ function OptimizatorInner() {
       if (data.run.id) {
         window.history.replaceState(null, '', `/optimizator?run=${data.run.id}`);
         setItems((prev) => [{
-          id: data.run.id, createdAt: data.run.createdAt, goal: data.run.goal,
+          id: data.run.id, createdAt: data.run.createdAt, goal: data.run.goal, stage: data.run.stage,
           score: data.run.result.overall_score,
           firstLine: (script.split('\n').map((s) => s.trim()).find(Boolean) || '').slice(0, 90),
         }, ...prev].slice(0, 10));
@@ -482,6 +506,20 @@ function OptimizatorInner() {
               {len < SCRIPT_MIN ? `ещё ${SCRIPT_MIN - len} символов до минимума` : `${len} / ${SCRIPT_MAX}`}
             </div>
 
+            <div className="op-label op-mt">Ролик уже снят?</div>
+            <div className="op-goals" role="radiogroup">
+              <button type="button" role="radio" aria-checked={stage === 'draft'}
+                className={stage === 'draft' ? 'op-goal op-goal-on' : 'op-goal'}
+                onClick={() => setStage('draft')} disabled={!!busySince}>
+                <b>Ещё не снимал</b><span>сценарий</span>
+              </button>
+              <button type="button" role="radio" aria-checked={stage === 'filmed'}
+                className={stage === 'filmed' ? 'op-goal op-goal-on' : 'op-goal'}
+                onClick={() => setStage('filmed')} disabled={!!busySince}>
+                <b>Уже снят</b><span>готовый ролик</span>
+              </button>
+            </div>
+
             <div className="op-label op-mt">Зачем этот ролик</div>
             <div className="op-goals" role="radiogroup">
               <button type="button" role="radio" aria-checked={goal === 'conversion'}
@@ -531,10 +569,10 @@ function OptimizatorInner() {
               {items.map((h) => (
                 <button type="button" key={h.id} className={run?.id === h.id ? 'op-hist op-hist-on' : 'op-hist'}
                   onClick={() => loadRun(h.id)}>
-                  <span className={`op-hist-score ${h.score !== null ? scoreTone(h.score, 100) : ''}`}>{h.score ?? '·'}</span>
+                  <span className={`op-hist-score ${h.score !== null ? scoreTone100(h.score) : ''}`}>{h.score ?? '·'}</span>
                   <span className="op-hist-body">
                     <span className="op-hist-line">{h.firstLine || 'Без текста'}</span>
-                    <span className="op-hist-meta">{fmtDate(h.createdAt)} · {h.goal === 'conversion' ? 'заявки' : 'охват'}</span>
+                    <span className="op-hist-meta">{fmtDate(h.createdAt)} · {h.goal === 'conversion' ? 'заявки' : 'охват'}{h.stage === 'filmed' ? ' · снят' : ''}</span>
                   </span>
                 </button>
               ))}
@@ -650,6 +688,7 @@ function OptimizatorInner() {
         .op-score.op-good { background: var(--op-good-soft); } .op-score.op-good .op-score-n { color: var(--op-good); }
         .op-score.op-mid { background: var(--op-mid-soft); } .op-score.op-mid .op-score-n { color: var(--op-mid); }
         .op-score.op-low { background: var(--op-low-soft); } .op-score.op-low .op-score-n { color: var(--op-low); }
+        .op-scale { font-size: 12px; color: var(--op-muted); margin: 8px 0 0; }
         .op-verdict { font-size: 15.5px; line-height: 1.5; font-weight: 600; margin: 12px 0 0; }
         .op-core { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--op-line); }
         .op-core p { margin: 0; font-size: 14px; line-height: 1.5; }
@@ -715,6 +754,11 @@ function OptimizatorInner() {
           white-space: pre-wrap; word-break: break-word;
         }
         .op-ph { background: var(--op-mark); color: var(--op-text); border-radius: 4px; padding: 1px 3px; font-weight: 600; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+        .op-edit {
+          font-size: 13px; font-weight: 600; color: var(--op-accent);
+          border: 1px dashed var(--op-accent); border-radius: 6px; padding: 1px 5px;
+          box-decoration-break: clone; -webkit-box-decoration-break: clone;
+        }
         .op-changes { margin-top: 14px; }
 
         .op-fix { list-style: none; counter-reset: fix; padding: 0; margin: 0; }

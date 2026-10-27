@@ -50,6 +50,8 @@ await db.query(`
     status        TEXT NOT NULL
   );
 `);
+// v4 prompt: draft (script before filming) or filmed (transcript, rewrite = editing plan).
+await db.query(`ALTER TABLE optimizator_runs ADD COLUMN IF NOT EXISTS stage TEXT NOT NULL DEFAULT 'draft';`);
 await db.query(
   `CREATE INDEX IF NOT EXISTS optimizator_runs_telegram_id_created_at_idx
      ON optimizator_runs (telegram_id, created_at DESC);`,

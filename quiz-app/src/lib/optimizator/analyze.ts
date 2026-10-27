@@ -7,13 +7,14 @@ import { SYSTEM_PROMPT } from './system';
 import { OUTPUT_SCHEMA } from './output-schema';
 import { stripUnknown } from './strip';
 import { MAX_TOKENS, MODEL } from './config';
-import type { Analysis, Goal } from './view';
+import type { Analysis, Goal, Stage } from './view';
 
 const anthropic = new Anthropic();
 
 export interface AnalyzeInput {
   script: string;
   goal: Goal;
+  stage: Stage;
   niche: string | null;
   audience: string | null;
 }
@@ -67,7 +68,7 @@ function shapeOk(a: Analysis): string | null {
 
 export async function analyzeScript(input: AnalyzeInput): Promise<AnalyzeOk | AnalyzeFail> {
   const t0 = Date.now();
-  const payload = { script: input.script, goal: input.goal, niche: input.niche, audience: input.audience };
+  const payload = { script: input.script, goal: input.goal, stage: input.stage, niche: input.niche, audience: input.audience };
   let msg: Anthropic.Message;
   try {
     // Streaming only to keep the SDK happy with a 24k max_tokens; we wait for the final message.

@@ -5,7 +5,7 @@ import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { analyzeScript } from '@/lib/optimizator/analyze';
 import { MODEL, UNLIMITED_IDS, limitFor, monthKey } from '@/lib/optimizator/config';
 import { getRun, history, releaseSlot, reserveSlot, saveRun, usedThisMonth } from '@/lib/optimizator/store';
-import { FIELD_MAX, SCRIPT_MAX, SCRIPT_MIN, toStudent, type Goal } from '@/lib/optimizator/view';
+import { FIELD_MAX, SCRIPT_MAX, SCRIPT_MIN, toStudent, type Goal, type Stage } from '@/lib/optimizator/view';
 
 export const runtime = 'nodejs';
 // The analysis takes 70-135 s (model thinking is on).
@@ -80,6 +80,10 @@ export async function POST(request: NextRequest) {
   const script = typeof body.script === 'string' ? body.script.trim() : '';
   const goal = body.goal === 'virality' ? 'virality' : body.goal === 'conversion' ? 'conversion' : null;
   if (!goal) return fail(400, 'bad_goal', 'Выбери цель ролика: заявки или охват.');
+  // Missing stage = draft (older clients); any other value is rejected.
+  const stage: Stage | null =
+    body.stage === undefined || body.stage === null || body.stage === 'draft' ? 'draft' : body.stage === 'filmed' ? 'filmed' : null;
+  if (!stage) return fail(400, 'bad_stage', 'Выбери, снят ли уже ролик.');
   if (script.length < SCRIPT_MIN) {
     return fail(400, 'script_too_short', `Сценарий слишком короткий: нужно хотя бы ${SCRIPT_MIN} символов.`);
   }
@@ -104,14 +108,14 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const res = await analyzeScript({ script, goal: goal as Goal, niche, audience });
+  const res = await analyzeScript({ script, goal: goal as Goal, stage, niche, audience });
   if (res.usage) await recordAnthropicUsage(MODEL, res.usage, 'optimizator');
 
   if (!res.ok) {
     console.error('[optimizator] analysis failed:', res.code, res.detail);
     await releaseSlot(v.id, month).catch((e) => console.error('[optimizator] release failed:', e));
     await saveRun({
-      telegramId: v.id, goal: goal as Goal, niche, audience, script, result: null, model: MODEL,
+      telegramId: v.id, goal: goal as Goal, stage, niche, audience, script, result: null, model: MODEL,
       inputTokens: res.usage?.input_tokens ?? null, outputTokens: res.usage?.output_tokens ?? null,
       durationMs: res.durationMs, status: 'error', error: `${res.code}: ${res.detail}`,
     }).catch((e) => console.error('[optimizator] save error run failed:', e));
@@ -124,7 +128,7 @@ export async function POST(request: NextRequest) {
   let runId: string;
   try {
     runId = await saveRun({
-      telegramId: v.id, goal: goal as Goal, niche, audience, script, result: res.analysis, model: MODEL,
+      telegramId: v.id, goal: goal as Goal, stage, niche, audience, script, result: res.analysis, model: MODEL,
       inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens,
       durationMs: res.durationMs, status: 'ok',
     });
@@ -139,6 +143,7 @@ export async function POST(request: NextRequest) {
       id: runId,
       createdAt: new Date().toISOString(),
       goal,
+      stage,
       niche,
       audience,
       script,
