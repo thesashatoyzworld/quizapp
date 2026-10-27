@@ -1,5 +1,5 @@
 // GENERATED, do not edit by hand.
-// Source: reels-optimizer repo, branch feat/kallaway-method (857e618), prompts/kallaway/output-schema.json
+// Source: reels-optimizer repo, branch feat/kallaway-method (9ab67a7), prompts/kallaway/output-schema.json
 // Used on the server to strip keys the schema does not declare.
 
 import type { JsonSchema } from "./strip";
@@ -128,6 +128,20 @@ export const OUTPUT_SCHEMA: JsonSchema = {
         "conversion",
         "virality"
       ]
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "filmed"
+      ],
+      "description": "v4: echo of input stage; filmed = rewrite is an edit plan (cut, reorder, on-screen text, author voiceover only)"
+    },
+    "reach_potential": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "v4: predicted reach vs the author's usual reel, from the Sasha-data layer; overall_score = 0.7*reach + 0.3*craft (virality) or 0.25*reach + 0.75*craft (conversion), then caps"
     },
     "verdict": {
       "type": "string",
