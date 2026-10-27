@@ -131,6 +131,14 @@ export interface SavedRun {
   demandLinks: DemandLink[];
 }
 
+/** First spoken line for the history list: skips notes like [Формат: ...] and speaker labels. */
+export function firstLine(script: string): string {
+  const lines = script.split('\n').map((s) => s.trim()).filter(Boolean);
+  const spoken = lines.find((l) => !/^\[[^\]]*\]$/.test(l)) || lines[0] || '';
+  const line = spoken.replace(/^[А-ЯЁA-Z][\wА-Яа-яЁё ]{0,20}:\s+/, '');
+  return line.length > 90 ? line.slice(0, 88) + '…' : line;
+}
+
 export const SCRIPT_MIN = 80;
 export const SCRIPT_MAX = 6000;
 

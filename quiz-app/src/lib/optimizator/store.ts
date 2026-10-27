@@ -5,7 +5,7 @@ import type { Prisma } from '@/generated/prisma/client';
 import { monthKey } from './config';
 import type { DemandEvidence } from './demand';
 import type { Analysis, DemandLink, Goal, HistoryItem, SavedRun, Stage } from './view';
-import { toStudent } from './view';
+import { firstLine, toStudent } from './view';
 
 export async function usedThisMonth(telegramId: number): Promise<number> {
   const row = await prisma.optimizatorUsage.findUnique({
@@ -73,10 +73,6 @@ export async function saveRun(data: {
   return row.id;
 }
 
-function firstLine(script: string): string {
-  const line = script.split('\n').map((s) => s.trim()).find(Boolean) || '';
-  return line.length > 90 ? line.slice(0, 88) + '…' : line;
-}
 
 export async function history(telegramId: number, take = 10): Promise<HistoryItem[]> {
   const rows = await prisma.optimizatorRun.findMany({

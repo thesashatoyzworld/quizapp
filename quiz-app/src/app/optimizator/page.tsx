@@ -5,7 +5,7 @@ import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import { trackSection } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
 import {
-  DEMAND_STATUS, FORMAT_NAME, SCRIPT_MAX, SCRIPT_MIN, sourceUrl,
+  DEMAND_STATUS, FORMAT_NAME, SCRIPT_MAX, SCRIPT_MIN, firstLine, sourceUrl,
   type DemandLink, type HistoryItem, type SavedRun, type StudentAnalysis,
 } from '@/lib/optimizator/view';
 
@@ -485,7 +485,7 @@ function OptimizatorInner() {
         setItems((prev) => [{
           id: data.run.id, createdAt: data.run.createdAt, goal: data.run.goal,
           score: data.run.result.overall_score,
-          firstLine: (script.split('\n').map((s) => s.trim()).find(Boolean) || '').slice(0, 90),
+          firstLine: firstLine(script),
         }, ...prev].slice(0, 10));
       }
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
