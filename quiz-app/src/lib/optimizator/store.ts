@@ -3,7 +3,8 @@
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@/generated/prisma/client';
 import { monthKey } from './config';
-import type { Analysis, Goal, HistoryItem, SavedRun, Stage } from './view';
+import type { DemandEvidence } from './demand';
+import type { Analysis, DemandLink, Goal, HistoryItem, SavedRun, Stage } from './view';
 import { toStudent } from './view';
 
 export async function usedThisMonth(telegramId: number): Promise<number> {
@@ -36,14 +37,16 @@ export async function releaseSlot(telegramId: number, month: string): Promise<vo
      WHERE telegram_id = ${BigInt(telegramId)} AND month = ${month}`;
 }
 
+/** Stored in optimizator_runs.demand: what the model got (with urls) and the links it matched. */
+export type StoredDemand = DemandEvidence & { links: DemandLink[] };
+
 export async function saveRun(data: {
   telegramId: number;
-  goal: Goal;
-  stage: Stage;
-  niche: string | null;
-  audience: string | null;
+  /** Detected by the model; 'unknown' for failed runs. */
+  goal: Goal | 'unknown';
   script: string;
   result: Analysis | null;
+  demand: StoredDemand | null;
   model: string;
   inputTokens: number | null;
   outputTokens: number | null;
@@ -55,11 +58,11 @@ export async function saveRun(data: {
     data: {
       telegramId: BigInt(data.telegramId),
       goal: data.goal,
-      stage: data.stage,
-      niche: data.niche,
-      audience: data.audience,
+      // v5 has no stage, niche or audience input: the model reads them from the text.
+      stage: null,
       script: data.script,
       result: (data.result ?? (data.error ? { error: data.error } : undefined)) as Prisma.InputJsonValue | undefined,
+      demand: (data.demand ?? undefined) as Prisma.InputJsonValue | undefined,
       model: data.model,
       inputTokens: data.inputTokens,
       outputTokens: data.outputTokens,
@@ -80,7 +83,7 @@ export async function history(telegramId: number, take = 10): Promise<HistoryIte
     where: { telegramId: BigInt(telegramId), status: 'ok' },
     orderBy: { createdAt: 'desc' },
     take,
-    select: { id: true, createdAt: true, goal: true, stage: true, script: true, result: true },
+    select: { id: true, createdAt: true, goal: true, script: true, result: true },
   });
   return rows.map((r) => {
     const res = r.result as { overall_score?: number } | null;
@@ -88,7 +91,6 @@ export async function history(telegramId: number, take = 10): Promise<HistoryIte
       id: r.id,
       createdAt: r.createdAt.toISOString(),
       goal: r.goal as Goal,
-      stage: (r.stage === 'filmed' ? 'filmed' : 'draft') as Stage,
       score: typeof res?.overall_score === 'number' ? res.overall_score : null,
       firstLine: firstLine(r.script),
     };
@@ -105,10 +107,9 @@ export async function getRun(telegramId: number, id: string): Promise<SavedRun |
     id: r.id,
     createdAt: r.createdAt.toISOString(),
     goal: r.goal as Goal,
-    stage: (r.stage === 'filmed' ? 'filmed' : 'draft') as Stage,
-    niche: r.niche,
-    audience: r.audience,
+    stage: r.stage === 'filmed' || r.stage === 'draft' ? (r.stage as Stage) : null,
     script: r.script,
     result: toStudent(r.result as unknown as Analysis),
+    demandLinks: (r.demand as StoredDemand | null)?.links ?? [],
   };
 }

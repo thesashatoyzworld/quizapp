@@ -4,19 +4,21 @@ import { tiersForTelegram } from '@/lib/kb/tier';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { analyzeScript } from '@/lib/optimizator/analyze';
 import { MODEL, UNLIMITED_IDS, limitFor, monthKey } from '@/lib/optimizator/config';
-import { getRun, history, releaseSlot, reserveSlot, saveRun, usedThisMonth } from '@/lib/optimizator/store';
-import { FIELD_MAX, SCRIPT_MAX, SCRIPT_MIN, toStudent, type Goal, type Stage } from '@/lib/optimizator/view';
+import { findDemand, type DemandEvidence } from '@/lib/optimizator/demand';
+import { getRun, history, releaseSlot, reserveSlot, saveRun, usedThisMonth, type StoredDemand } from '@/lib/optimizator/store';
+import { SCRIPT_MAX, SCRIPT_MIN, toStudent, type Analysis, type DemandLink } from '@/lib/optimizator/view';
 
 export const runtime = 'nodejs';
-// The analysis takes 70-135 s (model thinking is on).
+// The analysis takes 70-135 s (model thinking is on), plus up to 8 s of demand search.
 export const maxDuration = 300;
 
-// Section «Оптимизатор рилсов»: a student pastes a reel script, the server runs
-// the Kallaway analysis prompt and saves the result.
+// Section «Оптимизатор рилсов»: a student pastes a reel script, the server looks
+// up demand evidence in the outliers base (findDemand), runs the Kallaway analysis
+// prompt and saves the result. Goal and format are detected by the model.
 //
 //   GET  /api/cabinet/optimizator        → { identified, access, tier, used, limit, history }
 //   GET  /api/cabinet/optimizator?id=... → { run } (owner only)
-//   POST /api/cabinet/optimizator        → { run, used, limit } | { error, code }
+//   POST /api/cabinet/optimizator {script} → { run, used, limit } | { error, code }
 //
 // Identity is signed only (x-tg-init-data or kb_session cookie): runs cost money.
 
@@ -54,10 +56,33 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function clean(v: unknown, max: number): string | null {
-  if (typeof v !== 'string') return null;
-  const s = v.trim();
-  return s ? s.slice(0, max) : null;
+const LINK_TEXT_MAX = 140;
+
+/**
+ * Keep only matched ids that were actually sent, and turn them into Instagram links
+ * here on the server: the model never sees urls, so it cannot invent one.
+ */
+function linkDemand(evidence: DemandEvidence, analysis: Analysis): StoredDemand {
+  const byId = new Map(evidence.items.map((it) => [it.id, it]));
+  const d = analysis.demand;
+  let links: DemandLink[] = [];
+  if (d) {
+    if (!evidence.searched) {
+      // Nothing was searched: whatever the model says, there is no evidence either way.
+      d.status = 'no_data';
+      d.matched_ids = [];
+    }
+    d.matched_ids = [...new Set(d.matched_ids.filter((id) => byId.has(id)))].slice(0, 5);
+    links = d.matched_ids.map((id) => {
+      const it = byId.get(id)!;
+      const text = it.text.replace(/\s+/g, ' ').trim();
+      return {
+        id, author: it.author, kind: it.kind, ratio: it.ratio, url: it.url,
+        text: text.length > LINK_TEXT_MAX ? text.slice(0, LINK_TEXT_MAX - 1) + '…' : text,
+      };
+    });
+  }
+  return { ...evidence, links };
 }
 
 export async function POST(request: NextRequest) {
@@ -78,20 +103,12 @@ export async function POST(request: NextRequest) {
     return fail(400, 'bad_json', 'Не получилось прочитать запрос.');
   }
   const script = typeof body.script === 'string' ? body.script.trim() : '';
-  const goal = body.goal === 'virality' ? 'virality' : body.goal === 'conversion' ? 'conversion' : null;
-  if (!goal) return fail(400, 'bad_goal', 'Выбери цель ролика: заявки или охват.');
-  // Missing stage = draft (older clients); any other value is rejected.
-  const stage: Stage | null =
-    body.stage === undefined || body.stage === null || body.stage === 'draft' ? 'draft' : body.stage === 'filmed' ? 'filmed' : null;
-  if (!stage) return fail(400, 'bad_stage', 'Выбери, снят ли уже ролик.');
   if (script.length < SCRIPT_MIN) {
     return fail(400, 'script_too_short', `Сценарий слишком короткий: нужно хотя бы ${SCRIPT_MIN} символов.`);
   }
   if (script.length > SCRIPT_MAX) {
     return fail(400, 'script_too_long', `Сценарий слишком длинный: до ${SCRIPT_MAX} символов.`);
   }
-  const niche = clean(body.niche, FIELD_MAX);
-  const audience = clean(body.audience, FIELD_MAX);
 
   const month = monthKey();
   let reserved: number | null;
@@ -108,14 +125,19 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const res = await analyzeScript({ script, goal: goal as Goal, stage, niche, audience });
+  // Never throws; its Haiku call records its own cost.
+  const evidence = await findDemand(script);
+  const res = await analyzeScript({
+    script,
+    demand: { ...evidence, items: evidence.items.map(({ url: _url, ...it }) => { void _url; return it; }) },
+  });
   if (res.usage) await recordAnthropicUsage(MODEL, res.usage, 'optimizator');
 
   if (!res.ok) {
     console.error('[optimizator] analysis failed:', res.code, res.detail);
     await releaseSlot(v.id, month).catch((e) => console.error('[optimizator] release failed:', e));
     await saveRun({
-      telegramId: v.id, goal: goal as Goal, stage, niche, audience, script, result: null, model: MODEL,
+      telegramId: v.id, goal: 'unknown', script, result: null, demand: { ...evidence, links: [] }, model: MODEL,
       inputTokens: res.usage?.input_tokens ?? null, outputTokens: res.usage?.output_tokens ?? null,
       durationMs: res.durationMs, status: 'error', error: `${res.code}: ${res.detail}`,
     }).catch((e) => console.error('[optimizator] save error run failed:', e));
@@ -125,10 +147,11 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  const demand = linkDemand(evidence, res.analysis);
   let runId: string;
   try {
     runId = await saveRun({
-      telegramId: v.id, goal: goal as Goal, stage, niche, audience, script, result: res.analysis, model: MODEL,
+      telegramId: v.id, goal: res.analysis.goal, script, result: res.analysis, demand, model: MODEL,
       inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens,
       durationMs: res.durationMs, status: 'ok',
     });
@@ -142,12 +165,11 @@ export async function POST(request: NextRequest) {
     run: {
       id: runId,
       createdAt: new Date().toISOString(),
-      goal,
-      stage,
-      niche,
-      audience,
+      goal: res.analysis.goal,
+      stage: null,
       script,
       result: toStudent(res.analysis),
+      demandLinks: demand.links,
     },
     used: reserved,
     limit: v.limit,

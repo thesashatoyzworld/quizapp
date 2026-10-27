@@ -1,22 +1,29 @@
 // Optimizator: one Claude call that analyzes a reel script by Kallaway's method.
 // Server only (imports the prompt). Ported from reels-optimizer
 // prompts/kallaway/runs/run.mjs, which is the validated call: system = system.md,
-// user = JSON of the input, response = one JSON object, unknown keys stripped.
+// user = JSON {script, demand}, response = one JSON object, unknown keys stripped.
+// Goal and format are detected by the model from the text (prompt v5).
 import Anthropic from '@anthropic-ai/sdk';
 import { SYSTEM_PROMPT } from './system';
 import { OUTPUT_SCHEMA } from './output-schema';
 import { stripUnknown } from './strip';
 import { MAX_TOKENS, MODEL } from './config';
-import type { Analysis, Goal, Stage } from './view';
+import type { Analysis } from './view';
+import type { DemandItem } from './demand';
 
 const anthropic = new Anthropic();
 
+/** Demand evidence as the model sees it: no Instagram urls (they stay on the server). */
+export interface DemandInput {
+  window_days: number;
+  searched: boolean;
+  coverage_posts: number;
+  items: Omit<DemandItem, 'url'>[];
+}
+
 export interface AnalyzeInput {
   script: string;
-  goal: Goal;
-  stage: Stage;
-  niche: string | null;
-  audience: string | null;
+  demand: DemandInput;
 }
 
 export interface AnalyzeOk {
@@ -36,12 +43,12 @@ export interface AnalyzeFail {
 
 /** Repeats the prompt's main rule next to the script: only the author's facts, placeholders for the rest. */
 const NO_FABRICATION =
-  'Напоминание к этому сценарию: в rewrite и hooks используй только факты из script, niche и audience. ' +
+  'Напоминание к этому сценарию: в rewrite и hooks используй только факты из script. ' +
   'Не добавляй кейсы, клиентов, имена, цифры, сроки, результаты и действия автора, которых нет в сценарии. ' +
   'Где нужно доказательство или пример, а у автора его нет, ставь заглушку [вставь ...] и дублируй её в rewrite.placeholders. ' +
-  'Во всём русском тексте называй цели «заявки» и «охват», никогда не пиши conversion, virality, stage, filmed, draft и другие английские термины ' +
-  '(вместо filmed пиши «ролик снят», вместо draft «сценарий до съёмки»). ' +
+  'Во всём русском тексте называй цели «заявки» и «охват», никогда не пиши conversion, virality и другие английские термины. ' +
   'Не упоминай номера правил (Д1, Д2 и т.п.) в тексте для ученика. ' +
+  'Если по базе мало постов на эту тему, пиши «в базе мало данных по этой теме», а не «спроса нет». ' +
   'Значения enum в JSON (поле goal и другие) оставляй как в схеме.';
 
 function parseJson(text: string): unknown {
@@ -61,6 +68,10 @@ function shapeOk(a: Analysis): string | null {
   if (typeof a.verdict !== 'string') return 'verdict missing';
   if (typeof a.overall_score !== 'number') return 'overall_score missing';
   if (a.input_ok === false) return null; // UI shows the verdict only
+  if (!a.detected_goal || (a.detected_goal.goal !== 'conversion' && a.detected_goal.goal !== 'virality')) return 'detected_goal missing';
+  if (!a.format || typeof a.format.type !== 'string') return 'format missing';
+  if (!a.demand || typeof a.demand.status !== 'string' || !Array.isArray(a.demand.matched_ids)) return 'demand missing';
+  if (!Array.isArray(a.top_fixes) || a.top_fixes.length === 0) return 'top_fixes missing';
   if (!Array.isArray(a.criteria) || a.criteria.length !== 7) return 'criteria must have 7 items';
   if (!Array.isArray(a.hooks)) return 'hooks missing';
   if (!a.rewrite || typeof a.rewrite.script !== 'string') return 'rewrite missing';
@@ -70,7 +81,7 @@ function shapeOk(a: Analysis): string | null {
 
 export async function analyzeScript(input: AnalyzeInput): Promise<AnalyzeOk | AnalyzeFail> {
   const t0 = Date.now();
-  const payload = { script: input.script, goal: input.goal, stage: input.stage, niche: input.niche, audience: input.audience };
+  const payload = { script: input.script, demand: input.demand };
   let msg: Anthropic.Message;
   try {
     // Streaming only to keep the SDK happy with a 24k max_tokens; we wait for the final message.
@@ -107,5 +118,7 @@ export async function analyzeScript(input: AnalyzeInput): Promise<AnalyzeOk | An
   const analysis = stripUnknown(OUTPUT_SCHEMA, parsed) as Analysis;
   const bad = shapeOk(analysis);
   if (bad) return { ok: false, code: 'bad_shape', detail: bad, usage: msg.usage, durationMs };
+  // goal is documented as equal to detected_goal.goal; keep them in sync for the goal column.
+  if (analysis.detected_goal) analysis.goal = analysis.detected_goal.goal;
   return { ok: true, analysis, usage: msg.usage, durationMs };
 }
