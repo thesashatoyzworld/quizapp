@@ -5,8 +5,8 @@ import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import { trackSection } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
 import {
-  DEMAND_STATUS, FORMAT_NAME, SCRIPT_MAX, SCRIPT_MIN, firstLine, sourceUrl,
-  type DemandLink, type HistoryItem, type SavedRun, type StudentAnalysis,
+  DEMAND_STATUS, FORMAT_NAME, REASON_ANSWER, SCRIPT_MAX, SCRIPT_MIN, SHARE_KIND, firstLine, sourceUrl,
+  type DemandLink, type ViewerReason, type ViewerReasons, type HistoryItem, type SavedRun, type StudentAnalysis,
 } from '@/lib/optimizator/view';
 
 // Раздел «Оптимизатор рилсов»: ученик вставляет только текст ролика, сервер ищет
@@ -21,6 +21,7 @@ const STEPS = [
   'Определяю цель и формат ролика',
   'Оцениваю тему и угол',
   'Проверяю первую фразу',
+  'Смотрю, есть ли причина досмотреть и переслать',
   'Смотрю доказательства и удержание',
   'Пишу три новых хука',
   'Переписываю сценарий',
@@ -171,6 +172,42 @@ function DemandBlock({ demand, links }: { demand: NonNullable<StudentAnalysis['d
           <p className="op-note">×число: во сколько раз пост обогнал обычные ролики своего автора</p>
         </>
       )}
+    </section>
+  );
+}
+
+const REASONS: { key: keyof ViewerReasons; title: string }[] = [
+  { key: 'stop', title: 'Остановятся?' },
+  { key: 'finish', title: 'Досмотрят?' },
+  { key: 'save_share', title: 'Сохранят или перешлют?' },
+];
+
+function ReasonsBlock({ r }: { r: ViewerReasons }) {
+  return (
+    <section className="op-card">
+      <h2 className="op-h2">Причины у зрителя</h2>
+      <div className="op-reasons">
+        {REASONS.map(({ key, title }) => {
+          const v: ViewerReason | undefined = r[key];
+          if (!v) return null;
+          const tone = v.answer === 'yes' ? 'op-good' : v.answer === 'partly' ? 'op-mid' : 'op-low';
+          const kind = key === 'save_share' && v.kind ? SHARE_KIND[v.kind] : '';
+          return (
+            <div className="op-reason" key={key}>
+              <div className="op-crit-head">
+                <span className="op-crit-name">{title}</span>
+                <span className={`op-reason-ans ${tone}`}>
+                  {kind && v.answer !== 'no' ? kind : `причина: ${REASON_ANSWER[v.answer] || v.answer}`}
+                  <b>{v.score}<small>/10</small></b>
+                </span>
+              </div>
+              <div className="op-bar"><i className={tone} style={{ width: `${v.score * 10}%` }} /></div>
+              <p className="op-p">{v.reason}</p>
+              {v.fix && <p className="op-p op-reason-fix">{v.fix}</p>}
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -341,6 +378,8 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
         </div>
         <p className="op-verdict">{a.verdict}</p>
       </section>
+
+      {a.viewer_reasons && <ReasonsBlock r={a.viewer_reasons} />}
 
       {a.top_fixes.length > 0 && (
         <section className="op-card">
@@ -753,6 +792,14 @@ function OptimizatorInner() {
         .op-crit-score { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; }
         .op-crit-score small { font-size: 11px; color: var(--op-muted); font-weight: 700; }
         .op-crit-score.op-good { color: var(--op-good); } .op-crit-score.op-mid { color: var(--op-mid); } .op-crit-score.op-low { color: var(--op-low); }
+        .op-reasons { display: grid; gap: 14px; margin-top: 10px; }
+        .op-reason + .op-reason { padding-top: 14px; border-top: 1px solid var(--op-line); }
+        .op-reason-ans { display: inline-flex; align-items: baseline; gap: 8px; font-size: 12.5px; font-weight: 700; }
+        .op-reason-ans b { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; }
+        .op-reason-ans small { font-size: 11px; color: var(--op-muted); font-weight: 700; }
+        .op-reason-ans.op-good { color: var(--op-good); } .op-reason-ans.op-mid { color: var(--op-mid); } .op-reason-ans.op-low { color: var(--op-low); }
+        .op-reason-fix { color: var(--op-muted); }
+        .op-reason-fix::before { content: '→ '; }
         .op-bar { height: 4px; background: var(--op-bg); border-radius: 99px; margin-top: 6px; overflow: hidden; }
         .op-bar i { display: block; height: 100%; border-radius: 99px; }
         .op-bar i.op-good { background: var(--op-good); } .op-bar i.op-mid { background: var(--op-mid); } .op-bar i.op-low { background: var(--op-low); }

@@ -31,6 +31,24 @@ export interface Hook {
   source: string | null;
 }
 
+export type ReasonAnswer = 'yes' | 'partly' | 'no';
+
+/** v5.2: one of three viewer reasons (stop scrolling, watch to the end, save or share). */
+export interface ViewerReason {
+  score: number;
+  answer: ReasonAnswer;
+  /** save_share only. */
+  kind?: 'save' | 'share' | 'both' | 'none';
+  reason: string;
+  fix: string | null;
+}
+
+export interface ViewerReasons {
+  stop: ViewerReason;
+  finish: ViewerReason;
+  save_share: ViewerReason;
+}
+
 export interface Fix {
   text: string;
   /** A ready line from the rewrite; null when the student has to bring the material. */
@@ -57,6 +75,8 @@ export interface Analysis {
   readiness: 'ready' | 'needs_work' | 'rewrite';
   /** v5: 2-3 main fixes. */
   top_fixes?: Fix[];
+  /** v5.2 */
+  viewer_reasons?: ViewerReasons;
   core_idea: string;
   assumptions: string[];
   topic_angle: {
@@ -153,6 +173,19 @@ export const FORMAT_NAME: Record<FormatType, string> = {
   unknown: 'не понятен',
 };
 
+export const REASON_ANSWER: Record<ReasonAnswer, string> = {
+  yes: 'есть',
+  partly: 'слабая',
+  no: 'нет',
+};
+
+export const SHARE_KIND: Record<NonNullable<ViewerReason['kind']>, string> = {
+  save: 'сохранят',
+  share: 'перешлют',
+  both: 'сохранят и перешлют',
+  none: '',
+};
+
 export const DEMAND_STATUS: Record<DemandStatus, string> = {
   in_flow: 'в потоке',
   weak: 'слабый сигнал',
@@ -188,7 +221,7 @@ function localizeGoals(text: string): string {
 }
 
 /** Enum-valued keys are left as they are. */
-const ENUM_KEYS = new Set(['goal', 'stage', 'type', 'status', 'confidence', 'format', 'hook_format', 'format_level', 'id', 'kind', 'source_type', 'schema_version', 'matched_ids', 'source']);
+const ENUM_KEYS = new Set(['answer', 'goal', 'stage', 'type', 'status', 'confidence', 'format', 'hook_format', 'format_level', 'id', 'kind', 'source_type', 'schema_version', 'matched_ids', 'source']);
 
 /** Apply localizeGoals to every string value except enum fields. */
 function localizeDeep<T>(val: T, key?: string): T {
