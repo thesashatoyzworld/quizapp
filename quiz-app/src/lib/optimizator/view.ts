@@ -116,7 +116,9 @@ function localizeGoals(text: string): string {
     .replace(/\bstage\s*[:=]?\s*filmed\b/gi, 'ролик снят')
     .replace(/\bstage\s*[:=]?\s*draft\b/gi, 'сценарий до съёмки')
     .replace(/\bfilmed\b/gi, 'снятый ролик')
-    .replace(/\breach_potential\b/gi, 'потенциал охвата');
+    .replace(/\breach_potential\b/gi, 'потенциал охвата')
+    // Internal rule codes of the prompt («(Д6)», «(Д3, Д4)», «(по данным Саши: Д1)») mean nothing to a student.
+    .replace(/\s*\((?:по данным Саши:?\s*)?Д\d+(?:\s*(?:,|и)\s*Д\d+)*\)/g, '');
 }
 
 /** Apply localizeGoals to every string value; enum fields are left as they are. */
