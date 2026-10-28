@@ -7,7 +7,6 @@ import {
   decideRun,
   decideTrigger,
   deliveryOf,
-  hasTelegram,
   inWorkHours,
   lehaMode,
   nextWorkMoment,
@@ -60,13 +59,13 @@ test('без анкеты не пишет', () => {
   assert.deepEqual(decideTrigger(facts({ lead: null })), { go: false, reason: 'no_lead' });
 });
 
-test('только анкеты с телеграмом', () => {
-  assert.equal(hasTelegram({ username: null, telegramId: null }), false);
-  assert.equal(hasTelegram({ username: '@', telegramId: '  ' }), false);
-  assert.equal(hasTelegram({ username: null, telegramId: '42' }), true);
-  assert.deepEqual(decideTrigger(facts({ lead: lead({ username: null, telegramId: null }) })), {
-    go: false,
-    reason: 'no_telegram',
+// Анкета с сайта бывает с почтой вместо телеграма. Человек уже написал в личку
+// и сообщение привязалось к анкете, значит чат известен: отвечаем.
+test('анкета без телеграма, но человек написал: пишет', () => {
+  const now = almaty(20, 12, 1);
+  assert.deepEqual(decideTrigger(facts({ lead: lead({ username: null, telegramId: null }), now })), {
+    go: true,
+    dueAt: new Date(now.getTime() + SETTLE_MS),
   });
 });
 
