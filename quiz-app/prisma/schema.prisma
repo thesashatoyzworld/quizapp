@@ -1443,3 +1443,42 @@ model ShtabFile {
 
   @@map("shtab_file")
 }
+
+// Оптимизатор рилсов (/optimizator): счётчик разборов за месяц и сохранённые
+// разборы. Таблицы заводит scripts/optimizator-create-tables.mjs, не db push.
+model OptimizatorUsage {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @map("telegram_id")
+  /// YYYY-MM
+  month      String
+  count      Int      @default(0)
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  @@unique([telegramId, month])
+  @@map("optimizator_usage")
+}
+
+model OptimizatorRun {
+  id           String   @id @default(uuid())
+  telegramId   BigInt   @map("telegram_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  /// conversion | virality
+  goal         String
+  /// v4 only: draft | filmed. v5 runs (goal and format detected from the text) write NULL.
+  stage        String?  @default("draft")
+  niche        String?
+  audience     String?
+  script       String
+  result       Json?
+  /// v5: { window_days, searched, coverage_posts, items (with urls), links } from findDemand
+  demand       Json?
+  model        String
+  inputTokens  Int?     @map("input_tokens")
+  outputTokens Int?     @map("output_tokens")
+  durationMs   Int?     @map("duration_ms")
+  /// ok | error
+  status       String
+
+  @@index([telegramId, createdAt(sort: Desc)])
+  @@map("optimizator_runs")
+}

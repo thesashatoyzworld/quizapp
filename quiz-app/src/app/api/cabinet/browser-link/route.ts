@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 // Билет выдаётся ТОЛЬКО по подписанной initData: id из initDataUnsafe на клиенте
 // не подписан, по нему можно было бы выпросить доступ к чужому кабинету.
 
-const ALLOWED_PATHS = ['/dostup', '/kurs', '/prompty', '/potok', '/razbory', '/sozvony', '/lichnoe', '/formula', '/soobshchestvo'];
+const ALLOWED_PATHS = ['/dostup', '/kurs', '/prompty', '/potok', '/razbory', '/sozvony', '/lichnoe', '/formula', '/soobshchestvo', '/optimizator'];
 
 export async function POST(request: NextRequest) {
   try {

@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 // Билет живёт пять минут. Просрочен или подделан - человек просто попадает
 // на вход в кабинет, как будто открыл адрес руками.
 
-const ALLOWED_PATHS = ['/dostup', '/kurs', '/prompty', '/potok', '/razbory', '/sozvony', '/lichnoe', '/formula', '/soobshchestvo'];
+const ALLOWED_PATHS = ['/dostup', '/kurs', '/prompty', '/potok', '/razbory', '/sozvony', '/lichnoe', '/formula', '/soobshchestvo', '/optimizator'];
 
 export async function GET(request: NextRequest) {
   const botToken = process.env.BOT_TOKEN;
