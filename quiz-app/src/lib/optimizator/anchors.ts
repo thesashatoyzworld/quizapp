@@ -3,8 +3,10 @@
 // scripts/optimizator-anchors-build.mjs from the reels-optimizer research pool).
 // Topic match reuses the demand search phrases (Haiku) and Postgres FTS; research
 // used TF-IDF over transcripts, FTS on the same phrases is the cabinet's equivalent.
+// 276 anchors from 74 expert authors (29.10): a niche topic gets the nearest, not an exact match.
 // Server only.
 import { prisma } from '@/lib/prisma';
+import { LADDER_CUT } from './config';
 
 export type Anchor = {
   id: string;
@@ -24,23 +26,34 @@ const PER_CLASS = 4;
 export async function pickAnchors(phrases: string[]): Promise<Anchor[]> {
   let picked: (Anchor & { author: string })[] = [];
   if (phrases.length) {
+    // A phrase matches when two of its words (stems, prefix) occur in the first 2500
+    // chars, the part the model actually reads (as in demand.ts). Long transcripts
+    // matched any OR of words and won on length; this ranks by phrases matched, then
+    // by length-normalized rank.
     picked = await prisma.$queryRaw<(Anchor & { author: string })[]>`
-      WITH lx AS (
-        SELECT DISTINCT CASE
+      WITH ph AS (
+        SELECT i, array_agg(DISTINCT CASE
                  WHEN length(lexeme) >= 7 THEN left(lexeme, length(lexeme) - 2)
                  WHEN length(lexeme) = 6 THEN left(lexeme, 5)
-                 ELSE lexeme END AS l
-          FROM unnest(${phrases}::text[]) p, unnest(to_tsvector('russian', p)) t
-      ), q AS (
-        SELECT string_agg(quote_literal(l) || ':*', ' | ')::tsquery AS q FROM lx WHERE length(l) >= 3
+                 ELSE lexeme END) AS lx
+          FROM unnest(${phrases}::text[]) WITH ORDINALITY u(p, i), unnest(to_tsvector('russian', p)) t
+         GROUP BY i
+      ), parts AS (
+        SELECT ph.i, string_agg('(' || quote_literal(a) || ':* & ' || quote_literal(b) || ':*)', ' | ')::tsquery AS q
+          FROM ph, unnest(ph.lx) WITH ORDINALITY x(a, ia), unnest(ph.lx) WITH ORDINALITY y(b, ib)
+         WHERE ia < ib GROUP BY ph.i
+      ), head AS (
+        SELECT id, text, class, ratio, first_line, author, to_tsvector('russian', left(text, ${LADDER_CUT}::int)) AS tsv
+          FROM optimizator_anchors
       ), scored AS (
-        SELECT a.id, a.text, a.class, a.ratio, a.first_line, a.author, ts_rank_cd(a.tsv, q.q, 1) AS score
-          FROM optimizator_anchors a, q
-         WHERE q.q IS NOT NULL AND a.tsv @@ q.q
+        SELECT h.id, h.text, h.class, h.ratio, h.first_line, h.author,
+               (SELECT count(*) FROM parts WHERE h.tsv @@ parts.q) AS phrases,
+               (SELECT sum(ts_rank_cd(h.tsv, parts.q, 2)) FROM parts) AS rank
+          FROM head h
       ), by_author AS (
-        SELECT *, row_number() OVER (PARTITION BY author ORDER BY score DESC) AS an FROM scored
+        SELECT *, row_number() OVER (PARTITION BY author ORDER BY phrases DESC, rank DESC) AS an FROM scored WHERE phrases > 0
       ), by_class AS (
-        SELECT *, row_number() OVER (PARTITION BY class ORDER BY score DESC) AS cn FROM by_author WHERE an = 1
+        SELECT *, row_number() OVER (PARTITION BY class ORDER BY phrases DESC, rank DESC) AS cn FROM by_author WHERE an = 1
       )
       SELECT id, text, class, ratio::float8 AS ratio, first_line, author FROM by_class
        WHERE cn <= ${PER_CLASS}::int ORDER BY class, cn`;
@@ -58,5 +71,5 @@ export async function pickAnchors(phrases: string[]): Promise<Anchor[]> {
        ORDER BY author LIMIT ${need}::int`;
     picked.push(...more);
   }
-  return picked.map(({ author: _a, ...a }) => { void _a; return { ...a, ratio: Number(a.ratio) }; });
+  return picked.map(({ author: _a, ...a }) => { void _a; return { ...a, ratio: Math.round(Number(a.ratio) * 100) / 100 }; });
 }

@@ -17,6 +17,7 @@ if (!file) {
   console.error('Usage: npx tsx scripts/optimizator-ladder-try.ts <script.txt> [username]');
   process.exit(1);
 }
+async function main() {
 const { runLadder, scriptPhrases } = await load();
 const script = readFileSync(file, 'utf8').trim();
 const phrases = scriptPhrases(script);
@@ -35,3 +36,6 @@ const u = l.usage;
 const cost = (u.input * 4 + u.output * 20 + u.cacheRead * 0.2 + u.cacheWrite * 5) / 1e6;
 console.log(`usage: in ${u.input} out ${u.output} cache read ${u.cacheRead} write ${u.cacheWrite}, $${cost.toFixed(3)}, ${Math.round(u.ms / 1000)} s`);
 process.exit(0);
+}
+
+main();
