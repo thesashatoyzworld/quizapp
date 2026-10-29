@@ -3,22 +3,29 @@ import { verifiedViewer } from '@/lib/reels/store';
 import { tiersForTelegram } from '@/lib/kb/tier';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { analyzeScript } from '@/lib/optimizator/analyze';
-import { MODEL, UNLIMITED_IDS, limitFor, monthKey } from '@/lib/optimizator/config';
-import { findDemand, type DemandEvidence } from '@/lib/optimizator/demand';
-import { getRun, history, releaseSlot, reserveSlot, saveRun, usedThisMonth, type StoredDemand } from '@/lib/optimizator/store';
-import { SCRIPT_MAX, SCRIPT_MIN, toStudent, type Analysis, type DemandLink } from '@/lib/optimizator/view';
+import { LADDER_ON, MODEL, UNLIMITED_IDS, limitFor, monthKey } from '@/lib/optimizator/config';
+import { findDemand, scriptPhrases, type DemandEvidence } from '@/lib/optimizator/demand';
+import { runLadder } from '@/lib/optimizator/ladder';
+import {
+  getRun, history, lastUsername, releaseSlot, reserveSlot, saveRun, studentLadder, usedThisMonth, type StoredDemand,
+} from '@/lib/optimizator/store';
+import { SCRIPT_MAX, SCRIPT_MIN, normalizeUsername, toStudent, type Analysis, type DemandLink } from '@/lib/optimizator/view';
 
 export const runtime = 'nodejs';
 // The analysis takes 70-135 s (model thinking is on), plus up to 8 s of demand search.
+// The ladder runs alongside: own reels on the first run per week add HikerAPI + Scribe.
 export const maxDuration = 300;
 
 // Section «Оптимизатор рилсов»: a student pastes a reel script, the server looks
 // up demand evidence in the outliers base (findDemand), runs the Kallaway analysis
 // prompt and saves the result. Goal and format are detected by the model.
+// In parallel the ladder (Opus) compares the script with 8 reels of known outcome:
+// the student's own past reels when an Instagram username is given, else expert
+// reels on a close topic. Same run, same monthly slot.
 //
-//   GET  /api/cabinet/optimizator        → { identified, access, tier, used, limit, history }
+//   GET  /api/cabinet/optimizator        → { identified, access, tier, used, limit, history, instagram, ladder }
 //   GET  /api/cabinet/optimizator?id=... → { run } (owner only)
-//   POST /api/cabinet/optimizator {script} → { run, used, limit } | { error, code }
+//   POST /api/cabinet/optimizator {script, instagram?} → { run, used, limit } | { error, code }
 //
 // Identity is signed only (x-tg-init-data or kb_session cookie): runs cost money.
 
@@ -48,8 +55,12 @@ export async function GET(request: NextRequest) {
       if (!run) return fail(404, 'not_found', 'Разбор не найден');
       return NextResponse.json({ run });
     }
-    const [used, items] = await Promise.all([usedThisMonth(v.id), history(v.id)]);
-    return NextResponse.json({ identified: true, access: true, tier: v.tier, used, limit: v.limit, history: items });
+    const [used, items, instagram] = await Promise.all([
+      usedThisMonth(v.id), history(v.id), lastUsername(v.id).catch(() => null),
+    ]);
+    return NextResponse.json({
+      identified: true, access: true, tier: v.tier, used, limit: v.limit, history: items, instagram, ladder: LADDER_ON,
+    });
   } catch (err) {
     console.error('[optimizator] GET failed:', err);
     return fail(500, 'server_error', 'Не получилось загрузить раздел. Обнови страницу.');
@@ -125,13 +136,27 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  const instagram = normalizeUsername(body.instagram);
+  // One Haiku call for search phrases, shared by the demand search and the ladder's topic anchors.
+  const phrases = scriptPhrases(script);
+  phrases.catch(() => { /* findDemand and the ladder handle it */ });
+  // Never throws; runs next to the analysis so the total time barely grows.
+  const ladderP = LADDER_ON ? runLadder({ script, username: instagram, phrases }) : Promise.resolve(null);
+
   // Never throws; its Haiku call records its own cost.
-  const evidence = await findDemand(script);
+  const evidence = await findDemand(script, phrases);
   const res = await analyzeScript({
     script,
     demand: { ...evidence, items: evidence.items.map(({ url: _url, ...it }) => { void _url; return it; }) },
   });
   if (res.usage) await recordAnthropicUsage(MODEL, res.usage, 'optimizator');
+
+  const ladder = await ladderP;
+  if (ladder) {
+    const u = ladder.usage;
+    console.log(`[optimizator] ladder ${ladder.kind} ${ladder.wins}/${ladder.total} score ${ladder.score}: ` +
+      `in ${u.input} out ${u.output} cache r ${u.cacheRead} w ${u.cacheWrite}, ${Math.round(u.ms / 1000)} s`);
+  }
 
   if (!res.ok) {
     console.error('[optimizator] analysis failed:', res.code, res.detail);
@@ -151,7 +176,7 @@ export async function POST(request: NextRequest) {
   let runId: string;
   try {
     runId = await saveRun({
-      telegramId: v.id, goal: res.analysis.goal, script, result: res.analysis, demand, model: MODEL,
+      telegramId: v.id, goal: res.analysis.goal, script, result: res.analysis, demand, model: MODEL, ladder, instagram,
       inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens,
       durationMs: res.durationMs, status: 'ok',
     });
@@ -170,6 +195,7 @@ export async function POST(request: NextRequest) {
       script,
       result: toStudent(res.analysis),
       demandLinks: demand.links,
+      ladder: ladder ? studentLadder(ladder) : null,
     },
     used: reserved,
     limit: v.limit,

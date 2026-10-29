@@ -132,6 +132,49 @@ export type StudentAnalysis = Omit<Analysis, 'caps_applied' | 'criteria' | 'reac
   v5: boolean;
 };
 
+/** own = the student's past reels, anchor = expert reels of other authors on a close topic. */
+export type LadderKind = 'own' | 'anchor';
+
+/** One reference reel the script was compared with. Never carries another author's nickname. */
+export interface LadderRef {
+  /** First sentence of the reference reel. */
+  label: string;
+  outcome: 'hit' | 'norm' | 'flop';
+  /** own: plays / median plays of the fetched reels; anchor: likes vs the author's median. */
+  ratio: number;
+  /** own only. */
+  plays: number | null;
+  /** The student's script won this pair (both orders summed). */
+  won: boolean;
+  /** Signed confidence summed over both orders, -200..200, positive = student wins. */
+  margin: number;
+}
+
+export interface Ladder {
+  kind: LadderKind;
+  wins: number;
+  total: number;
+  /** Mean signed confidence over all answers, -100..100. */
+  score: number;
+  confident: boolean;
+  refs: LadderRef[];
+  /** own: the Instagram username the refs came from. */
+  username: string | null;
+}
+
+/** One line under "Сильнее X из N". */
+export function ladderVerdict(l: Ladder): string {
+  const share = l.total ? l.wins / l.total : 0;
+  if (l.kind === 'own') {
+    if (share >= 0.7) return 'похож на твои залёты';
+    if (share > 0.3) return 'на уровне твоих обычных';
+    return 'слабее твоих обычных, начни с правок ниже';
+  }
+  if (share >= 0.7) return 'похож на залёты экспертов по этой теме';
+  if (share > 0.3) return 'на среднем уровне по этой теме';
+  return 'слабее средних по этой теме, начни с правок ниже';
+}
+
 export interface HistoryItem {
   id: string;
   createdAt: string;
@@ -149,6 +192,26 @@ export interface SavedRun {
   script: string;
   result: StudentAnalysis;
   demandLinks: DemandLink[];
+  /** null: ladder off, failed, refused, or a run saved before it existed. */
+  ladder: Ladder | null;
+}
+
+/** Instagram username from "@nick", "nick" or a profile link; null when it does not look like one. */
+export function normalizeUsername(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  let s = raw.trim();
+  const m = s.match(/instagram\.com\/([^/?#\s]+)/i);
+  if (m) s = m[1];
+  s = s.replace(/^@/, '').toLowerCase();
+  return /^[a-z0-9._]{1,30}$/.test(s) ? s : null;
+}
+
+/** First sentence of a transcript for the references list. */
+export function firstSentence(text: string, max = 120): string {
+  const t = text.replace(/\s+/g, ' ').trim();
+  const m = t.match(/^.{12,}?[.!?…](?=\s|$)/);
+  const s = m ? m[0] : t;
+  return s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s;
 }
 
 /** First spoken line for the history list: skips notes like [Формат: ...] and speaker labels. */

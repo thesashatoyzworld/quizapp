@@ -5,8 +5,8 @@ import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import { trackSection } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
 import {
-  DEMAND_STATUS, FORMAT_NAME, REASON_ANSWER, SCRIPT_MAX, SCRIPT_MIN, SHARE_KIND, firstLine, sourceUrl,
-  type DemandLink, type ViewerReason, type ViewerReasons, type HistoryItem, type SavedRun, type StudentAnalysis,
+  DEMAND_STATUS, FORMAT_NAME, REASON_ANSWER, SCRIPT_MAX, SCRIPT_MIN, SHARE_KIND, firstLine, ladderVerdict, sourceUrl,
+  type DemandLink, type Ladder, type ViewerReason, type ViewerReasons, type HistoryItem, type SavedRun, type StudentAnalysis,
 } from '@/lib/optimizator/view';
 
 // Раздел «Оптимизатор рилсов»: ученик вставляет только текст ролика, сервер ищет
@@ -18,6 +18,7 @@ const BOT_URL = 'https://t.me/testtoyzbot';
 
 const STEPS = [
   'Ищу тему в базе залетевших постов',
+  'Сравниваю с роликами, где результат уже известен',
   'Определяю цель и формат ролика',
   'Оцениваю тему и угол',
   'Проверяю первую фразу',
@@ -28,7 +29,7 @@ const STEPS = [
   'Собираю список правок',
 ];
 /** Typical run is 70-135 s; steps are spread over ~110 s. */
-const STEP_MS = 16_000;
+const STEP_MS = 14_000;
 
 const READINESS: Record<string, string> = {
   ready: 'Можно выкладывать', needs_work: 'Нужны правки', rewrite: 'Лучше переписать',
@@ -172,6 +173,53 @@ function DemandBlock({ demand, links }: { demand: NonNullable<StudentAnalysis['d
           <p className="op-note">×число: во сколько раз пост обогнал обычные ролики своего автора</p>
         </>
       )}
+    </section>
+  );
+}
+
+const OUTCOME: Record<string, string> = { hit: 'залёт', norm: 'норма', flop: 'провал' };
+
+function fmtRatio(r: number) {
+  return `×${r.toLocaleString('ru-RU', { maximumFractionDigits: r < 10 ? 1 : 0 })}`;
+}
+
+function refOutcome(l: Ladder, r: Ladder['refs'][number]) {
+  if (l.kind === 'own') {
+    const plays = r.plays !== null ? `${r.plays.toLocaleString('ru-RU')} просмотров` : '';
+    return [OUTCOME[r.outcome], plays].filter(Boolean).join(' · ');
+  }
+  return r.outcome === 'hit'
+    ? `ролик эксперта по похожей теме, залетел ${fmtRatio(r.ratio)}`
+    : `ролик эксперта по похожей теме, не залетел: ${fmtRatio(r.ratio)} от обычного`;
+}
+
+/** Place among 8 reels of known outcome: own past reels or expert reels on the topic. */
+function LadderBlock({ l }: { l: Ladder }) {
+  const share = l.total ? l.wins / l.total : 0;
+  const tone = share >= 0.7 ? 'op-good' : share > 0.3 ? 'op-mid' : 'op-low';
+  return (
+    <section className="op-card op-ladder">
+      <p className="op-ladder-head">
+        Сильнее <b className={tone}>{l.wins} из {l.total}</b>{' '}
+        {l.kind === 'own' ? 'твоих прошлых роликов' : 'роликов экспертов по твоей теме'}
+      </p>
+      <div className="op-ladder-dots" aria-hidden="true">
+        {l.refs.map((r, i) => <i key={i} className={r.won ? tone : ''} />)}
+      </div>
+      <p className="op-p op-ladder-verdict">{ladderVerdict(l)}</p>
+      {!l.confident && <p className="op-p op-muted">Разница небольшая, решит подача.</p>}
+      <details className="op-ladder-list">
+        <summary>С чем сравнивал</summary>
+        <ul>
+          {l.refs.map((r, i) => (
+            <li key={i}>
+              <span className={r.won ? 'op-ladder-res op-ladder-won' : 'op-ladder-res'}>{r.won ? 'ты сильнее' : 'ты слабее'}</span>
+              <span className="op-ladder-text">«{r.label}»</span>
+              <span className="op-ladder-out">{refOutcome(l, r)}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
     </section>
   );
 }
@@ -367,6 +415,8 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
         {why && <p className="op-meta-why">{why}</p>}
       </div>
 
+      {run.ladder && <LadderBlock l={run.ladder} />}
+
       {a.v5 && a.demand && <DemandBlock demand={a.demand} links={run.demandLinks || []} />}
 
       <section className="op-card op-hero">
@@ -447,6 +497,8 @@ function OptimizatorInner() {
   const [limit, setLimit] = useState(0);
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [script, setScript] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [ladderOn, setLadderOn] = useState(false);
   const [busySince, setBusySince] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [run, setRun] = useState<SavedRun | null>(null);
@@ -484,6 +536,8 @@ function OptimizatorInner() {
         if (!data.identified) { setState('guest'); return; }
         if (!data.access) { setState('locked'); return; }
         setUsed(data.used); setLimit(data.limit); setItems(data.history || []);
+        setLadderOn(Boolean(data.ladder));
+        if (data.instagram) setInstagram(`@${data.instagram}`);
         setState('ok');
         trackSection('optimizator', id);
         const want = new URLSearchParams(window.location.search).get('run');
@@ -510,7 +564,7 @@ function OptimizatorInner() {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...authHeaders() },
         credentials: 'same-origin',
-        body: JSON.stringify({ script }),
+        body: JSON.stringify({ script, instagram: instagram.trim() || undefined }),
       });
       const data = await res.json().catch(() => ({}));
       if (typeof data.used === 'number') setUsed(data.used);
@@ -607,6 +661,25 @@ function OptimizatorInner() {
               {len < SCRIPT_MIN ? `ещё ${SCRIPT_MIN - len} символов до минимума` : `${len} / ${SCRIPT_MAX}`}
             </div>
 
+            {ladderOn && (
+              <div className="op-ig">
+                <label className="op-label" htmlFor="op-ig">Ник в инстаграме <span>необязательно</span></label>
+                <input
+                  id="op-ig"
+                  className="op-input"
+                  placeholder="@твой_ник"
+                  value={instagram}
+                  onChange={(e) => setInstagram(e.target.value)}
+                  disabled={!!busySince}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  maxLength={64}
+                />
+                <p className="op-hint">Сравню текст с твоими прошлыми роликами. Без ника сравню с роликами экспертов по твоей теме</p>
+              </div>
+            )}
+
             <button type="button" className="op-run" onClick={submit} disabled={!canRun}>
               {busySince ? 'Разбираю…' : left > 0 ? 'Разобрать' : 'Лимит на месяц исчерпан'}
             </button>
@@ -687,6 +760,35 @@ function OptimizatorInner() {
         }
         .op-textarea:focus { outline: 2px solid var(--op-accent); outline-offset: -1px; border-color: transparent; }
         .op-count { font-size: 11.5px; color: var(--op-muted); text-align: right; margin-top: 5px; font-variant-numeric: tabular-nums; }
+        .op-ig { margin-top: 14px; }
+        .op-ig .op-label span { font-weight: 500; margin-left: 4px; }
+        .op-input {
+          width: 100%; border: 1px solid var(--op-line); border-radius: 12px; padding: 11px 13px;
+          font-family: inherit; font-size: 15px; color: var(--op-text); background: var(--op-bg);
+        }
+        .op-input:focus { outline: 2px solid var(--op-accent); outline-offset: -1px; border-color: transparent; }
+        .op-hint { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: var(--op-muted); }
+
+        .op-ladder { border-color: var(--op-text); }
+        .op-ladder-head { margin: 0; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 19px; line-height: 1.3; letter-spacing: -0.015em; }
+        .op-ladder-head b { font-weight: 900; white-space: nowrap; }
+        .op-ladder-head b.op-good { color: var(--op-good); } .op-ladder-head b.op-mid { color: var(--op-mid); } .op-ladder-head b.op-low { color: var(--op-low); }
+        .op-ladder-dots { display: flex; gap: 6px; margin-top: 12px; }
+        .op-ladder-dots i { flex: 1 1 0; height: 8px; border-radius: 99px; background: var(--op-line); }
+        .op-ladder-dots i.op-good { background: var(--op-good); } .op-ladder-dots i.op-mid { background: var(--op-mid); } .op-ladder-dots i.op-low { background: var(--op-low); }
+        .op-ladder-verdict { font-weight: 700; margin-top: 12px; }
+        .op-ladder-list { margin-top: 12px; border-top: 1px solid var(--op-line); padding-top: 10px; }
+        .op-ladder-list summary { cursor: pointer; list-style: none; font-size: 13.5px; font-weight: 700; color: var(--op-accent); }
+        .op-ladder-list summary::-webkit-details-marker { display: none; }
+        .op-ladder-list summary::before { content: '+ '; }
+        .op-ladder-list[open] summary::before { content: '− '; }
+        .op-ladder-list ul { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; }
+        .op-ladder-list li { display: flex; flex-direction: column; gap: 3px; background: var(--op-bg); border: 1px solid var(--op-line); border-radius: 12px; padding: 10px 12px; }
+        .op-ladder-res { align-self: flex-start; font-size: 11.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; color: var(--op-low); background: var(--op-low-soft); }
+        .op-ladder-won { color: var(--op-good); background: var(--op-good-soft); }
+        .op-ladder-text { font-size: 13.5px; line-height: 1.45; font-weight: 600; word-break: break-word; }
+        .op-ladder-out { font-size: 12px; line-height: 1.4; color: var(--op-muted); }
+
         .op-run {
           width: 100%; margin-top: 16px; cursor: pointer; border: none; background: var(--op-accent);
           color: oklch(1 0 0); font-family: 'Archivo', system-ui, sans-serif; font-weight: 800;

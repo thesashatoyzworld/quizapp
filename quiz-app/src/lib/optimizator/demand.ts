@@ -161,13 +161,21 @@ function toItem(r: Row, i: number): DemandItem {
   };
 }
 
+/**
+ * Search phrases for the script, one Haiku call. Shared by the demand search and the
+ * ladder's topic anchors, so a run pays for it once. Rejects on error or timeout.
+ */
+export function scriptPhrases(script: string): Promise<string[]> {
+  return deadline(searchPhrases(script, TOTAL_TIMEOUT_MS), TOTAL_TIMEOUT_MS);
+}
+
 /** Evidence of demand for the script's topic. Never throws, returns within ~8 s. */
-export async function findDemand(script: string): Promise<DemandEvidence> {
+export async function findDemand(script: string, phrasesP?: Promise<string[]>): Promise<DemandEvidence> {
   const t0 = Date.now();
   const left = () => TOTAL_TIMEOUT_MS - (Date.now() - t0);
   const cov = coverage(DEMAND_WINDOW_DAYS).catch(() => 0);
   try {
-    const phrases = await deadline(searchPhrases(script, left()), left());
+    const phrases = await deadline(phrasesP ?? searchPhrases(script, left()), left());
     const rows = await deadline(searchDemandPosts(phrases), left());
     return {
       window_days: DEMAND_WINDOW_DAYS,

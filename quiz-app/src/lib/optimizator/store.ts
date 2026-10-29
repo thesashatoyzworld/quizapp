@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@/generated/prisma/client';
 import { monthKey } from './config';
 import type { DemandEvidence } from './demand';
-import type { Analysis, DemandLink, Goal, HistoryItem, SavedRun, Stage } from './view';
+import type { Analysis, DemandLink, Goal, HistoryItem, Ladder, SavedRun, Stage } from './view';
 import { firstLine, toStudent } from './view';
 
 export async function usedThisMonth(telegramId: number): Promise<number> {
@@ -47,6 +47,10 @@ export async function saveRun(data: {
   script: string;
   result: Analysis | null;
   demand: StoredDemand | null;
+  /** Stored inside result as `ladder` (with token usage); null when off or failed. */
+  ladder?: (Ladder & { usage?: unknown }) | null;
+  /** The username the student typed, stored inside result as `instagram` to prefill the form. */
+  instagram?: string | null;
   model: string;
   inputTokens: number | null;
   outputTokens: number | null;
@@ -61,7 +65,9 @@ export async function saveRun(data: {
       // v5 has no stage, niche or audience input: the model reads them from the text.
       stage: null,
       script: data.script,
-      result: (data.result ?? (data.error ? { error: data.error } : undefined)) as Prisma.InputJsonValue | undefined,
+      result: (data.result
+        ? { ...data.result, ...(data.ladder ? { ladder: data.ladder } : {}), ...(data.instagram ? { instagram: data.instagram } : {}) }
+        : data.error ? { error: data.error } : undefined) as Prisma.InputJsonValue | undefined,
       demand: (data.demand ?? undefined) as Prisma.InputJsonValue | undefined,
       model: data.model,
       inputTokens: data.inputTokens,
@@ -99,13 +105,35 @@ export async function getRun(telegramId: number, id: string): Promise<SavedRun |
     where: { id, telegramId: BigInt(telegramId), status: 'ok' },
   });
   if (!r || !r.result) return null;
+  const { ladder, instagram: _ig, ...analysis } = r.result as unknown as Analysis & {
+    ladder?: Ladder & { usage?: unknown };
+    instagram?: string;
+  };
+  void _ig;
   return {
     id: r.id,
     createdAt: r.createdAt.toISOString(),
     goal: r.goal as Goal,
     stage: r.stage === 'filmed' || r.stage === 'draft' ? (r.stage as Stage) : null,
     script: r.script,
-    result: toStudent(r.result as unknown as Analysis),
+    result: toStudent(analysis),
     demandLinks: (r.demand as StoredDemand | null)?.links ?? [],
+    ladder: ladder ? studentLadder(ladder) : null,
   };
+}
+
+/** Token usage stays on the server. */
+export function studentLadder(l: Ladder & { usage?: unknown }): Ladder {
+  const { usage: _u, ...rest } = l;
+  void _u;
+  return rest;
+}
+
+/** The Instagram username the student gave last time, to prefill the form. */
+export async function lastUsername(telegramId: number): Promise<string | null> {
+  const rows = await prisma.$queryRaw<{ u: string | null }[]>`
+    SELECT result->>'instagram' AS u FROM optimizator_runs
+     WHERE telegram_id = ${BigInt(telegramId)} AND status = 'ok' AND result->>'instagram' IS NOT NULL
+     ORDER BY created_at DESC LIMIT 1`;
+  return rows[0]?.u ?? null;
 }

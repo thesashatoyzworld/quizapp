@@ -84,6 +84,7 @@ export const CONSUMER_LABEL: Record<string, string> = {
   zoom: 'конвейер созвонов',
   group: 'черновики в группу',
   optimizator: 'оптимизатор рилсов',
+  optimizator_ladder: 'оптимизатор: сравнение с роликами',
   other: 'прочее',
 };
 

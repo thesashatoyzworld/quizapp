@@ -25,3 +25,26 @@ export function monthKey(d = new Date()): string {
   const msk = new Date(d.getTime() + 3 * 3600 * 1000);
   return msk.toISOString().slice(0, 7);
 }
+
+/**
+ * Ladder: the script is compared pairwise with 8 reels of known outcome (the student's
+ * own past reels, or expert reels on a close topic). Research (reels-optimizer
+ * prompts/kallaway/pairs/ladder.py): experts, own reels 0.81 within author, topic
+ * anchors 0.78, against ~0.70 for the absolute score. Off switch for the whole block.
+ */
+export const LADDER_ON = true;
+/** Pairwise was measured on Opus; Sonnet drops to ~0.69. */
+export const LADDER_MODEL = 'claude-opus-5-5';
+export const LADDER_MAX_TOKENS = 32_000;
+/** Reference reels per ladder (4 hits + 4 flops for anchors). */
+export const LADDER_REFS = 8;
+/** Below this many own reels with speech the ladder falls back to anchors. */
+export const LADDER_MIN_OWN = 4;
+/** Chars per text in a pair, as in ladder.py. */
+export const LADDER_CUT = 2500;
+/**
+ * |mean signed confidence| over all 16 answers (-100..100) from which the place is
+ * "confident". 25 ≈ 6 of 8 won in both orders at ~70; 5 of 8 at 70 gives 17.5 and
+ * reads as "разница небольшая".
+ */
+export const LADDER_CONFIDENT = 25;
