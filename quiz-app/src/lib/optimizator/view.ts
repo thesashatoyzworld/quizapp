@@ -208,7 +208,8 @@ export function normalizeUsername(raw: unknown): string | null {
 
 /** First sentence of a transcript for the references list. */
 export function firstSentence(text: string, max = 120): string {
-  const t = text.replace(/\s+/g, ' ').trim();
+  // Scribe audio tags ([смех], [кричит]) and speaker labels are not part of the line.
+  const t = text.replace(/\[[^\]]{1,30}\]\s*/g, '').replace(/^Голос \d+:\s*/gm, '').replace(/\s+/g, ' ').trim();
   const m = t.match(/^.{12,}?[.!?…](?=\s|$)/);
   const s = m ? m[0] : t;
   return s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s;

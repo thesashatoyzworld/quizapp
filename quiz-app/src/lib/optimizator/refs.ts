@@ -3,7 +3,7 @@
 // optimizator_refs and refreshed at most weekly. Server only. Never throws.
 //
 // Endpoints as in GSD-BRAND clients/sasha/kallaway/pool (hk.py, collect.py):
-// /v1/user/by/username → pk, then /g2/user/medias pages. Scribe as in
+// /v1/user/by/username → pk, then /v2/user/clips pages (the Reels tab). Scribe as in
 // reels-optimizer prompts/kallaway/fresh/fetch.py (scribe_v1), but the video is sent
 // straight to Scribe: no ffmpeg on Vercel, and Scribe takes mp4.
 import { prisma } from '@/lib/prisma';
@@ -68,6 +68,7 @@ async function transcribe(videoUrl: string, code: string): Promise<string | null
     if (!vid.ok) return null;
     const form = new FormData();
     form.append('model_id', 'scribe_v1');
+    form.append('tag_audio_events', 'false');
     form.append('file', new Blob([await vid.arrayBuffer()], { type: 'video/mp4' }), `${code}.mp4`);
     const res = await fetch(SCRIBE, {
       method: 'POST',
@@ -101,19 +102,26 @@ async function fetchFresh(username: string): Promise<OwnRefs> {
   const now = Date.now() / 1000;
   const reels = new Map<string, { code: string; taken_at: number; plays: number; video: string }>();
   let next: string | undefined;
+  // The Reels tab, not the feed: an account that posts mostly carousels has no reels
+  // in the first feed pages (Sasha's feed, 29.10). Items come as {media} or bare.
   for (let page = 0; page < MAX_PAGES; page++) {
-    const d = (await hiker('/g2/user/medias', { user_id: String(user.pk), ...(next ? { next_page_id: next } : {}) })) as {
-      response?: { items?: Media[] };
+    const d = (await hiker('/v2/user/clips', { user_id: String(user.pk), ...(next ? { page_id: next } : {}) })) as {
+      response?: { items?: ({ media?: Media } & Media)[] };
+      items?: ({ media?: Media } & Media)[];
       next_page_id?: string;
     };
-    const items = d.response?.items || [];
-    for (const i of items) {
+    const items = d.response?.items || d.items || [];
+    for (const it of items) {
+      const i: Media = it.media ?? it;
       const taken = Number(i.taken_at || i['1ltaken_at'] || 0);
       const plays = Number(i.play_count ?? i.ig_play_count ?? 0);
       const video = i.video_versions?.[0]?.url;
-      if (i.media_type !== 2 || !i.code || !video || !plays || i.like_and_view_counts_disabled) continue;
+      if (i.media_type !== 2 || !i.code || !video || !plays || !taken || i.like_and_view_counts_disabled) continue;
       if (now - taken < MIN_AGE_DAYS * 86400) continue;
       reels.set(i.code, { code: i.code, taken_at: taken, plays, video });
+    }
+    if (page === 0 && items.length && !reels.size) {
+      console.error('[optimizator/refs] no usable reels on page 1, item keys:', Object.keys(items[0]).slice(0, 30).join(','));
     }
     next = d.next_page_id;
     if (!next || !items.length || reels.size >= POOL) break;
