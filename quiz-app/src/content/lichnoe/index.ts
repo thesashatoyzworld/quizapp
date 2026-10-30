@@ -96,6 +96,8 @@ import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_27 } from './lichnyy-sozvon-ramil-
 
 import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_30 } from './lichnyy-sozvon-leonid-2026-10-30';
 
+import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_30 } from './lichnyy-sozvon-stas-2026-10-30';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -118,6 +120,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-stas-2026-10-30',
+    telegramIds: [204608959, 788334680],
+    client: "Стас",
+    title: "Транслируем тебя, а не образ",
+    subtitle: "Досняли новую пачку ответов на темы про команду, разницу между людьми, главную ошибку собственника и закрытие ресторана, а в конце разобрали твоё настоящее сопротивление: не выложить страшно, а страшно, что подумают знакомые, поэтому договорились делать две версии роликов и смотреть цифры, а не спорить, кто прав, и оставили прежний чекпоинт: копим ролики в пробниках, пока не наберётся десять",
+    date: '2026-10-30',
+    duration: "45 мин",
+    tags: ["темы роликов", "ответственность", "дисциплина", "эмоции", "пробники"],
+    kinescopeId: 'vweTBqnYtHja8G1caQdHDK',
+    html: LICHNOE_LICHNYY_SOZVON_STAS_2026_10_30,
+  },
   {
     slug: 'lichnyy-sozvon-leonid-2026-10-30',
     telegramIds: [167259877, 788334680],
