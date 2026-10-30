@@ -94,6 +94,8 @@ import { LICHNOE_LICHNYY_SOZVON_MARIYA_2026_10_27 } from './lichnyy-sozvon-mariy
 
 import { LICHNOE_LICHNYY_SOZVON_RAMIL_2026_10_27 } from './lichnyy-sozvon-ramil-2026-10-27';
 
+import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_30 } from './lichnyy-sozvon-leonid-2026-10-30';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -116,6 +118,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-leonid-2026-10-30',
+    telegramIds: [167259877, 788334680],
+    client: "Леонид",
+    title: "Пришёл поржать, а не работать вбелую",
+    subtitle: "Монтаж уже закрыт нейронкой, поэтому следующие полтора месяца собираем систему: сначала оффер на бесплатный созвон текстом, потом три карусели в закреп (кто я, кейс с цифрами, оффер), потом отдельный Телеграм-канал вместо старой группы и воронка из Инсты и сайта в Телегу, разбираем лестницу продуктов от аудита до работы под ключ, план по шести неделям и главное правило контента: то, что людям нужно, заворачиваем в то, что они хотят",
+    date: '2026-10-30',
+    duration: "48 мин",
+    tags: ["оффер", "точка входа", "карусели", "телеграм-канал", "упаковка"],
+    kinescopeId: 'wsQAyrsrCXBLBGh29xd9LN',
+    html: LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_30,
+  },
   {
     slug: 'lichnyy-sozvon-ramil-2026-10-27',
     telegramIds: [1556129897, 788334680],
