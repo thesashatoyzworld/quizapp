@@ -98,7 +98,7 @@ import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_10_30 } from './lichnyy-sozvon-leoni
 
 import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_30 } from './lichnyy-sozvon-stas-2026-10-30';
 
-import { LICHNOE_LICHNYY_SOZVON_NATALYA_2026_11_04 } from './lichnyy-sozvon-natalya-2026-11-04';
+import { LICHNOE_LICHNYY_SOZVON_MARIYA_2026_11_04 } from './lichnyy-sozvon-mariya-2026-11-04';
 
 export interface LichnyMaterial {
   slug: string;
@@ -123,16 +123,16 @@ export interface LichnyMaterial {
 
 export const LICHNOE: LichnyMaterial[] = [
   {
-    slug: 'lichnyy-sozvon-natalya-2026-11-04',
-    telegramIds: [184686361, 788334680],
-    client: "Наталья | Маркетолог & Коуч",
+    slug: 'lichnyy-sozvon-mariya-2026-11-04',
+    telegramIds: [5393791951, 788334680],
+    client: "Мария Фокина",
     title: "Новый контент делают те, у кого старый плохой",
     subtitle: "Собрали контент-план на четверг, пятницу, субботу и воскресенье за десять минут из того, что уже сработало, и завели правило: пока не добрали людей, каждая карусель ведёт CTA в карусель-конвертер, а новый смысл внутри можно не придумывать, разобрали два источника идей (заходы коллег и то, что произошло у тебя) и зафиксировали семь идей на следующую неделю, включая уволенного ассистента, стройку дома и блокировку Клода, плюс нашли два повторяемых формата рилсов под тебя: карусель, превращённая в историю с голосом и футажами, и стендап с вырезанным фоном",
     date: '2026-11-04',
     duration: "61 мин",
     tags: ["перезалив", "контент-план", "конвертер", "идеи", "стендап"],
     kinescopeId: '2QbEsUSb2a1adFLSAdkTUK',
-    html: LICHNOE_LICHNYY_SOZVON_NATALYA_2026_11_04,
+    html: LICHNOE_LICHNYY_SOZVON_MARIYA_2026_11_04,
   },
   {
     slug: 'lichnyy-sozvon-stas-2026-10-30',
