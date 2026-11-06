@@ -100,6 +100,8 @@ import { LICHNOE_LICHNYY_SOZVON_STAS_2026_10_30 } from './lichnyy-sozvon-stas-20
 
 import { LICHNOE_LICHNYY_SOZVON_MARIYA_2026_11_04 } from './lichnyy-sozvon-mariya-2026-11-04';
 
+import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_11_06 } from './lichnyy-sozvon-evgeniya-2026-11-06';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -122,6 +124,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-evgeniya-2026-11-06',
+    telegramIds: [934091008, 788334680],
+    client: "Евгения Сокольчик",
+    title: "Как объяснить овощу, что он овощ",
+    subtitle: "Собрали семь версий из того, что уже снято, прописали уникализацию при экспорте (ускорить звук, повернуть кадр, другая музыка) и выкладываем пачками по три в день, упростили первое сообщение в личке до двух строк и разобрали переписку через параллель с флиртом, завели формат-табличку со стикерами (ситуация, что на самом деле нужно, что поможет) на шесть версий из одной идеи, и начали докручивать рабочий ролик про овощ: по статистике просмотр падает на девятнадцатой секунде, там, где звучит ответ, поэтому ответ отодвигаем в конец, перед ним ставим реплики-параллели и ищем юморной гайд под призыв, плюс делаем зеркальную версию под мужиков",
+    date: '2026-11-06',
+    duration: "64 мин",
+    tags: ["перезаливы", "уникализация", "переписки", "доля пропусков", "докрутка"],
+    kinescopeId: '63RB2X5BxbamQW8ejQtySF',
+    html: LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_11_06,
+  },
   {
     slug: 'lichnyy-sozvon-mariya-2026-11-04',
     telegramIds: [5393791951, 788334680],
