@@ -205,7 +205,7 @@ function LadderBlock({ l }: { l: Ladder }) {
           {l.kind === 'own' ? 'твоих прошлых роликов' : 'роликов экспертов по твоей теме'}
         </p>
         <span className={l.confident ? 'op-conf op-conf-yes' : 'op-conf'}>
-          {l.confident ? 'уверенно' : 'разница небольшая'}
+          {l.confident ? 'уверенно' : 'не уверен'}
         </span>
       </div>
       <div className="op-ladder-dots" aria-hidden="true">
