@@ -181,3 +181,64 @@ export function fmt(metric: Metric, value: number | null | undefined, kind: Kind
   if (metric === 'skipRate') return `${Math.round(value)}%`;
   return Math.round(value).toLocaleString('ru-RU');
 }
+
+// ─── board modes, copy collapsing, month grid ───
+
+export type Mode = 'plan' | 'published' | 'all';
+export const MODE_LABEL: Record<Mode, string> = { plan: 'План', published: 'Вышло', all: 'Всё' };
+
+/** «План» = still in work (text/edit/ready), «Вышло» = published, «Всё» = everything incl. cancelled. */
+export function inMode(item: Pick<ItemView, 'stage'>, mode: Mode): boolean {
+  if (mode === 'plan') return item.stage === 'text' || item.stage === 'edit' || item.stage === 'ready';
+  if (mode === 'published') return item.stage === 'published';
+  return true;
+}
+
+export interface CardGroup {
+  key: string;
+  items: ItemView[]; // one item, or the copies of one edit
+}
+
+/**
+ * Copies of one edit (same variant, same day, same stage) render as one card
+ * «×N копии», so 12 + 28 planned copies do not flood the board. Order is kept.
+ */
+export function collapseCopies(items: ItemView[]): CardGroup[] {
+  const out: CardGroup[] = [];
+  const byKey = new Map<string, CardGroup>();
+  for (const item of items) {
+    const key = item.variant ? `${item.variant}|${item.planDate ?? ''}|${item.stage}` : item.id;
+    const g = byKey.get(key);
+    if (g) g.items.push(item);
+    else {
+      const ng = { key, items: [item] };
+      byKey.set(key, ng);
+      out.push(ng);
+    }
+  }
+  for (const g of out) g.items.sort((a, b) => (a.copyNo ?? 0) - (b.copyNo ?? 0));
+  return out;
+}
+
+/** «1 копия», «3 копии», «5 копий». */
+export function copiesLabel(n: number): string {
+  const d = n % 10, h = n % 100;
+  const word = d === 1 && h !== 11 ? 'копия' : d >= 2 && d <= 4 && (h < 12 || h > 14) ? 'копии' : 'копий';
+  return `${n} ${word}`;
+}
+
+/** First day (YYYY-MM-01) of the month `n` months after the one containing `iso`. */
+export function addMonths(iso: string, n: number): string {
+  const d = new Date(`${iso.slice(0, 7)}-01T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Calendar weeks (Mon–Sun) covering the month that contains `iso`; days of other months included as padding. */
+export function monthGrid(iso: string): string[][] {
+  const first = `${iso.slice(0, 7)}-01`;
+  const last = addDays(addMonths(first, 1), -1);
+  const weeks: string[][] = [];
+  for (let mon = weekStart(first); mon <= last; mon = addDays(mon, 7)) weeks.push(weekDays(mon));
+  return weeks;
+}

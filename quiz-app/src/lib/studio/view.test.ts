@@ -84,3 +84,43 @@ test('ключи и сессия студии', () => {
   assert.equal(verifyStudioSession(token.replace(/.$/, (c) => (c === 'A' ? 'B' : 'A')), env), null);
   assert.equal(verifyStudioSession(createStudioSession('danya', env, Date.now() - 100 * 864e5), env), null);
 });
+
+test('режим доски: план, вышло, всё', async () => {
+  const { inMode } = await import('./view');
+  assert.equal(inMode({ stage: 'edit' }, 'plan'), true);
+  assert.equal(inMode({ stage: 'published' }, 'plan'), false);
+  assert.equal(inMode({ stage: 'skip' }, 'plan'), false);
+  assert.equal(inMode({ stage: 'published' }, 'published'), true);
+  assert.equal(inMode({ stage: 'skip' }, 'all'), true);
+});
+
+test('копии одной правки в одну карточку', async () => {
+  const { collapseCopies, copiesLabel } = await import('./view');
+  const groups = collapseCopies([
+    item({ id: 'a3', variant: 'mama', copyNo: 3, stage: 'edit' }),
+    item({ id: 'x', variant: null, stage: 'edit' }),
+    item({ id: 'a1', variant: 'mama', copyNo: 1, stage: 'edit' }),
+    item({ id: 'a2', variant: 'mama', copyNo: 2, stage: 'ready' }), // other stage → own card
+    item({ id: 'b1', variant: 'mama', copyNo: 4, stage: 'edit', planDate: '2026-11-10' }), // other day → own card
+    item({ id: 'y', variant: null, stage: 'edit' }),
+  ]);
+  assert.deepEqual(groups.map((g) => g.items.map((i) => i.id)), [['a1', 'a3'], ['x'], ['a2'], ['b1'], ['y']]);
+  assert.equal(copiesLabel(1), '1 копия');
+  assert.equal(copiesLabel(3), '3 копии');
+  assert.equal(copiesLabel(5), '5 копий');
+  assert.equal(copiesLabel(12), '12 копий');
+  assert.equal(copiesLabel(22), '22 копии');
+});
+
+test('сетка месяца с понедельника', async () => {
+  const { monthGrid, addMonths } = await import('./view');
+  const nov = monthGrid('2026-11-08');
+  assert.equal(nov[0][0], '2026-10-26'); // 1 Nov 2026 is a Sunday
+  assert.equal(nov[0][6], '2026-11-01');
+  assert.equal(nov.at(-1)![6], '2026-12-06');
+  assert.equal(nov.length, 6);
+  assert.ok(nov.every((w) => w.length === 7));
+  assert.equal(monthGrid('2027-02-10').length, 4); // Feb 2027 starts on Monday, 28 days
+  assert.equal(addMonths('2026-12-15', 1), '2027-01-01');
+  assert.equal(addMonths('2026-01-31', -1), '2025-12-01');
+});
