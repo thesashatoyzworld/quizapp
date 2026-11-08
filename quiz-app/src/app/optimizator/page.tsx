@@ -196,18 +196,22 @@ function refOutcome(l: Ladder, r: Ladder['refs'][number]) {
 /** Place among 8 reels of known outcome: own past reels or expert reels on the topic. */
 function LadderBlock({ l }: { l: Ladder }) {
   const share = l.total ? l.wins / l.total : 0;
-  const tone = share >= 0.7 ? 'op-good' : share > 0.3 ? 'op-mid' : 'op-low';
+  const tone = !l.confident ? 'op-neutral' : share >= 0.7 ? 'op-good' : share > 0.3 ? 'op-mid' : 'op-low';
   return (
     <section className="op-card op-ladder">
-      <p className="op-ladder-head">
-        Сильнее <b className={tone}>{l.wins} из {l.total}</b>{' '}
-        {l.kind === 'own' ? 'твоих прошлых роликов' : 'роликов экспертов по твоей теме'}
-      </p>
+      <div className="op-ladder-top">
+        <p className="op-ladder-head">
+          Сильнее <b className={tone}>{l.wins} из {l.total}</b>{' '}
+          {l.kind === 'own' ? 'твоих прошлых роликов' : 'роликов экспертов по твоей теме'}
+        </p>
+        <span className={l.confident ? 'op-conf op-conf-yes' : 'op-conf'}>
+          {l.confident ? 'уверенно' : 'разница небольшая'}
+        </span>
+      </div>
       <div className="op-ladder-dots" aria-hidden="true">
         {l.refs.map((r, i) => <i key={i} className={r.won ? tone : ''} />)}
       </div>
-      <p className="op-p op-ladder-verdict">{ladderVerdict(l)}</p>
-      {!l.confident && <p className="op-p op-muted">Разница небольшая, решит подача.</p>}
+      <p className={l.confident ? 'op-p op-ladder-verdict' : 'op-p op-ladder-verdict op-ladder-unsure'}>{ladderVerdict(l)}</p>
       <details className="op-ladder-list">
         <summary>С чем сравнивал</summary>
         <ul>
@@ -267,7 +271,17 @@ function Details({ a }: { a: StudentAnalysis }) {
   ];
   return (
     <details className="op-card op-details">
-      <summary>Подробнее <span>потенциал охвата, тема и угол, первая фраза, критерии, ещё три хука</span></summary>
+      <summary>Подробнее <span>балл, потенциал охвата, тема и угол, первая фраза, критерии, ещё три хука</span></summary>
+
+      <div className="op-sect">
+        <h3 className="op-h3">Общий балл</h3>
+        <div className="op-reach">
+          <span className={`op-reach-n ${a.reach_from_model ? scoreTone100(a.overall_score) : scoreTone(a.overall_score, 100)}`}>{a.overall_score}</span>
+          <span className="op-muted">
+            из 100{READINESS[a.readiness] ? `, ${READINESS[a.readiness].toLowerCase()}` : ''}. Между прогонами одного текста балл гуляет на ±5: сравнивай не цифры, а правки.
+          </span>
+        </div>
+      </div>
 
       <div className="op-sect">
         <h3 className="op-h3">Потенциал охвата</h3>
@@ -379,12 +393,6 @@ function Details({ a }: { a: StudentAnalysis }) {
         </div>
       )}
 
-      {a.warnings.length > 0 && (
-        <div className="op-sect op-warn">
-          <div className="op-label">Обрати внимание</div>
-          <ul className="op-list">{a.warnings.map((s, i) => <li key={i}>{s}</li>)}</ul>
-        </div>
-      )}
     </details>
   );
 }
@@ -417,15 +425,7 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
 
       {run.ladder && <LadderBlock l={run.ladder} />}
 
-      {a.v5 && a.demand && <DemandBlock demand={a.demand} links={run.demandLinks || []} />}
-
-      <section className="op-card op-hero">
-        <div className="op-scoreline">
-          <div className={`op-score-n ${a.reach_from_model ? scoreTone100(a.overall_score) : scoreTone(a.overall_score, 100)}`}>
-            {a.overall_score}
-          </div>
-          <div className="op-score-l">из 100<br /><span>{READINESS[a.readiness] || ''}</span></div>
-        </div>
+      <section className={run.ladder ? 'op-card op-summary' : 'op-card op-summary op-hero'}>
         <p className="op-verdict">{a.verdict}</p>
       </section>
 
@@ -435,7 +435,7 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
         <section className="op-card">
           <h2 className="op-h2">Что поправить</h2>
           <ol className="op-fix">
-            {a.top_fixes.map((f, i) => (
+            {a.top_fixes.slice(0, 3).map((f, i) => (
               <li key={i}>
                 <p className="op-p">{f.text}</p>
                 {f.example && <blockquote className="op-quote op-quote-ex">{f.example}</blockquote>}
@@ -445,18 +445,32 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
         </section>
       )}
 
-      <section className="op-card">
-        <h2 className="op-h2">{oldPlan ? 'Монтажный план' : 'Переписанный текст'}</h2>
-        {a.rewrite.placeholders.length > 0 && (
-          <p className="op-p op-muted">
-            Жёлтым отмечено то, что знаешь только ты: впиши свой пример, цифру или лид-магнит.
-          </p>
-        )}
-        <pre className="op-script"><WithPlaceholders text={a.rewrite.script} fill={a.rewrite.placeholders} /></pre>
-        <div className="op-row">
-          <CopyButton text={a.rewrite.script} label={oldPlan ? 'Скопировать план' : 'Скопировать текст'} primary />
+      {a.warnings.length > 0 && (
+        <section className="op-card op-warn">
+          <h2 className="op-h2">Обрати внимание</h2>
+          <ul className="op-list">{a.warnings.map((s, i) => <li key={i}>{s}</li>)}</ul>
+        </section>
+      )}
+
+      {a.v5 && a.demand && <DemandBlock demand={a.demand} links={run.demandLinks || []} />}
+
+      <details className="op-card op-details op-rewrite">
+        <summary>
+          {oldPlan ? 'Монтажный план' : 'Пример, как это может звучать'}
+          <span>{oldPlan ? 'план монтажа под снятый ролик' : 'не замена твоему тексту: своими словами будет живее'}</span>
+        </summary>
+        <div className="op-sect">
+          {a.rewrite.placeholders.length > 0 && (
+            <p className="op-p op-muted">
+              Жёлтым отмечено то, что знаешь только ты: впиши свой пример, цифру или лид-магнит.
+            </p>
+          )}
+          <pre className="op-script"><WithPlaceholders text={a.rewrite.script} fill={a.rewrite.placeholders} /></pre>
+          <div className="op-row">
+            <CopyButton text={a.rewrite.script} label={oldPlan ? 'Скопировать план' : 'Скопировать пример'} />
+          </div>
         </div>
-      </section>
+      </details>
 
       <Details a={a} />
 
@@ -777,6 +791,13 @@ function OptimizatorInner() {
         .op-ladder-dots i { flex: 1 1 0; height: 8px; border-radius: 99px; background: var(--op-line); }
         .op-ladder-dots i.op-good { background: var(--op-good); } .op-ladder-dots i.op-mid { background: var(--op-mid); } .op-ladder-dots i.op-low { background: var(--op-low); }
         .op-ladder-verdict { font-weight: 700; margin-top: 12px; }
+        .op-ladder-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .op-conf { flex: none; margin-top: 3px; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; line-height: 1.2; white-space: nowrap; background: var(--op-line); color: var(--op-muted); }
+        .op-conf-yes { background: var(--op-good-soft, var(--op-line)); color: var(--op-good); }
+        .op-ladder-head b.op-neutral { color: var(--op-text); }
+        .op-ladder-dots i.op-neutral { background: var(--op-muted); }
+        .op-ladder-unsure { font-weight: 600; color: var(--op-muted); }
+        .op-summary .op-verdict { margin: 0; }
         .op-ladder-list { margin-top: 12px; border-top: 1px solid var(--op-line); padding-top: 10px; }
         .op-ladder-list summary { cursor: pointer; list-style: none; font-size: 13.5px; font-weight: 700; color: var(--op-accent); }
         .op-ladder-list summary::-webkit-details-marker { display: none; }

@@ -162,8 +162,13 @@ export interface Ladder {
   username: string | null;
 }
 
-/** One line under "Сильнее X из N". */
+/**
+ * One line under "Сильнее X из N". Only confident ladders get a verdict: research
+ * (reels-optimizer loop/LOG.md, 08.11) shows confident pairs right ~0.88-0.90 and the
+ * rest near a coin, so an unconfident ladder says so instead of guessing.
+ */
 export function ladderVerdict(l: Ladder): string {
+  if (!l.confident) return 'Текстом не отличить: решат подача и первые секунды. Сними и сравни по цифрам.';
   const share = l.total ? l.wins / l.total : 0;
   if (l.kind === 'own') {
     if (share >= 0.7) return 'похож на твои залёты';
