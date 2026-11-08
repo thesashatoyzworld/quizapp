@@ -9,10 +9,11 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { z } from 'zod';
 import { actorForKey, keyFromRequest } from '@/lib/studio/keys';
 import {
-  StudioError, addComment, attachPost, getItem, getLibraryEntry, listItems, listLibrary, listRules, loadBoard, saveLibraryEntry,
+  StudioError, addComment, attachPost, getItem, getLibraryEntry, libraryOpenToDanya, listItems, listLibrary, listRules, loadBoard, saveLibraryEntry,
   searchLibrary, updateItem,
 } from '@/lib/studio/store';
 import { LIB_BASES, type LibBase } from '@/lib/studio/library';
+import { guideMarkdown } from '@/lib/studio/guide';
 import {
   STAGES, STAGE_LABEL, addDays, aggregateVariants, fmt, localDate, weekStart, type Actor, type Kind, type Stage,
 } from '@/lib/studio/view';
@@ -42,13 +43,23 @@ function safe<A>(fn: (args: A) => Promise<unknown>) {
 function buildServer(actor: Actor) {
   const server = new McpServer({ name: 'studio', version: '1.0.0' });
 
+  server.registerTool('get_onboarding', {
+    description: 'Как работать в Студии Саши: цикл карточки, копии, как судим статистику, правила, библиотека, какой инструмент для чего. Прочитай один раз в начале работы.',
+    inputSchema: {},
+  }, safe(async () => ({ markdown: guideMarkdown({ libraryOpen: actor === 'sasha' || (await libraryOpenToDanya()) }) })));
+
   server.registerTool('list_schedule', {
-    description: 'Расписание контента Саши в Instagram (рилсы и карусели) за период и карточки без даты. Даты в UTC+5. По умолчанию текущая и следующая неделя.',
-    inputSchema: { from: date.optional(), to: date.optional(), kind: kind.optional() },
-  }, safe(async ({ from, to, kind: k }: { from?: string; to?: string; kind?: Kind }) => {
+    description: 'Карточки контента Саши (рилсы и карусели): расписание по дням и карточки «Без даты». Для «что у меня на неделе» вызывай без параметров (текущая и следующая неделя, даты UTC+5). Чтобы найти карточку по словам («бабушка», «мама», «дед, копия 1»), передай query: поиск по названию и variant за все даты. У копий одной правки общий variant и свой copyNo. id карточки нужен для get_item, set_stage, attach_post, add_comment.',
+    inputSchema: { from: date.optional(), to: date.optional(), kind: kind.optional(), query: z.string().optional() },
+  }, safe(async ({ from, to, kind: k, query }: { from?: string; to?: string; kind?: Kind; query?: string }) => {
+    const base = k ? { kind: k } : {};
+    if (query?.trim()) {
+      const q = query.trim();
+      const items = await listItems({ ...base, OR: [{ title: { contains: q, mode: 'insensitive' } }, { variant: { contains: q, mode: 'insensitive' } }] });
+      return { query: q, stages: STAGE_LABEL, items: items.slice(0, 60) };
+    }
     const start = from ?? weekStart(localDate());
     const end = to ?? addDays(start, 13);
-    const base = k ? { kind: k } : {};
     const [scheduled, unscheduled] = await Promise.all([
       listItems({ ...base, planDate: { gte: new Date(`${start}T00:00:00Z`), lte: new Date(`${end}T00:00:00Z`) } }),
       listItems({ ...base, planDate: null, stage: { notIn: ['skip', 'published'] } }),
@@ -57,7 +68,7 @@ function buildServer(actor: Actor) {
   }));
 
   server.registerTool('get_item', {
-    description: 'Карточка контента целиком: ТЗ (ссылка, кратко, HTML если есть), комментарии, снимки статистики.',
+    description: 'Карточка целиком по id из list_schedule: ТЗ (кратко, ссылка, полный HTML брифа), комментарии, снимки статистики. Для «покажи ТЗ на …».',
     inputSchema: { id: z.string() },
   }, safe(async ({ id }: { id: string }) => {
     const item = await getItem(id);
@@ -66,12 +77,12 @@ function buildServer(actor: Actor) {
   }));
 
   server.registerTool('list_rules', {
-    description: '«Что работает»: правила Саши для рилсов и каруселей и на каких цифрах они стоят.',
+    description: '«Что работает»: правила Саши для рилсов и каруселей (для перезаливов обязательны) и на каких цифрах они стоят. Для «какие правила для перезалива».',
     inputSchema: { kind: kind.optional() },
   }, safe(async ({ kind: k }: { kind?: Kind }) => listRules(k)));
 
   server.registerTool('get_variant_stats', {
-    description: 'Статистика по группам копий одной правки (variant): сколько копий, лучшая копия и среднее по снимку не раньше 48 часов после выхода. Правку судим по группе, не по одной заливке.',
+    description: 'Какие правки сработали: статистика по группам копий одной правки (variant), сколько копий вышло, лучшая копия и среднее по снимку не раньше 48 часов после выхода. Правку судим по группе, не по одной заливке. Без variant вернёт все группы.',
     inputSchema: { variant: z.string().optional() },
   }, safe(async ({ variant }: { variant?: string }) => {
     const board = await loadBoard();
@@ -87,7 +98,7 @@ function buildServer(actor: Actor) {
   }));
 
   server.registerTool('set_stage', {
-    description: `Сменить этап карточки: ${STAGES.filter((s) => s !== 'published').map((s) => `${s} (${STAGE_LABEL[s]})`).join(', ')}. «Вышло» ставится через attach_post.`,
+    description: `Сменить этап карточки (id из list_schedule): ${STAGES.filter((s) => s !== 'published').map((s) => `${s} (${STAGE_LABEL[s]})`).join(', ')}. «Переведи в Готово» = ready. «Вышло» ставится только через attach_post.`,
     inputSchema: { id: z.string(), stage: z.enum(['text', 'edit', 'ready', 'skip']) },
   }, safe(async ({ id, stage }: { id: string; stage: Stage }) => {
     await updateItem(actor, id, { stage });
@@ -95,19 +106,19 @@ function buildServer(actor: Actor) {
   }));
 
   server.registerTool('attach_post', {
-    description: 'Привязать вышедший пост: ссылка instagram.com/reel/<code> или instagram.com/p/<code>. Этап станет «Вышло», цифры подтянутся при ежедневном обновлении.',
+    description: 'Прикрепить ссылку на вышедший пост к карточке (id из list_schedule, у каждой копии своя карточка): instagram.com/reel/<code> или instagram.com/p/<code>. Этап станет «Вышло», цифры подтянутся при ежедневном обновлении.',
     inputSchema: { id: z.string(), url: z.string() },
   }, safe(async ({ id, url }: { id: string; url: string }) => ({ ok: true, id, shortcode: await attachPost(id, url) })));
 
   server.registerTool('add_comment', {
-    description: 'Оставить комментарий к карточке от своего имени.',
+    description: 'Оставить комментарий к карточке от своего имени, например вопрос Саше по ТЗ.',
     inputSchema: { id: z.string(), text: z.string().min(1).max(4000) },
   }, safe(async ({ id, text }: { id: string; text: string }) => ({ ok: true, commentId: await addComment(actor, id, text) })));
 
   const base = z.enum(LIB_BASES as [LibBase, ...LibBase[]]);
 
   server.registerTool('search_library', {
-    description: 'Поиск по библиотеке Саши: position (позиции с оценкой A/B/C), story (истории и пруфы), problem (проблемы аудитории). Возвращает коротко: id, код, название, оценка, группа, цитата. Полностью: get_library_entry.',
+    description: 'Поиск по библиотеке Саши: position (позиции с оценкой A/B/C), story (истории и пруфы: «найди пруфы про …»), problem (проблемы аудитории по портретам: «какие проблемы у тех, кто боится выложить», group = портрет). Возвращает коротко: id, код, название, оценка, группа, цитата. Полностью: get_library_entry.',
     inputSchema: {
       base: base.optional(), query: z.string().optional(), grade: z.enum(['A', 'B', 'C']).optional(),
       group: z.string().optional(), limit: z.number().int().min(1).max(100).optional(),
