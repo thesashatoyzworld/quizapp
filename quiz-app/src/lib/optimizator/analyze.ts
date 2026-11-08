@@ -79,7 +79,35 @@ function shapeOk(a: Analysis): string | null {
   return null;
 }
 
+/** A retry only fits when the first attempt was quick enough for maxDuration (300 s) to hold a second one. */
+const RETRY_IF_UNDER_MS = 140_000;
+
+function addUsage(a: Anthropic.Usage, b: Anthropic.Usage | null): Anthropic.Usage {
+  if (!b) return a;
+  return {
+    ...a,
+    input_tokens: a.input_tokens + b.input_tokens,
+    output_tokens: a.output_tokens + b.output_tokens,
+    cache_read_input_tokens: (a.cache_read_input_tokens ?? 0) + (b.cache_read_input_tokens ?? 0),
+    cache_creation_input_tokens: (a.cache_creation_input_tokens ?? 0) + (b.cache_creation_input_tokens ?? 0),
+  };
+}
+
+/**
+ * The model sometimes returns broken JSON (a dropped quote) or misses a key: about 1 in 10
+ * on the 08.11 self-test. Such an answer is retried once, so the student does not get an error.
+ */
 export async function analyzeScript(input: AnalyzeInput): Promise<AnalyzeOk | AnalyzeFail> {
+  const first = await analyzeOnce(input);
+  if (first.ok || (first.code !== 'parse_error' && first.code !== 'bad_shape') || first.durationMs > RETRY_IF_UNDER_MS) return first;
+  console.warn(`[optimizator] retrying after ${first.code}: ${first.detail}`);
+  const second = await analyzeOnce(input);
+  const durationMs = first.durationMs + second.durationMs;
+  if (second.ok) return { ...second, usage: addUsage(second.usage, first.usage), durationMs };
+  return { ...second, usage: second.usage ? addUsage(second.usage, first.usage) : first.usage, durationMs };
+}
+
+async function analyzeOnce(input: AnalyzeInput): Promise<AnalyzeOk | AnalyzeFail> {
   const t0 = Date.now();
   const payload = { script: input.script, demand: input.demand };
   let msg: Anthropic.Message;
