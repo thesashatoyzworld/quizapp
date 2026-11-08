@@ -116,6 +116,8 @@ const FIELDS: Record<Actor, string[]> = {
 export class StudioError extends Error {}
 
 function pick(actor: Actor, data: Record<string, unknown>): Record<string, unknown> {
+  const extra = Object.keys(data).find((k) => !FIELDS[actor].includes(k));
+  if (extra) throw new StudioError(actor === 'danya' ? 'Даня меняет этап и дату, остальное Саша' : `нельзя менять ${extra}`);
   const out: Record<string, unknown> = {};
   for (const key of FIELDS[actor]) {
     if (!(key in data)) continue;

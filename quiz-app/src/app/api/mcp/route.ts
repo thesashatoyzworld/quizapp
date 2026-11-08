@@ -75,7 +75,7 @@ function buildServer(actor: Actor) {
       .filter((g) => (variant ? g.key === variant : true))
       .map((g) => ({
         variant: g.key, label: g.label, kind: g.kind, copies: g.copies.length, published: g.published, measured: g.measured,
-        status: g.measured ? 'ok' : 'ещё рано',
+        status: g.measured ? 'ok' : g.published ? 'ещё рано' : 'ещё не вышло',
         best: g.best && { id: g.best.item.id, copyNo: g.best.item.copyNo, shortcode: g.best.item.shortcode, views: g.best.snap?.views },
         avg: Object.fromEntries(Object.entries(g.avg).map(([m, v]) => [m, fmt(m as never, v, g.kind)])),
         copiesDetail: g.copies.map((c) => ({ id: c.item.id, copyNo: c.item.copyNo, shortcode: c.item.shortcode, snapshot: c.snap })),
