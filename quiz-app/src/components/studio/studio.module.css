@@ -1297,3 +1297,122 @@ textarea.input {
     font-size: 16px; /* no zoom-on-focus on iOS */
   }
 }
+
+/* ── guide ── */
+
+.guide {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+
+.guideToc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.guideTocLink {
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.guideTocLink:hover {
+  border-color: rgba(0, 240, 255, 0.5);
+  color: var(--text-primary);
+}
+
+.guideSection {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  scroll-margin-top: 16px;
+}
+
+.guideTitle {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--neon-cyan);
+}
+
+.mdStep {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.mdStepNum {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #000;
+  background: var(--neon-cyan);
+  margin-top: 1px;
+}
+
+.mdCode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow-wrap: anywhere;
+}
+
+.mcpBox {
+  display: grid;
+  gap: 6px;
+}
+
+.mcpUrl {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  text-overflow: ellipsis;
+}
+
+.clients {
+  display: grid;
+  gap: 6px;
+}
+
+.client {
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 12px;
+}
+
+.client[open] {
+  padding-bottom: 12px;
+}
+
+.clientName {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 520px) {
+  .guideSection {
+    padding: 14px;
+  }
+
+  .mcpUrl {
+    font-size: 16px;
+  }
+}
