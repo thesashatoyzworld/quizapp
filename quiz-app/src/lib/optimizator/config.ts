@@ -33,6 +33,12 @@ export function monthKey(d = new Date()): string {
  * anchors 0.78, against ~0.70 for the absolute score. Off switch for the whole block.
  */
 export const LADDER_ON = true;
+/**
+ * Topic anchors (other experts' reels) are off: on 08.11 a weight-loss script got
+ * anchors about airports, art events and blogging and "won 8 of 8", a false verdict.
+ * The ladder runs only against the student's own reels until anchor matching is fixed.
+ */
+export const LADDER_ANCHORS = false;
 /** Pairwise was measured on Opus; Sonnet drops to ~0.69. */
 export const LADDER_MODEL = 'claude-opus-5-5';
 export const LADDER_MAX_TOKENS = 32_000;

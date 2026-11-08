@@ -423,7 +423,13 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
         {why && <p className="op-meta-why">{why}</p>}
       </div>
 
-      {run.ladder && <LadderBlock l={run.ladder} />}
+      {run.ladder ? <LadderBlock l={run.ladder} /> : (
+        <section className="op-card op-ladder-none">
+          <p className="op-p op-muted">
+            Сравнения с твоими прошлыми роликами нет: не указан ник, аккаунт закрыт или в нём меньше 4 рилсов с речью.
+          </p>
+        </section>
+      )}
 
       <section className={run.ladder ? 'op-card op-summary' : 'op-card op-summary op-hero'}>
         <p className="op-verdict">{a.verdict}</p>
@@ -677,7 +683,7 @@ function OptimizatorInner() {
 
             {ladderOn && (
               <div className="op-ig">
-                <label className="op-label" htmlFor="op-ig">Ник в инстаграме <span>необязательно</span></label>
+                <label className="op-label" htmlFor="op-ig">Ник в инстаграме <span>для сравнения с твоими роликами</span></label>
                 <input
                   id="op-ig"
                   className="op-input"
@@ -690,7 +696,7 @@ function OptimizatorInner() {
                   spellCheck={false}
                   maxLength={64}
                 />
-                <p className="op-hint">Сравню текст с твоими прошлыми роликами. Без ника сравню с роликами экспертов по твоей теме</p>
+                <p className="op-hint">Сравню текст с твоими прошлыми рилсами и скажу, сильнее он или слабее. Нужен открытый аккаунт и хотя бы 4 рилса с речью</p>
               </div>
             )}
 

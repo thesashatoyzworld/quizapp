@@ -11,7 +11,7 @@ import { SYSTEM_PROMPT } from './system';
 import { pickAnchors } from './anchors';
 import { getOwnRefs, ownRefsAvailable } from './refs';
 import {
-  LADDER_CONFIDENT, LADDER_CUT, LADDER_MAX_TOKENS, LADDER_MIN_OWN, LADDER_MODEL, LADDER_REFS,
+  LADDER_ANCHORS, LADDER_CONFIDENT, LADDER_CUT, LADDER_MAX_TOKENS, LADDER_MIN_OWN, LADDER_MODEL, LADDER_REFS,
 } from './config';
 import { firstSentence, type Ladder, type LadderKind, type LadderRef } from './view';
 
@@ -46,7 +46,7 @@ export type LadderResult = Ladder & { usage: LadderUsage };
 
 type Answer = { id: string; winner: 'A' | 'B'; confidence: number };
 
-/** Own reels when there is a username, keys and at least 4 reels with speech; else anchors. */
+/** Own reels when there is a username, keys and at least 4 reels with speech; else anchors (if on) or none. */
 async function references(username: string | null, phrases: Promise<string[]>): Promise<{ kind: LadderKind; refs: Ref[] }> {
   if (username && ownRefsAvailable()) {
     const own = await getOwnRefs(username);
@@ -60,6 +60,7 @@ async function references(username: string | null, phrases: Promise<string[]>): 
       };
     }
   }
+  if (!LADDER_ANCHORS) return { kind: 'anchor', refs: [] };
   const anchors = await pickAnchors(await phrases.catch(() => [] as string[]));
   return {
     kind: 'anchor',
