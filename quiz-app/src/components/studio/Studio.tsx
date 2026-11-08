@@ -234,6 +234,30 @@ function NoDate({ items, board, onOpen }: { items: ItemView[]; board: Board; onO
 }
 
 /** Post preview: our thumbnail route for published posts, a neutral tile by kind otherwise. */
+function KindIcon({ kind, small }: { kind: ItemView['kind']; small?: boolean }) {
+  const reel = kind === 'reel';
+  return (
+    <span
+      className={`${s.kindIcon} ${reel ? s.kindReel : s.kindCarousel} ${small ? s.kindSmall : ''}`}
+      role="img"
+      aria-label={KIND_LABEL[kind]}
+      title={KIND_LABEL[kind]}
+    >
+      {reel ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+          <rect x="4" y="3" width="16" height="18" rx="3" />
+          <path d="M10 9v6l5-3z" fill="currentColor" stroke="none" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="7" width="13" height="14" rx="2.5" />
+          <path d="M8 4.5h10.5a2 2 0 0 1 2 2V17" strokeLinecap="round" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
 function Thumb({ item, className }: { item: ItemView; className?: string }) {
   const [broken, setBroken] = useState(false);
   if (item.mediaId && !broken) {
@@ -260,7 +284,7 @@ function Card({ group, board, onOpen }: { group: CardGroup; board: Board; onOpen
       <Thumb item={item} />
       <span className={s.cardBody}>
         <span className={s.cardTop}>
-          <span className={`${s.kind} ${item.kind === 'carousel' ? s.kindCarousel : ''}`}>{KIND_LABEL[item.kind]}</span>
+          <KindIcon kind={item.kind} />
           <span className={`${s.stage} ${s[`stage_${item.stage}`]}`}>{STAGE_LABEL[item.stage]}</span>
         </span>
         <span className={s.cardTitle}>{item.title}</span>
@@ -285,8 +309,11 @@ function Chip({ group, board, onOpen }: { group: CardGroup; board: Board; onOpen
     <button className={`${s.chip} ${s[`chip_${item.stage}`]}`} onClick={() => onOpen(group)} title={label} aria-label={label}>
       <Thumb item={item} className={s.chipThumb} />
       <span className={s.chipBody}>
-        <span className={s.chipKind}>{KIND_LABEL[item.kind]}{n > 1 ? ` ×${n}` : ''}</span>
-        <span className={s.chipTitle}>{item.title}</span>
+        <span className={s.chipLine}>
+          <KindIcon kind={item.kind} small />
+          {n > 1 && <span className={s.copyBadge}>×{n}</span>}
+          <span className={s.chipTitle}>{item.title}</span>
+        </span>
         {views != null && <span className={s.chipKind}>{fmt('views', views, item.kind)}</span>}
       </span>
     </button>
@@ -298,7 +325,7 @@ function CopiesSheet({ items, onOpen, onClose }: { items: ItemView[]; onOpen: (i
   return (
     <Sheet label={`Копии: ${first.title}`} onClose={onClose}>
       <div className={s.drawerHead}>
-        <span className={`${s.kind} ${first.kind === 'carousel' ? s.kindCarousel : ''}`}>{KIND_LABEL[first.kind]}</span>
+        <KindIcon kind={first.kind} />
         <span className={s.muted}>{first.variant} · {copiesLabel(items.length)}</span>
         <button className={s.close} onClick={onClose} aria-label="Закрыть" autoFocus>×</button>
       </div>
@@ -368,7 +395,7 @@ function Drawer({ item, actor, board, run, onClose }: {
   return (
     <Sheet label={item.title} onClose={onClose}>
         <div className={s.drawerHead}>
-          <span className={`${s.kind} ${item.kind === 'carousel' ? s.kindCarousel : ''}`}>{KIND_LABEL[item.kind]}</span>
+          <KindIcon kind={item.kind} />
           {item.author === 'api' && <span className={s.muted}>найден в Instagram</span>}
           <button className={s.close} onClick={onClose} aria-label="Закрыть" autoFocus>×</button>
         </div>

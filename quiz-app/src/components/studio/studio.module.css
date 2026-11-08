@@ -403,7 +403,20 @@
   white-space: nowrap;
 }
 
+.chipLine {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.chipLine .copyBadge {
+  font-size: 0.68rem;
+  flex: none;
+}
+
 .chipTitle {
+  min-width: 0;
   font-size: 0.72rem;
   line-height: 1.25;
   white-space: nowrap;
@@ -516,14 +529,40 @@
   white-space: nowrap;
 }
 
-.kind {
-  background: rgba(157, 78, 221, 0.25);
+.kindIcon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.kindIcon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.kindReel {
+  background: rgba(157, 78, 221, 0.28);
   color: #d9b8ff;
 }
 
 .kindCarousel {
-  background: rgba(240, 255, 0, 0.12);
+  background: rgba(240, 255, 0, 0.14);
   color: var(--neon-yellow);
+}
+
+.kindSmall {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+.kindSmall svg {
+  width: 11px;
+  height: 11px;
 }
 
 .stage {
