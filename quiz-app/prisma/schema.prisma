@@ -1482,3 +1482,139 @@ model OptimizatorRun {
   @@index([telegramId, createdAt(sort: Desc)])
   @@map("optimizator_runs")
 }
+
+// ─── «Студия»: контент Instagram Саши и Дани (рилсы и карусели) ───
+// Таблицы создаёт scripts/studio-create-tables.mjs, не prisma db push.
+
+/** Одна единица контента. Этап: text | edit | ready | published | skip. */
+model StudioItem {
+  id          String          @id @default(uuid())
+  kind        String          @default("reel") // reel | carousel
+  title       String
+  variant     String? // группа копий одной правки, например «mama-vyrez»
+  copyNo      Int?            @map("copy_no")
+  stage       String          @default("text")
+  planDate    DateTime?       @map("plan_date") @db.Date
+  briefUrl    String?         @map("brief_url")
+  briefText   String?         @map("brief_text")
+  briefHtml   String?         @map("brief_html") // legacy, briefs now live in studio_briefs
+  briefId     String?         @map("brief_id")
+  brief       StudioBrief?    @relation(fields: [briefId], references: [id], onDelete: SetNull)
+  shortcode   String?         @unique
+  mediaId     String?         @map("media_id")
+  permalink   String?
+  publishedAt DateTime?       @map("published_at")
+  author      String          @default("sasha") // sasha | danya | api
+  comments    StudioComment[]
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@index([planDate])
+  @@index([variant])
+  @@index([briefId])
+  @@map("studio_items")
+}
+
+/** ТЗ, отправленное Дане: хранится один раз, карточки ссылаются на него. */
+model StudioBrief {
+  id        String       @id
+  title     String
+  html      String
+  sentAt    DateTime?    @map("sent_at") @db.Date
+  tgRef     String?      @map("tg_ref")
+  items     StudioItem[]
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@map("studio_briefs")
+}
+
+/** Свежая ссылка на превью поста: ссылки CDN инстаграма подписаны и протухают. */
+model StudioThumb {
+  mediaId   String   @id @map("media_id")
+  url       String
+  fetchedAt DateTime @map("fetched_at")
+
+  @@map("studio_thumbs")
+}
+
+model StudioComment {
+  id        String     @id @default(uuid())
+  itemId    String     @map("item_id")
+  item      StudioItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  author    String
+  text      String
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  @@index([itemId])
+  @@map("studio_comments")
+}
+
+/** «Что работает»: правило и на чём оно стоит. kind: reel | carousel | all. */
+model StudioRule {
+  id        String   @id @default(uuid())
+  kind      String   @default("all")
+  text      String
+  evidence  String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("studio_rules")
+}
+
+/** Снимок цифр поста из Instagram API: один на пост в сутки (UTC). */
+model StudioStat {
+  id            String   @id // `${mediaId}-${YYYY-MM-DD}`
+  mediaId       String   @map("media_id")
+  shortcode     String
+  takenAt       DateTime @map("taken_at")
+  ageHours      Float    @map("age_hours")
+  views         Int?
+  reach         Int?
+  likes         Int?
+  comments      Int?
+  shares        Int?
+  saved         Int?
+  skipRate      Float?   @map("skip_rate")
+  avgWatchMs    Int?     @map("avg_watch_ms")
+  follows       Int? // у рилсов в API нет
+  profileVisits Int?     @map("profile_visits")
+
+  @@index([shortcode])
+  @@map("studio_stats")
+}
+
+/** «Библиотека»: позиции, истории и пруфы, проблемы аудитории. Коды как в исходных базах. */
+model StudioLibrary {
+  id         String   @id // `${base}:${code}`
+  base       String // position | story | problem
+  code       String
+  title      String
+  grade      String? // A | B | C (positions)
+  group      String   @default("") @map("grp")
+  body       String   @default("")
+  quote      String?
+  source     String?
+  warnings   String?
+  flags      String[] @default([])
+  usedIn     String?  @map("used_in")
+  visibility String   @default("all") // all | sasha
+  extra      Json     @default("{}")
+  sort       Int      @default(0)
+  sourceHash String?  @map("source_hash")
+  updatedBy  String   @default("import") @map("updated_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([base, code])
+  @@index([base])
+  @@map("studio_library")
+}
+
+model StudioSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("studio_settings")
+}

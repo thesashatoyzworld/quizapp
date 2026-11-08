@@ -3,29 +3,30 @@ import { getAdminSession } from '@/lib/admin-auth';
 import Link from 'next/link';
 import styles from './admin-shell.module.css';
 
+// Removed from the menu 08.11.2026 (pages still exist): Дашборд, Очередь, Кампании,
+// Пользователи, Оплаты, Рассылки, all leftovers of the archived quiz bot.
 const NAV_LINKS = [
-  { href: '/admin/dashboard', label: 'Дашборд' },
   { href: '/admin/shtab', label: 'Штаб' },
   { href: '/admin/idei', label: 'Идеи' },
   { href: '/admin/roadmaps', label: 'Карты клиентов' },
   { href: '/admin/reels', label: 'Ролики' },
+  { href: '/admin/studio', label: 'Студия' },
   { href: '/admin/na-kontrole', label: 'Деньги на столе' },
   { href: '/admin/analytics', label: 'Аналитика' },
-  { href: '/admin/uroven', label: 'Лиды · Уровень' },
   { href: '/admin/huki', label: 'Хуки' },
   { href: '/admin/progress', label: 'Обучение' },
   { href: '/admin/anketa', label: 'Анкеты' },
   { href: '/admin/zayavki', label: 'Заявки' },
-  { href: '/admin/dialogi', label: 'Диалоги' },
-  { href: '/admin/queue', label: 'Очередь' },
-  { href: '/admin/campaigns', label: 'Кампании' },
-  { href: '/admin/users', label: 'Пользователи' },
   { href: '/admin/ssylki', label: 'Ссылки для оплаты' },
-  { href: '/admin/payments', label: 'Оплаты' },
   { href: '/admin/revenue', label: 'Выручка' },
   { href: '/admin/rashody', label: 'Расходы' },
-  { href: '/admin/broadcasts', label: 'Рассылки' },
   { href: '/admin/instagram', label: 'Instagram' },
+];
+
+// Sleeping sections (no fresh data or no work through them since September), kept one click away.
+const ARCHIVE_LINKS = [
+  { href: '/admin/uroven', label: 'Лиды · Уровень' },
+  { href: '/admin/dialogi', label: 'Диалоги' },
   { href: '/admin/content', label: 'Контент' },
   { href: '/admin/kontent', label: 'YouTube' },
 ];
@@ -48,6 +49,23 @@ export default async function ProtectedAdminLayout({ children }: { children: Rea
               {label}
             </Link>
           ))}
+          <details className={styles.archive}>
+            <summary className={styles.archiveSummary}>Архив</summary>
+            {ARCHIVE_LINKS.map(({ href, label }) => (
+              <Link key={href} href={href} className={`${styles.link} ${styles.archiveLink}`}>
+                {label}
+              </Link>
+            ))}
+          </details>
+          {/* Phone: the menu is a horizontal strip, a <details> inside it breaks the row. */}
+          <span className={styles.archiveMobile}>
+            <span className={styles.archiveMobileLabel}>Архив:</span>
+            {ARCHIVE_LINKS.map(({ href, label }) => (
+              <Link key={href} href={href} className={`${styles.link} ${styles.archiveLink}`}>
+                {label}
+              </Link>
+            ))}
+          </span>
         </div>
 
         <div className={styles.logoutWrap}>

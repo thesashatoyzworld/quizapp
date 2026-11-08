@@ -88,7 +88,6 @@ export type TriggerFacts = {
 export type SkipReason =
   | 'off'
   | 'no_lead'
-  | 'no_telegram'
   | 'stale_lead'
   | 'not_first'
   | 'sasha_answered'
@@ -96,11 +95,6 @@ export type SkipReason =
   | 'daily_limit';
 
 export type Verdict = { go: true; dueAt: Date } | { go: false; reason: SkipReason };
-
-/** У анкеты есть телеграм: ник или id. Без него человека не сопоставить. */
-export function hasTelegram(lead: Pick<LeadFacts, 'username' | 'telegramId'>): boolean {
-  return Boolean((lead.username || '').replace(/^@/, '').trim() || (lead.telegramId || '').trim());
-}
 
 /** Когда собирать черновик на сообщение, пришедшее в момент now. */
 export function plannedDueAt(now: Date): Date {
@@ -117,7 +111,6 @@ export const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 export function decideTrigger(f: TriggerFacts): Verdict {
   if (f.mode === 'off') return { go: false, reason: 'off' };
   if (!f.lead) return { go: false, reason: 'no_lead' };
-  if (!hasTelegram(f.lead)) return { go: false, reason: 'no_telegram' };
   if (f.now.getTime() - f.lead.createdAt.getTime() > FRESH_MS) return { go: false, reason: 'stale_lead' };
   if (f.ourMsgsSinceLead > 0) return { go: false, reason: 'sasha_answered' };
   if (f.clientMsgsSinceLead !== 1) return { go: false, reason: 'not_first' };
