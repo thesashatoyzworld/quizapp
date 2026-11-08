@@ -24,6 +24,8 @@ interface Media {
   timestamp: string;
   caption?: string;
   permalink?: string;
+  media_url?: string;
+  thumbnail_url?: string;
 }
 
 function token(): string {
@@ -48,7 +50,7 @@ async function recentMedia(since: Date): Promise<Media[]> {
   let after: string | undefined;
   for (let page = 0; page < 10; page++) {
     const params: Record<string, string> = {
-      fields: 'id,shortcode,media_type,media_product_type,timestamp,caption,permalink',
+      fields: 'id,shortcode,media_type,media_product_type,timestamp,caption,permalink,media_url,thumbnail_url',
       limit: '50',
     };
     if (after) params.after = after;
@@ -130,6 +132,15 @@ export async function syncInstagram() {
           avgWatchMs: int(v.ig_reels_avg_watch_time), follows: isReel ? null : int(v.follows),
           profileVisits: isReel ? null : int(v.profile_visits),
         };
+        // Warm the thumbnail cache: the list already carries a fresh preview URL
+        // (an album's media_url is its first child), so the thumb route rarely calls Graph.
+        const thumb = m.media_type === 'VIDEO' ? m.thumbnail_url : m.media_url ?? m.thumbnail_url;
+        if (thumb) {
+          await prisma.studioThumb.upsert({
+            where: { mediaId: m.id }, create: { mediaId: m.id, url: thumb, fetchedAt: now }, update: { url: thumb, fetchedAt: now },
+          });
+        }
+
         const id = `${m.id}-${now.toISOString().slice(0, 10)}`;
         await prisma.studioStat.upsert({ where: { id }, create: { id, ...data }, update: data });
         snapshots++;

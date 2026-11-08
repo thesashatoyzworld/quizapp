@@ -200,7 +200,9 @@
 
 .card {
   display: grid;
-  gap: 5px;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
   width: 100%;
   min-width: 0;
   text-align: left;
@@ -219,6 +221,273 @@
 
 .skipped {
   opacity: 0.45;
+}
+
+.cardBody {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.copyBadge {
+  color: var(--neon-cyan);
+  font-weight: 600;
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.thumbEmpty {
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.35);
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+/* the 7-column desktop week is narrow: preview on top of the card */
+@media (min-width: 1101px) {
+  .week .card {
+    grid-template-columns: 1fr;
+  }
+
+  .week .thumb {
+    aspect-ratio: auto;
+    height: 84px;
+  }
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.segment {
+  font: inherit;
+  font-size: 0.85rem;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.segment[aria-pressed='true'] {
+  background: rgba(0, 240, 255, 0.14);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px rgba(0, 240, 255, 0.45);
+}
+
+/* ── month ── */
+
+.month {
+  display: grid;
+  gap: 6px;
+}
+
+.monthRow {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.monthDow {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.cell {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-height: 96px;
+  min-width: 0;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cellOut {
+  opacity: 0.4;
+}
+
+.cellNum {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.today .cellNum {
+  color: var(--neon-cyan);
+}
+
+.chip {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 5px 3px 3px;
+  font: inherit;
+  text-align: left;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 3px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: rgba(0, 240, 255, 0.45);
+}
+
+.chip_edit {
+  border-left-color: #ff5cc6;
+}
+
+.chip_ready {
+  border-left-color: var(--neon-cyan);
+}
+
+.chip_published {
+  border-left-color: var(--success);
+}
+
+.chip_skip {
+  opacity: 0.45;
+}
+
+.chipThumb {
+  width: 26px;
+  height: 32px;
+  aspect-ratio: auto;
+  border-radius: 4px;
+}
+
+.chipThumb svg {
+  width: 14px;
+  height: 14px;
+}
+
+.chipBody {
+  display: grid;
+  min-width: 0;
+}
+
+.chipKind {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.chipTitle {
+  font-size: 0.72rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.monthList {
+  display: none;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .month {
+    display: none;
+  }
+
+  .monthList {
+    display: grid;
+  }
+}
+
+.copyList {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.copyRow {
+  display: grid;
+  grid-template-columns: 26px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  text-align: left;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.copyRow:hover {
+  border-color: rgba(0, 240, 255, 0.45);
+}
+
+.copyName {
+  font-weight: 600;
+}
+
+.drawerThumbLink {
+  display: block;
+  width: 120px;
+}
+
+.drawerThumb {
+  width: 120px;
+  aspect-ratio: 4 / 5;
+}
+
+.groupHeadRow {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.thumbCell {
+  width: 34px;
+}
+
+.tableThumb {
+  width: 30px;
+  height: 38px;
+  aspect-ratio: auto;
+}
+
+.tableThumb svg {
+  width: 14px;
+  height: 14px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .cardTop {

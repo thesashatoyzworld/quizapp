@@ -1,23 +1,28 @@
 'use client';
 
 // «Студия»: one board for Sasha (/admin/studio) and Danya (/studio).
-// Week schedule, item card, stats by copy group, «Что работает».
+// Schedule (week or month, plan or published), item card, stats by copy
+// group, «Что работает».
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ACTOR_LABEL, KIND_LABEL, STAGES, STAGE_LABEL, STAGE_OWNER, addDays, aggregateVariants, fmt, pickSnapshot, weekDays,
-  weekStart, type Actor, type Board, type ItemView, type Kind, type Metric, type RuleView, type Snapshot,
+  ACTOR_LABEL, KIND_LABEL, MODE_LABEL, STAGES, STAGE_LABEL, STAGE_OWNER, addDays, addMonths, aggregateVariants,
+  collapseCopies, copiesLabel, fmt, inMode, monthGrid, pickSnapshot, weekDays, weekStart,
+  type Actor, type Board, type CardGroup, type ItemView, type Kind, type Metric, type Mode, type RuleView, type Snapshot,
 } from '@/lib/studio/view';
 import s from './studio.module.css';
 
-type Tab = 'week' | 'stats' | 'rules';
+type Tab = 'schedule' | 'stats' | 'rules';
+type View = 'week' | 'month';
 
 const DOW = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const MONTHS_NOM = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 const dayNum = (iso: string) => Number(iso.slice(8, 10));
 const monthOf = (iso: string) => MONTHS[Number(iso.slice(5, 7)) - 1];
 const shortDate = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
+const dowOf = (iso: string) => DOW[(new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7];
 
 function weekLabel(monday: string) {
   const sun = addDays(monday, 6);
@@ -25,6 +30,7 @@ function weekLabel(monday: string) {
     ? `${dayNum(monday)}–${dayNum(sun)} ${monthOf(sun)}`
     : `${dayNum(monday)} ${monthOf(monday)} – ${dayNum(sun)} ${monthOf(sun)}`;
 }
+const monthLabel = (iso: string) => `${MONTHS_NOM[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
 
 const latest = (snaps: Snapshot[] | undefined) => (snaps?.length ? snaps[snaps.length - 1] : null);
 
@@ -41,9 +47,12 @@ async function call(op: string, payload: Record<string, unknown>) {
 
 export default function Studio({ board, actor, today }: { board: Board; actor: Actor; today: string }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('week');
-  const [monday, setMonday] = useState(weekStart(today));
+  const [tab, setTab] = useState<Tab>('schedule');
+  const [view, setView] = useState<View>('week');
+  const [mode, setMode] = useState<Mode>('plan');
+  const [anchor, setAnchor] = useState(today); // any day inside the shown week or month
   const [openId, setOpenId] = useState<string | null>(null);
+  const [copies, setCopies] = useState<ItemView[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
@@ -71,11 +80,15 @@ export default function Studio({ board, actor, today }: { board: Board; actor: A
   }
 
   const open = board.items.find((i) => i.id === openId) ?? null;
+  const shown = useMemo(() => board.items.filter((i) => inMode(i, mode)), [board.items, mode]);
+  const openGroup = (g: CardGroup) => (g.items.length > 1 ? setCopies(g.items) : setOpenId(g.items[0].id));
+  const step = (n: number) => setAnchor(n === 0 ? today : view === 'week' ? addDays(anchor, 7 * n) : addMonths(anchor, n));
+  const atToday = view === 'week' ? weekStart(anchor) === weekStart(today) : anchor.slice(0, 7) === today.slice(0, 7);
 
   return (
     <div className={s.root}>
       <div className={s.tabs} role="tablist">
-        {([['week', 'Неделя'], ['stats', 'Статистика'], ['rules', 'Что работает']] as [Tab, string][]).map(([key, label]) => (
+        {([['schedule', 'Расписание'], ['stats', 'Статистика'], ['rules', 'Что работает']] as [Tab, string][]).map(([key, label]) => (
           <button key={key} role="tab" aria-selected={tab === key} className={s.tab} onClick={() => setTab(key)}>
             {label}
           </button>
@@ -86,16 +99,31 @@ export default function Studio({ board, actor, today }: { board: Board; actor: A
       </div>
       {(status || error) && <p className={error ? s.error : s.status} role="status">{error || status}</p>}
 
-      {tab === 'week' && (
-        <Week
-          board={board} monday={monday} today={today} isSasha={isSasha}
-          onWeek={(n) => setMonday(n === 0 ? weekStart(today) : addDays(monday, 7 * n))}
-          onOpen={setOpenId} onAdd={() => setAdding(true)}
-        />
+      {tab === 'schedule' && (
+        <>
+          <div className={s.toolbar}>
+            <Segmented label="Вид" value={view} onChange={setView} options={[['week', 'Неделя'], ['month', 'Месяц']]} />
+            <Segmented label="Что показать" value={mode} onChange={setMode} options={(['plan', 'published', 'all'] as Mode[]).map((m) => [m, MODE_LABEL[m]])} />
+          </div>
+          <div className={s.toolbar}>
+            <button className={s.btn} onClick={() => step(-1)} aria-label={view === 'week' ? 'Прошлая неделя' : 'Прошлый месяц'}>‹</button>
+            <span className={s.weekLabel}>{view === 'week' ? weekLabel(weekStart(anchor)) : monthLabel(anchor)}</span>
+            <button className={s.btn} onClick={() => step(1)} aria-label={view === 'week' ? 'Следующая неделя' : 'Следующий месяц'}>›</button>
+            {!atToday && <button className={s.btnGhost} onClick={() => step(0)}>к сегодня</button>}
+            {isSasha && <button className={`${s.btn} ${s.push}`} onClick={() => setAdding(true)}>+ Добавить</button>}
+          </div>
+          <div className={s.board}>
+            {view === 'week'
+              ? <Week items={shown} board={board} monday={weekStart(anchor)} today={today} onOpen={openGroup} />
+              : <Month items={shown} board={board} anchor={anchor} today={today} onOpen={openGroup} />}
+            {mode !== 'published' && <NoDate items={shown} board={board} onOpen={openGroup} />}
+          </div>
+        </>
       )}
       {tab === 'stats' && <Stats board={board} onOpen={setOpenId} />}
       {tab === 'rules' && <Rules rules={board.rules} isSasha={isSasha} run={run} />}
 
+      {copies && !open && <CopiesSheet items={copies} onOpen={setOpenId} onClose={() => setCopies(null)} />}
       {open && (
         <Drawer
           key={open.id} item={open} actor={actor} board={board} run={run} onClose={() => setOpenId(null)}
@@ -106,70 +134,188 @@ export default function Studio({ board, actor, today }: { board: Board; actor: A
   );
 }
 
-// ─── week ───
-
-function Week({ board, monday, today, isSasha, onWeek, onOpen, onAdd }: {
-  board: Board; monday: string; today: string; isSasha: boolean;
-  onWeek: (n: number) => void; onOpen: (id: string) => void; onAdd: () => void;
+function Segmented<T extends string>({ label, value, onChange, options }: {
+  label: string; value: T; onChange: (v: T) => void; options: [T, string][];
 }) {
-  const days = weekDays(monday);
-  const unscheduled = board.items.filter((i) => !i.planDate && i.stage !== 'skip' && i.stage !== 'published');
+  return (
+    <div className={s.segmented} role="group" aria-label={label}>
+      {options.map(([v, text]) => (
+        <button key={v} className={s.segment} aria-pressed={value === v} onClick={() => onChange(v)}>{text}</button>
+      ))}
+    </div>
+  );
+}
+
+// ─── schedule ───
+
+type GroupOpen = (g: CardGroup) => void;
+
+function Week({ items, board, monday, today, onOpen }: {
+  items: ItemView[]; board: Board; monday: string; today: string; onOpen: GroupOpen;
+}) {
+  return (
+    <div className={s.week}>
+      {weekDays(monday).map((d, i) => {
+        const groups = collapseCopies(items.filter((it) => it.planDate === d));
+        return (
+          <section key={d} className={`${s.day} ${d === today ? s.today : ''}`} aria-label={`${DOW[i]} ${dayNum(d)} ${monthOf(d)}`}>
+            <h3 className={s.dayHead}>
+              <span>{DOW[i]}</span> <span className={s.dayNum}>{dayNum(d)}</span>
+              {groups.length > 0 && <span className={s.count}>{groups.length}</span>}
+            </h3>
+            {groups.length === 0 && <p className={s.empty}>пусто</p>}
+            {groups.map((g) => <Card key={g.key} group={g} board={board} onOpen={onOpen} />)}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function Month({ items, board, anchor, today, onOpen }: {
+  items: ItemView[]; board: Board; anchor: string; today: string; onOpen: GroupOpen;
+}) {
+  const weeks = monthGrid(anchor);
+  const month = anchor.slice(0, 7);
+  const byDay = (d: string) => collapseCopies(items.filter((it) => it.planDate === d));
+  const listDays = weeks.flat().filter((d) => d.startsWith(month)).map((d) => [d, byDay(d)] as const).filter(([, g]) => g.length);
   return (
     <>
-      <div className={s.toolbar}>
-        <button className={s.btn} onClick={() => onWeek(-1)} aria-label="Прошлая неделя">‹</button>
-        <span className={s.weekLabel}>{weekLabel(monday)}</span>
-        <button className={s.btn} onClick={() => onWeek(1)} aria-label="Следующая неделя">›</button>
-        {monday !== weekStart(today) && <button className={s.btnGhost} onClick={() => onWeek(0)}>к сегодня</button>}
-        {isSasha && <button className={`${s.btn} ${s.push}`} onClick={onAdd}>+ Добавить</button>}
-      </div>
-
-      <div className={s.board}>
-      <div className={s.week}>
-        {days.map((d, i) => {
-          const items = board.items.filter((it) => it.planDate === d);
-          return (
-            <section key={d} className={`${s.day} ${d === today ? s.today : ''}`} aria-label={`${DOW[i]} ${dayNum(d)} ${monthOf(d)}`}>
-              <h3 className={s.dayHead}>
-                <span>{DOW[i]}</span> <span className={s.dayNum}>{dayNum(d)}</span>
-                {items.length > 0 && <span className={s.count}>{items.length}</span>}
-              </h3>
-              {items.length === 0 && <p className={s.empty}>пусто</p>}
-              {items.map((it) => <Card key={it.id} item={it} snaps={board.stats[it.shortcode ?? '']} onOpen={onOpen} />)}
-            </section>
-          );
-        })}
-      </div>
-
-      <section className={s.nodate}>
-        <h3 className={s.sectionHead}>Без даты <span className={s.count}>{unscheduled.length}</span></h3>
-        {unscheduled.length === 0 && <p className={s.empty}>всё расставлено</p>}
-        <div className={s.nodateGrid}>
-          {unscheduled.map((it) => <Card key={it.id} item={it} snaps={undefined} onOpen={onOpen} />)}
+      <div className={s.month} role="grid" aria-label={monthLabel(anchor)}>
+        <div className={s.monthRow} role="row">
+          {DOW.map((d) => <div key={d} className={s.monthDow} role="columnheader">{d}</div>)}
         </div>
-      </section>
+        {weeks.map((w) => (
+          <div key={w[0]} className={s.monthRow} role="row">
+            {w.map((d) => {
+              const groups = byDay(d);
+              return (
+                <div
+                  key={d} role="gridcell" aria-label={`${dayNum(d)} ${monthOf(d)}`}
+                  className={`${s.cell} ${d.startsWith(month) ? '' : s.cellOut} ${d === today ? s.today : ''}`}
+                >
+                  <span className={s.cellNum}>{dayNum(d)}</span>
+                  {groups.map((g) => <Chip key={g.key} group={g} board={board} onOpen={onOpen} />)}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* phone: only the days that have something */}
+      <div className={s.monthList}>
+        {listDays.length === 0 && <p className={s.empty}>в этом месяце пусто</p>}
+        {listDays.map(([d, groups]) => (
+          <section key={d} className={`${s.day} ${d === today ? s.today : ''}`}>
+            <h3 className={s.dayHead}>
+              <span>{dowOf(d)}</span> <span className={s.dayNum}>{dayNum(d)}</span> <span>{monthOf(d)}</span>
+              <span className={s.count}>{groups.length}</span>
+            </h3>
+            {groups.map((g) => <Card key={g.key} group={g} board={board} onOpen={onOpen} />)}
+          </section>
+        ))}
       </div>
     </>
   );
 }
 
-function Card({ item, snaps, onOpen }: { item: ItemView; snaps: Snapshot[] | undefined; onOpen: (id: string) => void }) {
-  const last = latest(snaps);
+function NoDate({ items, board, onOpen }: { items: ItemView[]; board: Board; onOpen: GroupOpen }) {
+  const groups = collapseCopies(items.filter((i) => !i.planDate && i.stage !== 'published' && i.stage !== 'skip'));
   return (
-    <button className={`${s.card} ${item.stage === 'skip' ? s.skipped : ''}`} onClick={() => onOpen(item.id)}>
-      <span className={s.cardTop}>
-        <span className={`${s.kind} ${item.kind === 'carousel' ? s.kindCarousel : ''}`}>{KIND_LABEL[item.kind]}</span>
-        <span className={`${s.stage} ${s[`stage_${item.stage}`]}`}>{STAGE_LABEL[item.stage]}</span>
-      </span>
-      <span className={s.cardTitle}>{item.title}</span>
-      {(item.variant || STAGE_OWNER[item.stage] || last) && (
+    <section className={s.nodate}>
+      <h3 className={s.sectionHead}>Без даты <span className={s.count}>{groups.length}</span></h3>
+      {groups.length === 0 && <p className={s.empty}>всё расставлено</p>}
+      <div className={s.nodateGrid}>
+        {groups.map((g) => <Card key={g.key} group={g} board={board} onOpen={onOpen} />)}
+      </div>
+    </section>
+  );
+}
+
+/** Post preview: our thumbnail route for published posts, a neutral tile by kind otherwise. */
+function Thumb({ item, className }: { item: ItemView; className?: string }) {
+  const [broken, setBroken] = useState(false);
+  if (item.mediaId && !broken) {
+    // eslint-disable-next-line @next/next/no-img-element -- streamed from our own route, sizes vary
+    return <img className={`${s.thumb} ${className ?? ''}`} src={`/api/studio/thumb/${item.mediaId}`} alt="" loading="lazy" onError={() => setBroken(true)} />;
+  }
+  return (
+    <span className={`${s.thumb} ${s.thumbEmpty} ${className ?? ''}`} aria-hidden="true">
+      {item.kind === 'reel' ? (
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 7.5v9l7-4.5z" fill="currentColor" /></svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="5" y="5" width="11" height="14" rx="2" /><path d="M19 7v10" /></svg>
+      )}
+    </span>
+  );
+}
+
+function Card({ group, board, onOpen }: { group: CardGroup; board: Board; onOpen: GroupOpen }) {
+  const item = group.items[0];
+  const n = group.items.length;
+  const last = n === 1 ? latest(board.stats[item.shortcode ?? '']) : null;
+  return (
+    <button className={`${s.card} ${item.stage === 'skip' ? s.skipped : ''}`} onClick={() => onOpen(group)}>
+      <Thumb item={item} />
+      <span className={s.cardBody}>
+        <span className={s.cardTop}>
+          <span className={`${s.kind} ${item.kind === 'carousel' ? s.kindCarousel : ''}`}>{KIND_LABEL[item.kind]}</span>
+          <span className={`${s.stage} ${s[`stage_${item.stage}`]}`}>{STAGE_LABEL[item.stage]}</span>
+        </span>
+        <span className={s.cardTitle}>{item.title}</span>
         <span className={s.cardMeta}>
-          {item.variant && <span>{item.variant}{item.copyNo ? ` · копия ${item.copyNo}` : ''}</span>}
+          {n > 1 && <span className={s.copyBadge}>×{copiesLabel(n)}</span>}
+          {n === 1 && item.variant && <span>{item.variant}{item.copyNo ? ` · копия ${item.copyNo}` : ''}</span>}
           {STAGE_OWNER[item.stage] && <span>{STAGE_OWNER[item.stage]}</span>}
           {last?.views != null && <span>{fmt('views', last.views, item.kind)} просм.</span>}
         </span>
-      )}
+      </span>
     </button>
+  );
+}
+
+/** Month cell entry: thumbnail, kind, stage colour, copies count. */
+function Chip({ group, board, onOpen }: { group: CardGroup; board: Board; onOpen: GroupOpen }) {
+  const item = group.items[0];
+  const n = group.items.length;
+  const views = n === 1 ? latest(board.stats[item.shortcode ?? ''])?.views : null;
+  const label = `${KIND_LABEL[item.kind]}, ${STAGE_LABEL[item.stage]}${n > 1 ? `, ${copiesLabel(n)}` : ''}: ${item.title}`;
+  return (
+    <button className={`${s.chip} ${s[`chip_${item.stage}`]}`} onClick={() => onOpen(group)} title={label} aria-label={label}>
+      <Thumb item={item} className={s.chipThumb} />
+      <span className={s.chipBody}>
+        <span className={s.chipKind}>{KIND_LABEL[item.kind]}{n > 1 ? ` ×${n}` : ''}</span>
+        <span className={s.chipTitle}>{item.title}</span>
+        {views != null && <span className={s.chipKind}>{fmt('views', views, item.kind)}</span>}
+      </span>
+    </button>
+  );
+}
+
+function CopiesSheet({ items, onOpen, onClose }: { items: ItemView[]; onOpen: (id: string) => void; onClose: () => void }) {
+  const first = items[0];
+  return (
+    <Sheet label={`Копии: ${first.title}`} onClose={onClose}>
+      <div className={s.drawerHead}>
+        <span className={`${s.kind} ${first.kind === 'carousel' ? s.kindCarousel : ''}`}>{KIND_LABEL[first.kind]}</span>
+        <span className={s.muted}>{first.variant} · {copiesLabel(items.length)}</span>
+        <button className={s.close} onClick={onClose} aria-label="Закрыть" autoFocus>×</button>
+      </div>
+      <h2 className={s.drawerTitle}>{first.title}</h2>
+      <ul className={s.copyList}>
+        {items.map((it) => (
+          <li key={it.id}>
+            <button className={s.copyRow} onClick={() => onOpen(it.id)}>
+              <Thumb item={it} className={s.chipThumb} />
+              <span className={s.copyName}>Копия {it.copyNo ?? '?'}</span>
+              <span className={`${s.stage} ${s[`stage_${it.stage}`]}`}>{STAGE_LABEL[it.stage]}</span>
+              <span className={s.muted}>{it.planDate ? shortDate(it.planDate) : 'без даты'}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Sheet>
   );
 }
 
@@ -226,6 +372,12 @@ function Drawer({ item, actor, board, run, onClose }: {
           {item.author === 'api' && <span className={s.muted}>найден в Instagram</span>}
           <button className={s.close} onClick={onClose} aria-label="Закрыть" autoFocus>×</button>
         </div>
+
+        {item.mediaId && (
+          <a className={s.drawerThumbLink} href={item.permalink ?? undefined} target="_blank" rel="noreferrer" aria-label="Открыть пост в Instagram">
+            <Thumb item={item} className={s.drawerThumb} />
+          </a>
+        )}
 
         {isSasha
           ? <textarea className={`${s.input} ${s.titleInput}`} rows={2} value={form.title} onChange={set('title')} aria-label="Название" />
@@ -394,9 +546,12 @@ function Stats({ board, onOpen }: { board: Board; onOpen: (id: string) => void }
       <div className={s.groups}>
         {variants.map((g) => (
           <article key={g.key} className={s.group}>
-            <header className={s.groupHead}>
-              <span className={s.groupName}>{g.copies[0]?.item.title ?? g.label}</span>
-              <span className={s.muted}>{g.key} · копий {g.copies.length} · вышло {g.published} · замерено {g.measured}</span>
+            <header className={s.groupHeadRow}>
+              <Thumb item={(g.best ?? g.copies.find((c) => c.item.mediaId) ?? g.copies[0]).item} className={s.chipThumb} />
+              <span className={s.groupHead}>
+                <span className={s.groupName}>{g.copies[0]?.item.title ?? g.label}</span>
+                <span className={s.muted}>{g.key} · копий {g.copies.length} · вышло {g.published} · замерено {g.measured}</span>
+              </span>
             </header>
             {g.measured === 0 ? (
               <p className={s.early}>{g.published ? 'ещё рано: ждём 48 часов после выхода' : 'ещё не вышло'}</p>
@@ -452,7 +607,7 @@ function StatTable({ groups, metrics, kind, onOpen }: {
     <div className={s.tableWrap}>
       <table className={s.table}>
         <thead>
-          <tr><th>Дата</th><th>Пост</th>{metrics.map((m) => <th key={m}>{METRIC_LABEL[m]}</th>)}</tr>
+          <tr><th>Дата</th><th><span className={s.srOnly}>Превью</span></th><th>Пост</th>{metrics.map((m) => <th key={m}>{METRIC_LABEL[m]}</th>)}</tr>
         </thead>
         <tbody>
           {groups.map((g) => {
@@ -460,6 +615,7 @@ function StatTable({ groups, metrics, kind, onOpen }: {
             return (
               <tr key={g.key}>
                 <td className={s.nowrap}>{c.item.planDate ? shortDate(c.item.planDate) : ''}</td>
+                <td className={s.thumbCell}><Thumb item={c.item} className={s.tableThumb} /></td>
                 <td><button className={`${s.linkBtn} ${s.clip}`} onClick={() => onOpen(c.item.id)}>{c.item.title}</button></td>
                 {c.snap
                   ? metrics.map((m) => <td key={m} className={s.num}>{fmt(m, c.snap![m], kind)}</td>)
