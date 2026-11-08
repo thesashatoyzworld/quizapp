@@ -6,6 +6,7 @@ import type { Prisma } from '@/generated/prisma/client';
 import { getAdminSession } from '@/lib/admin-auth';
 import { cookies } from 'next/headers';
 import { STUDIO_COOKIE, verifyStudioSession } from './keys';
+import { LIB_BASES, filterLibrary, forDanya, type LibBase, type LibFilter, type LibraryEntry } from './library';
 import {
   KINDS, STAGES, localDate, shortcodeOf,
   type Actor, type Board, type CommentView, type ItemView, type Kind, type RuleView, type Snapshot, type Stage,
@@ -231,4 +232,92 @@ export async function saveRule(actor: Actor, data: { id?: string; kind?: string;
 export async function deleteRule(actor: Actor, id: string) {
   if (actor !== 'sasha') throw new StudioError('правила правит только Саша');
   await prisma.studioRule.delete({ where: { id } });
+}
+
+// ─── «Библиотека» ───
+
+const LIBRARY_DANYA = 'library_danya';
+
+/** Sasha checks the library first: Danya (studio and MCP) sees nothing until it is opened. */
+export async function libraryOpenToDanya(): Promise<boolean> {
+  return (await prisma.studioSetting.findUnique({ where: { key: LIBRARY_DANYA } }))?.value === 'open';
+}
+
+export async function setLibraryOpen(actor: Actor, open: boolean) {
+  if (actor !== 'sasha') throw new StudioError('открывает библиотеку только Саша');
+  const value = open ? 'open' : 'closed';
+  await prisma.studioSetting.upsert({ where: { key: LIBRARY_DANYA }, create: { key: LIBRARY_DANYA, value }, update: { value } });
+}
+
+type LibRow = Awaited<ReturnType<typeof prisma.studioLibrary.findMany>>[number];
+function libView(r: LibRow): LibraryEntry {
+  return {
+    id: r.id, base: r.base as LibBase, code: r.code, title: r.title, grade: r.grade as LibraryEntry['grade'], group: r.group,
+    body: r.body, quote: r.quote, source: r.source, warnings: r.warnings, flags: r.flags, usedIn: r.usedIn,
+    visibility: r.visibility as LibraryEntry['visibility'], extra: (r.extra ?? {}) as Record<string, unknown>, sort: r.sort,
+    updatedBy: r.updatedBy, updatedAt: r.updatedAt.toISOString(),
+  };
+}
+
+/** Everything for Sasha; Danya gets the redacted view, or nothing while the library is closed. */
+export async function listLibrary(actor: Actor): Promise<{ open: boolean; entries: LibraryEntry[] }> {
+  const open = await libraryOpenToDanya();
+  if (actor !== 'sasha' && !open) return { open, entries: [] };
+  const rows = (await prisma.studioLibrary.findMany({ orderBy: [{ base: 'asc' }, { sort: 'asc' }] })).map(libView);
+  return { open, entries: actor === 'sasha' ? rows : rows.map(forDanya).filter((e): e is LibraryEntry => !!e) };
+}
+
+export function searchLibrary(entries: LibraryEntry[], f: LibFilter, limit = 20) {
+  return filterLibrary(entries, f).slice(0, Math.max(1, Math.min(limit, 100)));
+}
+
+/** By id («position:Z4») or by code («Z4», «1а», «BV.0»), optionally within a base. */
+export async function getLibraryEntry(actor: Actor, idOrCode: string, base?: LibBase): Promise<LibraryEntry> {
+  const { entries } = await listLibrary(actor);
+  const hit = entries.find((e) => e.id === idOrCode) ?? entries.find((e) => e.code === idOrCode && (!base || e.base === base));
+  if (!hit) throw new StudioError(actor === 'sasha' || (await libraryOpenToDanya()) ? 'не найдено' : 'библиотека пока закрыта: Саша её проверяет');
+  return hit;
+}
+
+const LIB_TEXT = ['title', 'group', 'body', 'quote', 'source', 'warnings', 'usedIn'] as const;
+
+/** Create or edit an entry (Sasha only). Edited entries are never overwritten by a re-import. */
+export async function saveLibraryEntry(actor: Actor, data: Record<string, unknown>, by = actor): Promise<string> {
+  if (actor !== 'sasha') throw new StudioError('библиотеку правит только Саша');
+  const fields: Record<string, unknown> = {};
+  for (const k of LIB_TEXT) if (k in data) fields[k] = data[k] == null || data[k] === '' ? (k === 'group' || k === 'body' ? '' : null) : String(data[k]);
+  if ('title' in fields && !fields.title) throw new StudioError('пустое название');
+  if ('grade' in data) {
+    const g = data.grade ? String(data.grade).toUpperCase() : null;
+    if (g && !['A', 'B', 'C'].includes(g)) throw new StudioError('оценка: A, B или C');
+    fields.grade = g;
+  }
+  if ('visibility' in data) {
+    if (!['all', 'sasha'].includes(String(data.visibility))) throw new StudioError('видимость: all или sasha');
+    fields.visibility = data.visibility;
+  }
+  if ('flags' in data) {
+    if (!Array.isArray(data.flags)) throw new StudioError('flags: список');
+    fields.flags = (data.flags as unknown[]).map(String);
+  }
+  fields.updatedBy = by;
+
+  const id = typeof data.id === 'string' && data.id ? data.id : null;
+  const existing = id
+    ? await prisma.studioLibrary.findUnique({ where: { id } })
+    : data.base && data.code ? await prisma.studioLibrary.findUnique({ where: { base_code: { base: String(data.base), code: String(data.code) } } }) : null;
+  if (existing) {
+    await prisma.studioLibrary.update({ where: { id: existing.id }, data: fields });
+    return existing.id;
+  }
+  if (id) throw new StudioError('не найдено');
+  const base = String(data.base ?? '');
+  if (!(LIB_BASES as string[]).includes(base)) throw new StudioError('база: position, story или problem');
+  if (!fields.title) throw new StudioError('пустое название');
+  const code = String(data.code ?? '').trim() || `N${Date.now().toString(36).toUpperCase()}`;
+  const newId = `${base}:${code}`;
+  await prisma.studioLibrary.create({
+    data: { ...(fields as { title: string }), id: newId, base, code, sort: 5_000, flags: (fields.flags as string[]) ?? [] },
+  });
+  return newId;
 }

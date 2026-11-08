@@ -1544,3 +1544,38 @@ model StudioStat {
   @@index([shortcode])
   @@map("studio_stats")
 }
+
+/** «Библиотека»: позиции, истории и пруфы, проблемы аудитории. Коды как в исходных базах. */
+model StudioLibrary {
+  id         String   @id // `${base}:${code}`
+  base       String // position | story | problem
+  code       String
+  title      String
+  grade      String? // A | B | C (positions)
+  group      String   @default("") @map("grp")
+  body       String   @default("")
+  quote      String?
+  source     String?
+  warnings   String?
+  flags      String[] @default([])
+  usedIn     String?  @map("used_in")
+  visibility String   @default("all") // all | sasha
+  extra      Json     @default("{}")
+  sort       Int      @default(0)
+  sourceHash String?  @map("source_hash")
+  updatedBy  String   @default("import") @map("updated_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([base, code])
+  @@index([base])
+  @@map("studio_library")
+}
+
+model StudioSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("studio_settings")
+}

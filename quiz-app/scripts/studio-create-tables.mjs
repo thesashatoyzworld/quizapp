@@ -69,6 +69,40 @@ CREATE TABLE IF NOT EXISTS studio_thumbs (
   fetched_at  TIMESTAMP(3) NOT NULL
 );
 
+-- «Библиотека»: positions, stories/proofs, audience problems. Codes stay as in
+-- the source bases. updated_by = 'import' until someone edits the entry in the
+-- Studio; the importer never overwrites edited rows (source_hash tells it what changed).
+CREATE TABLE IF NOT EXISTS studio_library (
+  id           TEXT PRIMARY KEY,
+  base         TEXT NOT NULL,
+  code         TEXT NOT NULL,
+  title        TEXT NOT NULL,
+  grade        TEXT,
+  grp          TEXT NOT NULL DEFAULT '',
+  body         TEXT NOT NULL DEFAULT '',
+  quote        TEXT,
+  source       TEXT,
+  warnings     TEXT,
+  flags        TEXT[] NOT NULL DEFAULT '{}',
+  used_in      TEXT,
+  visibility   TEXT NOT NULL DEFAULT 'all',
+  extra        JSONB NOT NULL DEFAULT '{}',
+  sort         INTEGER NOT NULL DEFAULT 0,
+  source_hash  TEXT,
+  updated_by   TEXT NOT NULL DEFAULT 'import',
+  created_at   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (base, code)
+);
+CREATE INDEX IF NOT EXISTS studio_library_base_idx ON studio_library(base);
+
+-- Small switches, e.g. whether Danya sees the library yet.
+CREATE TABLE IF NOT EXISTS studio_settings (
+  key         TEXT PRIMARY KEY,
+  value       TEXT NOT NULL,
+  updated_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- One snapshot per media per UTC day; a second sync the same day overwrites it.
 CREATE TABLE IF NOT EXISTS studio_stats (
   id              TEXT PRIMARY KEY,
