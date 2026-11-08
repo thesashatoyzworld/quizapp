@@ -179,7 +179,7 @@ function LibCard({ entry, onOpen }: { entry: LibraryEntry; onOpen: () => void })
         <GradeChip grade={entry.grade} />
         {flags.map((x) => <span key={x} className={s.flag}>{FLAG_LABEL[x]}</span>)}
         {entry.visibility === 'sasha' && <span className={`${s.flag} ${s.flagPrivate}`}>только Саше</span>}
-        {entry.warnings && <span className={`${s.flag} ${s.flagWarn}`}>есть оговорки</span>}
+        {entry.warnings && !entry.flags.includes('voice') && <span className={`${s.flag} ${s.flagWarn}`}>есть оговорки</span>}
       </span>
       <span className={s.libTitle}>{entry.title}</span>
       <span className={s.libQuote}>{entry.quote ? (entry.quote.startsWith('«') ? entry.quote : `«${entry.quote}»`) : entry.group}</span>
