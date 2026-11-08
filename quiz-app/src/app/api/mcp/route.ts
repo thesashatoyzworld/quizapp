@@ -7,8 +7,10 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { z } from 'zod';
 import { actorForKey } from '@/lib/studio/keys';
 import {
-  StudioError, addComment, attachPost, getItem, listItems, listRules, loadBoard, updateItem,
+  StudioError, addComment, attachPost, getItem, getLibraryEntry, listItems, listLibrary, listRules, loadBoard, saveLibraryEntry,
+  searchLibrary, updateItem,
 } from '@/lib/studio/store';
+import { LIB_BASES, type LibBase } from '@/lib/studio/library';
 import {
   STAGES, STAGE_LABEL, addDays, aggregateVariants, fmt, localDate, weekStart, type Actor, type Kind, type Stage,
 } from '@/lib/studio/view';
@@ -99,6 +101,42 @@ function buildServer(actor: Actor) {
     description: 'Оставить комментарий к карточке от своего имени.',
     inputSchema: { id: z.string(), text: z.string().min(1).max(4000) },
   }, safe(async ({ id, text }: { id: string; text: string }) => ({ ok: true, commentId: await addComment(actor, id, text) })));
+
+  const base = z.enum(LIB_BASES as [LibBase, ...LibBase[]]);
+
+  server.registerTool('search_library', {
+    description: 'Поиск по библиотеке Саши: position (позиции с оценкой A/B/C), story (истории и пруфы), problem (проблемы аудитории). Возвращает коротко: id, код, название, оценка, группа, цитата. Полностью: get_library_entry.',
+    inputSchema: {
+      base: base.optional(), query: z.string().optional(), grade: z.enum(['A', 'B', 'C']).optional(),
+      group: z.string().optional(), limit: z.number().int().min(1).max(100).optional(),
+    },
+  }, safe(async ({ base: b, query, grade, group, limit }: { base?: LibBase; query?: string; grade?: string; group?: string; limit?: number }) => {
+    const { open, entries } = await listLibrary(actor);
+    if (actor !== 'sasha' && !open) throw new StudioError('библиотека пока закрыта: Саша её проверяет');
+    const hits = searchLibrary(entries, { base: b, q: query, grade, group }, limit ?? 20);
+    return {
+      total: hits.length,
+      entries: hits.map((e) => ({ id: e.id, base: e.base, code: e.code, title: e.title, grade: e.grade, group: e.group, quote: e.quote, flags: e.flags, warnings: e.warnings })),
+    };
+  }));
+
+  server.registerTool('get_library_entry', {
+    description: 'Запись библиотеки целиком: текст, цитаты, источник, предупреждения (их соблюдать: «не использовать как пруф», «нужно согласие», расхождения в цифрах). id вида position:Z4 или код (Z4, 1а, BV.0).',
+    inputSchema: { id: z.string(), base: base.optional() },
+  }, safe(async ({ id, base: b }: { id: string; base?: LibBase }) => getLibraryEntry(actor, id, b)));
+
+  server.registerTool('upsert_library_entry', {
+    description: 'Только для ключа Саши: создать или поправить запись библиотеки. Поиск записи по id или по base+code; без них создаётся новая. Поправленная запись не перезаписывается импортом.',
+    inputSchema: {
+      id: z.string().optional(), base: base.optional(), code: z.string().optional(), title: z.string().optional(),
+      grade: z.enum(['A', 'B', 'C']).nullable().optional(), group: z.string().optional(), body: z.string().optional(),
+      quote: z.string().nullable().optional(), source: z.string().nullable().optional(), warnings: z.string().nullable().optional(),
+      usedIn: z.string().nullable().optional(), visibility: z.enum(['all', 'sasha']).optional(), flags: z.array(z.string()).optional(),
+    },
+  }, safe(async (args: Record<string, unknown>) => {
+    if (actor !== 'sasha') throw new StudioError('править библиотеку может только Саша');
+    return { ok: true, id: await saveLibraryEntry(actor, args, 'sasha-mcp') };
+  }));
 
   return server;
 }

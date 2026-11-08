@@ -282,7 +282,7 @@ export async function getLibraryEntry(actor: Actor, idOrCode: string, base?: Lib
 const LIB_TEXT = ['title', 'group', 'body', 'quote', 'source', 'warnings', 'usedIn'] as const;
 
 /** Create or edit an entry (Sasha only). Edited entries are never overwritten by a re-import. */
-export async function saveLibraryEntry(actor: Actor, data: Record<string, unknown>, by = actor): Promise<string> {
+export async function saveLibraryEntry(actor: Actor, data: Record<string, unknown>, by: string = actor): Promise<string> {
   if (actor !== 'sasha') throw new StudioError('библиотеку правит только Саша');
   const fields: Record<string, unknown> = {};
   for (const k of LIB_TEXT) if (k in data) fields[k] = data[k] == null || data[k] === '' ? (k === 'group' || k === 'body' ? '' : null) : String(data[k]);
