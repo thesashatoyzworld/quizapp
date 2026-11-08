@@ -8,8 +8,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Диагностика контента | TheSasha",
-  description: "Узнайте, на каком этапе пути вы находитесь и сколько денег теряете из-за неправильного контента",
+  title: "TOYZ · кабинет",
+  description: "Пространство участника TOYZ: уроки, созвоны, разборы и материалы",
 };
 
 export default function RootLayout({
