@@ -64,3 +64,23 @@ export function verifyStudioSession(token: string | null | undefined, env = proc
 }
 
 export const SESSION_MAX_AGE = SESSION_DAYS * 86400;
+
+/**
+ * The studio key from an MCP request: `Authorization: Bearer <key>` first, else
+ * `?key=<key>` in the URL (claude.ai and ChatGPT connectors take a bare URL).
+ * Callers never log the URL or the key.
+ */
+export function keyFromRequest(url: string, authorization: string | null | undefined): string | null {
+  const auth = authorization ?? '';
+  if (/^Bearer\s+/i.test(auth)) return auth.replace(/^Bearer\s+/i, '').trim() || null;
+  try {
+    return new URL(url).searchParams.get('key')?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** The actor's own key, to show them their personal MCP URL. Never another person's. */
+export function ownKey(actor: Actor, env = process.env.STUDIO_KEYS): string | null {
+  return parseKeys(env).get(actor) ?? null;
+}

@@ -1,11 +1,13 @@
 // MCP endpoint for «Студия» (stateless Streamable HTTP). Danya plugs his own
-// AI client in with `Authorization: Bearer <his studio key>`; the key decides
-// who acts. Only studio data is exposed here.
+// AI client in with `Authorization: Bearer <his studio key>` or, for clients
+// that only take a URL (claude.ai, ChatGPT), `/api/mcp?key=<his studio key>`.
+// The key decides who acts. Only studio data is exposed here. Never log the
+// request URL or headers: they carry the key.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
-import { actorForKey } from '@/lib/studio/keys';
+import { actorForKey, keyFromRequest } from '@/lib/studio/keys';
 import {
   StudioError, addComment, attachPost, getItem, getLibraryEntry, listItems, listLibrary, listRules, loadBoard, saveLibraryEntry,
   searchLibrary, updateItem,
@@ -142,8 +144,7 @@ function buildServer(actor: Actor) {
 }
 
 async function handle(request: Request): Promise<Response> {
-  const auth = request.headers.get('authorization') ?? '';
-  const actor = actorForKey(auth.startsWith('Bearer ') ? auth.slice(7).trim() : null);
+  const actor = actorForKey(keyFromRequest(request.url, request.headers.get('authorization')));
   if (!actor) {
     return Response.json({ error: 'Unauthorized' }, { status: 401, headers: { 'www-authenticate': 'Bearer' } });
   }
