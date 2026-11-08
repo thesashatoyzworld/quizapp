@@ -6,7 +6,7 @@ import type { Prisma } from '@/generated/prisma/client';
 import { getAdminSession } from '@/lib/admin-auth';
 import { cookies } from 'next/headers';
 import { STUDIO_COOKIE, verifyStudioSession } from './keys';
-import { LIB_BASES, filterLibrary, forDanya, type LibBase, type LibFilter, type LibraryEntry } from './library';
+import { LIB_BASES, danyaContext, filterLibrary, forDanya, type LibBase, type LibFilter, type LibraryEntry } from './library';
 import {
   KINDS, STAGES, localDate, shortcodeOf,
   type Actor, type Board, type CommentView, type ItemView, type Kind, type RuleView, type Snapshot, type Stage,
@@ -264,7 +264,9 @@ export async function listLibrary(actor: Actor): Promise<{ open: boolean; entrie
   const open = await libraryOpenToDanya();
   if (actor !== 'sasha' && !open) return { open, entries: [] };
   const rows = (await prisma.studioLibrary.findMany({ orderBy: [{ base: 'asc' }, { sort: 'asc' }] })).map(libView);
-  return { open, entries: actor === 'sasha' ? rows : rows.map(forDanya).filter((e): e is LibraryEntry => !!e) };
+  if (actor === 'sasha') return { open, entries: rows };
+  const ctx = danyaContext(rows);
+  return { open, entries: rows.map((e) => forDanya(e, ctx)).filter((e): e is LibraryEntry => !!e) };
 }
 
 export function searchLibrary(entries: LibraryEntry[], f: LibFilter, limit = 20) {

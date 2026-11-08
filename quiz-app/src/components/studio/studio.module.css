@@ -667,6 +667,11 @@
   gap: 10px;
 }
 
+/* long content scrolls the drawer; children must not shrink (overflow:hidden ones collapse to 0) */
+.drawer > * {
+  flex-shrink: 0;
+}
+
 .drawerHead {
   display: flex;
   align-items: center;
@@ -1028,5 +1033,267 @@ textarea.input {
   .tabs .btn {
     margin-left: 0;
     width: 100%;
+  }
+}
+
+/* ── library ── */
+
+.segCount {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-left: 2px;
+}
+
+.libGate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  background: rgba(240, 255, 0, 0.06);
+  border: 1px solid rgba(240, 255, 0, 0.25);
+}
+
+.libGate span {
+  flex: 1 1 320px;
+  max-width: 75ch;
+}
+
+.libGateOpen {
+  background: rgba(0, 255, 136, 0.06);
+  border-color: rgba(0, 255, 136, 0.25);
+}
+
+.libFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.libFilters .input {
+  width: auto;
+  max-width: 100%;
+}
+
+.libFilters .libSearch {
+  flex: 1 1 260px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+}
+
+.check input {
+  accent-color: var(--neon-cyan);
+  width: 16px;
+  height: 16px;
+}
+
+.libList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.libCard {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 5px;
+  height: 112px;
+  overflow: hidden;
+  min-width: 0;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.libCard:hover {
+  border-color: rgba(0, 240, 255, 0.45);
+}
+
+.libCardTop {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.drawer .libCardTop {
+  flex-wrap: wrap;
+}
+
+.code {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.grade {
+  font-size: 0.72rem;
+  font-weight: 700;
+  min-width: 20px;
+  text-align: center;
+  padding: 3px 5px;
+  border-radius: 5px;
+}
+
+.gradeA {
+  background: rgba(0, 255, 136, 0.16);
+  color: var(--success);
+}
+
+.gradeB {
+  background: rgba(0, 240, 255, 0.14);
+  color: var(--neon-cyan);
+}
+
+.gradeC {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.flag {
+  font-size: 0.68rem;
+  padding: 3px 6px;
+  border-radius: 5px;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.flagPrivate {
+  color: #ff8fd4;
+  border-color: rgba(255, 0, 170, 0.35);
+}
+
+.flagWarn {
+  color: var(--neon-yellow);
+  border-color: rgba(240, 255, 0, 0.3);
+}
+
+.libTitle {
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.libQuote {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  align-self: end;
+}
+
+.warnBox {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #f6ffa8;
+  background: rgba(240, 255, 0, 0.07);
+  border: 1px solid rgba(240, 255, 0, 0.3);
+  overflow-x: auto;
+}
+
+.md {
+  display: grid;
+  gap: 4px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.mdGap {
+  height: 4px;
+}
+
+.mdP,
+.mdH {
+  margin: 0;
+}
+
+.mdH {
+  font-size: 0.85rem;
+  margin-top: 8px;
+}
+
+.mdLi {
+  position: relative;
+}
+
+.mdLi::before {
+  content: '·';
+  position: absolute;
+  margin-left: -10px;
+  color: var(--text-muted);
+}
+
+.mdQuote {
+  margin: 2px 0;
+  padding: 4px 0 4px 10px;
+  border-left: 2px solid rgba(0, 240, 255, 0.45);
+  color: var(--text-secondary);
+}
+
+.mdRow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(110px, 1fr);
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 0.8rem;
+  min-width: 480px;
+}
+
+.md:has(.mdRow) {
+  overflow-x: auto;
+}
+
+.bodyInput {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  min-height: 16em;
+}
+
+@media (max-width: 520px) {
+  .bodyInput {
+    font-size: 16px; /* no zoom-on-focus on iOS */
   }
 }

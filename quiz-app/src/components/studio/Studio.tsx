@@ -4,7 +4,7 @@
 // Schedule (week or month, plan or published), item card, stats by copy
 // group, «Что работает».
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ACTOR_LABEL, KIND_LABEL, MODE_LABEL, STAGES, STAGE_LABEL, STAGE_OWNER, addDays, addMonths, aggregateVariants,
@@ -12,8 +12,10 @@ import {
   type Actor, type Board, type CardGroup, type ItemView, type Kind, type Metric, type Mode, type RuleView, type Snapshot,
 } from '@/lib/studio/view';
 import s from './studio.module.css';
+import Sheet from './Sheet';
+import Library from './Library';
 
-type Tab = 'schedule' | 'stats' | 'rules';
+type Tab = 'schedule' | 'stats' | 'rules' | 'library';
 type View = 'week' | 'month';
 
 const DOW = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -88,7 +90,7 @@ export default function Studio({ board, actor, today }: { board: Board; actor: A
   return (
     <div className={s.root}>
       <div className={s.tabs} role="tablist">
-        {([['schedule', 'Расписание'], ['stats', 'Статистика'], ['rules', 'Что работает']] as [Tab, string][]).map(([key, label]) => (
+        {([['schedule', 'Расписание'], ['stats', 'Статистика'], ['rules', 'Что работает'], ['library', 'Библиотека']] as [Tab, string][]).map(([key, label]) => (
           <button key={key} role="tab" aria-selected={tab === key} className={s.tab} onClick={() => setTab(key)}>
             {label}
           </button>
@@ -122,6 +124,7 @@ export default function Studio({ board, actor, today }: { board: Board; actor: A
       )}
       {tab === 'stats' && <Stats board={board} onOpen={setOpenId} />}
       {tab === 'rules' && <Rules rules={board.rules} isSasha={isSasha} run={run} />}
+      {tab === 'library' && <Library isSasha={isSasha} />}
 
       {copies && !open && <CopiesSheet items={copies} onOpen={setOpenId} onClose={() => setCopies(null)} />}
       {open && (
@@ -347,21 +350,6 @@ function CopiesSheet({ items, onOpen, onClose }: { items: ItemView[]; onOpen: (i
 }
 
 // ─── item drawer ───
-
-function Sheet({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  return (
-    <div className={s.overlay} onClick={onClose}>
-      <aside className={s.drawer} role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()}>
-        {children}
-      </aside>
-    </div>
-  );
-}
 
 function Drawer({ item, actor, board, run, onClose }: {
   item: ItemView; actor: Actor; board: Board;

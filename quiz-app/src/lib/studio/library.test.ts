@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { needsConsent, parsePositions, parseProblems, parseStories } from './library-parse';
-import { anonymousWho, filterLibrary, forDanya, redactText, type LibraryEntry } from './library';
+import { anonymousWho, filterLibrary, forDanya, personNames, redactText, type LibraryEntry } from './library';
 
 // The real bases live outside the repo; these tests run where they exist (Sasha's machine).
 const HYP = '/Users/sashatoyz/Documents/ClaudeCode/Projects/GSD-BRAND/clients/sasha/audience-hypothesis';
@@ -77,6 +77,19 @@ test('редакция для Дани', () => {
   assert.equal(d.body, '> «текст» (не купила)');
   assert.deepEqual(d.extra.quotes, [{ who: 'не купила', text: 'текст', source: null }]);
   assert.equal(forDanya({ ...base, visibility: 'sasha' }), null);
+  const counted = forDanya({ ...base, body: '**Покупали:** оценка ~8 (Бобров, Никита, alkuz_fit1)\n**Сколько:** ~12 (ветка natalie_onlineng)', extra: { buyersEst: 'оценка ~8 (Бобров)' } })!;
+  assert.equal(counted.body, '**Покупали:** оценка ~8\n**Сколько:** ~12');
+  assert.equal(counted.extra.buyersEst, 'оценка ~8');
+
+  // speaker names (with case endings) are gone everywhere in Danya's view; Саша stays
+  const names = personNames([base, { ...base, extra: { quotes: [{ who: 'Женя @x (т3)', text: 'q' }, { who: 'Саша', text: 'q' }] } }]);
+  assert.ok(names.includes('Махаббат') && names.includes('Женя') && names.includes('Стас') && !names.includes('Саша'));
+  const named = forDanya(
+    { ...base, base: 'story', body: 'кейс Жени и Женей, Стаса; Саша заплатил; Женька', extra: { screen: 'Кейсы/Женя (рилс).jpg', note: 'донор @osybvideo, лид @lead1' } },
+    { names, handles: ['@osybvideo'] },
+  )!;
+  assert.equal(named.body, 'кейс [имя] и [имя], [имя]; Саша заплатил; Женька');
+  assert.deepEqual(named.extra, { screen: 'Кейсы/[имя] (рилс).jpg', note: 'донор @osybvideo, лид [ник]' });
 });
 
 test('фильтры библиотеки', () => {
