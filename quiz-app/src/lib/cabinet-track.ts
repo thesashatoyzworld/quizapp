@@ -18,7 +18,7 @@ import { useEffect } from 'react';
 /** Раздел кабинета — он же значение metadata.section. */
 export type Section =
   | 'kurs' | 'razbory' | 'sozvony' | 'lichnoe' | 'prompty' | 'potok' | 'formula' | 'workshops'
-  | 'neyronki' | 'soobshchestvo' | 'roliki';
+  | 'neyronki' | 'soobshchestvo' | 'roliki' | 'optimizator';
 
 /** Вид материала внутри раздела — он же metadata.kind. */
 export type MaterialKind = Section;
