@@ -142,3 +142,17 @@ export async function syncInstagram() {
   await Promise.all(Array.from({ length: 4 }, worker));
   return { media: media.length, snapshots, matched, created, failed };
 }
+
+/**
+ * A fresh preview URL for one post: reel/video → thumbnail_url, image →
+ * media_url, carousel → its first child. IG CDN links are signed and expire,
+ * so callers cache this for about a day only.
+ */
+export async function resolveThumb(mediaId: string): Promise<string | null> {
+  type M = { media_type?: string; media_url?: string; thumbnail_url?: string };
+  const pick = (m: M | undefined) => (m ? (m.media_type === 'VIDEO' ? m.thumbnail_url : m.media_url ?? m.thumbnail_url) ?? null : null);
+  const m = await get<M>(mediaId, { fields: 'media_type,media_url,thumbnail_url' });
+  if (m.media_type !== 'CAROUSEL_ALBUM') return pick(m);
+  const kids = await get<{ data: M[] }>(`${mediaId}/children`, { fields: 'media_type,media_url,thumbnail_url' });
+  return pick(kids.data[0]);
+}

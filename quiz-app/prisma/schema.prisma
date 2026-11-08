@@ -1458,7 +1458,9 @@ model StudioItem {
   planDate    DateTime?       @map("plan_date") @db.Date
   briefUrl    String?         @map("brief_url")
   briefText   String?         @map("brief_text")
-  briefHtml   String?         @map("brief_html")
+  briefHtml   String?         @map("brief_html") // legacy, briefs now live in studio_briefs
+  briefId     String?         @map("brief_id")
+  brief       StudioBrief?    @relation(fields: [briefId], references: [id], onDelete: SetNull)
   shortcode   String?         @unique
   mediaId     String?         @map("media_id")
   permalink   String?
@@ -1470,7 +1472,30 @@ model StudioItem {
 
   @@index([planDate])
   @@index([variant])
+  @@index([briefId])
   @@map("studio_items")
+}
+
+/** ТЗ, отправленное Дане: хранится один раз, карточки ссылаются на него. */
+model StudioBrief {
+  id        String       @id
+  title     String
+  html      String
+  sentAt    DateTime?    @map("sent_at") @db.Date
+  tgRef     String?      @map("tg_ref")
+  items     StudioItem[]
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@map("studio_briefs")
+}
+
+/** Свежая ссылка на превью поста: ссылки CDN инстаграма подписаны и протухают. */
+model StudioThumb {
+  mediaId   String   @id @map("media_id")
+  url       String
+  fetchedAt DateTime @map("fetched_at")
+
+  @@map("studio_thumbs")
 }
 
 model StudioComment {

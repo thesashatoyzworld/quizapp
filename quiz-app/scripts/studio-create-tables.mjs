@@ -50,6 +50,25 @@ CREATE TABLE IF NOT EXISTS studio_rules (
   updated_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- A brief sent to Danya, stored once and shared by its items.
+CREATE TABLE IF NOT EXISTS studio_briefs (
+  id          TEXT PRIMARY KEY,
+  title       TEXT NOT NULL,
+  html        TEXT NOT NULL,
+  sent_at     DATE,
+  tg_ref      TEXT,
+  created_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+ALTER TABLE studio_items ADD COLUMN IF NOT EXISTS brief_id TEXT REFERENCES studio_briefs(id) ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE INDEX IF NOT EXISTS studio_items_brief_id_idx ON studio_items(brief_id);
+
+-- Fresh thumbnail URL per Instagram media (IG CDN links are signed and expire).
+CREATE TABLE IF NOT EXISTS studio_thumbs (
+  media_id    TEXT PRIMARY KEY,
+  url         TEXT NOT NULL,
+  fetched_at  TIMESTAMP(3) NOT NULL
+);
+
 -- One snapshot per media per UTC day; a second sync the same day overwrites it.
 CREATE TABLE IF NOT EXISTS studio_stats (
   id              TEXT PRIMARY KEY,

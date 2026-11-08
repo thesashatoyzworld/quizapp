@@ -22,10 +22,10 @@ const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 type ItemRow = Awaited<ReturnType<typeof prisma.studioItem.findMany>>[number];
 const ITEM_SELECT = {
   id: true, kind: true, title: true, variant: true, copyNo: true, stage: true, planDate: true, briefUrl: true,
-  briefText: true, shortcode: true, permalink: true, publishedAt: true, author: true,
+  briefText: true, shortcode: true, mediaId: true, permalink: true, publishedAt: true, author: true, briefId: true,
 } as const;
 
-function itemView(r: Omit<ItemRow, 'briefHtml' | 'mediaId' | 'createdAt' | 'updatedAt'>, hasHtml: boolean): ItemView {
+function itemView(r: Omit<ItemRow, 'briefHtml' | 'createdAt' | 'updatedAt'>, hasHtml: boolean): ItemView {
   return {
     id: r.id,
     kind: r.kind as Kind,
@@ -38,6 +38,8 @@ function itemView(r: Omit<ItemRow, 'briefHtml' | 'mediaId' | 'createdAt' | 'upda
     briefText: r.briefText,
     hasBriefHtml: hasHtml,
     shortcode: r.shortcode,
+    mediaId: r.mediaId,
+    briefId: r.briefId,
     permalink: r.permalink,
     publishedAt: r.publishedAt ? r.publishedAt.toISOString() : null,
     author: r.author,
@@ -80,7 +82,7 @@ export async function listItems(where: Prisma.StudioItemWhereInput = {}): Promis
     prisma.studioItem.findMany({ where: { ...where, briefHtml: { not: null } }, select: { id: true } }),
   ]);
   const html = new Set(withHtml.map((r) => r.id));
-  return rows.map((r) => itemView(r, html.has(r.id)));
+  return rows.map((r) => itemView(r, html.has(r.id) || !!r.briefId));
 }
 
 export async function loadBoard(): Promise<Board> {
@@ -94,15 +96,35 @@ export async function loadBoard(): Promise<Board> {
 }
 
 export async function getItem(id: string) {
-  const row = await prisma.studioItem.findUnique({ where: { id }, include: { comments: { orderBy: { createdAt: 'asc' } } } });
+  const row = await prisma.studioItem.findUnique({
+    where: { id },
+    include: { comments: { orderBy: { createdAt: 'asc' } }, brief: { select: { title: true, html: true } } },
+  });
   if (!row) return null;
-  const item = itemView(row, !!row.briefHtml);
+  const item = itemView(row, !!row.briefHtml || !!row.brief);
   const stats = row.shortcode ? (await statsFor([row.shortcode]))[row.shortcode] ?? [] : [];
-  return { item, briefHtml: row.briefHtml, comments: row.comments.map(commentView), stats };
+  return { item, briefTitle: row.brief?.title ?? null, briefHtml: row.brief?.html ?? row.briefHtml, comments: row.comments.map(commentView), stats };
 }
 
+/** Brief HTML for an item: the shared brief row, else the legacy per-item copy. */
 export async function getBriefHtml(id: string): Promise<string | null> {
-  return (await prisma.studioItem.findUnique({ where: { id }, select: { briefHtml: true } }))?.briefHtml ?? null;
+  const row = await prisma.studioItem.findUnique({ where: { id }, select: { briefHtml: true, brief: { select: { html: true } } } });
+  return row?.brief?.html ?? row?.briefHtml ?? null;
+}
+
+/** Cached fresh thumbnail URL for a media id, or null. */
+export async function cachedThumb(mediaId: string) {
+  return prisma.studioThumb.findUnique({ where: { mediaId } });
+}
+
+export async function saveThumb(mediaId: string, url: string) {
+  const fetchedAt = new Date();
+  await prisma.studioThumb.upsert({ where: { mediaId }, create: { mediaId, url, fetchedAt }, update: { url, fetchedAt } });
+}
+
+/** Only media we know about get a thumbnail route (keeps the route from proxying arbitrary ids). */
+export async function isKnownMedia(mediaId: string): Promise<boolean> {
+  return !!(await prisma.studioItem.findFirst({ where: { mediaId }, select: { id: true } }));
 }
 
 // ─── writes ───

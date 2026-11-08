@@ -6,7 +6,7 @@ import { actorForKey, createStudioSession, verifyStudioSession } from './keys';
 function item(p: Partial<ItemView> & { id: string }): ItemView {
   return {
     kind: 'reel', title: 't', variant: null, copyNo: null, stage: 'published', planDate: null, briefUrl: null,
-    briefText: null, hasBriefHtml: false, shortcode: null, permalink: null, publishedAt: null, author: 'sasha', ...p,
+    briefText: null, hasBriefHtml: false, shortcode: null, mediaId: null, briefId: null, permalink: null, publishedAt: null, author: 'sasha', ...p,
   };
 }
 

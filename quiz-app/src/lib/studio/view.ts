@@ -60,6 +60,8 @@ export interface ItemView {
   briefText: string | null;
   hasBriefHtml: boolean;
   shortcode: string | null;
+  mediaId: string | null; // Instagram media id, for the thumbnail
+  briefId: string | null;
   permalink: string | null;
   publishedAt: string | null; // ISO
   author: string;
