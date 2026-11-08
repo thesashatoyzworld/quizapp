@@ -14,7 +14,7 @@ function LoginContent() {
   // Куда вести после входа: страница, куда человек шёл (?next=/admin/...),
   // иначе — сразу кабинет-лидборд, а не тяжёлый дашборд.
   const nextParam = searchParams.get('next');
-  const dest = nextParam && nextParam.startsWith('/admin/') ? nextParam : '/admin/uroven';
+  const dest = nextParam && nextParam.startsWith('/admin/') ? nextParam : '/admin/shtab';
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
