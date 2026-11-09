@@ -17,7 +17,7 @@ import {
 // Слепок человека приходит из ChatPlace, статус и заметку ведём у себя —
 // синхронизация их не перетирает.
 
-export type IgFormKind = 'mentor' | 't2' | 't3';
+export type IgFormKind = 'mentor' | 't2' | 't3' | '360';
 
 export type IgLead = {
   id: string;
