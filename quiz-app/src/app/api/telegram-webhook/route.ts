@@ -528,7 +528,7 @@ export async function POST(request: NextRequest) {
         const tier = data.slice('waitlist_'.length);
         const chatId = cb.message.chat.id;
 
-        if (!['t1', 't2', 't3'].includes(tier)) {
+        if (!['t1', 't2', 't3', '360'].includes(tier)) {
           await answerCallbackQuery(cb.id);
           return NextResponse.json({ ok: true });
         }
@@ -1455,7 +1455,7 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
       // спрашиваем телефон и инстаграм. Сами тут ничего не записываем.
       if (startParam.startsWith('waitlist_')) {
         const tier = startParam.slice('waitlist_'.length).split('_')[0];
-        if (['t1', 't2', 't3'].includes(tier)) {
+        if (['t1', 't2', 't3', '360'].includes(tier)) {
           await sendMessage(chatId, `${firstName}, ${WAITLIST_ANKETA_ASK}`, anketaButton(tier));
           await trackEvent({
             event_type: 'bot_start',
