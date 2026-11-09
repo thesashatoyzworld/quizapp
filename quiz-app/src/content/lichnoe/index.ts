@@ -104,6 +104,8 @@ import { LICHNOE_LICHNYY_SOZVON_EVGENIYA_2026_11_06 } from './lichnyy-sozvon-evg
 
 import { LICHNOE_LICHNYY_SOZVON_LEONID_2026_11_06 } from './lichnyy-sozvon-leonid-2026-11-06';
 
+import { LICHNOE_LICHNYY_SOZVON_DANIL_2026_11_09 } from './lichnyy-sozvon-danil-2026-11-09';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -126,6 +128,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-danil-2026-11-09',
+    telegramIds: [448069222, 788334680],
+    client: "Danil",
+    title: "Пускай это не Ferrari, но хотя бы BMW",
+    subtitle: "Разобрали, что делать после блокировки аккаунта в Клоде: неделя на перебор вариантов ушла не зря, но инструмент надо менять, а процессы останавливать нельзя, поэтому берём тариф GPT за десятку, ставим Кодекс и пересобираем на нём ту же цепочку от идеи до сценария, параллельно Саша показал, что на телефоне аккаунт палится через App Store по валюте оплаты, почему купленные аккаунты «с пройденной верификацией» всё равно банят и чем плох вариант с казахстанским электронным резидентством, договорились про инструкцию по уникализации версий, чтобы грузить по две-три в пробник, и про то, что темы вокруг юмора можно расширять, балансируя между своими экспериментами и потоком спроса",
+    date: '2026-11-09',
+    duration: "37 мин",
+    tags: ["блокировка клода", "монтаж", "кодекс", "уникализация", "темы"],
+    kinescopeId: 'uJm5MVSVJLnsTgN4uBSDQy',
+    html: LICHNOE_LICHNYY_SOZVON_DANIL_2026_11_09,
+  },
   {
     slug: 'lichnyy-sozvon-leonid-2026-11-06',
     telegramIds: [167259877, 788334680],
