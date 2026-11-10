@@ -204,6 +204,44 @@ function UniqInner() {
     else window.open(href, '_blank');
   }
 
+  // One tap for every ready version. Telegram shows its own save dialog per file, so they go
+  // one after another (the next starts when the previous dialog is answered); a declined
+  // dialog stops the chain. In a plain browser each link is an attachment, so they just queue.
+  const [bulk, setBulk] = useState(false);
+  async function downloadAll(items: { href: string; name: string }[]) {
+    if (bulk || items.length === 0) return;
+    setBulk(true);
+    const tg = tgRef.current as (TelegramWebAppLike & {
+      downloadFile?: (p: { url: string; file_name: string }, cb?: (ok: boolean) => void) => void;
+      initData?: string;
+    }) | null;
+    try {
+      for (const it of items) {
+        if (tg?.initData && typeof tg.downloadFile === 'function') {
+          const ok = await new Promise<boolean>((resolve) => {
+            let settled = false;
+            const done = (v: boolean) => { if (!settled) { settled = true; resolve(v); } };
+            try { tg.downloadFile!({ url: it.href, file_name: it.name }, (accepted) => done(accepted !== false)); }
+            catch { done(false); }
+            // Older clients never call back: don't hang the whole chain on them.
+            setTimeout(() => done(true), 60_000);
+          });
+          if (!ok) break;
+        } else if (tg?.initData) {
+          if (typeof tg.openLink === 'function') tg.openLink(it.href); else window.open(it.href, '_blank');
+          break; // without downloadFile each file opens a browser tab: one is enough
+        } else {
+          const a = document.createElement('a');
+          a.href = it.href; a.download = it.name; a.rel = 'noopener';
+          document.body.appendChild(a); a.click(); a.remove();
+          await new Promise((r) => setTimeout(r, 900));
+        }
+      }
+    } finally {
+      setBulk(false);
+    }
+  }
+
   function startNew() {
     setJob(null);
     setFile(null);
@@ -320,7 +358,7 @@ function UniqInner() {
             </section>
           )}
 
-          {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} />}
+          {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} />}
           {job && error && <div className="un-error" role="alert">{error}</div>}
         </>
       )}
@@ -381,7 +419,7 @@ function UniqInner() {
         .un-count-on { background: var(--un-accent); border-color: var(--un-accent); color: oklch(1 0 0); }
         .un-count-btn:disabled { cursor: default; opacity: .6; }
 
-        .un-run, .un-cta, .un-dl, .un-new {
+        .un-run, .un-cta, .un-dl, .un-new, .un-all {
           display: flex; align-items: center; justify-content: center; width: 100%; min-height: 52px;
           text-decoration: none; cursor: pointer; border: none; border-radius: 12px;
           font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px;
@@ -401,6 +439,9 @@ function UniqInner() {
         .un-files { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
         .un-dl { background: var(--un-good-soft); color: var(--un-good); justify-content: space-between; padding: 0 16px; }
         .un-dl span { font-family: 'Manrope', system-ui, sans-serif; font-weight: 600; font-size: 13px; color: var(--un-muted); }
+        .un-all { margin-top: 16px; background: var(--un-good); color: oklch(1 0 0); justify-content: space-between; padding: 0 16px; }
+        .un-all:disabled { opacity: .7; cursor: default; }
+        .un-all span { font-family: 'Manrope', system-ui, sans-serif; font-weight: 600; font-size: 13px; opacity: .85; }
         .un-new { margin-top: 14px; background: none; border: 1px solid var(--un-line); color: var(--un-text); }
 
         .un-error { margin-top: 12px; font-size: 14px; line-height: 1.45; color: var(--un-low); background: var(--un-low-soft); border-radius: 10px; padding: 11px 13px; }
@@ -424,13 +465,20 @@ function UniqInner() {
   );
 }
 
-function JobCard({ job, access, remaining, onNew, onDownload }: {
+function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bulk }: {
   job: Job;
   access: Access;
   remaining: number | null;
   onNew: () => void;
   onDownload: (e: React.MouseEvent<HTMLAnchorElement>, href: string, name: string) => void;
+  onDownloadAll: (items: { href: string; name: string }[]) => void;
+  bulk: boolean;
 }) {
+  const items = job.versions.map((v) => ({
+    i: v.i, size: v.size,
+    href: `${access.url}${v.url}?t=${encodeURIComponent(access.token)}`,
+    name: `${v.i}.mp4`,
+  }));
   const total = job.total || 1;
   const finished = job.status === 'done' || job.done + job.failed >= total;
   const pct = finished ? 100 : Math.round(((job.done + job.failed) / total) * 100);
@@ -459,19 +507,21 @@ function JobCard({ job, access, remaining, onNew, onDownload }: {
       {job.status !== 'failed' && (
         <div className={finished ? 'un-bar un-bar-done' : 'un-bar'}><i style={{ width: `${Math.max(job.status === 'queued' ? 0 : 4, pct)}%` }} /></div>
       )}
-      {job.versions.length > 0 && (
+      {items.length > 1 && finished && (
+        <button type="button" className="un-all" disabled={bulk} onClick={() => onDownloadAll(items)}>
+          {bulk ? 'скачиваю…' : `скачать все ${items.length}`}
+          <span>{mb(items.reduce((n, it) => n + it.size, 0))}</span>
+        </button>
+      )}
+      {items.length > 0 && (
         <ul className="un-files">
-          {job.versions.map((v) => {
-            const href = `${access.url}${v.url}?t=${encodeURIComponent(access.token)}`;
-            const name = `${v.i}.mp4`;
-            return (
-              <li key={v.i}>
-                <a className="un-dl" href={href} download={name} onClick={(e) => onDownload(e, href, name)}>
-                  скачать {name} <span>{mb(v.size)}</span>
-                </a>
-              </li>
-            );
-          })}
+          {items.map(({ i, size, href, name }) => (
+            <li key={i}>
+              <a className="un-dl" href={href} download={name} onClick={(e) => onDownload(e, href, name)}>
+                скачать {name} <span>{mb(size)}</span>
+              </a>
+            </li>
+          ))}
         </ul>
       )}
       {(job.status === 'done' || job.status === 'failed') && (
