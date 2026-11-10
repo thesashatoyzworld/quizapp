@@ -4,10 +4,12 @@ import { callSecretOk } from '@/lib/roadmap/call-secret';
 import { normalizePayload, saveAndNotify } from '@/lib/roadmap/call-proposals';
 
 export const runtime = 'nodejs';
+// Applying runs inside this request now: a few sequential transactions.
+export const maxDuration = 60;
 
 // POST /api/roadmap-calls/proposals
 // The server pipeline posts what it heard for each client on a group call.
-// Stored as pending, Sasha gets one bot message; roadmaps change only after his tap.
+// Stored and applied to the roadmaps at once; Sasha gets one bot message with the result.
 // Idempotent on jobId: a retry returns the same proposal and does not message twice.
 export async function POST(req: NextRequest) {
   if (!callSecretOk(req.headers.get('x-roadmap-secret'))) {
