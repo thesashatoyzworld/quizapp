@@ -84,9 +84,9 @@ export async function GET(request: NextRequest) {
       (await prisma.reelVersion.count({ where: { telegramId: BigInt(telegramId) } }))
     ) > 0));
 
-    // «Уникализатор» в бете: Саша и тестеры (UNIQ_TESTERS), после UNIQ_OPEN=1 все.
+    // «Уникализатор» в бете: Саша, т3 и тестеры (UNIQ_TESTERS), после UNIQ_OPEN=1 все.
     // Платный доступ проверяет /api/cabinet/uniq по подписанной личности.
-    const hasUniq = uniqTabVisible(telegramId);
+    const hasUniq = uniqTabVisible(telegramId, undefined, tiers);
 
     // identified — знаем ЛИ мы, кто это (по Telegram или сессии). Кабинет так
     // отличает «вошёл, но без покупок» (показать разделы под замком) от «не вошёл»

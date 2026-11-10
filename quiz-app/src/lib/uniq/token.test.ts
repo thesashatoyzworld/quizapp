@@ -46,6 +46,9 @@ test('beta gate: Sasha and testers until UNIQ_OPEN=1', () => {
   assert.equal(uniqTabVisible(788334680, {}), true);
   assert.equal(uniqTabVisible(555, {}), false);
   assert.equal(uniqTabVisible(6013902004, {}), false);
+  assert.equal(uniqTabVisible(555, {}, { uroven: 3 }), true);
+  assert.equal(uniqTabVisible(555, {}, { uroven: 2 }), false);
+  assert.equal(uniqTabVisible(null, {}, { uroven: 3 }), false);
   assert.equal(uniqTabVisible(555, { testers: '111, 555' }), true);
   assert.equal(uniqTabVisible(null, { testers: '555' }), false);
   assert.equal(uniqTabVisible(null, { open: '1' }), true);

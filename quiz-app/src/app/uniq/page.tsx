@@ -369,6 +369,7 @@ function UniqInner() {
           {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} />}
           {job && error && <div className="un-error" role="alert">{error}</div>}
           <Guide />
+          <Feedback initData={initData.current} />
         </>
       )}
 
@@ -428,7 +429,7 @@ function UniqInner() {
         .un-count-on { background: var(--un-accent); border-color: var(--un-accent); color: oklch(1 0 0); }
         .un-count-btn:disabled { cursor: default; opacity: .6; }
 
-        .un-run, .un-cta, .un-dl, .un-new, .un-all {
+        .un-run, .un-cta, .un-dl, .un-new, .un-all, .un-fb-send {
           display: flex; align-items: center; justify-content: center; width: 100%; min-height: 52px;
           text-decoration: none; cursor: pointer; border: none; border-radius: 12px;
           font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px;
@@ -462,6 +463,19 @@ function UniqInner() {
         .un-guide ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; line-height: 1.5; }
         .un-guide li::marker { font-weight: 700; color: var(--un-accent); }
         .un-guide p { margin: 14px 0 0; font-size: 13px; color: var(--un-muted); }
+        .un-fb { margin-top: 26px; padding: 18px 16px; border-radius: 14px; background: var(--un-surface); border: 1px solid var(--un-line); }
+        .un-fb h2 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin: 0 0 4px; }
+        .un-fb p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.45; color: var(--un-muted); }
+        .un-fb-text {
+          width: 100%; box-sizing: border-box; resize: vertical; min-height: 96px; padding: 12px 13px;
+          border: 1px solid var(--un-line); border-radius: 12px; background: var(--un-bg); color: var(--un-text);
+          font: 500 16px/1.45 'Manrope', system-ui, sans-serif;
+        }
+        .un-fb-text:focus { outline: 2px solid var(--un-accent); outline-offset: 1px; }
+        .un-fb-send { margin-top: 10px; background: var(--un-text); color: var(--un-bg); }
+        .un-fb-send:disabled { background: var(--un-line); color: var(--un-muted); cursor: default; }
+        .un-fb-ok { font-size: 14.5px; font-weight: 600; color: var(--un-good); background: var(--un-good-soft); border-radius: 12px; padding: 12px 14px; }
+        .un-fb-ok button { margin-left: 6px; border: none; background: none; padding: 0; color: var(--un-muted); font: inherit; text-decoration: underline; cursor: pointer; }
         .un-error { margin-top: 12px; font-size: 14px; line-height: 1.45; color: var(--un-low); background: var(--un-low-soft); border-radius: 10px; padding: 11px 13px; }
         .un-login-title { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px; }
         .un-login-sub { color: var(--un-muted); font-size: 12.5px; margin: 4px 0 12px; line-height: 1.4; }
@@ -480,6 +494,56 @@ function UniqInner() {
         }
       `}</style>
     </main>
+  );
+}
+
+function Feedback({ initData }: { initData: string }) {
+  const [text, setText] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [err, setErr] = useState('');
+  async function submit() {
+    if (!text.trim() || state === 'sending') return;
+    setState('sending');
+    try {
+      const res = await fetch('/api/cabinet/uniq/feedback', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', ...(initData ? { 'x-tg-init-data': initData } : {}) },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Не получилось отправить.');
+      setText('');
+      setState('sent');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Не получилось отправить.');
+      setState('error');
+    }
+  }
+  return (
+    <section className="un-fb">
+      <h2>Пожелания и баги</h2>
+      <p>Что-то не работает, неудобно или хочется новую функцию, напиши сюда. Сообщение придёт Саше лично.</p>
+      {state === 'sent' ? (
+        <div className="un-fb-ok">
+          Спасибо, получил! <button type="button" onClick={() => setState('idle')}>написать ещё</button>
+        </div>
+      ) : (
+        <>
+          <textarea
+            className="un-fb-text"
+            rows={4}
+            maxLength={2000}
+            placeholder="Например: версии скачались, но в галерее не видно, айфон 13"
+            value={text}
+            onChange={(e) => { setText(e.target.value); if (state === 'error') setState('idle'); }}
+          />
+          <button type="button" className="un-fb-send" disabled={!text.trim() || state === 'sending'} onClick={submit}>
+            {state === 'sending' ? 'отправляю…' : 'отправить'}
+          </button>
+          {state === 'error' && <div className="un-error" role="alert">{err}</div>}
+        </>
+      )}
+    </section>
   );
 }
 
