@@ -72,6 +72,14 @@ test('end to end: 3 + clamped 2 versions, all distinct, 6th rejected', { timeout
     }
     assert.strictEqual(hashes.size, 5);
 
+    // Monitoring log: start, two enqueues, the busy reject and both finished jobs with timings.
+    const log = fs.readFileSync(path.join(s.dataDir, 'log.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+    const jobsLogged = log.filter((e) => e.ev === 'job');
+    assert.deepStrictEqual(jobsLogged.map((e) => [e.uid, e.done, e.failed]), [['u-e2e', 3, 0], ['u-e2e', 2, 0]]);
+    assert.ok(jobsLogged.every((e) => e.procSec >= 0 && e.srcBytes > 0 && e.srcSec === 4 && e.outBytes > 0));
+    assert.ok(log.some((e) => e.ev === 'reject' && e.reason === 'busy'));
+    assert.strictEqual(log[0].ev, 'start');
+
     // Other users can't download.
     assert.strictEqual((await fetch(`${s.base}${ja.versions[0].url}?t=${token('someone-else')}`)).status, 404);
 

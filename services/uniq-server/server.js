@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { probe, fingerprint, History, Job } = require('./core');
+const { createMonitor } = require('./monitor');
 
 const MAX_PER_VIDEO = 5;
 const MAX_BYTES = 500 * 1024 * 1024;
@@ -66,6 +67,7 @@ function createServer(opts = {}) {
     'https://world.thesashatoyz.com,https://thesashatoyz.com,https://www.thesashatoyz.com,http://localhost:3000')
     .split(',').map((s) => s.trim()).filter(Boolean);
   const maxBytes = opts.maxBytes || MAX_BYTES;
+  const mon = opts.monitor || createMonitor({ dataDir });
   const uploadsDir = path.join(dataDir, 'uploads');
   const outDir = path.join(dataDir, 'out');
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -84,8 +86,10 @@ function createServer(opts = {}) {
   const saveJobs = () => writeJson(jobsFile, Object.fromEntries(jobs));
 
   // A restart kills whatever was in flight: fail it and give the versions back.
+  let killed = 0;
   for (const j of jobs.values()) {
     if (j.status === 'queued' || j.status === 'running') {
+      killed++;
       refund(usage, j.key, j.count - j.done);
       j.failed = j.count - j.done;
       j.status = j.done ? 'done' : 'failed';
@@ -96,6 +100,10 @@ function createServer(opts = {}) {
   }
   saveUsage();
   saveJobs();
+  mon.log('start', { killed });
+  if (killed) mon.alert('restart', `сервис перезапустился посреди работы, сорвалось роликов: ${killed}. Людям вернули лимит, им надо загрузить заново.`);
+
+  const load = () => queue.length + (running ? 1 : 0);
 
   function position(j) {
     if (j.status === 'running') return 0;
@@ -121,6 +129,7 @@ function createServer(opts = {}) {
     const j = jobs.get(queue.shift());
     running = j;
     j.status = 'running';
+    j.startedAt = Date.now();
     saveJobs();
     try {
       const job = new Job({
@@ -145,6 +154,7 @@ function createServer(opts = {}) {
       j.lastError = e.message;
       console.error(`job ${j.id} crashed: ${e.message}`);
     }
+    const lastError = j.lastError;
     j.failed = j.count - j.done;
     refund(usage, j.key, j.failed);
     saveUsage();
@@ -155,6 +165,17 @@ function createServer(opts = {}) {
     fs.rmSync(j.src, { force: true });
     saveJobs();
     running = null;
+    mon.log('job', {
+      id: j.id, uid: j.uid, count: j.count, done: j.done, failed: j.failed,
+      srcBytes: j.srcBytes, srcSec: j.srcSec,
+      waitSec: Math.round((j.startedAt - j.createdAt) / 1000),
+      procSec: Math.round((j.finishedAt - j.startedAt) / 1000),
+      outBytes: j.versions.reduce((n, v) => n + v.size, 0), queue: queue.length,
+      ...(lastError ? { error: String(lastError).slice(0, 300) } : {}),
+    });
+    if (j.failed) {
+      mon.alert(`fail:${j.id}`, `не получилось ${j.failed} из ${j.count} версий (ролик ${j.id}, человек ${j.uid}). Ошибка: ${String(lastError || 'неизвестно').slice(0, 200)}`);
+    }
     setImmediate(pump);
   }
 
@@ -179,9 +200,10 @@ function createServer(opts = {}) {
 
   async function handleUpload(req, res, url, auth) {
     const uid = auth.uid;
-    if (uploading.has(uid) || activeJob(uid)) return send(res, 409, { error: 'у тебя уже есть ролик в работе, дождись, пока он закончится' });
+    const rejectLog = (reason) => mon.log('reject', { uid, reason });
+    if (uploading.has(uid) || activeJob(uid)) { rejectLog('busy'); return send(res, 409, { error: 'у тебя уже есть ролик в работе, дождись, пока он закончится' }); }
     const len = Number(req.headers['content-length']);
-    if (len > maxBytes) return send(res, 413, { error: 'файл больше 500 МБ' });
+    if (len > maxBytes) { rejectLog('size'); return send(res, 413, { error: 'файл больше 500 МБ' }); }
     let count = parseInt(url.searchParams.get('count') || '1', 10);
     if (!(count >= 1 && count <= MAX_PER_VIDEO)) return send(res, 400, { error: 'количество версий от 1 до 5' });
     let name = 'video.mp4';
@@ -209,28 +231,34 @@ function createServer(opts = {}) {
         fs.rmSync(src, { force: true });
         res.setHeader('Connection', 'close');
         res.on('finish', () => req.destroy());
+        rejectLog('size');
         return send(res, 413, { error: 'файл больше 500 МБ' });
       }
       let info;
       try { info = await probe(ffmpeg, src); } catch (e) {
         fs.rmSync(src, { force: true });
+        rejectLog('probe');
         return send(res, 400, { error: e.message });
       }
       if (info.dur > MAX_DURATION) {
         fs.rmSync(src, { force: true });
+        rejectLog('duration');
         return send(res, 400, { error: 'ролик длиннее 3 минут' });
       }
       const key = `${uid}:${fingerprint(src)}`;
       const r = reserve(usage, key, count);
       if (r.error) {
         fs.rmSync(src, { force: true });
+        rejectLog('limit');
         return send(res, 429, { error: r.error, used: r.used, max: MAX_PER_VIDEO });
       }
       saveUsage();
       const j = { id, uid, key, stem, src, count: r.count, status: 'queued', done: 0, failed: 0,
-        versions: [], createdAt: Date.now() };
+        versions: [], createdAt: Date.now(), srcBytes: fs.statSync(src).size, srcSec: Math.round(info.dur) };
       jobs.set(id, j);
       queue.push(id);
+      mon.log('enqueue', { id, uid, count: r.count, queue: load() });
+      if (load() >= 4) mon.alert('queue', `в очереди ${load()} роликов, люди ждут дольше обычного. Если так часто, пора сервер мощнее.`, 3600 * 1000);
       saveJobs();
       send(res, 200, { jobId: id, count: r.count, used: r.used, remaining: MAX_PER_VIDEO - r.used, position: position(j) });
       setImmediate(pump);
@@ -284,7 +312,7 @@ function createServer(opts = {}) {
       try { url = new URL(`http://x${req.url.startsWith('/') ? '' : '/'}${req.url}`); } catch {
         return send(res, 400, { error: 'неверный адрес' });
       }
-      if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { ok: true, queue: queue.length + (running ? 1 : 0) });
+      if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { ok: true, queue: load() });
 
       const bearer = /^Bearer (.+)$/.exec(req.headers.authorization || '');
       const auth = verify(bearer ? bearer[1] : url.searchParams.get('t'), secret);
@@ -311,8 +339,8 @@ function createServer(opts = {}) {
   }
   // Big uploads over slow links must not hit Node's default 5-minute request timeout.
   server.requestTimeout = 0;
-  server.on('close', () => clearInterval(sweepTimer));
-  server.uniq = { usage, history, jobs, queue };
+  server.on('close', () => { clearInterval(sweepTimer); mon.stop(); });
+  server.uniq = { usage, history, jobs, queue, monitor: mon };
   return server;
 }
 
@@ -320,5 +348,17 @@ module.exports = { createServer, sign, verify, reserve, refund, MAX_PER_VIDEO };
 
 if (require.main === module) {
   const port = Number(process.env.UNIQ_PORT || 8795);
-  createServer().listen(port, process.env.UNIQ_HOST || '127.0.0.1', () => console.log(`uniq-server on :${port}`));
+  const server = createServer();
+  const mon = server.uniq.monitor;
+  mon.start();
+  // Crash: tell Sasha, then exit and let systemd restart the service.
+  const die = (kind) => (e) => {
+    console.error(kind, e);
+    const t = setTimeout(() => process.exit(1), 8000);
+    mon.alert('crash', `сервис упал (${kind}: ${String(e && e.message || e).slice(0, 200)}), systemd поднимет его сам`, 0)
+      .finally(() => { clearTimeout(t); process.exit(1); });
+  };
+  process.on('uncaughtException', die('uncaughtException'));
+  process.on('unhandledRejection', die('unhandledRejection'));
+  server.listen(port, process.env.UNIQ_HOST || '127.0.0.1', () => console.log(`uniq-server on :${port}`));
 }
