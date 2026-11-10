@@ -11,7 +11,7 @@ ExecStart=/usr/bin/node /opt/uniq-server/server.js
 Restart=always
 RestartSec=3
 Nice=10
-CPUQuota=150%
+CPUQuota=190%
 MemoryMax=1200M
 
 [Install]
