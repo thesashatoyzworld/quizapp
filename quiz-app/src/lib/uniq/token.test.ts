@@ -42,9 +42,10 @@ test('sign refuses an empty secret', () => {
   assert.throws(() => signUniqToken({ uid: '42' }, '', NOW));
 });
 
-test('beta gate: admins and testers until UNIQ_OPEN=1', () => {
+test('beta gate: Sasha and testers until UNIQ_OPEN=1', () => {
   assert.equal(uniqTabVisible(788334680, {}), true);
   assert.equal(uniqTabVisible(555, {}), false);
+  assert.equal(uniqTabVisible(6013902004, {}), false);
   assert.equal(uniqTabVisible(555, { testers: '111, 555' }), true);
   assert.equal(uniqTabVisible(null, { testers: '555' }), false);
   assert.equal(uniqTabVisible(null, { open: '1' }), true);
