@@ -66,6 +66,11 @@ export interface Section {
    * (rooms-эндпоинт отдаёт hasForum). После открытия — все.
    */
   forum?: boolean;
+  /**
+   * Уникализатор: пока бета, раздел видят Саша и тестеры
+   * (rooms-эндпоинт отдаёт hasUniq). После UNIQ_OPEN=1 — все.
+   */
+  uniq?: boolean;
 }
 
 export const SECTIONS: Section[] = [
@@ -151,6 +156,19 @@ export const SECTIONS: Section[] = [
       { kind: 'link', title: 'Оптимизатор рилсов', url: '/optimizator', note: 'Вставляешь сценарий рилса, получаешь разбор по методике Каллавея, три новых хука и переписанный текст.', minTier: 1 },
       { kind: 'link', title: 'Поток спроса', url: '/potok', note: 'Как находить заходы, которые уже сработали, и наливать внутрь свой смысл. Методичка и правила для нейронки, нужен компьютер.' },
       { kind: 'recording', title: 'Библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Все прошлые воркшопы и мини-курсы.', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.', subhead: 'Полная библиотека' },
+    ],
+  },
+  {
+    // Уникализатор: из одного ролика до 5 немного разных версий для пробных
+    // рилсов. Видео обрабатывает отдельный сервер (uniq.thesashatoyz.com).
+    key: 'uniq',
+    role: 'uroven',
+    uniq: true,
+    title: 'Уникализатор',
+    subtitle: 'Из одного ролика до 5 разных версий для пробных рилсов',
+    landingUrl: 'https://thesashatoyz.com/uroven',
+    materials: [
+      { kind: 'link', title: 'Открыть уникализатор', url: '/uniq', note: 'Загружаешь ролик, получаешь до 5 немного разных версий. Скачиваешь и выкладываешь пробными.', minTier: 1 },
     ],
   },
   {

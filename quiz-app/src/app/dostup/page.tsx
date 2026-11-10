@@ -50,6 +50,8 @@ function DostupInner() {
   const [hasForum, setHasForum] = useState(false);
   // Заведена ли доска роликов (только личка). Раздел «Ролики» без неё не рисуем.
   const [hasReels, setHasReels] = useState(false);
+  // Уникализатор в бете: вкладку видят Саша и тестеры, после UNIQ_OPEN=1 все.
+  const [hasUniq, setHasUniq] = useState(false);
   // Telegram id of the viewer — forwarded to gated cross-domain materials
   // (kabinet.thesashatoyz.com workshops) so their soft-gate can identify the user.
   const [tgId, setTgId] = useState<number | null>(null);
@@ -85,6 +87,7 @@ function DostupInner() {
           setHasRoadmap(!!data.hasRoadmap);
           setHasForum(!!data.hasForum);
           setHasReels(!!data.hasReels);
+          setHasUniq(!!data.hasUniq);
           setUnlocked(data.unlockedRoles || []);
           trackCabinetOpen(tgId ?? data.telegramId ?? null);
         } else {
@@ -150,7 +153,7 @@ function DostupInner() {
       {/* Показываем ВСЕ разделы. Открытые (бесплатные + купленные) — с материалами.
           Закрытые платные — под замком с кнопкой на лендинг: «это есть, но закрыто». */}
       {unlocked && SECTIONS
-        .filter((s) => (!s.personal || hasPersonal) && (!s.roadmap || hasRoadmap) && (!s.forum || hasForum) && (!s.reels || hasReels))
+        .filter((s) => (!s.personal || hasPersonal) && (!s.roadmap || hasRoadmap) && (!s.forum || hasForum) && (!s.reels || hasReels) && (!s.uniq || hasUniq))
         // Раздел, который входит в состав старшего продукта, владельцу старшего не рисуем.
         .filter((s) => !s.hideForRoles?.some((r) => unlocked.includes(r)))
         .map((s) => (
