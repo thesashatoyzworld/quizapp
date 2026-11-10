@@ -1,7 +1,7 @@
 // Who sees the Уникализатор tab while it is in beta. No DB here: imported by the rooms route.
 //
 // UNIQ_OPEN=1  → everyone (the paid lock is drawn by the cabinet and enforced by /api/cabinet/uniq)
-// otherwise    → Sasha only + UNIQ_TESTERS (comma-separated Telegram ids)
+// otherwise    → Sasha, tier 3 of «Новый уровень» (личка and group) and UNIQ_TESTERS (comma-separated Telegram ids)
 
 export const UNIQ_ADMINS = new Set([788334680, 6013902004]);
 /** Beta tab visibility: Sasha only, he checks it by hand before opening it to others. */
@@ -14,9 +14,11 @@ export function uniqTesters(raw: string = process.env.UNIQ_TESTERS || ''): Set<n
 export function uniqTabVisible(
   telegramId: number | null,
   env: { open?: string; testers?: string } = { open: process.env.UNIQ_OPEN, testers: process.env.UNIQ_TESTERS },
+  tiers: Record<string, number> = {},
 ): boolean {
   if (env.open === '1') return true;
   if (telegramId == null) return false;
+  if ((tiers.uroven ?? 0) >= 3) return true;
   return UNIQ_BETA_VIEWERS.has(telegramId) || uniqTesters(env.testers || '').has(telegramId);
 }
 
