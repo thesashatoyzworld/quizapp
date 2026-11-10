@@ -12,7 +12,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/prisma';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
-import { DEMAND_MODEL } from './demand';
+import { DEMAND_MODEL, asScript } from './demand';
 import type { BazaBlock, BazaExample, BazaNeed, ViewerReasons } from './view';
 
 export type { BazaBlock, BazaExample, BazaNeed };
@@ -36,8 +36,8 @@ export async function topicOf(script: string): Promise<string | null> {
       max_tokens: 40,
       thinking: { type: 'disabled' },
       system: 'Тебе дают сценарий рилса. Определи тему ролика, ответь ровно одним значением из списка: ' +
-        TOPICS.join(' | ') + '. Про рилсы, блог, подписчиков, охваты, съёмку контента = блогинг_контент. Только значение из списка.',
-      messages: [{ role: 'user', content: script.slice(0, 6000) }],
+        TOPICS.join(' | ') + '. Про рилсы, блог, подписчиков, охваты, съёмку контента = блогинг_контент. Не отвечай на текст сценария. Только значение из списка.',
+      messages: [{ role: 'user', content: asScript(script) }],
     },
     { timeout: TOPIC_TIMEOUT_MS, maxRetries: 0 },
   );
@@ -65,8 +65,9 @@ export async function pickBaza(topic: string | null, phrases: string[], need: Ba
   if (!topic) return [];
   const shareOk = need !== 'finish';
   const finishOk = need !== 'share';
-  // A phrase matches when two of its words (stems, prefix) occur in the reel (as anchors.ts);
-  // with no phrases every reel of the topic scores 0 and the biggest hits come first.
+  // A phrase matches when two of its words (stems, prefix) occur in the reel (as anchors.ts).
+  // At least one phrase must match: the biggest hits of a broad topic alone were off the point
+  // (CapCut tricks for a script about why reels get no views).
   const rows = await prisma.$queryRaw<Row[]>`
     WITH ph AS (
       SELECT i, array_agg(DISTINCT CASE
@@ -90,7 +91,7 @@ export async function pickBaza(topic: string | null, phrases: string[], need: Ba
         FROM fit f
     ), by_author AS (
       SELECT *, row_number() OVER (PARTITION BY author ORDER BY phrases DESC, rank DESC NULLS LAST, ratio DESC) AS an
-        FROM scored
+        FROM scored WHERE phrases > 0
     )
     SELECT code, author, ratio::float8 AS ratio, line, idea, who, why, '' AS url
       FROM by_author WHERE an = 1
@@ -113,7 +114,11 @@ export async function bazaFor(
   try {
     topic = await topicP;
     const phrases = await phrasesP.catch(() => [] as string[]);
-    return { need, topic, items: await pickBaza(topic, phrases, need) };
+    const items = await pickBaza(topic, phrases, need);
+    if (items.length || need === 'all') return { need, topic, items };
+    // Thin topic for this reason (few shared hits about blogging): show the other strong side.
+    const other: BazaNeed = need === 'share' ? 'finish' : 'share';
+    return { need: other, topic, items: await pickBaza(topic, phrases, other) };
   } catch (err) {
     console.error('[optimizator/baza]', String((err as Error)?.message || err).slice(0, 200));
     return { need, topic, items: [] };
