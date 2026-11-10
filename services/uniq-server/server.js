@@ -63,7 +63,7 @@ function createServer(opts = {}) {
   const dataDir = opts.dataDir || process.env.UNIQ_DATA || '/var/lib/uniq';
   const ffmpeg = opts.ffmpeg || process.env.UNIQ_FFMPEG || 'ffmpeg';
   const origins = (opts.origins || process.env.UNIQ_ORIGINS ||
-    'https://thesashatoyz.com,https://www.thesashatoyz.com,http://localhost:3000')
+    'https://world.thesashatoyz.com,https://thesashatoyz.com,https://www.thesashatoyz.com,http://localhost:3000')
     .split(',').map((s) => s.trim()).filter(Boolean);
   const maxBytes = opts.maxBytes || MAX_BYTES;
   const uploadsDir = path.join(dataDir, 'uploads');

@@ -33,3 +33,14 @@ test('origins come from config', async () => {
     assert.strictEqual(r.headers.get('access-control-allow-origin'), 'https://a.example');
   } finally { await s.close(); }
 });
+
+test('world cabinet origin allowed by default; no Origin still works with token', async () => {
+  const { token } = require('./helpers');
+  const s = await start();
+  try {
+    let r = await fetch(`${s.base}/health`, { headers: { Origin: 'https://world.thesashatoyz.com' } });
+    assert.strictEqual(r.headers.get('access-control-allow-origin'), 'https://world.thesashatoyz.com');
+    r = await fetch(`${s.base}/api/me`, { headers: { Authorization: `Bearer ${token('u1')}` } });
+    assert.strictEqual(r.status, 200);
+  } finally { await s.close(); }
+});
