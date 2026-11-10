@@ -394,7 +394,7 @@ function UniqInner() {
         .un-progress-row b { font-variant-numeric: tabular-nums; }
         .un-bar { height: 10px; border-radius: 99px; background: var(--un-line); overflow: hidden; }
         .un-bar i { display: block; height: 100%; background: var(--un-accent); border-radius: 99px; transition: width .3s; }
-        .un-bar-done i { background: var(--un-good); }
+        .un-bar-done i { background: var(--un-good); transition: none; }
 
         .un-status { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -0.015em; margin: 0 0 4px; }
         .un-status-sub { font-size: 13px; color: var(--un-muted); margin: 0 0 14px; line-height: 1.4; }
@@ -432,7 +432,8 @@ function JobCard({ job, access, remaining, onNew, onDownload }: {
   onDownload: (e: React.MouseEvent<HTMLAnchorElement>, href: string, name: string) => void;
 }) {
   const total = job.total || 1;
-  const pct = Math.round(((job.done + job.failed) / total) * 100);
+  const finished = job.status === 'done' || job.done + job.failed >= total;
+  const pct = finished ? 100 : Math.round(((job.done + job.failed) / total) * 100);
   let title: string;
   let sub: string;
   if (job.status === 'queued') {
@@ -456,7 +457,7 @@ function JobCard({ job, access, remaining, onNew, onDownload }: {
       <h2 className="un-status">{title}</h2>
       <p className="un-status-sub">{sub}</p>
       {job.status !== 'failed' && (
-        <div className={job.status === 'done' ? 'un-bar un-bar-done' : 'un-bar'}><i style={{ width: `${Math.max(job.status === 'queued' ? 0 : 4, pct)}%` }} /></div>
+        <div className={finished ? 'un-bar un-bar-done' : 'un-bar'}><i style={{ width: `${Math.max(job.status === 'queued' ? 0 : 4, pct)}%` }} /></div>
       )}
       {job.versions.length > 0 && (
         <ul className="un-files">
