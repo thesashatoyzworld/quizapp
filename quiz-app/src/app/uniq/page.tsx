@@ -298,6 +298,14 @@ function UniqInner() {
       {state === 'ok' && acc && (
         <>
           {!job && (
+            <aside className="un-pick">
+              <b>Какой ролик брать.</b> Желательно тот, что уже дал промежуточный результат: набрал больше
+              твоих обычных просмотров, собрал сохранения, репосты или заявки, но до конца не выстрелил.
+              Тема уже доказала, что цепляет, и версии дают ей ещё несколько попыток дойти до новых людей.
+              Ролик, который не зашёл совсем, лучше переснять с другим заходом.
+            </aside>
+          )}
+          {!job && (
             <section className="un-card">
               <input
                 ref={inputRef}
@@ -360,6 +368,7 @@ function UniqInner() {
 
           {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} />}
           {job && error && <div className="un-error" role="alert">{error}</div>}
+          <Guide />
         </>
       )}
 
@@ -444,6 +453,15 @@ function UniqInner() {
         .un-all span { font-family: 'Manrope', system-ui, sans-serif; font-weight: 600; font-size: 13px; opacity: .85; }
         .un-new { margin-top: 14px; background: none; border: 1px solid var(--un-line); color: var(--un-text); }
 
+        .un-pick {
+          margin: 0 0 14px; padding: 14px 16px; border-radius: 14px; font-size: 14px; line-height: 1.5;
+          background: var(--un-accent-soft); color: var(--un-text);
+        }
+        .un-guide { margin-top: 22px; padding: 4px 4px 0; }
+        .un-guide h2 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin: 0 0 10px; }
+        .un-guide ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; line-height: 1.5; }
+        .un-guide li::marker { font-weight: 700; color: var(--un-accent); }
+        .un-guide p { margin: 14px 0 0; font-size: 13px; color: var(--un-muted); }
         .un-error { margin-top: 12px; font-size: 14px; line-height: 1.45; color: var(--un-low); background: var(--un-low-soft); border-radius: 10px; padding: 11px 13px; }
         .un-login-title { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 16px; }
         .un-login-sub { color: var(--un-muted); font-size: 12.5px; margin: 4px 0 12px; line-height: 1.4; }
@@ -462,6 +480,31 @@ function UniqInner() {
         }
       `}</style>
     </main>
+  );
+}
+
+function Guide() {
+  return (
+    <section className="un-guide">
+      <h2>Как выложить пробными рилсами</h2>
+      <ol>
+        <li>Загрузи ролик, выбери число версий и дождись, пока все будут готовы.</li>
+        <li>Нажми «скачать все», версии сохранятся в телефон. Если делал на компьютере, перекинь файлы на телефон.</li>
+        <li>В Инстаграме: «+» → Reels → выбери одну версию → «Далее».</li>
+        <li>
+          На экране публикации включи «Пробная версия» (Trial). Такой рилс сначала показывают только тем,
+          кто на тебя не подписан: в ленте профиля и у подписчиков его нет. Переключатель есть только
+          у профессионального аккаунта (автор или бизнес).
+        </li>
+        <li>Выбери, кто переносит рилс в ленту: ты вручную или Инстаграм сам, если ролик зайдёт.</li>
+        <li>
+          Каждую версию выкладывай отдельным пробным рилсом, с промежутком в пару часов и не больше трёх
+          в день. Подпись можно оставить ту же или чуть поменять.
+        </li>
+        <li>Через сутки сравни просмотры версий. Ту, что зашла лучше всех, переноси в ленту.</li>
+      </ol>
+      <p>Файлы хранятся сутки, лимит 5 версий на один ролик.</p>
+    </section>
   );
 }
 
