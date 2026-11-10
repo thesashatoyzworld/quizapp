@@ -200,6 +200,7 @@ function createServer(opts = {}) {
           if (bytes > maxBytes) { req.unpipe(out); out.destroy(); resolve(false); }
         });
         req.on('aborted', () => { out.destroy(); reject(new Error('upload aborted')); });
+        req.on('error', (e) => { out.destroy(); reject(e); });
         out.on('error', reject);
         out.on('finish', () => resolve(true));
         req.pipe(out);
@@ -253,10 +254,15 @@ function createServer(opts = {}) {
       'Content-Length': fs.statSync(v.file).size,
       'Content-Disposition': `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fname)}`,
     });
-    fs.createReadStream(v.file).pipe(res);
+    fs.createReadStream(v.file).on('error', () => res.destroy()).pipe(res);
   }
 
-  const server = http.createServer(async (req, res) => {
+  const server = http.createServer((req, res) => handle(req, res).catch((e) => {
+    console.error(e);
+    if (!res.headersSent) send(res, 500, { error: 'ошибка сервера' }); else res.destroy();
+  }));
+
+  async function handle(req, res) {
     const origin = req.headers.origin;
     if (origin && origins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
@@ -272,8 +278,12 @@ function createServer(opts = {}) {
       res.writeHead(204);
       return res.end();
     }
-    const url = new URL(req.url, 'http://x');
     try {
+      // Prefix the origin instead of using a base: "//x" would otherwise be read as a host.
+      let url;
+      try { url = new URL(`http://x${req.url.startsWith('/') ? '' : '/'}${req.url}`); } catch {
+        return send(res, 400, { error: 'неверный адрес' });
+      }
       if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { ok: true, queue: queue.length + (running ? 1 : 0) });
 
       const bearer = /^Bearer (.+)$/.exec(req.headers.authorization || '');
@@ -298,7 +308,7 @@ function createServer(opts = {}) {
       console.error(e);
       if (!res.headersSent) send(res, 500, { error: 'ошибка сервера' });
     }
-  });
+  }
   // Big uploads over slow links must not hit Node's default 5-minute request timeout.
   server.requestTimeout = 0;
   server.on('close', () => clearInterval(sweepTimer));
