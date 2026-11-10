@@ -1,0 +1,55 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { verifiedViewer } from '@/lib/reels/store';
+import { tiersForTelegram } from '@/lib/kb/tier';
+import { signUniqToken } from '@/lib/uniq/token';
+import { uniqPaid } from '@/lib/uniq/access';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Section «Уникализатор»: hands a short-lived token for the VPS (uniq.thesashatoyz.com),
+// which does the upload, the ffmpeg work and the 5-per-video limit itself.
+//
+//   GET /api/cabinet/uniq → { token, url, max } | { error, code } 401 auth / 403 paid
+//
+// Identity is signed only (x-tg-init-data or kb_session cookie), never a bare ?telegramId.
+
+const fail = (status: number, code: string, error: string) =>
+  NextResponse.json({ error, code }, { status, headers: { 'Cache-Control': 'no-store' } });
+
+function nameFromInitData(initData: string | null, id: number): string | undefined {
+  if (!initData) return undefined;
+  try {
+    const u = JSON.parse(new URLSearchParams(initData).get('user') || '{}') as { id?: number; first_name?: string; last_name?: string; username?: string };
+    if (u.id !== id) return undefined;
+    return [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || u.username || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const id = verifiedViewer(request);
+  if (!id) return fail(401, 'auth', 'Войди через Telegram, чтобы открыть уникализатор.');
+
+  let tiers: Record<string, number>;
+  try {
+    tiers = await tiersForTelegram(id);
+  } catch (err) {
+    console.error('[uniq] access check failed:', err);
+    return fail(500, 'server_error', 'Не получилось проверить доступ. Обнови страницу.');
+  }
+  if (!uniqPaid(id, tiers)) return fail(403, 'paid', 'Уникализатор открыт ученикам курса «Новый уровень».');
+
+  const secret = process.env.UNIQ_SECRET || '';
+  if (!secret) {
+    console.error('[uniq] UNIQ_SECRET is not set');
+    return fail(500, 'not_configured', 'Уникализатор ещё не настроен. Напиши Саше.');
+  }
+  // Name is cosmetic (VPS logs); taken only when initData is the identity source.
+  const token = signUniqToken({ uid: id, name: nameFromInitData(request.headers.get('x-tg-init-data'), id) }, secret);
+  return NextResponse.json(
+    { token, url: process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com', max: 5 },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
+}

@@ -1,0 +1,18 @@
+[Unit]
+Description=Uniq server (video uniqualizer API for thesashatoyz.com cabinet)
+After=network.target
+
+[Service]
+User=uniq
+Group=uniq
+WorkingDirectory=/opt/uniq-server
+EnvironmentFile=/etc/uniq.env
+ExecStart=/usr/bin/node /opt/uniq-server/server.js
+Restart=always
+RestartSec=3
+Nice=10
+CPUQuota=150%
+MemoryMax=1200M
+
+[Install]
+WantedBy=multi-user.target
