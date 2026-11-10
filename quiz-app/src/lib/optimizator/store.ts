@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@/generated/prisma/client';
 import { monthKey } from './config';
 import type { DemandEvidence } from './demand';
-import type { Analysis, DemandLink, Goal, HistoryItem, Ladder, SavedRun, Stage } from './view';
+import type { Analysis, BazaBlock, DemandLink, Goal, HistoryItem, Ladder, SavedRun, Stage } from './view';
 import { firstLine, toStudent } from './view';
 
 export async function usedThisMonth(telegramId: number): Promise<number> {
@@ -38,7 +38,7 @@ export async function releaseSlot(telegramId: number, month: string): Promise<vo
 }
 
 /** Stored in optimizator_runs.demand: what the model got (with urls) and the links it matched. */
-export type StoredDemand = DemandEvidence & { links: DemandLink[] };
+export type StoredDemand = DemandEvidence & { links: DemandLink[]; baza?: BazaBlock };
 
 export async function saveRun(data: {
   telegramId: number;
@@ -119,6 +119,7 @@ export async function getRun(telegramId: number, id: string): Promise<SavedRun |
     result: toStudent(analysis),
     demandLinks: (r.demand as StoredDemand | null)?.links ?? [],
     ladder: ladder ? studentLadder(ladder) : null,
+    baza: (r.demand as StoredDemand | null)?.baza ?? null,
   };
 }
 

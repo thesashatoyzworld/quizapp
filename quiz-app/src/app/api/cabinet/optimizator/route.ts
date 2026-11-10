@@ -6,6 +6,7 @@ import { analyzeScript } from '@/lib/optimizator/analyze';
 import { LADDER_ON, MODEL, UNLIMITED_IDS, limitFor, monthKey } from '@/lib/optimizator/config';
 import { findDemand, scriptPhrases, type DemandEvidence } from '@/lib/optimizator/demand';
 import { runLadder } from '@/lib/optimizator/ladder';
+import { bazaFor, topicOf } from '@/lib/optimizator/baza';
 import {
   getRun, history, lastUsername, releaseSlot, reserveSlot, saveRun, studentLadder, usedThisMonth, type StoredDemand,
 } from '@/lib/optimizator/store';
@@ -142,6 +143,8 @@ export async function POST(request: NextRequest) {
   phrases.catch(() => { /* findDemand and the ladder handle it */ });
   // Never throws; runs next to the analysis so the total time barely grows.
   const ladderP = LADDER_ON ? runLadder({ script, username: instagram, phrases }) : Promise.resolve(null);
+  // Topic for the base examples (one Haiku call), runs next to the analysis.
+  const topicP = topicOf(script).catch((e) => { console.error('[optimizator/baza] topic', String(e?.message || e).slice(0, 200)); return null; });
 
   // Never throws; its Haiku call records its own cost.
   const evidence = await findDemand(script, phrases);
@@ -172,7 +175,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const demand = linkDemand(evidence, res.analysis);
+  // Hits of other authors on the topic that do well what the script lacks; never throws.
+  const baza = await bazaFor(topicP, phrases, res.analysis.viewer_reasons);
+  const demand: StoredDemand = { ...linkDemand(evidence, res.analysis), baza };
   let runId: string;
   try {
     runId = await saveRun({
@@ -196,6 +201,7 @@ export async function POST(request: NextRequest) {
       result: toStudent(res.analysis),
       demandLinks: demand.links,
       ladder: ladder ? studentLadder(ladder) : null,
+      baza,
     },
     used: reserved,
     limit: v.limit,

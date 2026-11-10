@@ -188,6 +188,28 @@ export interface HistoryItem {
   firstLine: string;
 }
 
+export type BazaNeed = 'share' | 'finish' | 'all';
+
+/** A hit of another author from the reels base, shown as an example for the weakest viewer reason. */
+export interface BazaExample {
+  url: string;
+  author: string;
+  ratio: number;
+  /** First phrase of the reel. */
+  line: string;
+  idea: string;
+  /** Whom a viewer would send it to (share examples). */
+  who: string | null;
+  /** What keeps the viewer to the end. */
+  why: string | null;
+}
+
+export interface BazaBlock {
+  need: BazaNeed;
+  topic: string | null;
+  items: BazaExample[];
+}
+
 export interface SavedRun {
   id: string;
   createdAt: string;
@@ -199,6 +221,8 @@ export interface SavedRun {
   demandLinks: DemandLink[];
   /** null: ladder off, failed, refused, or a run saved before it existed. */
   ladder: Ladder | null;
+  /** Examples from the reels base; absent in runs saved before 10.11.2026. */
+  baza?: BazaBlock | null;
 }
 
 /** Instagram username from "@nick", "nick" or a profile link; null when it does not look like one. */
