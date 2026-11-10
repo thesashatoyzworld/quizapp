@@ -89,7 +89,7 @@ function createServer(opts = {}) {
       refund(usage, j.key, j.count - j.done);
       j.failed = j.count - j.done;
       j.status = j.done ? 'done' : 'failed';
-      j.error = j.done ? undefined : 'сервер перезапустился, попробуйте ещё раз';
+      j.error = j.done ? undefined : 'сервер перезапустился, попробуй ещё раз';
       j.finishedAt = Date.now();
       fs.rmSync(j.src, { force: true });
     }
@@ -179,7 +179,7 @@ function createServer(opts = {}) {
 
   async function handleUpload(req, res, url, auth) {
     const uid = auth.uid;
-    if (uploading.has(uid) || activeJob(uid)) return send(res, 409, { error: 'у вас уже есть ролик в работе, дождитесь окончания' });
+    if (uploading.has(uid) || activeJob(uid)) return send(res, 409, { error: 'у тебя уже есть ролик в работе, дождись, пока он закончится' });
     const len = Number(req.headers['content-length']);
     if (len > maxBytes) return send(res, 413, { error: 'файл больше 500 МБ' });
     let count = parseInt(url.searchParams.get('count') || '1', 10);
@@ -278,7 +278,7 @@ function createServer(opts = {}) {
 
       const bearer = /^Bearer (.+)$/.exec(req.headers.authorization || '');
       const auth = verify(bearer ? bearer[1] : url.searchParams.get('t'), secret);
-      if (!auth) return send(res, 401, { error: 'нужно войти в кабинет заново' });
+      if (!auth) return send(res, 401, { error: 'войди в кабинет заново' });
 
       if (req.method === 'GET' && url.pathname === '/api/me') {
         const a = activeJob(auth.uid);
