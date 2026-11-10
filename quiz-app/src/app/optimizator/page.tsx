@@ -6,7 +6,7 @@ import { trackSection } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
 import {
   DEMAND_STATUS, FORMAT_NAME, REASON_ANSWER, SCRIPT_MAX, SCRIPT_MIN, SHARE_KIND, firstLine, ladderVerdict, sourceUrl,
-  type DemandLink, type Ladder, type ViewerReason, type ViewerReasons, type HistoryItem, type SavedRun, type StudentAnalysis,
+  type BazaBlock, type DemandLink, type Ladder, type ViewerReason, type ViewerReasons, type HistoryItem, type SavedRun, type StudentAnalysis,
 } from '@/lib/optimizator/view';
 
 // Раздел «Оптимизатор рилсов»: ученик вставляет только текст ролика, сервер ищет
@@ -264,6 +264,50 @@ function ReasonsBlock({ r }: { r: ViewerReasons }) {
   );
 }
 
+const BAZA_HEAD: Record<BazaBlock['need'], { title: string; note: string }> = {
+  share: {
+    title: 'Как это делают залёты: их пересылают',
+    note: 'Ролики других авторов на твою тему, которые набрали в 3+ раза больше обычного. Смотри, что в них хочется отправить своему человеку: это главное отличие залётов от провалов.',
+  },
+  finish: {
+    title: 'Как это делают залёты: их досматривают',
+    note: 'Ролики других авторов на твою тему, которые набрали в 3+ раза больше обычного. Главный момент у них в конце, и по дороге нет провисаний.',
+  },
+  all: {
+    title: 'Залёты по твоей теме',
+    note: 'Ролики других авторов, которые набрали в 3+ раза больше обычного: их пересылают, досматривают, главный момент в конце.',
+  },
+};
+
+/** Hits of other authors on the topic that do well what the script lacks (reels base). */
+function BazaExamples({ b }: { b: BazaBlock }) {
+  if (!b.items.length) return null;
+  const head = BAZA_HEAD[b.need] || BAZA_HEAD.all;
+  return (
+    <section className="op-card">
+      <h2 className="op-h2">{head.title}</h2>
+      <p className="op-p op-muted">{head.note}</p>
+      <ul className="op-links">
+        {b.items.map((x) => (
+          <li key={x.url}>
+            <a href={x.url} target="_blank" rel="noopener noreferrer">
+              <span className="op-link-top">
+                <b>@{x.author}</b>
+                <span className="op-ratio">{fmtRatio(x.ratio)}</span>
+                <span className="op-link-kind">рилс ↗</span>
+              </span>
+              <span className="op-link-text op-link-line">«{x.line}»</span>
+              <span className="op-link-text">
+                {b.need !== 'finish' && x.who ? `Перешлют: ${x.who}. ` : ''}{x.why || x.idea}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function Details({ a }: { a: StudentAnalysis }) {
   const g = a.hook_gate;
   const checks: [string, boolean][] = [
@@ -450,6 +494,8 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
           </ol>
         </section>
       )}
+
+      {run.baza && <BazaExamples b={run.baza} />}
 
       {a.warnings.length > 0 && (
         <section className="op-card op-warn">
@@ -873,6 +919,7 @@ function OptimizatorInner() {
           display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
           margin-top: 4px; font-size: 13px; line-height: 1.45; color: var(--op-muted); word-break: break-word;
         }
+        .op-link-line { color: var(--op-text); font-weight: 600; }
         .op-note { margin: 8px 0 0; font-size: 11.5px; color: var(--op-muted); line-height: 1.4; }
 
         .op-details { padding: 0; }
