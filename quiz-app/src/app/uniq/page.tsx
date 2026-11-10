@@ -289,7 +289,7 @@ function UniqInner() {
                   </>
                 )}
               </label>
-              <p className="un-hint">до 3 минут и 500 МБ, до {max} версий на один ролик</p>
+              <p className="un-hint">до 3 минут и 500 МБ, до {max} версий на один ролик. Одна версия минутного ролика делается около 3 минут, можно закрыть страницу и вернуться</p>
 
               <div className="un-label" id="un-count-label">Сколько версий</div>
               <div className="un-count" role="radiogroup" aria-labelledby="un-count-label">
