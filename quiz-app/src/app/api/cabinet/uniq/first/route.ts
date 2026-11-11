@@ -45,9 +45,11 @@ export async function POST(request: NextRequest) {
   const user = await prisma.user.findUnique({ where: { telegramId: BigInt(friendId) }, select: { firstName: true, username: true } }).catch(() => null);
   const who = user?.firstName || (user?.username ? `@${user.username}` : 'Твой друг');
   const n = before.credited + 1;
+  const week = 1 + n;
+  const roliki = week >= 5 ? 'роликов' : 'ролика';
   await sendBotMessage(
     referrerId,
-    `${who} сделал первый ролик в уникализаторе, друг засчитан.\n\nУ тебя +1 бонусный ролик на 5 версий, он не сгорает. Друзей засчитано: ${n} из ${REF_CAP}.`,
+    `${who} сделал первый ролик в уникализаторе, друг засчитан.\n\nТеперь у тебя ${week} ${roliki} в неделю, и один из них можно сделать прямо сейчас.${n >= REF_CAP ? ' Это максимум для бесплатного.' : ' Каждый следующий друг даёт ещё +1 ролик в неделю, до 5.'}`,
     { inline_keyboard: [[{ text: 'Открыть уникализатор', web_app: { url: 'https://world.thesashatoyz.com/uniq' } }]] },
     null,
   );

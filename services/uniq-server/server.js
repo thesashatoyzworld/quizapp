@@ -5,7 +5,10 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { probe, fingerprint, History, Job } = require('./core');
-const { createMonitor } = require('./monitor');
+const { createMonitor, tgSend } = require('./monitor');
+
+// What the page may report (POST /api/ev). Anything else is rejected, so the log stays readable.
+const PAGE_EVENTS = new Set(['open', 'sub_screen', 'sub_ok', 'sub_no', 'pick', 'upload', 'download', 'download_all', 'share', 'copy', 'feedback', 'limit']);
 
 const MAX_PER_VIDEO = 5;
 const MAX_BYTES = 500 * 1024 * 1024;
@@ -48,6 +51,29 @@ function refund(usage, key, n) {
   if (!usage[key]) delete usage[key];
 }
 
+const WEEK_MS = 7 * 24 * 3600 * 1000;
+
+// Limits come signed in the token: plan {w: videos per rolling 7 days (0 = unlimited), v: versions per video}.
+// Older tokens: `free` → 1×2, otherwise unlimited.
+function planOf(auth) {
+  const p = auth.plan;
+  if (p && Number.isFinite(+p.w) && Number.isFinite(+p.v)) {
+    return { w: Math.max(0, Math.floor(+p.w)), v: Math.min(MAX_PER_VIDEO, Math.max(1, Math.floor(+p.v))) };
+  }
+  return auth.free ? { w: 1, v: 2 } : { w: 0, v: MAX_PER_VIDEO };
+}
+
+const plural = (n, one, few, many) => {
+  const a = n % 10, b = n % 100;
+  return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many;
+};
+const inDays = (ms) => {
+  const h = Math.max(1, Math.ceil(ms / 3600e3));
+  if (h < 24) return `${h} ${plural(h, 'час', 'часа', 'часов')}`;
+  const d = Math.ceil(h / 24);
+  return `${d} ${plural(d, 'день', 'дня', 'дней')}`;
+};
+
 function writeJson(file, data) {
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(data));
@@ -67,8 +93,6 @@ function createServer(opts = {}) {
     'https://world.thesashatoyz.com,https://thesashatoyz.com,https://www.thesashatoyz.com,http://localhost:3000')
     .split(',').map((s) => s.trim()).filter(Boolean);
   const maxBytes = opts.maxBytes || MAX_BYTES;
-  // Token flag `free` (not a student of the course): at most this many videos per 24 h.
-  const freePerDay = Number(opts.freePerDay ?? process.env.UNIQ_FREE_PER_DAY ?? 1);
   const mon = opts.monitor || createMonitor({ dataDir });
   // Referral: the cabinet is told when someone finishes their first video ever (friend credit).
   const cabinetUrl = (opts.cabinetUrl ?? process.env.UNIQ_CABINET_URL ?? 'https://world.thesashatoyz.com').replace(/\/+$/, '');
@@ -76,7 +100,11 @@ function createServer(opts = {}) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sign({ uid, exp: Math.floor(Date.now() / 1000) + 600 }, secret)}` },
     body: '{}',
-  }).then((r) => { if (!r.ok) throw new Error(`cabinet ${r.status}`); }));
+  }).then(async (r) => {
+    if (!r.ok) throw new Error(`cabinet ${r.status}`);
+    const d = await r.json().catch(() => ({}));
+    mon.log('first', { uid, credited: !!d.credited, ...(d.reason ? { reason: d.reason } : {}) });
+  }));
   const uploadsDir = path.join(dataDir, 'uploads');
   const outDir = path.join(dataDir, 'out');
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -92,23 +120,65 @@ function createServer(opts = {}) {
   let running = null;
 
   const saveUsage = () => writeJson(usageFile, usage);
-  // bonus.json: uid → bonus videos spent (earned count comes signed in the token as `bonus`).
-  // seen.json: uid → 1 for everyone who ever got a version, so «first video» survives the 24 h sweep.
-  const bonusFile = path.join(dataDir, 'bonus.json');
+  // quota.json: uid → creation times of their limited videos in the last 7 days (jobs.json is swept after 24 h).
+  // seen.json: uid → 1 for everyone who ever got a version, so «first video» survives the sweep.
+  const quotaFile = path.join(dataDir, 'quota.json');
   const seenFile = path.join(dataDir, 'seen.json');
-  const bonusUsed = readJson(bonusFile);
+  const quota = readJson(quotaFile);
   const seen = readJson(seenFile);
   if (!fs.existsSync(seenFile)) {
     for (const e of mon.readAll ? mon.readAll() : []) if (e.ev === 'job' && e.done > 0) seen[e.uid] = 1;
     for (const j of jobs.values()) if (j.done > 0) seen[j.uid] = 1;
     writeJson(seenFile, seen);
   }
-  const saveBonus = () => writeJson(bonusFile, bonusUsed);
-  const giveBonusBack = (j) => {
-    if (!j.bonus || j.done) return;
-    bonusUsed[j.uid] = Math.max(0, (bonusUsed[j.uid] || 0) - 1);
-    saveBonus();
+  const saveQuota = () => writeJson(quotaFile, quota);
+  const weekUsed = (uid, now = Date.now()) => {
+    const list = (quota[uid] || []).filter((t) => now - t < WEEK_MS).sort((a, b) => a - b);
+    if (list.length) quota[uid] = list; else delete quota[uid];
+    return list;
   };
+  // A limited video that produced nothing does not count against the week.
+  const giveQuotaBack = (j) => {
+    if (!j.quotaAt || j.done) return;
+    quota[j.uid] = (quota[j.uid] || []).filter((t) => t !== j.quotaAt);
+    if (!quota[j.uid].length) delete quota[j.uid];
+    saveQuota();
+  };
+
+  // Bot reminders (reminders.json): «check the reach» a day after a video, «new video available»
+  // when a limited week frees up. Sent 09:00-21:00 Almaty only, one per uid+kind.
+  const remindFile = path.join(dataDir, 'reminders.json');
+  const reminders = readJson(remindFile);
+  const saveReminders = () => writeJson(remindFile, reminders);
+  const remind = (uid, kind, at) => {
+    if (!/^\d+$/.test(String(uid))) return; // test uids and the like have no Telegram chat
+    reminders[`${uid}:${kind}`] = { uid: String(uid), kind, at };
+    saveReminders();
+  };
+  const tgToken = opts.tgToken ?? process.env.UNIQ_TG_TOKEN;
+  const sendReminder = opts.sendReminder || ((uid, text) => (tgToken ? tgSend(tgToken, uid, text, {
+    inline_keyboard: [[{ text: 'Открыть уникализатор', web_app: { url: `${cabinetUrl}/uniq` } }]],
+  }) : Promise.resolve(false)));
+  const REMIND_TEXT = {
+    check: 'Прошли сутки с твоих версий. Глянь охваты пробных рилсов: какая версия набрала больше, ту можно выложить в ленту. А тема, которая зашла, стоит ещё одного ролика.',
+    refill: 'Новый ролик в уникализаторе доступен. Какой из твоих роликов на этой неделе зашёл лучше всего? Его и прогони.',
+  };
+  async function tickReminders(now = Date.now()) {
+    const hourAlmaty = (new Date(now).getUTCHours() + 5) % 24;
+    if (hourAlmaty < 9 || hourAlmaty >= 21) return 0;
+    let sent = 0;
+    for (const [k, r] of Object.entries(reminders)) {
+      if (r.at > now) continue;
+      delete reminders[k];
+      saveReminders();
+      const ok = await sendReminder(r.uid, REMIND_TEXT[r.kind] || '').catch(() => false);
+      mon.log('remind', { uid: r.uid, kind: r.kind, ok: !!ok });
+      sent++;
+    }
+    return sent;
+  }
+  const remindTimer = setInterval(() => { tickReminders().catch((e) => console.error(`reminders: ${e.message}`)); }, 10 * 60 * 1000);
+  remindTimer.unref();
   const saveJobs = () => writeJson(jobsFile, Object.fromEntries(jobs));
 
   // A restart kills whatever was in flight: fail it and give the versions back.
@@ -121,7 +191,7 @@ function createServer(opts = {}) {
       j.status = j.done ? 'done' : 'failed';
       j.error = j.done ? undefined : 'сервер перезапустился, попробуй ещё раз';
       j.finishedAt = Date.now();
-      giveBonusBack(j);
+      giveQuotaBack(j);
       fs.rmSync(j.src, { force: true });
     }
   }
@@ -187,7 +257,8 @@ function createServer(opts = {}) {
     saveUsage();
     j.status = j.done ? 'done' : 'failed';
     if (!j.done) j.error = 'не удалось обработать видео';
-    giveBonusBack(j);
+    giveQuotaBack(j);
+    if (j.done) remind(j.uid, 'check', j.finishedAt + 24 * 3600 * 1000);
     if (j.done && !seen[j.uid]) {
       seen[j.uid] = 1;
       writeJson(seenFile, seen);
@@ -236,25 +307,24 @@ function createServer(opts = {}) {
     const uid = auth.uid;
     const rejectLog = (reason) => mon.log('reject', { uid, reason });
     if (uploading.has(uid) || activeJob(uid)) { rejectLog('busy'); return send(res, 409, { error: 'у тебя уже есть ролик в работе, дождись, пока он закончится' }); }
-    let useBonus = false;
-    if (auth.free) {
-      // Jobs live 24 h after they finish, so every job created in the last 24 h is still here.
-      // A job that produced nothing does not count.
-      const dayAgo = Date.now() - 24 * 3600 * 1000;
-      const recent = [...jobs.values()].filter((j) => j.uid === uid && !j.bonus && j.createdAt > dayAgo && !(j.status === 'failed' || (j.finishedAt && !j.done)))
-        .sort((a, b) => a.createdAt - b.createdAt);
-      if (recent.length >= freePerDay && (bonusUsed[uid] || 0) < (Number(auth.bonus) || 0)) {
-        useBonus = true;
-      } else if (recent.length >= freePerDay) {
-        const h = Math.max(1, Math.ceil((recent[recent.length - freePerDay].createdAt + 24 * 3600 * 1000 - Date.now()) / 3600e3));
-        rejectLog('free');
-        return send(res, 429, { error: `бесплатно ${freePerDay === 1 ? '1 ролик' : `${freePerDay} ролика`} в сутки, следующий можно через ${h} ч. Приведи друга, и получишь ещё ролик сразу. Ученикам курса «Новый уровень» без ограничений`, code: 'free' });
+    const plan = planOf(auth);
+    if (plan.w) {
+      const used = weekUsed(uid);
+      if (used.length >= plan.w) {
+        const wait = used[used.length - plan.w] + WEEK_MS - Date.now();
+        rejectLog('week');
+        const more = plan.w < 5 ? ' Приведи друга, и у тебя каждую неделю будет на 1 ролик больше.' : '';
+        return send(res, 429, {
+          error: `Лимит на неделю: ${plan.w} ${plural(plan.w, 'ролик', 'ролика', 'роликов')}. Следующий можно через ${inDays(wait)}.${more}`,
+          code: 'week',
+        });
       }
     }
     const len = Number(req.headers['content-length']);
     if (len > maxBytes) { rejectLog('size'); return send(res, 413, { error: 'файл больше 500 МБ' }); }
     let count = parseInt(url.searchParams.get('count') || '1', 10);
     if (!(count >= 1 && count <= MAX_PER_VIDEO)) return send(res, 400, { error: 'количество версий от 1 до 5' });
+    count = Math.min(count, plan.v);
     let name = 'video.mp4';
     try { name = path.basename(decodeURIComponent(req.headers['x-filename'] || '')) || name; } catch {}
     const stem = path.parse(name).name.slice(0, 120) || 'video';
@@ -302,16 +372,22 @@ function createServer(opts = {}) {
         return send(res, 429, { error: r.error, used: r.used, max: MAX_PER_VIDEO });
       }
       saveUsage();
-      if (useBonus) {
-        // Re-check: another upload of the same uid could not run in parallel (uploading set), so this is safe.
-        bonusUsed[uid] = (bonusUsed[uid] || 0) + 1;
-        saveBonus();
+      // Only one upload per uid at a time (uploading set), so this check-then-add cannot race.
+      let quotaAt;
+      if (plan.w) {
+        quotaAt = Date.now();
+        const used = weekUsed(uid);
+        used.push(quotaAt);
+        quota[uid] = used;
+        saveQuota();
+        // Week is full now: tell them in the bot when the oldest slot frees up.
+        if (used.length >= plan.w) remind(uid, 'refill', used[used.length - plan.w] + WEEK_MS);
       }
-      const j = { id, uid, key, stem, src, count: r.count, ...(useBonus ? { bonus: true } : {}), status: 'queued', done: 0, failed: 0,
+      const j = { id, uid, key, stem, src, count: r.count, ...(quotaAt ? { quotaAt } : {}), status: 'queued', done: 0, failed: 0,
         versions: [], createdAt: Date.now(), srcBytes: fs.statSync(src).size, srcSec: Math.round(info.dur) };
       jobs.set(id, j);
       queue.push(id);
-      mon.log('enqueue', { id, uid, count: r.count, queue: load() });
+      mon.log('enqueue', { id, uid, count: r.count, plan: plan.w ? `${plan.w}x${plan.v}` : 'paid', queue: load() });
       if (load() >= 4) mon.alert('queue', `в очереди ${load()} роликов, люди ждут дольше обычного. Если так часто, пора сервер мощнее.`, 3600 * 1000);
       saveJobs();
       send(res, 200, { jobId: id, count: r.count, used: r.used, remaining: MAX_PER_VIDEO - r.used, position: position(j) });
@@ -374,7 +450,27 @@ function createServer(opts = {}) {
 
       if (req.method === 'GET' && url.pathname === '/api/me') {
         const a = activeJob(auth.uid);
-        return send(res, 200, { uid: auth.uid, maxPerVideo: MAX_PER_VIDEO, active: a ? view(a) : null, bonusUsed: bonusUsed[auth.uid] || 0 });
+        const plan = planOf(auth);
+        const used = plan.w ? weekUsed(auth.uid) : [];
+        const week = plan.w ? {
+          limit: plan.w, used: used.length,
+          nextAt: used.length >= plan.w ? used[used.length - plan.w] + WEEK_MS : null,
+        } : null;
+        return send(res, 200, { uid: auth.uid, maxPerVideo: plan.v, active: a ? view(a) : null, week });
+      }
+      // Behaviour events from the page (opened, downloaded, shared…) go to the same log as jobs.
+      if (req.method === 'POST' && url.pathname === '/api/ev') {
+        const body = await new Promise((resolve) => {
+          let raw = '';
+          req.on('data', (c) => { raw += c; if (raw.length > 2000) req.destroy(); });
+          req.on('end', () => resolve(raw));
+          req.on('error', () => resolve(''));
+        });
+        let e = {};
+        try { e = JSON.parse(body || '{}'); } catch { /* ignore */ }
+        if (!PAGE_EVENTS.has(e.ev)) return send(res, 400, { error: 'неизвестное событие' });
+        mon.log('page', { uid: auth.uid, what: e.ev, free: !!planOf(auth).w });
+        return send(res, 200, { ok: true });
       }
       if (req.method === 'POST' && url.pathname === '/api/jobs') return await handleUpload(req, res, url, auth);
       let m = /^\/api\/jobs\/([\w-]+)$/.exec(url.pathname);
@@ -393,12 +489,12 @@ function createServer(opts = {}) {
   }
   // Big uploads over slow links must not hit Node's default 5-minute request timeout.
   server.requestTimeout = 0;
-  server.on('close', () => { clearInterval(sweepTimer); mon.stop(); });
-  server.uniq = { usage, history, jobs, queue, monitor: mon };
+  server.on('close', () => { clearInterval(sweepTimer); clearInterval(remindTimer); mon.stop(); });
+  server.uniq = { usage, history, jobs, queue, monitor: mon, quota, reminders, tickReminders };
   return server;
 }
 
-module.exports = { createServer, sign, verify, reserve, refund, MAX_PER_VIDEO };
+module.exports = { createServer, sign, verify, reserve, refund, planOf, MAX_PER_VIDEO };
 
 if (require.main === module) {
   const port = Number(process.env.UNIQ_PORT || 8795);

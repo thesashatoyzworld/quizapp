@@ -22,7 +22,17 @@ export function uniqTabVisible(
   return UNIQ_BETA_VIEWERS.has(telegramId) || uniqTesters(env.testers || '').has(telegramId);
 }
 
-/** Paid = unlimited on the VPS: course «Новый уровень» tier ≥ 1, admins always pass. Others are free with a daily cap. */
+/** Unlimited: «Новый уровень» tier 2 and 3, admins. Everyone else (tier 1, «Поток спроса», no tariff) is on the free plan. */
 export function uniqPaid(telegramId: number, tiers: Record<string, number>): boolean {
-  return UNIQ_ADMINS.has(telegramId) || (tiers.uroven ?? 0) >= 1;
+  return UNIQ_ADMINS.has(telegramId) || (tiers.uroven ?? 0) >= 2;
+}
+
+export const FREE_VERSIONS = 2;
+export const FREE_WEEK_BASE = 1;
+export const FREE_WEEK_MAX = 5;
+
+/** Limits signed into the VPS token: w videos per rolling 7 days (0 = unlimited), v versions per video. */
+export function uniqPlan(paid: boolean, friends: number): { w: number; v: number } {
+  if (paid) return { w: 0, v: 5 };
+  return { w: Math.min(FREE_WEEK_MAX, FREE_WEEK_BASE + Math.max(0, friends)), v: FREE_VERSIONS };
 }
