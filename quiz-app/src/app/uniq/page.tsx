@@ -25,7 +25,8 @@ type Job = {
   versions: Version[];
   error?: string;
 };
-type Access = { token: string; url: string; max: number; free?: boolean };
+type RefStats = { link: string; invited: number; credited: number; cap: number };
+type Access = { token: string; url: string; max: number; free?: boolean; ref?: RefStats | null };
 
 const isActive = (j: Job | null) => !!j && (j.status === 'queued' || j.status === 'running');
 
@@ -64,6 +65,7 @@ function UniqInner() {
   const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [bonusUsed, setBonusUsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const initData = useRef('');
   const tgRef = useRef<TelegramWebAppLike | null>(null);
@@ -81,7 +83,7 @@ function UniqInner() {
     const res = await fetch(`/api/cabinet/uniq${p.toString() ? `?${p}` : ''}`, { headers, credentials: 'same-origin', cache: 'no-store' });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.token) {
-      access.current = { token: data.token, url: String(data.url).replace(/\/+$/, ''), max: data.max || 5 };
+      access.current = { token: data.token, url: String(data.url).replace(/\/+$/, ''), max: data.max || 5, free: !!data.free, ref: data.ref || null };
       setAcc(access.current);
       setMax(access.current.max);
     }
@@ -121,6 +123,7 @@ function UniqInner() {
         trackSection('uniq', id);
         // Resume a job that is still in work (page reopened mid-processing).
         const me = await vpsGet('/api/me').catch(() => null);
+        if (!stop && me?.status === 200 && typeof me.data.bonusUsed === 'number') setBonusUsed(me.data.bonusUsed);
         if (!stop && me?.status === 200 && me.data.active) setJob(me.data.active as Job);
       } catch {
         if (!stop) setState('guest');
@@ -418,6 +421,7 @@ function UniqInner() {
 
           {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} />}
           {job && error && <div className="un-error" role="alert">{error}</div>}
+          {acc.free && acc.ref && <Invite ref_={acc.ref} bonusLeft={Math.max(0, acc.ref.credited - bonusUsed)} tg={tgRef.current} />}
           <Guide />
           <Feedback initData={initData.current} />
         </>
@@ -510,6 +514,14 @@ function UniqInner() {
         }
         .un-free { margin: 0 0 14px; padding: 0 4px; font-size: 13.5px; line-height: 1.45; color: var(--un-muted); }
         .un-free a { color: var(--un-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+        .un-inv { margin-top: 22px; padding: 18px 16px; border-radius: 14px; background: var(--un-accent-soft); }
+        .un-inv h2 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin: 0 0 6px; }
+        .un-inv p { margin: 0 0 12px; font-size: 14px; line-height: 1.5; }
+        .un-inv-link { padding: 10px 12px; border-radius: 10px; background: var(--un-surface); border: 1px solid var(--un-line); font-size: 13px; word-break: break-all; user-select: all; }
+        .un-inv-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .un-inv-btns .un-cta, .un-inv-btns .un-new { margin-top: 12px; }
+        .un-inv-stats { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px; font-size: 13px; color: var(--un-muted); }
+        .un-inv-stats b { color: var(--un-text); }
         .un-guide { margin-top: 22px; padding: 4px 4px 0; }
         .un-guide h2 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin: 0 0 10px; }
         .un-guide ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; line-height: 1.5; }
@@ -595,6 +607,45 @@ function Feedback({ initData }: { initData: string }) {
           {state === 'error' && <div className="un-error" role="alert">{err}</div>}
         </>
       )}
+    </section>
+  );
+}
+
+function Invite({ ref_, bonusLeft, tg }: { ref_: RefStats; bonusLeft: number; tg: TelegramWebAppLike | null }) {
+  const [copied, setCopied] = useState(false);
+  const shareText = 'Бесплатный уникализатор: из одного ролика 5 разных версий для пробных рилсов';
+  const share = () => {
+    const url = `https://t.me/share/url?url=${encodeURIComponent(ref_.link)}&text=${encodeURIComponent(shareText)}`;
+    const t = tg as (TelegramWebAppLike & { openTelegramLink?: (u: string) => void }) | null;
+    if (t?.openTelegramLink) t.openTelegramLink(url);
+    else window.open(url, '_blank', 'noopener');
+  };
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(ref_.link); setCopied(true); window.setTimeout(() => setCopied(false), 2000); } catch { /* user can select the link */ }
+  };
+  const full = ref_.credited >= ref_.cap;
+  return (
+    <section className="un-inv">
+      <h2>Приведи друга, получи ещё ролик</h2>
+      <p>
+        {full
+          ? `Ты уже привёл ${ref_.cap} друзей, это максимум. Спасибо!`
+          : 'Друг засчитывается, когда подпишется на канал и сделает свой первый ролик. За каждого получаешь ещё один ролик на 5 версий, он не сгорает.'}
+      </p>
+      {!full && (
+        <>
+          <div className="un-inv-link">{ref_.link}</div>
+          <div className="un-inv-btns">
+            <button type="button" className="un-cta" onClick={share}>Поделиться</button>
+            <button type="button" className="un-new" onClick={copy}>{copied ? 'Скопировано' : 'Скопировать'}</button>
+          </div>
+        </>
+      )}
+      <div className="un-inv-stats">
+        <span>Пришли по ссылке: <b>{ref_.invited}</b></span>
+        <span>Засчитано: <b>{ref_.credited} из {ref_.cap}</b></span>
+        <span>Бонусных роликов: <b>{bonusLeft}</b></span>
+      </div>
     </section>
   );
 }

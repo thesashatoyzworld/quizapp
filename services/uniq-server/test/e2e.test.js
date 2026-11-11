@@ -33,7 +33,8 @@ test('end to end: 3 + clamped 2 versions, all distinct, 6th rejected', { timeout
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'uniq-e2e-'));
   const src = path.join(tmp, 'in.mp4');
   makeVideo(src, 4);
-  const s = await start();
+  const firsts = [];
+  const s = await start({ notifyFirst: (uid) => firsts.push(uid) });
   const t = token('u-e2e');
   try {
     let r = await upload(s.base, t, src, 3);
@@ -71,6 +72,8 @@ test('end to end: 3 + clamped 2 versions, all distinct, 6th rejected', { timeout
       hashes.add(crypto.createHash('sha1').update(buf).digest('hex'));
     }
     assert.strictEqual(hashes.size, 5);
+    // The cabinet hears about the first video once, not about the second.
+    assert.deepStrictEqual(firsts, ['u-e2e']);
 
     // Monitoring log: start, two enqueues, the busy reject and both finished jobs with timings.
     const log = fs.readFileSync(path.join(s.dataDir, 'log.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);

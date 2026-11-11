@@ -4,6 +4,7 @@ import { tiersForTelegram } from '@/lib/kb/tier';
 import { signUniqToken } from '@/lib/uniq/token';
 import { uniqPaid, uniqTabVisible, UNIQ_ADMINS } from '@/lib/uniq/access';
 import { isChannelMember, UNIQ_CHANNEL_URL } from '@/lib/uniq/channel';
+import { refStats, type RefStats } from '@/lib/uniq/referral';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,9 +69,13 @@ export async function GET(request: NextRequest) {
   }
   // Name is cosmetic (VPS logs); taken only when initData is the identity source.
   const free = asFree || !uniqPaid(id, tiers);
-  const token = signUniqToken({ uid: id, name: nameFromInitData(request.headers.get('x-tg-init-data'), id), free }, secret);
+  let ref: RefStats | null = null;
+  if (free) {
+    try { ref = await refStats(id); } catch (err) { console.error('[uniq] referral stats failed:', err); }
+  }
+  const token = signUniqToken({ uid: id, name: nameFromInitData(request.headers.get('x-tg-init-data'), id), free, bonus: ref?.credited || 0 }, secret);
   return NextResponse.json(
-    { token, url: process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com', max: 5, free },
+    { token, url: process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com', max: 5, free, ref },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }

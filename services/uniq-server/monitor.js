@@ -130,7 +130,7 @@ function createMonitor(opts = {}) {
   }
   function stop() { if (timer) clearInterval(timer); }
 
-  return { log, alert, digest, maybeDigest, start, stop, file };
+  return { log, alert, digest, maybeDigest, start, stop, file, readAll: () => readLog(file) };
 }
 
 module.exports = { createMonitor, digestText, readLog };
