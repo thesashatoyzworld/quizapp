@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifiedViewer } from '@/lib/reels/store';
 import { tiersForTelegram } from '@/lib/kb/tier';
 import { signUniqToken } from '@/lib/uniq/token';
-import { uniqPaid } from '@/lib/uniq/access';
+import { uniqPaid, uniqTabVisible } from '@/lib/uniq/access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,6 +39,9 @@ export async function GET(request: NextRequest) {
     console.error('[uniq] access check failed:', err);
     return fail(500, 'server_error', 'Не получилось проверить доступ. Обнови страницу.');
   }
+
+  // Until Sasha opens it to everyone (UNIQ_OPEN=1): students, tier 3, testers only.
+  if (!uniqPaid(id, tiers) && !uniqTabVisible(id, undefined, tiers)) return fail(403, 'paid', 'Уникализатор открыт ученикам курса «Новый уровень».');
 
   const secret = process.env.UNIQ_SECRET || '';
   if (!secret) {
