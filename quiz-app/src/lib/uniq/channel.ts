@@ -9,8 +9,8 @@ export async function isChannelMember(userId: number, token = process.env.BOT_TO
     const res = await fetch(`https://api.telegram.org/bot${token}/getChatMember?chat_id=${encodeURIComponent(UNIQ_CHANNEL)}&user_id=${userId}`, { cache: 'no-store' });
     const data = await res.json();
     if (!data.ok) {
-      // «user not found» / «participant not found» means not subscribed; anything else is an outage.
-      if (/not found/i.test(String(data.description))) return false;
+      // 400 is about the user (not found, invalid id): not subscribed. 429/5xx are outages.
+      if (data.error_code === 400 || /not found/i.test(String(data.description))) return false;
       console.error('[uniq] getChatMember:', data.description);
       return null;
     }
