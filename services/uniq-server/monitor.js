@@ -94,7 +94,8 @@ function digestText(events, { from, to, diskBytes, load } = {}) {
   const ab = (kind) => [people((e) => e.ev === 'page' && e.what === `cta_view_${kind}`), people((e) => e.ev === 'page' && e.what === `cta_click_${kind}`)];
   const [uv, uc] = ab('uroven');
   const [pv, pc] = ab('potok');
-  if (uv || pv) lines.push('', 'Реклама после скачивания (людей):', `курс: увидели ${uv}, нажали ${uc}`, `поток спроса: увидели ${pv}, нажали ${pc}`);
+  const [lv, lc] = ab('360');
+  if (uv || pv || lv) lines.push('', 'Реклама после скачивания (людей):', `курс: увидели ${uv}, нажали ${uc}`, `поток спроса: увидели ${pv}, нажали ${pc}`, `360: увидели ${lv}, нажали ${lc}`);
   const reminded = events.filter((e) => inDay(e) && e.ev === 'remind' && e.ok).length;
   if (reminded) lines.push(`Напоминаний в бот: ${reminded}`);
   if (diskBytes != null) lines.push(`Место под видео занято: ${mb(diskBytes)}`);

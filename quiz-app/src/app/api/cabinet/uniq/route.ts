@@ -17,6 +17,9 @@ export const dynamic = 'force-dynamic';
 //
 // Identity is signed only (x-tg-init-data or kb_session cookie), never a bare ?telegramId.
 
+const OFFERS = ['uroven', 'potok', '360'] as const;
+type Offer = (typeof OFFERS)[number];
+
 const fail = (status: number, code: string, error: string) =>
   NextResponse.json({ error, code }, { status, headers: { 'Cache-Control': 'no-store' } });
 
@@ -92,14 +95,13 @@ export async function GET(request: NextRequest) {
     try { ref = await refStats(id); } catch (err) { console.error('[uniq] referral stats failed:', err); }
   }
   const plan = uniqPlan(!free, ref?.credited || 0);
-  // A/B offer on the final screen (free plan only): course «Новый уровень» vs «Поток Спроса».
-  // Course students (any tier) see nothing; «Поток» buyers always see the course; the rest split by uid.
-  let offer: 'uroven' | 'potok' | null = null;
-  if (free && !('uroven' in tiers)) {
+  // A/B offer on the final screen (free plan only): «Новый уровень» / «Поток Спроса» / «Личный бренд на 360».
+  // Tier 1 students see 360 (the step up); «Поток» buyers split course / 360; the rest split three ways by uid.
+  let offer: Offer | null = null;
+  if (free) {
     const forced = asFree ? q.get('cta') : null;
-    offer = forced === 'uroven' || forced === 'potok' ? forced
-      : 'potok' in tiers ? 'uroven'
-      : id % 2 === 0 ? 'uroven' : 'potok';
+    const pool: Offer[] = 'uroven' in tiers ? ['360'] : 'potok' in tiers ? ['uroven', '360'] : ['uroven', 'potok', '360'];
+    offer = forced && (OFFERS as readonly string[]).includes(forced) ? (forced as Offer) : pool[id % pool.length];
   }
   const token = signUniqToken({ uid: id, name: nameFromInitData(request.headers.get('x-tg-init-data'), id), plan }, secret);
   return NextResponse.json(
