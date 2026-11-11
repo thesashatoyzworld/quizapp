@@ -92,9 +92,18 @@ export async function GET(request: NextRequest) {
     try { ref = await refStats(id); } catch (err) { console.error('[uniq] referral stats failed:', err); }
   }
   const plan = uniqPlan(!free, ref?.credited || 0);
+  // A/B offer on the final screen (free plan only): course «Новый уровень» vs «Поток Спроса».
+  // Course students (any tier) see nothing; «Поток» buyers always see the course; the rest split by uid.
+  let offer: 'uroven' | 'potok' | null = null;
+  if (free && !('uroven' in tiers)) {
+    const forced = asFree ? q.get('cta') : null;
+    offer = forced === 'uroven' || forced === 'potok' ? forced
+      : 'potok' in tiers ? 'uroven'
+      : id % 2 === 0 ? 'uroven' : 'potok';
+  }
   const token = signUniqToken({ uid: id, name: nameFromInitData(request.headers.get('x-tg-init-data'), id), plan }, secret);
   return NextResponse.json(
-    { token, url: process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com', max: plan.v, free, plan, ref },
+    { token, url: process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com', max: plan.v, free, plan, ref, offer },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }

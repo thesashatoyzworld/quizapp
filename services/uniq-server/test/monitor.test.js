@@ -73,3 +73,17 @@ test('digest: free users funnel', () => {
   assert.match(text, /друзей засчитано: 1/);
   assert.match(text, /Напоминаний в бот: 1/);
 });
+
+test('digest: A/B offer after download', () => {
+  const { digestText } = require('../monitor');
+  const t = 1000;
+  const ev = [
+    { t, ev: 'page', uid: 'a', free: true, what: 'cta_view_uroven' }, { t, ev: 'page', uid: 'a', free: true, what: 'cta_view_uroven' },
+    { t, ev: 'page', uid: 'a', free: true, what: 'cta_click_uroven' },
+    { t, ev: 'page', uid: 'b', free: true, what: 'cta_view_potok' }, { t, ev: 'page', uid: 'c', free: true, what: 'cta_view_potok' },
+  ];
+  const text = digestText(ev, { from: 0, to: 2000 });
+  assert.match(text, /курс: увидели 1, нажали 1/);
+  assert.match(text, /поток спроса: увидели 2, нажали 0/);
+  assert.doesNotMatch(digestText([], { from: 0, to: 2000 }), /Реклама/);
+});
