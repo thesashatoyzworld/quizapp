@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifiedViewer } from '@/lib/reels/store';
 import { tiersForTelegram } from '@/lib/kb/tier';
 import { signUniqToken } from '@/lib/uniq/token';
-import { uniqPaid, uniqTabVisible } from '@/lib/uniq/access';
+import { uniqPaid, uniqTabVisible, UNIQ_ADMINS } from '@/lib/uniq/access';
+import { isChannelMember, UNIQ_CHANNEL_URL } from '@/lib/uniq/channel';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,8 +41,25 @@ export async function GET(request: NextRequest) {
     return fail(500, 'server_error', 'Не получилось проверить доступ. Обнови страницу.');
   }
 
+  // Sasha previewing as a person without a tariff (?as=free): no tiers, and the channel
+  // screen is shown until he presses «Я подписался» (?checked=1), since he owns the channel.
+  const q = request.nextUrl.searchParams;
+  const asFree = q.get('as') === 'free' && UNIQ_ADMINS.has(id);
+  if (asFree) tiers = {};
+
   // Until Sasha opens it to everyone (UNIQ_OPEN=1): students, tier 3, testers only.
-  if (!uniqPaid(id, tiers) && !uniqTabVisible(id, undefined, tiers)) return fail(403, 'paid', 'Уникализатор открыт ученикам курса «Новый уровень».');
+  if (!asFree && !uniqPaid(id, tiers) && !uniqTabVisible(id, undefined, tiers)) return fail(403, 'paid', 'Уникализатор открыт ученикам курса «Новый уровень».');
+
+  // Free users: subscription to the channel is the price. Telegram outage → let them through.
+  if (!uniqPaid(id, tiers) || asFree) {
+    const member = asFree && q.get('checked') !== '1' ? false : await isChannelMember(id);
+    if (member === false) {
+      return NextResponse.json(
+        { error: 'Уникализатор бесплатный для подписчиков канала. Подпишись и вернись сюда.', code: 'subscribe', channel: UNIQ_CHANNEL_URL },
+        { status: 403, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
+  }
 
   const secret = process.env.UNIQ_SECRET || '';
   if (!secret) {
@@ -49,7 +67,7 @@ export async function GET(request: NextRequest) {
     return fail(500, 'not_configured', 'Уникализатор ещё не настроен. Напиши Саше.');
   }
   // Name is cosmetic (VPS logs); taken only when initData is the identity source.
-  const free = !uniqPaid(id, tiers);
+  const free = asFree || !uniqPaid(id, tiers);
   const token = signUniqToken({ uid: id, name: nameFromInitData(request.headers.get('x-tg-init-data'), id), free }, secret);
   return NextResponse.json(
     { token, url: process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com', max: 5, free },

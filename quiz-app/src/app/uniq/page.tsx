@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp, type TelegramWebAppLike } from '@/lib/telegram-ready';
 import { trackSection } from '@/lib/cabinet-track';
+import { previewAs } from '@/lib/uniq/preview';
 import OpenInBrowser from '@/components/OpenInBrowser';
 
 // Section «Уникализатор»: one reel in, up to 5 slightly different versions out.
@@ -51,7 +52,10 @@ function TelegramLoginButton() {
 }
 
 function UniqInner() {
-  const [state, setState] = useState<'load' | 'guest' | 'locked' | 'broken' | 'ok'>('load');
+  const [state, setState] = useState<'load' | 'guest' | 'locked' | 'subscribe' | 'broken' | 'ok'>('load');
+  const [channel, setChannel] = useState('https://t.me/sashatoyz');
+  const [subBusy, setSubBusy] = useState(false);
+  const [subMsg, setSubMsg] = useState<string | null>(null);
   const [brokenMsg, setBrokenMsg] = useState('');
   const [max, setMax] = useState(5);
   const [file, setFile] = useState<File | null>(null);
@@ -69,16 +73,20 @@ function UniqInner() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Fresh token from the cabinet. Returns the HTTP status for the caller to branch on.
-  const loadAccess = useCallback(async (): Promise<{ status: number; error?: string }> => {
+  const loadAccess = useCallback(async (checked = false): Promise<{ status: number; error?: string; code?: string }> => {
     const headers: Record<string, string> = initData.current ? { 'x-tg-init-data': initData.current } : {};
-    const res = await fetch('/api/cabinet/uniq', { headers, credentials: 'same-origin', cache: 'no-store' });
+    const p = new URLSearchParams();
+    if (previewAs()) p.set('as', 'free');
+    if (checked) p.set('checked', '1');
+    const res = await fetch(`/api/cabinet/uniq${p.toString() ? `?${p}` : ''}`, { headers, credentials: 'same-origin', cache: 'no-store' });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.token) {
       access.current = { token: data.token, url: String(data.url).replace(/\/+$/, ''), max: data.max || 5 };
       setAcc(access.current);
       setMax(access.current.max);
     }
-    return { status: res.status, error: data.error };
+    if (data.channel) setChannel(String(data.channel));
+    return { status: res.status, error: data.error, code: data.code };
   }, []);
 
   // GET to the VPS with the Bearer token; one retry with a new token on 401 (it lives 2 h).
@@ -107,7 +115,7 @@ function UniqInner() {
         const r = await loadAccess();
         if (stop) return;
         if (r.status === 401) { setState('guest'); return; }
-        if (r.status === 403) { setState('locked'); return; }
+        if (r.status === 403) { setState(r.code === 'subscribe' ? 'subscribe' : 'locked'); return; }
         if (!access.current) { setBrokenMsg(r.error || 'Не получилось открыть раздел. Обнови страницу.'); setState('broken'); return; }
         setState('ok');
         trackSection('uniq', id);
@@ -276,6 +284,42 @@ function UniqInner() {
           <div className="un-login-sub">Доступ привязан к твоему Telegram. Войди, и уникализатор откроется.</div>
           <TelegramLoginButton />
           <a className="un-login-alt" href={BOT_URL} target="_blank" rel="noopener noreferrer">Или открыть в боте →</a>
+        </div>
+      )}
+
+      {state === 'subscribe' && (
+        <div className="un-card">
+          <h1 className="un-lock-h1">Сначала подпишись на канал</h1>
+          <p className="un-lock-p">
+            Уникализатор бесплатный для подписчиков моего канала. Подпишись, вернись сюда и нажми «Я подписался».
+          </p>
+          <button
+            type="button"
+            className="un-cta"
+            onClick={() => {
+              const tg = tgRef.current as (TelegramWebAppLike & { openTelegramLink?: (u: string) => void }) | null;
+              if (tg?.openTelegramLink) tg.openTelegramLink(channel);
+              else window.open(channel, '_blank', 'noopener');
+            }}
+          >
+            Подписаться на канал
+          </button>
+          <button
+            type="button"
+            className="un-new"
+            disabled={subBusy}
+            onClick={async () => {
+              setSubBusy(true);
+              setSubMsg(null);
+              const r = await loadAccess(true).catch(() => ({ status: 0 } as { status: number; code?: string }));
+              setSubBusy(false);
+              if (access.current) { setState('ok'); trackSection('uniq', tgRef.current?.initDataUnsafe?.user?.id ?? null); return; }
+              setSubMsg(r.code === 'subscribe' ? 'Пока не вижу подписку. Подпишись и нажми ещё раз.' : 'Не получилось проверить. Попробуй ещё раз.');
+            }}
+          >
+            {subBusy ? 'Проверяю…' : 'Я подписался'}
+          </button>
+          {subMsg && <div className="un-error" role="alert">{subMsg}</div>}
         </div>
       )}
 
