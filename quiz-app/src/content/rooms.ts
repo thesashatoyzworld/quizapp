@@ -121,11 +121,9 @@ export const SECTIONS: Section[] = [
     key: 'free',
     role: null,
     title: 'Бесплатные материалы',
-    subtitle: 'Статьи, подкасты, разборы — открыто всем',
+    subtitle: 'Статьи и разборы — открыто всем',
     materials: [
       { kind: 'article', title: 'Статьи', url: 'https://thesashatoyz.com/blog', note: 'Лонгриды и разборы.' },
-      { kind: 'podcast', title: 'Подкаст «По чесноку»', url: 'https://thesashatoyz.com/podcast', note: 'Все выпуски.' },
-      { kind: 'link', title: '5000 вирусных хуков', url: '/huki', note: 'Шаблоны первой фразы с примером и психологией, 37 категорий. Внутри инструкция и промпт: как подогнать хуки под себя в нейронке.' },
     ],
   },
   {
@@ -139,14 +137,13 @@ export const SECTIONS: Section[] = [
     landingUrl: 'https://thesashatoyz.com/potok-sprosa',
     materials: [
       { kind: 'link', title: 'Метод: где брать заходы', url: '/potok', note: 'Методичка и правила для нейронки. Программа сама листает ленту и приносит то, что уже собрало реакцию в твоей теме.' },
-      { kind: 'link', title: '5000 вирусных хуков', url: '/huki', note: 'Шаблоны первой фразы с примером и психологией, 37 категорий. Внутри инструкция и промпт: как подогнать хуки под себя в нейронке.' },
     ],
   },
   {
     key: 'uroven',
     role: 'uroven',
     title: 'Новый уровень контента',
-    subtitle: '6 уровней навыка · доступ с 7 августа',
+    subtitle: '6 уровней навыка',
     landingUrl: 'https://thesashatoyz.com/uroven',
     materials: [
       { kind: 'recording', title: 'Формула вирусного контента', url: '/formula', note: 'Полный видеокурс по контенту — 25 уроков.', subhead: 'Предобучение · доступно сразу' },
@@ -201,29 +198,6 @@ export const SECTIONS: Section[] = [
     landingUrl: 'https://thesashatoyz.com/uroven',
     materials: [
       { kind: 'live', title: 'Записи созвонов', url: '/sozvony', note: 'Видео встреч и конспекты по таймкодам: что разбирали и что делать дальше.', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
-    ],
-  },
-  {
-    key: 'sync',
-    role: 'sync',
-    title: 'Синхронизация',
-    subtitle: 'Личное сопровождение',
-    landingUrl: '', // TODO Саша: лендинг продукта Синхронизация
-    materials: [
-      { kind: 'recording', title: 'Библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Все воркшопы и мини-курсы — доступны полностью.' },
-      { kind: 'live', title: 'Созвоны', url: '', note: 'Регулярные личные встречи.' },
-      { kind: 'chat', title: 'Личный чат', url: '', note: 'Связь между встречами.' },
-    ],
-  },
-  {
-    key: 'group',
-    role: 'group',
-    title: 'Группа',
-    subtitle: 'Групповая работа',
-    landingUrl: '', // TODO Саша: лендинг продукта Группа
-    materials: [
-      { kind: 'live', title: 'Групповые созвоны', url: '', note: 'Еженедельные встречи группы.' },
-      { kind: 'chat', title: 'Чат группы', url: '', note: 'Рабочий чат участников.' },
     ],
   },
 ];
