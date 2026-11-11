@@ -9,12 +9,13 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 export const UNIQ_TOKEN_TTL_S = 2 * 60 * 60;
 
 // free: not a student, the VPS caps them at UNIQ_FREE_PER_DAY videos a day.
-export type UniqPayload = { uid: string; name?: string; free?: boolean; exp: number };
+// bonus: friends credited (referral), each is one video past the daily cap; the VPS counts spent ones.
+export type UniqPayload = { uid: string; name?: string; free?: boolean; bonus?: number; exp: number };
 
 const b64u = (buf: Buffer | string) => Buffer.from(buf).toString('base64url');
 
 export function signUniqToken(
-  user: { uid: string | number; name?: string; free?: boolean },
+  user: { uid: string | number; name?: string; free?: boolean; bonus?: number },
   secret: string,
   nowS: number = Math.floor(Date.now() / 1000),
 ): string {
@@ -22,6 +23,7 @@ export function signUniqToken(
   const payload: UniqPayload = { uid: String(user.uid), exp: nowS + UNIQ_TOKEN_TTL_S };
   if (user.name) payload.name = user.name;
   if (user.free) payload.free = true;
+  if (user.bonus) payload.bonus = user.bonus;
   const p = b64u(JSON.stringify(payload));
   return `${p}.${b64u(createHmac('sha256', secret).update(p).digest())}`;
 }

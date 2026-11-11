@@ -70,6 +70,13 @@ function createServer(opts = {}) {
   // Token flag `free` (not a student of the course): at most this many videos per 24 h.
   const freePerDay = Number(opts.freePerDay ?? process.env.UNIQ_FREE_PER_DAY ?? 1);
   const mon = opts.monitor || createMonitor({ dataDir });
+  // Referral: the cabinet is told when someone finishes their first video ever (friend credit).
+  const cabinetUrl = (opts.cabinetUrl ?? process.env.UNIQ_CABINET_URL ?? 'https://world.thesashatoyz.com').replace(/\/+$/, '');
+  const notifyFirst = opts.notifyFirst || ((uid) => fetch(`${cabinetUrl}/api/cabinet/uniq/first`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sign({ uid, exp: Math.floor(Date.now() / 1000) + 600 }, secret)}` },
+    body: '{}',
+  }).then((r) => { if (!r.ok) throw new Error(`cabinet ${r.status}`); }));
   const uploadsDir = path.join(dataDir, 'uploads');
   const outDir = path.join(dataDir, 'out');
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -85,6 +92,23 @@ function createServer(opts = {}) {
   let running = null;
 
   const saveUsage = () => writeJson(usageFile, usage);
+  // bonus.json: uid → bonus videos spent (earned count comes signed in the token as `bonus`).
+  // seen.json: uid → 1 for everyone who ever got a version, so «first video» survives the 24 h sweep.
+  const bonusFile = path.join(dataDir, 'bonus.json');
+  const seenFile = path.join(dataDir, 'seen.json');
+  const bonusUsed = readJson(bonusFile);
+  const seen = readJson(seenFile);
+  if (!fs.existsSync(seenFile)) {
+    for (const e of mon.readAll ? mon.readAll() : []) if (e.ev === 'job' && e.done > 0) seen[e.uid] = 1;
+    for (const j of jobs.values()) if (j.done > 0) seen[j.uid] = 1;
+    writeJson(seenFile, seen);
+  }
+  const saveBonus = () => writeJson(bonusFile, bonusUsed);
+  const giveBonusBack = (j) => {
+    if (!j.bonus || j.done) return;
+    bonusUsed[j.uid] = Math.max(0, (bonusUsed[j.uid] || 0) - 1);
+    saveBonus();
+  };
   const saveJobs = () => writeJson(jobsFile, Object.fromEntries(jobs));
 
   // A restart kills whatever was in flight: fail it and give the versions back.
@@ -97,6 +121,7 @@ function createServer(opts = {}) {
       j.status = j.done ? 'done' : 'failed';
       j.error = j.done ? undefined : 'сервер перезапустился, попробуй ещё раз';
       j.finishedAt = Date.now();
+      giveBonusBack(j);
       fs.rmSync(j.src, { force: true });
     }
   }
@@ -162,6 +187,13 @@ function createServer(opts = {}) {
     saveUsage();
     j.status = j.done ? 'done' : 'failed';
     if (!j.done) j.error = 'не удалось обработать видео';
+    giveBonusBack(j);
+    if (j.done && !seen[j.uid]) {
+      seen[j.uid] = 1;
+      writeJson(seenFile, seen);
+      Promise.resolve().then(() => notifyFirst(j.uid))
+        .catch((e) => mon.alert('first', `не смог сообщить кабинету о первом ролике ${j.uid}: ${e.message}`, 3600 * 1000));
+    }
     delete j.lastError;
     j.finishedAt = Date.now();
     fs.rmSync(j.src, { force: true });
@@ -204,16 +236,19 @@ function createServer(opts = {}) {
     const uid = auth.uid;
     const rejectLog = (reason) => mon.log('reject', { uid, reason });
     if (uploading.has(uid) || activeJob(uid)) { rejectLog('busy'); return send(res, 409, { error: 'у тебя уже есть ролик в работе, дождись, пока он закончится' }); }
+    let useBonus = false;
     if (auth.free) {
       // Jobs live 24 h after they finish, so every job created in the last 24 h is still here.
       // A job that produced nothing does not count.
       const dayAgo = Date.now() - 24 * 3600 * 1000;
-      const recent = [...jobs.values()].filter((j) => j.uid === uid && j.createdAt > dayAgo && !(j.status === 'failed' || (j.finishedAt && !j.done)))
+      const recent = [...jobs.values()].filter((j) => j.uid === uid && !j.bonus && j.createdAt > dayAgo && !(j.status === 'failed' || (j.finishedAt && !j.done)))
         .sort((a, b) => a.createdAt - b.createdAt);
-      if (recent.length >= freePerDay) {
+      if (recent.length >= freePerDay && (bonusUsed[uid] || 0) < (Number(auth.bonus) || 0)) {
+        useBonus = true;
+      } else if (recent.length >= freePerDay) {
         const h = Math.max(1, Math.ceil((recent[recent.length - freePerDay].createdAt + 24 * 3600 * 1000 - Date.now()) / 3600e3));
         rejectLog('free');
-        return send(res, 429, { error: `бесплатно ${freePerDay === 1 ? '1 ролик' : `${freePerDay} ролика`} в сутки, следующий можно через ${h} ч. Ученикам курса «Новый уровень» без ограничений`, code: 'free' });
+        return send(res, 429, { error: `бесплатно ${freePerDay === 1 ? '1 ролик' : `${freePerDay} ролика`} в сутки, следующий можно через ${h} ч. Приведи друга, и получишь ещё ролик сразу. Ученикам курса «Новый уровень» без ограничений`, code: 'free' });
       }
     }
     const len = Number(req.headers['content-length']);
@@ -267,7 +302,12 @@ function createServer(opts = {}) {
         return send(res, 429, { error: r.error, used: r.used, max: MAX_PER_VIDEO });
       }
       saveUsage();
-      const j = { id, uid, key, stem, src, count: r.count, status: 'queued', done: 0, failed: 0,
+      if (useBonus) {
+        // Re-check: another upload of the same uid could not run in parallel (uploading set), so this is safe.
+        bonusUsed[uid] = (bonusUsed[uid] || 0) + 1;
+        saveBonus();
+      }
+      const j = { id, uid, key, stem, src, count: r.count, ...(useBonus ? { bonus: true } : {}), status: 'queued', done: 0, failed: 0,
         versions: [], createdAt: Date.now(), srcBytes: fs.statSync(src).size, srcSec: Math.round(info.dur) };
       jobs.set(id, j);
       queue.push(id);
@@ -334,7 +374,7 @@ function createServer(opts = {}) {
 
       if (req.method === 'GET' && url.pathname === '/api/me') {
         const a = activeJob(auth.uid);
-        return send(res, 200, { uid: auth.uid, maxPerVideo: MAX_PER_VIDEO, active: a ? view(a) : null });
+        return send(res, 200, { uid: auth.uid, maxPerVideo: MAX_PER_VIDEO, active: a ? view(a) : null, bonusUsed: bonusUsed[auth.uid] || 0 });
       }
       if (req.method === 'POST' && url.pathname === '/api/jobs') return await handleUpload(req, res, url, auth);
       let m = /^\/api\/jobs\/([\w-]+)$/.exec(url.pathname);

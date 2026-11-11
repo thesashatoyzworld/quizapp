@@ -10,6 +10,7 @@ import { notifyAdmin, sendBotMessage, editAdminMarkup, type NotifyRef } from '@/
 import { leadKeyboard, parseLeadCallback } from '@/lib/lead-keyboard';
 import { STATUS_LABEL, type LeadStatus } from '@/content/lead-status';
 import { prisma } from '@/lib/prisma';
+import { parseRefParam, rememberReferral } from '@/lib/uniq/referral';
 import { catchForumReply } from '@/lib/forum';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
@@ -1150,6 +1151,35 @@ export async function POST(request: NextRequest) {
           await sendMessage(chatId, `что-то пошло не так с активацией. напиши сюда — открою доступ вручную.`);
         }
 
+        return NextResponse.json({ ok: true });
+      }
+
+      // Уникализатор: /start uniq или /start uniq_<id пригласившего> (реферальная ссылка).
+      // Запоминаем, кто привёл; засчитывается друг позже, когда сделает первый ролик (/api/cabinet/uniq/first).
+      if (startParam === 'uniq' || startParam.startsWith('uniq_')) {
+        await prisma.user.upsert({
+          where: { telegramId: BigInt(chatId) },
+          create: { telegramId: BigInt(chatId), username: username || null, firstName: update.message.from?.first_name || null },
+          update: {},
+        });
+        const referrerId = parseRefParam(startParam);
+        let fromWho = '';
+        if (referrerId) {
+          try {
+            if (await rememberReferral(chatId, referrerId)) {
+              const ref = await prisma.user.findUnique({ where: { telegramId: BigInt(referrerId) }, select: { firstName: true, username: true } });
+              fromWho = ref?.firstName || (ref?.username ? `@${ref.username}` : '');
+            }
+          } catch (err) {
+            console.error('[uniq] referral save failed:', err);
+          }
+        }
+        await sendBotMessage(
+          chatId,
+          `${firstName}, привет!${fromWho ? ` Тебя позвал ${fromWho}.` : ''}\n\nЭто мой бесплатный уникализатор: загружаешь ролик, получаешь до 5 немного разных версий и выкладываешь их пробными рилсами. Так один удачный ролик получает ещё несколько попыток дойти до новых людей.\n\nОткрывай по кнопке ниже.`,
+          { inline_keyboard: [[{ text: 'Открыть уникализатор', web_app: { url: 'https://world.thesashatoyz.com/uniq' } }]] },
+          null, // plain text: names may contain <, & or _
+        );
         return NextResponse.json({ ok: true });
       }
 

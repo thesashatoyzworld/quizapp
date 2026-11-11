@@ -1618,3 +1618,15 @@ model StudioSetting {
 
   @@map("studio_settings")
 }
+
+/// Уникализатор: кто кого привёл. Друг засчитывается (creditedAt), когда сделал первый ролик
+/// и подписан на канал; за каждого засчитанного пригласивший получает бонусный ролик.
+model UniqReferral {
+  friendId   BigInt    @id @map("friend_id")
+  referrerId BigInt    @map("referrer_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  creditedAt DateTime? @map("credited_at")
+
+  @@index([referrerId])
+  @@map("uniq_referrals")
+}

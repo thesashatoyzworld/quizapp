@@ -54,7 +54,7 @@ test('auth, ownership and size limit', async () => {
   try {
     assert.strictEqual((await fetch(`${s.base}/api/me`)).status, 401);
     const me = await (await fetch(`${s.base}/api/me?t=${token('u1')}`)).json();
-    assert.deepStrictEqual(me, { uid: 'u1', maxPerVideo: 5, active: null });
+    assert.deepStrictEqual(me, { uid: 'u1', maxPerVideo: 5, active: null, bonusUsed: 0 });
     const big = await fetch(`${s.base}/api/jobs?count=1`, {
       method: 'POST', headers: { Authorization: `Bearer ${token('u1')}` }, body: Buffer.alloc(4096) });
     assert.strictEqual(big.status, 413);
@@ -90,5 +90,27 @@ test('free users: one video per day, students unlimited', async () => {
     // Same uid as a student, and a free user whose only job produced nothing: past the gate (16 junk bytes fail probe).
     assert.strictEqual((await post(tok('f1', false))).status, 400);
     assert.strictEqual((await post(tok('f2', true))).status, 400);
+  } finally { await s.close(); }
+});
+
+test('free users: bonus videos from friends past the daily cap', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'uniq-test-'));
+  const now = Date.now();
+  fs.writeFileSync(path.join(dataDir, 'jobs.json'), JSON.stringify({
+    a: { id: 'a', uid: 'f1', key: 'f1:fp', stem: 'v', count: 5, status: 'done', done: 5, failed: 0, versions: [], createdAt: now - 3600e3, finishedAt: now - 3000e3 },
+    c: { id: 'c', uid: 'f3', key: 'f3:fp', stem: 'v', count: 5, status: 'done', done: 5, failed: 0, versions: [], createdAt: now - 3600e3, finishedAt: now - 3000e3 },
+  }));
+  fs.writeFileSync(path.join(dataDir, 'bonus.json'), JSON.stringify({ f3: 1 }));
+  const { sign } = require('../server');
+  const { SECRET } = require('./helpers');
+  const tok = (uid, bonus) => sign({ uid, free: true, bonus, exp: Math.floor(now / 1000) + 3600 }, SECRET);
+  const s = await start({ dataDir, maxBytes: 1024 });
+  try {
+    const post = (t) => fetch(`${s.base}/api/jobs?count=1`, { method: 'POST', headers: { Authorization: `Bearer ${t}` }, body: Buffer.alloc(16) });
+    assert.strictEqual((await post(tok('f1', 1))).status, 400); // has an unspent bonus: past the gate
+    assert.strictEqual((await post(tok('f3', 1))).status, 429); // the only bonus is spent
+    assert.strictEqual((await post(tok('f3', 2))).status, 400); // second friend credited
+    const me = await (await fetch(`${s.base}/api/me?t=${tok('f3', 2)}`)).json();
+    assert.strictEqual(me.bonusUsed, 1);
   } finally { await s.close(); }
 });

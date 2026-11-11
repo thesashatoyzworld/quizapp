@@ -8,7 +8,7 @@ const SECRET = 'test-secret';
 
 async function start(opts = {}) {
   const dataDir = opts.dataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'uniq-test-'));
-  const server = createServer({ secret: SECRET, dataDir, ffmpeg: process.env.UNIQ_FFMPEG || 'ffmpeg', ...opts });
+  const server = createServer({ secret: SECRET, dataDir, ffmpeg: process.env.UNIQ_FFMPEG || 'ffmpeg', notifyFirst: () => {}, ...opts });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}`;
   return { server, base, dataDir, close: () => new Promise((r) => server.close(r)) };
