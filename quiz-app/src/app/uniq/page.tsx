@@ -300,7 +300,7 @@ function UniqInner() {
       <header className="un-top">
         <a className="un-back" href="/dostup">‹ Кабинет</a>
         <div className="un-brand">Уникализатор</div>
-        <div className="un-sub">Загрузи ролик, получи до {max} немного разных версий для пробных рилсов</div>
+        <div className="un-sub">Из одного ролика несколько разных версий для пробных рилсов</div>
         <OpenInBrowser path="/uniq" className="un-browser" />
       </header>
 
@@ -378,23 +378,15 @@ function UniqInner() {
 
       {state === 'ok' && acc && (
         <>
+          {!job && acc.free && acc.plan && <PlanMeter plan={acc.plan} week={week} />}
           {!job && (
-            <aside className="un-pick">
-              <b>Какой ролик брать.</b> Желательно тот, что уже дал промежуточный результат: набрал больше
-              твоих обычных просмотров, собрал сохранения, репосты или заявки, но до конца не выстрелил.
-              Тема уже доказала, что цепляет, и версии дают ей ещё несколько попыток дойти до новых людей.
-              Ролик, который не зашёл совсем, лучше переснять с другим заходом.
-            </aside>
-          )}
-          {!job && acc.free && acc.plan && (
-            <p className="un-free">
-              Бесплатно: {roliki(acc.plan.w)} в неделю по {acc.plan.v} версии.{' '}
-              {week && week.used >= week.limit && week.nextAt
-                ? `Следующий можно через ${inDays(week.nextAt - Date.now())}. `
-                : week ? `На этой неделе осталось: ${week.limit - week.used}. ` : ''}
-              Без ограничений на тарифах 2 и 3 курса «Новый уровень».{' '}
-              <a href="https://thesashatoyz.com/uroven">Про курс →</a>
-            </p>
+            <details className="un-acc">
+              <summary>Какой ролик брать</summary>
+              <p>
+                Тот, что уже дал результат: больше обычных просмотров, сохранения или заявки, но не выстрелил.
+                Тема цепляет, версии дадут ей ещё попытки. Совсем не зашедший лучше переснять.
+              </p>
+            </details>
           )}
           {!job && (
             <section className="un-card">
@@ -426,22 +418,27 @@ function UniqInner() {
                   </>
                 )}
               </label>
-              <p className="un-hint">до 3 минут и 500 МБ, до {max} версий на один ролик. Одна версия минутного ролика делается около минуты, можно закрыть страницу и вернуться</p>
+              <p className="un-hint">до 3 минут и 500 МБ · версия минутного ролика около минуты, страницу можно закрыть</p>
 
               <div className="un-label" id="un-count-label">Сколько версий</div>
               <div className="un-count" role="radiogroup" aria-labelledby="un-count-label">
-                {Array.from({ length: max }, (_, k) => k + 1).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    role="radio"
-                    aria-checked={count === n}
-                    className={count === n ? 'un-count-btn un-count-on' : 'un-count-btn'}
-                    onClick={() => setCount(n)}
-                    disabled={busy}
-                  >{n}</button>
+                {Array.from({ length: 5 }, (_, k) => k + 1).map((n) => (
+                  n <= max ? (
+                    <button
+                      key={n}
+                      type="button"
+                      role="radio"
+                      aria-checked={count === n}
+                      className={count === n ? 'un-count-btn un-count-on' : 'un-count-btn'}
+                      onClick={() => setCount(n)}
+                      disabled={busy}
+                    >{n}</button>
+                  ) : (
+                    <span key={n} className="un-count-btn un-count-lock" aria-hidden="true">{n}<LockIcon /></span>
+                  )
                 ))}
               </div>
+              {max < 5 && <p className="un-count-note">3–5 версий на тарифах 2 и 3 «Нового уровня». <a href="https://thesashatoyz.com/uroven">Про курс</a></p>}
 
               {uploadPct !== null ? (
                 <div className="un-progress" aria-live="polite">
@@ -546,28 +543,100 @@ function UniqInner() {
         .un-all span { font-family: 'Manrope', system-ui, sans-serif; font-weight: 600; font-size: 13px; opacity: .85; }
         .un-new { margin-top: 14px; background: none; border: 1px solid var(--un-line); color: var(--un-text); }
 
-        .un-pick {
-          margin: 0 0 14px; padding: 14px 16px; border-radius: 14px; font-size: 14px; line-height: 1.5;
-          background: var(--un-accent-soft); color: var(--un-text);
+        /* Free plan meter */
+        .un-plan {
+          display: flex; align-items: stretch; justify-content: space-between; gap: 12px;
+          margin: 0 0 12px; padding: 14px 16px; border-radius: 18px;
+          background: var(--un-surface); border: 1px solid var(--un-line);
         }
-        .un-free { margin: 0 0 14px; padding: 0 4px; font-size: 13.5px; line-height: 1.45; color: var(--un-muted); }
-        .un-free a { color: var(--un-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
-        .un-inv { margin-top: 22px; padding: 18px 16px; border-radius: 14px; background: var(--un-accent-soft); }
-        .un-inv h2 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin: 0 0 6px; }
-        .un-inv p { margin: 0 0 12px; font-size: 14px; line-height: 1.5; }
-        .un-inv-link { padding: 10px 12px; border-radius: 10px; background: var(--un-surface); border: 1px solid var(--un-line); font-size: 13px; word-break: break-all; user-select: all; }
-        .un-inv-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .un-inv-btns .un-cta, .un-inv-btns .un-new { margin-top: 12px; }
-        .un-inv-stats { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px; font-size: 13px; color: var(--un-muted); }
-        .un-inv-stats b { color: var(--un-text); }
-        .un-guide { margin-top: 22px; padding: 4px 4px 0; }
-        .un-guide h2 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin: 0 0 10px; }
-        .un-guide ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; line-height: 1.5; }
-        .un-guide li::marker { font-weight: 700; color: var(--un-accent); }
-        .un-guide p { margin: 14px 0 0; font-size: 13px; color: var(--un-muted); }
-        .un-fb { margin-top: 26px; padding: 18px 16px; border-radius: 14px; background: var(--un-surface); border: 1px solid var(--un-line); }
-        .un-fb h2 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin: 0 0 4px; }
-        .un-fb p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.45; color: var(--un-muted); }
+        .un-plan-k { font-size: 11.5px; font-weight: 700; color: var(--un-muted); letter-spacing: 0.02em; margin-bottom: 8px; }
+        .un-plan-slots { display: flex; align-items: center; gap: 6px; }
+        .un-slot { width: 22px; height: 30px; border-radius: 7px; background: var(--un-line); }
+        .un-slot-free { background: var(--un-accent); }
+        .un-plan-num { margin-left: 8px; font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+        .un-plan-num span { font-family: 'Manrope', system-ui, sans-serif; font-weight: 600; font-size: 13px; color: var(--un-muted); }
+        .un-plan-side { text-align: right; padding-left: 14px; border-left: 1px solid var(--un-line); }
+        .un-timer { display: flex; align-items: baseline; justify-content: flex-end; gap: 2px; }
+        .un-timer b { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+        .un-timer span { font-size: 13px; font-weight: 700; color: var(--un-muted); margin-right: 6px; }
+        .un-timer span:last-child { margin-right: 0; }
+
+        /* Locked version counts */
+        .un-count-lock { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--un-muted); opacity: .55; cursor: default; background: transparent; border-style: dashed; }
+        .un-lock-ic { flex: none; }
+        .un-count-note { margin: 8px 0 0; font-size: 12.5px; color: var(--un-muted); }
+        .un-count-note a { color: var(--un-accent); font-weight: 700; text-decoration: none; }
+
+        /* Accordions */
+        .un-acc { margin: 0 0 12px; border-radius: 16px; background: var(--un-surface); border: 1px solid var(--un-line); }
+        .un-acc summary {
+          list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          min-height: 52px; padding: 0 16px; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 15.5px;
+        }
+        .un-acc summary::-webkit-details-marker { display: none; }
+        .un-acc summary::after {
+          content: ''; flex: none; width: 9px; height: 9px; margin-top: -4px;
+          border-right: 2.5px solid var(--un-muted); border-bottom: 2.5px solid var(--un-muted); transform: rotate(45deg);
+          transition: transform .25s cubic-bezier(.22,1,.36,1);
+        }
+        .un-acc[open] summary::after { transform: rotate(225deg); margin-top: 4px; }
+        .un-acc summary:focus-visible { outline: 2px solid var(--un-accent); outline-offset: 2px; border-radius: 16px; }
+        .un-acc > p { margin: 0; padding: 0 16px 16px; font-size: 14px; line-height: 1.5; }
+        .un-acc-guide { margin-top: 22px; }
+
+        /* Guide steps with drawings */
+        .un-steps { list-style: none; margin: 0; padding: 4px 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+        .un-steps li { display: grid; grid-template-columns: 56px 1fr; gap: 14px; align-items: center; }
+        .un-step-art {
+          position: relative; width: 56px; height: 56px; border-radius: 16px;
+          display: grid; place-items: center; background: var(--un-accent-soft); color: var(--un-accent);
+        }
+        .un-step-art svg { width: 40px; height: 40px; }
+        .un-step-art span {
+          position: absolute; top: -6px; left: -6px; width: 22px; height: 22px; border-radius: 50%;
+          display: grid; place-items: center; background: var(--un-text); color: var(--un-bg);
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 12px;
+        }
+        .un-steps b { display: block; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 15px; }
+        .un-steps p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--un-muted); }
+
+        /* Referral */
+        .un-inv {
+          margin-top: 22px; padding: 22px 18px 18px; border-radius: 22px;
+          background: oklch(0.21 0.02 52); color: oklch(0.97 0.01 75);
+        }
+        .un-inv-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: oklch(0.78 0.15 60); }
+        .un-inv h2 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 24px; line-height: 1.12; letter-spacing: -0.02em; margin: 8px 0 18px; }
+        .un-ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; align-items: end; }
+        .un-step { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+        .un-step i {
+          position: relative; display: block; border-radius: 10px 10px 6px 6px;
+          background: oklch(0.32 0.02 52);
+        }
+        .un-step-on i { background: var(--un-accent); }
+        .un-step-next i { background: transparent; border: 2px dashed oklch(0.78 0.15 60); }
+        .un-step-next em {
+          position: absolute; inset: 0; display: grid; place-items: center; font-style: normal;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 16px; color: oklch(0.82 0.14 60);
+        }
+        .un-step span { text-align: center; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 14px; color: oklch(0.70 0.02 75); font-variant-numeric: tabular-nums; }
+        .un-step-on span { color: oklch(0.97 0.01 75); }
+        .un-ladder-cap { margin-top: 4px; text-align: center; font-size: 12px; color: oklch(0.70 0.02 75); }
+        .un-inv-share {
+          display: flex; align-items: center; justify-content: center; width: 100%; min-height: 54px; margin-top: 18px;
+          border: none; border-radius: 14px; cursor: pointer; background: var(--un-accent); color: oklch(0.99 0.005 75);
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 17px;
+        }
+        .un-inv-copy {
+          display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 46px; margin-top: 8px;
+          padding: 0 14px; border-radius: 12px; cursor: pointer; background: oklch(0.27 0.02 52); border: 1px solid oklch(0.34 0.02 52);
+          color: oklch(0.85 0.01 75); font-family: inherit; font-size: 12.5px;
+        }
+        .un-inv-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .un-inv-copy b { flex: none; font-weight: 800; color: oklch(0.82 0.14 60); }
+        .un-inv-rule { margin: 12px 0 0; font-size: 12.5px; line-height: 1.45; color: oklch(0.72 0.02 75); }
+        .un-fb-body { padding: 0 16px 16px; }
+        .un-fb-body p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.45; color: var(--un-muted); }
         .un-fb-text {
           width: 100%; box-sizing: border-box; resize: vertical; min-height: 96px; padding: 12px 13px;
           border: 1px solid var(--un-line); border-radius: 12px; background: var(--un-bg); color: var(--un-text);
@@ -592,7 +661,7 @@ function UniqInner() {
         @keyframes un-spin { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) {
           .un-spinner { animation: none; }
-          .un-bar i, .un-drop { transition: none; }
+          .un-bar i, .un-drop, .un-acc summary::after { transition: none; }
         }
       `}</style>
     </main>
@@ -622,9 +691,10 @@ function Feedback({ initData }: { initData: string }) {
     }
   }
   return (
-    <section className="un-fb">
-      <h2>Пожелания и баги</h2>
-      <p>Что-то не работает, неудобно или хочется новую функцию, напиши сюда. Сообщение придёт Саше лично.</p>
+    <details className="un-acc un-fb">
+      <summary>Пожелания и баги</summary>
+      <div className="un-fb-body">
+      <p>Что-то не работает или хочется новую функцию, напиши. Придёт Саше лично.</p>
       {state === 'sent' ? (
         <div className="un-fb-ok">
           Спасибо, получил! <button type="button" onClick={() => setState('idle')}>написать ещё</button>
@@ -645,13 +715,71 @@ function Feedback({ initData }: { initData: string }) {
           {state === 'error' && <div className="un-error" role="alert">{err}</div>}
         </>
       )}
+      </div>
+    </details>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg className="un-lock-ic" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+      <rect x="3" y="7" width="10" height="7" rx="2" fill="currentColor" />
+      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function useNow(everyMs: number) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), everyMs);
+    return () => window.clearInterval(t);
+  }, [everyMs]);
+  return now;
+}
+
+/** Free plan at a glance: this week's slots and, when they are spent, a countdown to the next one. */
+function PlanMeter({ plan, week }: { plan: Plan; week: Week | null }) {
+  const now = useNow(30_000);
+  const used = week?.used ?? 0;
+  const left = Math.max(0, plan.w - used);
+  const waitMs = left === 0 && week?.nextAt ? Math.max(0, week.nextAt - now) : 0;
+  const d = Math.floor(waitMs / 86_400_000);
+  const h = Math.floor((waitMs % 86_400_000) / 3_600_000);
+  const m = Math.floor((waitMs % 3_600_000) / 60_000);
+  return (
+    <section className="un-plan" aria-label="Твой лимит">
+      <div className="un-plan-main">
+        <div className="un-plan-k">Роликов на этой неделе</div>
+        <div className="un-plan-slots">
+          {Array.from({ length: plan.w }, (_, k) => (
+            <i key={k} className={k < left ? 'un-slot un-slot-free' : 'un-slot'} />
+          ))}
+          <b className="un-plan-num">{left}<span> из {plan.w}</span></b>
+        </div>
+      </div>
+      {left === 0 && waitMs > 0 ? (
+        <div className="un-plan-side" aria-live="polite">
+          <div className="un-plan-k">Новый через</div>
+          <div className="un-timer">
+            {d > 0 && <><b>{d}</b><span>д</span></>}
+            <b>{h}</b><span>ч</span>
+            {d === 0 && <><b>{m}</b><span>м</span></>}
+          </div>
+        </div>
+      ) : (
+        <div className="un-plan-side">
+          <div className="un-plan-k">Версий на ролик</div>
+          <div className="un-timer"><b>{plan.v}</b></div>
+        </div>
+      )}
     </section>
   );
 }
 
 function Invite({ ref_, perWeek, tg, onTrack }: { ref_: RefStats; perWeek: number; tg: TelegramWebAppLike | null; onTrack: (ev: string) => void }) {
   const [copied, setCopied] = useState(false);
-  const shareText = 'Бесплатный уникализатор: из одного ролика 5 разных версий для пробных рилсов';
+  const shareText = 'Бесплатный уникализатор: из одного ролика несколько версий для пробных рилсов';
   const share = () => {
     onTrack('share');
     const url = `https://t.me/share/url?url=${encodeURIComponent(ref_.link)}&text=${encodeURIComponent(shareText)}`;
@@ -663,55 +791,77 @@ function Invite({ ref_, perWeek, tg, onTrack }: { ref_: RefStats; perWeek: numbe
     onTrack('copy');
     try { await navigator.clipboard.writeText(ref_.link); setCopied(true); window.setTimeout(() => setCopied(false), 2000); } catch { /* user can select the link */ }
   };
-  const full = ref_.credited >= ref_.cap;
+  const max = 5;
+  const full = perWeek >= max;
   return (
     <section className="un-inv">
-      <h2>Приведи друга, получай на 1 ролик в неделю больше</h2>
-      <p>
-        {full
-          ? 'У тебя максимум для бесплатного: 5 роликов в неделю. Спасибо, что зовёшь друзей!'
-          : 'Друг засчитывается, когда подпишется на канал и сделает свой первый ролик. Каждый засчитанный друг навсегда добавляет тебе +1 ролик в неделю, до 5 в неделю.'}
-      </p>
+      <div className="un-inv-eyebrow">Приведи друга</div>
+      <h2>{full ? 'У тебя максимум: 5 роликов в неделю' : <>+1 ролик в неделю<br />за каждого друга. Навсегда.</>}</h2>
+      <ol className="un-ladder" aria-label={`Сейчас ${roliki(perWeek)} в неделю из ${max}`}>
+        {Array.from({ length: max }, (_, k) => k + 1).map((n) => (
+          <li key={n} className={n <= perWeek ? 'un-step un-step-on' : n === perWeek + 1 ? 'un-step un-step-next' : 'un-step'}>
+            <i style={{ height: `${28 + n * 14}px` }}>{n === perWeek + 1 && <em>+1</em>}</i>
+            <span>{n}</span>
+          </li>
+        ))}
+      </ol>
+      <div className="un-ladder-cap">роликов в неделю{n0(ref_.credited)}</div>
       {!full && (
         <>
-          <div className="un-inv-link">{ref_.link}</div>
-          <div className="un-inv-btns">
-            <button type="button" className="un-cta" onClick={share}>Поделиться</button>
-            <button type="button" className="un-new" onClick={copy}>{copied ? 'Скопировано' : 'Скопировать'}</button>
-          </div>
+          <button type="button" className="un-inv-share" onClick={share}>Позвать друга</button>
+          <button type="button" className="un-inv-copy" onClick={copy}>
+            <span>{ref_.link.replace('https://', '')}</span>
+            <b>{copied ? 'скопировано' : 'копировать'}</b>
+          </button>
+          <p className="un-inv-rule">Друг засчитается, когда подпишется на канал и сделает свой первый ролик.</p>
         </>
       )}
-      <div className="un-inv-stats">
-        <span>Пришли по ссылке: <b>{ref_.invited}</b></span>
-        <span>Засчитано: <b>{ref_.credited}</b></span>
-        <span>Сейчас у тебя: <b>{roliki(perWeek)} в неделю</b></span>
-      </div>
     </section>
+  );
+}
+
+const n0 = (credited: number) => (credited ? ` · друзей засчитано: ${credited}` : '');
+
+const GUIDE: { t: string; d: string; art: 'save' | 'plus' | 'toggle' | 'spread' | 'bars' }[] = [
+  { t: 'Скачай все версии', d: 'Кнопка «скачать все», файлы лягут в галерею.', art: 'save' },
+  { t: 'Инстаграм: «+» → Reels', d: 'Выбери одну версию и нажми «Далее».', art: 'plus' },
+  { t: 'Включи «Пробная версия»', d: 'Рилс увидят только те, кто на тебя не подписан. Нужен профессиональный аккаунт.', art: 'toggle' },
+  { t: 'Каждую версию отдельно', d: 'С промежутком пару часов, до шести пробных в день.', art: 'spread' },
+  { t: 'Через сутки сравни', d: 'Версию, которая набрала больше, переноси в ленту.', art: 'bars' },
+];
+
+function GuideArt({ kind }: { kind: (typeof GUIDE)[number]['art'] }) {
+  const c = 'currentColor';
+  if (kind === 'save') return (
+    <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 10v20m-8-8 8 8 8-8" fill="none" stroke={c} strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" /><path d="M12 34v4h24v-4" fill="none" stroke={c} strokeWidth="3.2" strokeLinecap="round" /></svg>
+  );
+  if (kind === 'plus') return (
+    <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="11" y="11" width="26" height="26" rx="8" fill="none" stroke={c} strokeWidth="3.2" /><path d="M24 18v12M18 24h12" stroke={c} strokeWidth="3.2" strokeLinecap="round" /></svg>
+  );
+  if (kind === 'toggle') return (
+    <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="16" width="32" height="16" rx="8" fill={c} /><circle cx="32" cy="24" r="5.5" fill="var(--un-surface)" /></svg>
+  );
+  if (kind === 'spread') return (
+    <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M7 30h34" stroke={c} strokeWidth="2.4" strokeLinecap="round" opacity=".35" />{[10, 19, 28, 37].map((x) => <circle key={x} cx={x} cy="30" r="3.6" fill={c} />)}<path d="M10 20h9" stroke={c} strokeWidth="2.4" strokeLinecap="round" /><text x="14.5" y="15" textAnchor="middle" fontSize="10" fontWeight="800" fill={c}>2ч</text></svg>
+  );
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="9" y="26" width="7" height="12" rx="2" fill={c} opacity=".35" /><rect x="20.5" y="13" width="7" height="25" rx="2" fill={c} /><rect x="32" y="21" width="7" height="17" rx="2" fill={c} opacity=".35" /></svg>
   );
 }
 
 function Guide() {
   return (
-    <section className="un-guide">
-      <h2>Как выложить пробными рилсами</h2>
-      <ol>
-        <li>Загрузи ролик, выбери число версий и дождись, пока все будут готовы.</li>
-        <li>Нажми «скачать все», версии сохранятся в телефон. Если делал на компьютере, перекинь файлы на телефон.</li>
-        <li>В Инстаграме: «+» → Reels → выбери одну версию → «Далее».</li>
-        <li>
-          На экране публикации включи «Пробная версия» (Trial). Такой рилс сначала показывают только тем,
-          кто на тебя не подписан: в ленте профиля и у подписчиков его нет. Переключатель есть только
-          у профессионального аккаунта (автор или бизнес).
-        </li>
-        <li>Выбери, кто переносит рилс в ленту: ты вручную или Инстаграм сам, если ролик зайдёт.</li>
-        <li>
-          Каждую версию выкладывай отдельным пробным рилсом, с промежутком в пару часов. До шести пробных
-          в день нормально, мы так выкладывали. Подпись можно оставить ту же или чуть поменять.
-        </li>
-        <li>Через сутки сравни просмотры версий. Ту, что зашла лучше всех, переноси в ленту.</li>
+    <details className="un-acc un-acc-guide">
+      <summary>Как выложить пробными рилсами</summary>
+      <ol className="un-steps">
+        {GUIDE.map((g, k) => (
+          <li key={g.t}>
+            <div className="un-step-art"><GuideArt kind={g.art} /><span>{k + 1}</span></div>
+            <div><b>{g.t}</b><p>{g.d}</p></div>
+          </li>
+        ))}
       </ol>
-      <p>Файлы хранятся сутки, лимит 5 версий на один ролик.</p>
-    </section>
+    </details>
   );
 }
 
