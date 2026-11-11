@@ -8,18 +8,20 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export const UNIQ_TOKEN_TTL_S = 2 * 60 * 60;
 
-export type UniqPayload = { uid: string; name?: string; exp: number };
+// free: not a student, the VPS caps them at UNIQ_FREE_PER_DAY videos a day.
+export type UniqPayload = { uid: string; name?: string; free?: boolean; exp: number };
 
 const b64u = (buf: Buffer | string) => Buffer.from(buf).toString('base64url');
 
 export function signUniqToken(
-  user: { uid: string | number; name?: string },
+  user: { uid: string | number; name?: string; free?: boolean },
   secret: string,
   nowS: number = Math.floor(Date.now() / 1000),
 ): string {
   if (!secret) throw new Error('UNIQ_SECRET is not set');
   const payload: UniqPayload = { uid: String(user.uid), exp: nowS + UNIQ_TOKEN_TTL_S };
   if (user.name) payload.name = user.name;
+  if (user.free) payload.free = true;
   const p = b64u(JSON.stringify(payload));
   return `${p}.${b64u(createHmac('sha256', secret).update(p).digest())}`;
 }

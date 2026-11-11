@@ -24,7 +24,7 @@ type Job = {
   versions: Version[];
   error?: string;
 };
-type Access = { token: string; url: string; max: number };
+type Access = { token: string; url: string; max: number; free?: boolean };
 
 const isActive = (j: Job | null) => !!j && (j.status === 'queued' || j.status === 'running');
 
@@ -305,6 +305,12 @@ function UniqInner() {
               Ролик, который не зашёл совсем, лучше переснять с другим заходом.
             </aside>
           )}
+          {!job && acc.free && (
+            <p className="un-free">
+              Бесплатно: 1 ролик в сутки. Ученикам курса «Новый уровень» без ограничений.{' '}
+              <a href="https://thesashatoyz.com/uroven">Про курс →</a>
+            </p>
+          )}
           {!job && (
             <section className="un-card">
               <input
@@ -458,6 +464,8 @@ function UniqInner() {
           margin: 0 0 14px; padding: 14px 16px; border-radius: 14px; font-size: 14px; line-height: 1.5;
           background: var(--un-accent-soft); color: var(--un-text);
         }
+        .un-free { margin: 0 0 14px; padding: 0 4px; font-size: 13.5px; line-height: 1.45; color: var(--un-muted); }
+        .un-free a { color: var(--un-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
         .un-guide { margin-top: 22px; padding: 4px 4px 0; }
         .un-guide h2 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin: 0 0 10px; }
         .un-guide ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; font-size: 14.5px; line-height: 1.5; }

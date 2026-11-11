@@ -60,4 +60,7 @@ test('paid: uroven tier ≥ 1 or admin', () => {
   assert.equal(uniqPaid(555, { uroven: 0 }), false);
   assert.equal(uniqPaid(555, { potok: 0 }), false);
   assert.equal(uniqPaid(6013902004, {}), true);
+  const free = verifyUniqToken(signUniqToken({ uid: 1, free: true }, 's'), 's');
+  assert.equal(free?.free, true);
+  assert.equal(verifyUniqToken(signUniqToken({ uid: 1 }, 's'), 's')?.free, undefined);
 });

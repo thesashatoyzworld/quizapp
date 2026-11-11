@@ -22,7 +22,7 @@ export function uniqTabVisible(
   return UNIQ_BETA_VIEWERS.has(telegramId) || uniqTesters(env.testers || '').has(telegramId);
 }
 
-/** Paid access: course «Новый уровень» tier ≥ 1, admins always pass. */
+/** Paid = unlimited on the VPS: course «Новый уровень» tier ≥ 1, admins always pass. Others are free with a daily cap. */
 export function uniqPaid(telegramId: number, tiers: Record<string, number>): boolean {
   return UNIQ_ADMINS.has(telegramId) || (tiers.uroven ?? 0) >= 1;
 }
