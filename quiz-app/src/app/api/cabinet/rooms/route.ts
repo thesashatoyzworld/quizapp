@@ -5,7 +5,7 @@ import { forTelegram } from '@/content/lichnoe';
 import { prisma } from '@/lib/prisma';
 import { FORUM_ADMINS, forumTabVisible } from '@/lib/forum';
 import { isLichka, REELS_CLIENTS_OPEN } from '@/lib/reels/store';
-import { uniqTabVisible } from '@/lib/uniq/access';
+import { uniqTabVisible, UNIQ_ADMINS } from '@/lib/uniq/access';
 
 export const runtime = 'nodejs';
 
@@ -54,8 +54,11 @@ export async function GET(request: NextRequest) {
       telegramId = verifySession(request.cookies.get(SESSION_COOKIE)?.value, secret);
     }
 
+    // Sasha previewing the cabinet as a person without a tariff (?as=free). Only removes access.
+    const asFree = request.nextUrl.searchParams.get('as') === 'free' && telegramId != null && UNIQ_ADMINS.has(telegramId);
+
     let activeRows: AccessRow[] = [];
-    if (telegramId) {
+    if (telegramId && !asFree) {
       const rows = await getActiveAccessByTelegram(telegramId);
       activeRows = rows.map((r) => ({ role: r.role, productSlug: r.productSlug }));
     }
@@ -66,32 +69,32 @@ export async function GET(request: NextRequest) {
     // Раздел «Личное» показываем только тем, у кого личные материалы реально
     // есть. Остальным его в кабинете не существует — даже под замком: пустой
     // запертый раздел выглядел бы как «мне что-то не додали».
-    const hasPersonal = telegramId != null && forTelegram(telegramId).length > 0;
+    const hasPersonal = !asFree && telegramId != null && forTelegram(telegramId).length > 0;
 
     // Раздел «Карта» — по тому же правилу: рисуем только тем, чья карта
     // существует и открыта Сашей. Пустая карта хуже отсутствующей.
-    const hasRoadmap = telegramId != null && (await prisma.roadmap.count({
+    const hasRoadmap = !asFree && telegramId != null && (await prisma.roadmap.count({
       where: { telegramId: BigInt(telegramId), clientVisible: true, archived: false },
     })) > 0;
 
     // «Сообщество» в закрытой бете: вкладку видят только Саша и тестеры.
     // Сам доступ внутри всё равно проверяет форум по подписанной initData.
-    const hasForum = forumTabVisible(telegramId);
+    const hasForum = !asFree && forumTabVisible(telegramId);
     // Раздел «Ролики» — клиентам лички, у которых доска уже заведена.
     // Админам вкладка видна всегда: внутри доски всех клиентов.
-    const hasReels = telegramId != null && (FORUM_ADMINS.has(telegramId) || (REELS_CLIENTS_OPEN && (await isLichka(telegramId)) && (
+    const hasReels = !asFree && telegramId != null && (FORUM_ADMINS.has(telegramId) || (REELS_CLIENTS_OPEN && (await isLichka(telegramId)) && (
       (await prisma.reelBrief.count({ where: { telegramId: BigInt(telegramId) } })) +
       (await prisma.reelVersion.count({ where: { telegramId: BigInt(telegramId) } }))
     ) > 0));
 
     // «Уникализатор» в бете: Саша, т3 и тестеры (UNIQ_TESTERS), после UNIQ_OPEN=1 все.
     // Платный доступ проверяет /api/cabinet/uniq по подписанной личности.
-    const hasUniq = uniqTabVisible(telegramId, undefined, tiers);
+    const hasUniq = asFree || uniqTabVisible(telegramId, undefined, tiers);
 
     // identified — знаем ЛИ мы, кто это (по Telegram или сессии). Кабинет так
     // отличает «вошёл, но без покупок» (показать разделы под замком) от «не вошёл»
     // (показать кнопку входа).
-    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, hasPersonal, hasRoadmap, hasForum, hasReels, hasUniq, pending: false, token: null });
+    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, hasPersonal, hasRoadmap, hasForum, hasReels, hasUniq, preview: asFree, pending: false, token: null });
   } catch (error) {
     console.error('[Cabinet] rooms error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

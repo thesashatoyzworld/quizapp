@@ -5,6 +5,7 @@ import { SECTIONS } from '@/content/rooms';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import OpenInBrowser from '@/components/OpenInBrowser';
 import { trackCabinetOpen } from '@/lib/cabinet-track';
+import { previewAs } from '@/lib/uniq/preview';
 
 // Официальная кнопка «Войти через Telegram» (Login Widget). Рендерится только
 // в браузере (в Mini App не нужна — там опознаём по initData). Требует, чтобы
@@ -52,6 +53,7 @@ function DostupInner() {
   const [hasReels, setHasReels] = useState(false);
   // Уникализатор в бете: вкладку видят Саша и тестеры, после UNIQ_OPEN=1 все.
   const [hasUniq, setHasUniq] = useState(false);
+  const [preview, setPreview] = useState(false);
   // Telegram id of the viewer — forwarded to gated cross-domain materials
   // (kabinet.thesashatoyz.com workshops) so their soft-gate can identify the user.
   const [tgId, setTgId] = useState<number | null>(null);
@@ -75,8 +77,10 @@ function DostupInner() {
       try {
         // В Mini App опознаёмся по initData id. В браузере id нет — эндпоинт
         // попробует подписанную сессию-cookie (вход через Telegram Login Widget).
-        const qs = tgId ? `?telegramId=${tgId}` : '';
-        const res = await fetch(`/api/cabinet/rooms${qs}`);
+        const p = new URLSearchParams();
+        if (tgId) p.set('telegramId', String(tgId));
+        if (previewAs()) p.set('as', 'free');
+        const res = await fetch(`/api/cabinet/rooms${p.toString() ? `?${p}` : ''}`);
         const data = await res.json();
         if (stop) return;
         if (data.identified) {
@@ -88,6 +92,7 @@ function DostupInner() {
           setHasForum(!!data.hasForum);
           setHasReels(!!data.hasReels);
           setHasUniq(!!data.hasUniq);
+          setPreview(!!data.preview);
           setUnlocked(data.unlockedRoles || []);
           trackCabinetOpen(tgId ?? data.telegramId ?? null);
         } else {
@@ -152,6 +157,9 @@ function DostupInner() {
 
       {/* Показываем ВСЕ разделы. Открытые (бесплатные + купленные) — с материалами.
           Закрытые платные — под замком с кнопкой на лендинг: «это есть, но закрыто». */}
+      {preview && (
+        <div className="kb-preview">Ты смотришь кабинет глазами человека без тарифа. <a href="/dostup?as=off">Выйти</a></div>
+      )}
       {unlocked && SECTIONS
         .filter((s) => (!s.personal || hasPersonal) && (!s.roadmap || hasRoadmap) && (!s.forum || hasForum) && (!s.reels || hasReels) && (!s.uniq || hasUniq))
         // Раздел, который входит в состав старшего продукта, владельцу старшего не рисуем.
@@ -385,6 +393,8 @@ function DostupInner() {
         }
         .kb-getaccess:hover { opacity: .9; } .kb-getaccess:active { transform: translateY(1px); }
         .kb-state { text-align: center; padding: 48px 16px; }
+        .kb-preview { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: #fff3c4; color: #5a4300; font-size: 13.5px; }
+        .kb-preview a { color: inherit; font-weight: 700; }
         .kb-state p { color: var(--kb-muted); margin: 0; }
         .kb-spinner {
           width: 24px; height: 24px; border: 3px solid var(--kb-line); border-top-color: var(--kb-accent);
