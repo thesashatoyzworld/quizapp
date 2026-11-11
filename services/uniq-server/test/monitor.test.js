@@ -54,3 +54,22 @@ test('daily digest fires once at the configured UTC hour', async () => {
   assert.strictEqual(sent.length, 1);
   assert.match(sent[0], /Уникализатор за сутки/);
 });
+
+test('digest: free users funnel', () => {
+  const { digestText } = require('../monitor');
+  const t = 1000;
+  const ev = [
+    { t, ev: 'page', uid: 'a', free: true, what: 'open' }, { t, ev: 'page', uid: 'a', free: true, what: 'open' },
+    { t, ev: 'page', uid: 'b', free: true, what: 'open' }, { t, ev: 'page', uid: 'b', free: true, what: 'sub_screen' },
+    { t, ev: 'page', uid: 'b', free: true, what: 'sub_ok' }, { t, ev: 'enqueue', uid: 'b', plan: '1x2' },
+    { t, ev: 'enqueue', uid: 'p', plan: 'paid' }, { t, ev: 'page', uid: 'b', free: true, what: 'download' },
+    { t, ev: 'reject', uid: 'b', reason: 'week' }, { t, ev: 'page', uid: 'b', free: true, what: 'share' },
+    { t, ev: 'first', uid: 'c', credited: true }, { t, ev: 'remind', uid: 'b', ok: true },
+  ];
+  const text = digestText(ev, { from: 0, to: 2000 });
+  assert.match(text, /открыли 2, экран подписки 1, подписались 1/);
+  assert.match(text, /загрузили ролик 1, скачали 1/);
+  assert.match(text, /упёрлись в недельный лимит 1, поделились ссылкой 1/);
+  assert.match(text, /друзей засчитано: 1/);
+  assert.match(text, /Напоминаний в бот: 1/);
+});

@@ -1,8 +1,8 @@
 // Server-only. Referral for the free Уникализатор: a friend counts once they finished their
-// first video and follow the channel; each counted friend is one bonus video (up to REF_CAP).
+// first video and follow the channel; each counted friend is +1 video a week, up to 5 a week (REF_CAP friends).
 import { prisma } from '@/lib/prisma';
 
-export const REF_CAP = 10;
+export const REF_CAP = 4;
 export const BOT_USERNAME = 'testtoyzbot';
 export const refLink = (telegramId: number) => `https://t.me/${BOT_USERNAME}?start=uniq_${telegramId}`;
 

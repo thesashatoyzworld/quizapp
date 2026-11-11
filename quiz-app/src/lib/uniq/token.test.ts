@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { signUniqToken, verifyUniqToken, UNIQ_TOKEN_TTL_S } from './token';
-import { uniqPaid, uniqTabVisible } from './access';
+import { uniqPaid, uniqPlan, uniqTabVisible } from './access';
 
 const SECRET = 'test-secret';
 const NOW = 1_800_000_000;
@@ -56,11 +56,17 @@ test('beta gate: Sasha and testers until UNIQ_OPEN=1', () => {
 });
 
 test('paid: uroven tier ≥ 1 or admin', () => {
-  assert.equal(uniqPaid(555, { uroven: 1 }), true);
+  assert.equal(uniqPaid(555, { uroven: 1 }), false);
+  assert.equal(uniqPaid(555, { uroven: 2 }), true);
+  assert.equal(uniqPaid(555, { uroven: 3 }), true);
+  assert.deepEqual(uniqPlan(true, 0), { w: 0, v: 5 });
+  assert.deepEqual(uniqPlan(false, 0), { w: 1, v: 2 });
+  assert.deepEqual(uniqPlan(false, 1), { w: 2, v: 2 });
+  assert.deepEqual(uniqPlan(false, 9), { w: 5, v: 2 });
   assert.equal(uniqPaid(555, { uroven: 0 }), false);
   assert.equal(uniqPaid(555, { potok: 0 }), false);
   assert.equal(uniqPaid(6013902004, {}), true);
-  const free = verifyUniqToken(signUniqToken({ uid: 1, free: true }, 's'), 's');
-  assert.equal(free?.free, true);
-  assert.equal(verifyUniqToken(signUniqToken({ uid: 1 }, 's'), 's')?.free, undefined);
+  const planned = verifyUniqToken(signUniqToken({ uid: 1, plan: { w: 2, v: 2 } }, 's'), 's');
+  assert.deepEqual(planned?.plan, { w: 2, v: 2 });
+  assert.equal(verifyUniqToken(signUniqToken({ uid: 1 }, 's'), 's')?.plan, undefined);
 });

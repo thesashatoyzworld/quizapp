@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifiedViewer } from '@/lib/reels/store';
 import { tiersForTelegram } from '@/lib/kb/tier';
 import { signUniqToken } from '@/lib/uniq/token';
-import { uniqPaid, uniqTabVisible, UNIQ_ADMINS } from '@/lib/uniq/access';
+import { uniqPaid, uniqPlan, uniqTabVisible, UNIQ_ADMINS } from '@/lib/uniq/access';
 import { isChannelMember, UNIQ_CHANNEL_URL } from '@/lib/uniq/channel';
 import { refStats, type RefStats } from '@/lib/uniq/referral';
 
@@ -12,12 +12,27 @@ export const dynamic = 'force-dynamic';
 // Section «Уникализатор»: hands a short-lived token for the VPS (uniq.thesashatoyz.com),
 // which does the upload, the ffmpeg work and the 5-per-video limit itself.
 //
-//   GET /api/cabinet/uniq → { token, url, max, free } | { error, code } 401 auth. Everyone signed in gets a token; non-students are capped by the VPS
+//   GET /api/cabinet/uniq → { token, url, max, free, plan, ref } | { error, code }. Tier 2-3 unlimited; everyone else
+//   (tier 1, «Поток спроса», no tariff) is on the free plan: 1 video a week + 1 per friend (up to 5), 2 versions.
 //
 // Identity is signed only (x-tg-init-data or kb_session cookie), never a bare ?telegramId.
 
 const fail = (status: number, code: string, error: string) =>
   NextResponse.json({ error, code }, { status, headers: { 'Cache-Control': 'no-store' } });
+
+// The subscription screen happens before the page has a VPS token, so the cabinet logs it.
+async function vpsEvent(uid: number, ev: string) {
+  const secret = process.env.UNIQ_SECRET || '';
+  if (!secret) return;
+  try {
+    await fetch(`${process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com'}/api/ev`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${signUniqToken({ uid, plan: uniqPlan(false, 0) }, secret)}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ev }),
+      signal: AbortSignal.timeout(1500),
+    });
+  } catch { /* analytics only */ }
+}
 
 function nameFromInitData(initData: string | null, id: number): string | undefined {
   if (!initData) return undefined;
@@ -53,13 +68,16 @@ export async function GET(request: NextRequest) {
 
   // Free users: subscription to the channel is the price. Telegram outage → let them through.
   if (!uniqPaid(id, tiers) || asFree) {
-    const member = asFree && q.get('checked') !== '1' ? false : await isChannelMember(id);
+    const checked = q.get('checked') === '1';
+    const member = asFree && !checked ? false : await isChannelMember(id);
     if (member === false) {
+      await vpsEvent(id, checked ? 'sub_no' : 'sub_screen');
       return NextResponse.json(
         { error: 'Уникализатор бесплатный для подписчиков канала. Подпишись и вернись сюда.', code: 'subscribe', channel: UNIQ_CHANNEL_URL },
         { status: 403, headers: { 'Cache-Control': 'no-store' } },
       );
     }
+    if (checked) await vpsEvent(id, 'sub_ok');
   }
 
   const secret = process.env.UNIQ_SECRET || '';
@@ -73,9 +91,10 @@ export async function GET(request: NextRequest) {
   if (free) {
     try { ref = await refStats(id); } catch (err) { console.error('[uniq] referral stats failed:', err); }
   }
-  const token = signUniqToken({ uid: id, name: nameFromInitData(request.headers.get('x-tg-init-data'), id), free, bonus: ref?.credited || 0 }, secret);
+  const plan = uniqPlan(!free, ref?.credited || 0);
+  const token = signUniqToken({ uid: id, name: nameFromInitData(request.headers.get('x-tg-init-data'), id), plan }, secret);
   return NextResponse.json(
-    { token, url: process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com', max: 5, free, ref },
+    { token, url: process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com', max: plan.v, free, plan, ref },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }

@@ -26,7 +26,21 @@ type Job = {
   error?: string;
 };
 type RefStats = { link: string; invited: number; credited: number; cap: number };
-type Access = { token: string; url: string; max: number; free?: boolean; ref?: RefStats | null };
+type Plan = { w: number; v: number };
+type Week = { limit: number; used: number; nextAt: number | null };
+type Access = { token: string; url: string; max: number; free?: boolean; plan?: Plan; ref?: RefStats | null };
+
+const plural = (n: number, one: string, few: string, many: string) => {
+  const a = n % 10, b = n % 100;
+  return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many;
+};
+const roliki = (n: number) => `${n} ${plural(n, 'ролик', 'ролика', 'роликов')}`;
+function inDays(ms: number) {
+  const h = Math.max(1, Math.ceil(ms / 3600e3));
+  if (h < 24) return `${h} ${plural(h, 'час', 'часа', 'часов')}`;
+  const d = Math.ceil(h / 24);
+  return `${d} ${plural(d, 'день', 'дня', 'дней')}`;
+}
 
 const isActive = (j: Job | null) => !!j && (j.status === 'queued' || j.status === 'running');
 
@@ -65,7 +79,7 @@ function UniqInner() {
   const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
-  const [bonusUsed, setBonusUsed] = useState(0);
+  const [week, setWeek] = useState<Week | null>(null);
   const [error, setError] = useState<string | null>(null);
   const initData = useRef('');
   const tgRef = useRef<TelegramWebAppLike | null>(null);
@@ -83,7 +97,7 @@ function UniqInner() {
     const res = await fetch(`/api/cabinet/uniq${p.toString() ? `?${p}` : ''}`, { headers, credentials: 'same-origin', cache: 'no-store' });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.token) {
-      access.current = { token: data.token, url: String(data.url).replace(/\/+$/, ''), max: data.max || 5, free: !!data.free, ref: data.ref || null };
+      access.current = { token: data.token, url: String(data.url).replace(/\/+$/, ''), max: data.max || 5, free: !!data.free, plan: data.plan, ref: data.ref || null };
       setAcc(access.current);
       setMax(access.current.max);
     }
@@ -104,6 +118,16 @@ function UniqInner() {
     return { status: 0, data: {} };
   }, [loadAccess]);
 
+  // Behaviour log on the VPS (feeds the morning digest). Fire-and-forget, never blocks the page.
+  const track = useCallback((ev: string) => {
+    const a = access.current;
+    if (!a) return;
+    fetch(`${a.url}/api/ev`, {
+      method: 'POST', headers: { Authorization: `Bearer ${a.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ev }), keepalive: true,
+    }).catch(() => { /* analytics only */ });
+  }, []);
+
   useEffect(() => {
     let stop = false;
     (async () => {
@@ -121,9 +145,10 @@ function UniqInner() {
         if (!access.current) { setBrokenMsg(r.error || 'Не получилось открыть раздел. Обнови страницу.'); setState('broken'); return; }
         setState('ok');
         trackSection('uniq', id);
+        track('open');
         // Resume a job that is still in work (page reopened mid-processing).
         const me = await vpsGet('/api/me').catch(() => null);
-        if (!stop && me?.status === 200 && typeof me.data.bonusUsed === 'number') setBonusUsed(me.data.bonusUsed);
+        if (!stop && me?.status === 200) setWeek((me.data.week as Week) || null);
         if (!stop && me?.status === 200 && me.data.active) setJob(me.data.active as Job);
       } catch {
         if (!stop) setState('guest');
@@ -200,6 +225,7 @@ function UniqInner() {
   }
 
   function download(e: React.MouseEvent<HTMLAnchorElement>, href: string, name: string) {
+    track('download');
     const tg = tgRef.current as (TelegramWebAppLike & {
       downloadFile?: (p: { url: string; file_name: string }) => void;
       initData?: string;
@@ -221,6 +247,7 @@ function UniqInner() {
   const [bulk, setBulk] = useState(false);
   async function downloadAll(items: { href: string; name: string }[]) {
     if (bulk || items.length === 0) return;
+    track('download_all');
     setBulk(true);
     const tg = tgRef.current as (TelegramWebAppLike & {
       downloadFile?: (p: { url: string; file_name: string }, cb?: (ok: boolean) => void) => void;
@@ -316,7 +343,14 @@ function UniqInner() {
               setSubMsg(null);
               const r = await loadAccess(true).catch(() => ({ status: 0 } as { status: number; code?: string }));
               setSubBusy(false);
-              if (access.current) { setState('ok'); trackSection('uniq', tgRef.current?.initDataUnsafe?.user?.id ?? null); return; }
+              if (access.current) {
+                setState('ok');
+                trackSection('uniq', tgRef.current?.initDataUnsafe?.user?.id ?? null);
+                track('open');
+                const me = await vpsGet('/api/me').catch(() => null);
+                if (me?.status === 200) setWeek((me.data.week as Week) || null);
+                return;
+              }
               setSubMsg(r.code === 'subscribe' ? 'Пока не вижу подписку. Подпишись и нажми ещё раз.' : 'Не получилось проверить. Попробуй ещё раз.');
             }}
           >
@@ -352,9 +386,13 @@ function UniqInner() {
               Ролик, который не зашёл совсем, лучше переснять с другим заходом.
             </aside>
           )}
-          {!job && acc.free && (
+          {!job && acc.free && acc.plan && (
             <p className="un-free">
-              Бесплатно: 1 ролик в сутки. Ученикам курса «Новый уровень» без ограничений.{' '}
+              Бесплатно: {roliki(acc.plan.w)} в неделю по {acc.plan.v} версии.{' '}
+              {week && week.used >= week.limit && week.nextAt
+                ? `Следующий можно через ${inDays(week.nextAt - Date.now())}. `
+                : week ? `На этой неделе осталось: ${week.limit - week.used}. ` : ''}
+              Без ограничений на тарифах 2 и 3 курса «Новый уровень».{' '}
               <a href="https://thesashatoyz.com/uroven">Про курс →</a>
             </p>
           )}
@@ -421,7 +459,7 @@ function UniqInner() {
 
           {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} />}
           {job && error && <div className="un-error" role="alert">{error}</div>}
-          {acc.free && acc.ref && <Invite ref_={acc.ref} bonusLeft={Math.max(0, acc.ref.credited - bonusUsed)} tg={tgRef.current} />}
+          {acc.free && acc.ref && acc.plan && <Invite ref_={acc.ref} perWeek={acc.plan.w} tg={tgRef.current} onTrack={track} />}
           <Guide />
           <Feedback initData={initData.current} />
         </>
@@ -611,26 +649,28 @@ function Feedback({ initData }: { initData: string }) {
   );
 }
 
-function Invite({ ref_, bonusLeft, tg }: { ref_: RefStats; bonusLeft: number; tg: TelegramWebAppLike | null }) {
+function Invite({ ref_, perWeek, tg, onTrack }: { ref_: RefStats; perWeek: number; tg: TelegramWebAppLike | null; onTrack: (ev: string) => void }) {
   const [copied, setCopied] = useState(false);
   const shareText = 'Бесплатный уникализатор: из одного ролика 5 разных версий для пробных рилсов';
   const share = () => {
+    onTrack('share');
     const url = `https://t.me/share/url?url=${encodeURIComponent(ref_.link)}&text=${encodeURIComponent(shareText)}`;
     const t = tg as (TelegramWebAppLike & { openTelegramLink?: (u: string) => void }) | null;
     if (t?.openTelegramLink) t.openTelegramLink(url);
     else window.open(url, '_blank', 'noopener');
   };
   const copy = async () => {
+    onTrack('copy');
     try { await navigator.clipboard.writeText(ref_.link); setCopied(true); window.setTimeout(() => setCopied(false), 2000); } catch { /* user can select the link */ }
   };
   const full = ref_.credited >= ref_.cap;
   return (
     <section className="un-inv">
-      <h2>Приведи друга, получи ещё ролик</h2>
+      <h2>Приведи друга, получай на 1 ролик в неделю больше</h2>
       <p>
         {full
-          ? `Ты уже привёл ${ref_.cap} друзей, это максимум. Спасибо!`
-          : 'Друг засчитывается, когда подпишется на канал и сделает свой первый ролик. За каждого получаешь ещё один ролик на 5 версий, он не сгорает.'}
+          ? 'У тебя максимум для бесплатного: 5 роликов в неделю. Спасибо, что зовёшь друзей!'
+          : 'Друг засчитывается, когда подпишется на канал и сделает свой первый ролик. Каждый засчитанный друг навсегда добавляет тебе +1 ролик в неделю, до 5 в неделю.'}
       </p>
       {!full && (
         <>
@@ -643,8 +683,8 @@ function Invite({ ref_, bonusLeft, tg }: { ref_: RefStats; bonusLeft: number; tg
       )}
       <div className="un-inv-stats">
         <span>Пришли по ссылке: <b>{ref_.invited}</b></span>
-        <span>Засчитано: <b>{ref_.credited} из {ref_.cap}</b></span>
-        <span>Бонусных роликов: <b>{bonusLeft}</b></span>
+        <span>Засчитано: <b>{ref_.credited}</b></span>
+        <span>Сейчас у тебя: <b>{roliki(perWeek)} в неделю</b></span>
       </div>
     </section>
   );

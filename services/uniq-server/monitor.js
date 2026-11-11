@@ -12,9 +12,9 @@ const https = require('https');
 
 const DAY_MS = 24 * 3600 * 1000;
 
-function tgSend(token, chat, text) {
+function tgSend(token, chat, text, replyMarkup) {
   return new Promise((resolve) => {
-    const body = JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true });
+    const body = JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true, ...(replyMarkup ? { reply_markup: replyMarkup } : {}) });
     const req = https.request({
       host: 'api.telegram.org', path: `/bot${token}/sendMessage`, method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }, timeout: 10000,
@@ -75,6 +75,23 @@ function digestText(events, { from, to, diskBytes, load } = {}) {
   lines.push(failedJobs.length ? `С ошибками: ${failedJobs.length}` : 'Ошибок нет');
   if (rejected) lines.push(`Отказов по лимитам: ${rejected}`);
   if (restarts) lines.push(`Перезапусков сервиса: ${restarts}`);
+
+  // Free users' funnel: unique people per step (page events + server side).
+  const inDay = (e) => e.t >= from && e.t < to;
+  const people = (pred) => new Set(events.filter((e) => inDay(e) && pred(e)).map((e) => e.uid)).size;
+  const page = (what) => people((e) => e.ev === 'page' && e.free && e.what === what);
+  const opened = page('open');
+  if (opened) {
+    const freeJobs = people((e) => e.ev === 'enqueue' && e.plan && e.plan !== 'paid');
+    lines.push('', 'Бесплатные (людей):');
+    lines.push(`открыли ${opened}, экран подписки ${page('sub_screen')}, подписались ${page('sub_ok')}`);
+    lines.push(`загрузили ролик ${freeJobs}, скачали ${people((e) => e.ev === 'page' && e.free && (e.what === 'download' || e.what === 'download_all'))}`);
+    lines.push(`упёрлись в недельный лимит ${people((e) => e.ev === 'reject' && e.reason === 'week')}, поделились ссылкой ${people((e) => e.ev === 'page' && e.free && (e.what === 'share' || e.what === 'copy'))}`);
+    const credited = events.filter((e) => inDay(e) && e.ev === 'first' && e.credited).length;
+    if (credited) lines.push(`друзей засчитано: ${credited}`);
+  }
+  const reminded = events.filter((e) => inDay(e) && e.ev === 'remind' && e.ok).length;
+  if (reminded) lines.push(`Напоминаний в бот: ${reminded}`);
   if (diskBytes != null) lines.push(`Место под видео занято: ${mb(diskBytes)}`);
   if (load) lines.push(`Нагрузка сервера сейчас: ${load}`);
   return lines.join('\n');
@@ -133,4 +150,4 @@ function createMonitor(opts = {}) {
   return { log, alert, digest, maybeDigest, start, stop, file, readAll: () => readLog(file) };
 }
 
-module.exports = { createMonitor, digestText, readLog };
+module.exports = { createMonitor, digestText, readLog, tgSend };
