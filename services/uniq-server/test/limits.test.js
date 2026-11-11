@@ -68,3 +68,27 @@ test('auth, ownership and size limit', async () => {
     assert.deepStrictEqual(fs.readdirSync(path.join(s.dataDir, 'uploads')), []);
   } finally { await s.close(); }
 });
+
+test('free users: one video per day, students unlimited', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'uniq-test-'));
+  const now = Date.now();
+  fs.writeFileSync(path.join(dataDir, 'jobs.json'), JSON.stringify({
+    a: { id: 'a', uid: 'f1', key: 'f1:fp', stem: 'v', count: 5, status: 'done', done: 5, failed: 0, versions: [], createdAt: now - 3600e3, finishedAt: now - 3000e3 },
+    b: { id: 'b', uid: 'f2', key: 'f2:fp', stem: 'v', count: 5, status: 'done', done: 0, failed: 5, versions: [], createdAt: now - 3600e3, finishedAt: now - 3000e3 },
+  }));
+  const { sign } = require('../server');
+  const { SECRET } = require('./helpers');
+  const tok = (uid, free) => sign({ uid, free, exp: Math.floor(now / 1000) + 3600 }, SECRET);
+  const s = await start({ dataDir, maxBytes: 1024 });
+  try {
+    const post = (t) => fetch(`${s.base}/api/jobs?count=1`, { method: 'POST', headers: { Authorization: `Bearer ${t}` }, body: Buffer.alloc(16) });
+    const r = await post(tok('f1', true));
+    assert.strictEqual(r.status, 429);
+    const body = await r.json();
+    assert.strictEqual(body.code, 'free');
+    assert.match(body.error, /через 23 ч/);
+    // Same uid as a student, and a free user whose only job produced nothing: past the gate (16 junk bytes fail probe).
+    assert.strictEqual((await post(tok('f1', false))).status, 400);
+    assert.strictEqual((await post(tok('f2', true))).status, 400);
+  } finally { await s.close(); }
+});

@@ -67,6 +67,8 @@ function createServer(opts = {}) {
     'https://world.thesashatoyz.com,https://thesashatoyz.com,https://www.thesashatoyz.com,http://localhost:3000')
     .split(',').map((s) => s.trim()).filter(Boolean);
   const maxBytes = opts.maxBytes || MAX_BYTES;
+  // Token flag `free` (not a student of the course): at most this many videos per 24 h.
+  const freePerDay = Number(opts.freePerDay ?? process.env.UNIQ_FREE_PER_DAY ?? 1);
   const mon = opts.monitor || createMonitor({ dataDir });
   const uploadsDir = path.join(dataDir, 'uploads');
   const outDir = path.join(dataDir, 'out');
@@ -202,6 +204,18 @@ function createServer(opts = {}) {
     const uid = auth.uid;
     const rejectLog = (reason) => mon.log('reject', { uid, reason });
     if (uploading.has(uid) || activeJob(uid)) { rejectLog('busy'); return send(res, 409, { error: 'у тебя уже есть ролик в работе, дождись, пока он закончится' }); }
+    if (auth.free) {
+      // Jobs live 24 h after they finish, so every job created in the last 24 h is still here.
+      // A job that produced nothing does not count.
+      const dayAgo = Date.now() - 24 * 3600 * 1000;
+      const recent = [...jobs.values()].filter((j) => j.uid === uid && j.createdAt > dayAgo && !(j.status === 'failed' || (j.finishedAt && !j.done)))
+        .sort((a, b) => a.createdAt - b.createdAt);
+      if (recent.length >= freePerDay) {
+        const h = Math.max(1, Math.ceil((recent[recent.length - freePerDay].createdAt + 24 * 3600 * 1000 - Date.now()) / 3600e3));
+        rejectLog('free');
+        return send(res, 429, { error: `бесплатно ${freePerDay === 1 ? '1 ролик' : `${freePerDay} ролика`} в сутки, следующий можно через ${h} ч. Ученикам курса «Новый уровень» без ограничений`, code: 'free' });
+      }
+    }
     const len = Number(req.headers['content-length']);
     if (len > maxBytes) { rejectLog('size'); return send(res, 413, { error: 'файл больше 500 МБ' }); }
     let count = parseInt(url.searchParams.get('count') || '1', 10);

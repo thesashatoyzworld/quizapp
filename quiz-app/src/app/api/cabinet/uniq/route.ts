@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // Section «Уникализатор»: hands a short-lived token for the VPS (uniq.thesashatoyz.com),
 // which does the upload, the ffmpeg work and the 5-per-video limit itself.
 //
-//   GET /api/cabinet/uniq → { token, url, max } | { error, code } 401 auth / 403 paid
+//   GET /api/cabinet/uniq → { token, url, max, free } | { error, code } 401 auth. Everyone signed in gets a token; non-students are capped by the VPS
 //
 // Identity is signed only (x-tg-init-data or kb_session cookie), never a bare ?telegramId.
 
@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
     console.error('[uniq] access check failed:', err);
     return fail(500, 'server_error', 'Не получилось проверить доступ. Обнови страницу.');
   }
-  if (!uniqPaid(id, tiers)) return fail(403, 'paid', 'Уникализатор открыт ученикам курса «Новый уровень».');
 
   const secret = process.env.UNIQ_SECRET || '';
   if (!secret) {
@@ -47,9 +46,10 @@ export async function GET(request: NextRequest) {
     return fail(500, 'not_configured', 'Уникализатор ещё не настроен. Напиши Саше.');
   }
   // Name is cosmetic (VPS logs); taken only when initData is the identity source.
-  const token = signUniqToken({ uid: id, name: nameFromInitData(request.headers.get('x-tg-init-data'), id) }, secret);
+  const free = !uniqPaid(id, tiers);
+  const token = signUniqToken({ uid: id, name: nameFromInitData(request.headers.get('x-tg-init-data'), id), free }, secret);
   return NextResponse.json(
-    { token, url: process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com', max: 5 },
+    { token, url: process.env.UNIQ_URL || 'https://uniq.thesashatoyz.com', max: 5, free },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }

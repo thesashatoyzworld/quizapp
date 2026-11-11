@@ -162,13 +162,15 @@ export const SECTIONS: Section[] = [
     // Уникализатор: из одного ролика до 5 немного разных версий для пробных
     // рилсов. Видео обрабатывает отдельный сервер (uniq.thesashatoyz.com).
     key: 'uniq',
-    role: 'uroven',
+    // Free for everyone signed in: a reason to come back to the cabinet. Students of
+    // «Новый уровень» are unlimited, others get UNIQ_FREE_PER_DAY videos a day (VPS).
+    role: null,
     uniq: true,
     title: 'Инструменты',
     subtitle: 'Программы, которые делают работу за тебя',
     landingUrl: 'https://thesashatoyz.com/uroven',
     materials: [
-      { kind: 'link', title: 'Уникализатор', url: '/uniq', note: 'Загружаешь ролик, получаешь до 5 немного разных версий. Скачиваешь и выкладываешь пробными.', minTier: 1 },
+      { kind: 'link', title: 'Уникализатор', url: '/uniq', note: 'Загружаешь ролик, получаешь до 5 немного разных версий. Скачиваешь и выкладываешь пробными.' },
     ],
   },
   {
