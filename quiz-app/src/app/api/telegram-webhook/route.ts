@@ -17,6 +17,7 @@ import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { canBuy, isOnSale, isPersonalKey, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { getDeal, formatPrice, formatDays } from '@/lib/deals';
+import { createInvoice as cpCreateInvoice, sweepPaid as cpSweepPaid } from '@/lib/cryptopay';
 import { handleKbQuestion } from '@/lib/kb/ask';
 import { catchClientReply, isQuestion } from '@/lib/client-bot-reply';
 import { handleSalesQuestion } from '@/lib/sales/ask';
@@ -1444,6 +1445,50 @@ export async function POST(request: NextRequest) {
       // t.me/testtoyzbot?start=deal_<id> — многоразовая, одна на позицию прайса.
       // Показываем ровно то, о чём договорились, и уводим на оплату с ?u=<tgId>,
       // чтобы вебхук открыл доступ прямо на этот телеграм.
+      // Крипта: t.me/testtoyzbot?start=cp_<dealId> — счёт Crypto Pay на позицию
+      // прайса, привязанный к этому телеграму. Доступ откроется сам после оплаты.
+      if (startParam.startsWith('cp_')) {
+        const dealId = startParam.slice('cp_'.length);
+        const deal = await getDeal(dealId);
+        const inv = deal && deal.status === 'active'
+          ? await cpCreateInvoice(dealId, chatId).catch((e) => { console.error('[cryptopay] invoice', e); return null; })
+          : null;
+        if (!deal || !inv) {
+          await sendMessage(chatId, `${firstName}, счёт не открылся, напиши мне, разберёмся.`);
+          return NextResponse.json({ ok: true });
+        }
+        await sendMessage(
+          chatId,
+          `${firstName}, держи оплату криптой ⚡
+
+<b>${deal.title}</b>
+${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}
+USDT, TON или BTC по курсу @CryptoBot. После оплаты доступ откроется сам.`,
+          { inline_keyboard: [[{ text: `Оплатить криптой ${formatPrice(deal.price)}`, url: inv.bot_invoice_url }]] },
+        );
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'uroven_crypto',
+          metadata: { product: 'uroven', deal: deal.id, tier: deal.tier, price: deal.price, days: deal.days, invoice: inv.invoice_id, startParam },
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      // Кнопка после оплаты в CryptoBot: проверяем оплаченные счета этого
+      // человека и выдаём доступ, если вебхук ещё не успел.
+      if (startParam === 'cpok') {
+        await cpSweepPaid(chatId).catch((e) => console.error('[cryptopay] sweep on button', e));
+        await sendMessage(
+          chatId,
+          `${firstName}, если оплата прошла, доступ уже открыт 👇 Если кабинет пустой, подожди минуту и нажми ещё раз или напиши мне.`,
+          { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
+        );
+        return NextResponse.json({ ok: true });
+      }
+
       if (startParam.startsWith('deal_')) {
         const dealId = startParam.slice('deal_'.length);
         const deal = await getDeal(dealId);
