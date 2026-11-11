@@ -90,6 +90,11 @@ function digestText(events, { from, to, diskBytes, load } = {}) {
     const credited = events.filter((e) => inDay(e) && e.ev === 'first' && e.credited).length;
     if (credited) lines.push(`друзей засчитано: ${credited}`);
   }
+  // A/B offer on the final screen: unique people who saw / clicked each variant.
+  const ab = (kind) => [people((e) => e.ev === 'page' && e.what === `cta_view_${kind}`), people((e) => e.ev === 'page' && e.what === `cta_click_${kind}`)];
+  const [uv, uc] = ab('uroven');
+  const [pv, pc] = ab('potok');
+  if (uv || pv) lines.push('', 'Реклама после скачивания (людей):', `курс: увидели ${uv}, нажали ${uc}`, `поток спроса: увидели ${pv}, нажали ${pc}`);
   const reminded = events.filter((e) => inDay(e) && e.ev === 'remind' && e.ok).length;
   if (reminded) lines.push(`Напоминаний в бот: ${reminded}`);
   if (diskBytes != null) lines.push(`Место под видео занято: ${mb(diskBytes)}`);

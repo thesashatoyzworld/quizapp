@@ -28,7 +28,8 @@ type Job = {
 type RefStats = { link: string; invited: number; credited: number; cap: number };
 type Plan = { w: number; v: number };
 type Week = { limit: number; used: number; nextAt: number | null };
-type Access = { token: string; url: string; max: number; free?: boolean; plan?: Plan; ref?: RefStats | null };
+type Offer = 'uroven' | 'potok';
+type Access = { token: string; url: string; max: number; free?: boolean; plan?: Plan; ref?: RefStats | null; offer?: Offer | null };
 
 const plural = (n: number, one: string, few: string, many: string) => {
   const a = n % 10, b = n % 100;
@@ -92,12 +93,16 @@ function UniqInner() {
   const loadAccess = useCallback(async (checked = false): Promise<{ status: number; error?: string; code?: string }> => {
     const headers: Record<string, string> = initData.current ? { 'x-tg-init-data': initData.current } : {};
     const p = new URLSearchParams();
-    if (previewAs()) p.set('as', 'free');
+    if (previewAs()) {
+      p.set('as', 'free');
+      const cta = new URLSearchParams(window.location.search).get('cta');
+      if (cta) p.set('cta', cta);
+    }
     if (checked) p.set('checked', '1');
     const res = await fetch(`/api/cabinet/uniq${p.toString() ? `?${p}` : ''}`, { headers, credentials: 'same-origin', cache: 'no-store' });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.token) {
-      access.current = { token: data.token, url: String(data.url).replace(/\/+$/, ''), max: data.max || 5, free: !!data.free, plan: data.plan, ref: data.ref || null };
+      access.current = { token: data.token, url: String(data.url).replace(/\/+$/, ''), max: data.max || 5, free: !!data.free, plan: data.plan, ref: data.ref || null, offer: data.offer === 'uroven' || data.offer === 'potok' ? data.offer : null };
       setAcc(access.current);
       setMax(access.current.max);
     }
@@ -456,6 +461,7 @@ function UniqInner() {
 
           {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} />}
           {job && error && <div className="un-error" role="alert">{error}</div>}
+          {job && job.status === 'done' && job.done > 0 && acc.offer && <OfferCard key={job.id} kind={acc.offer} tg={tgRef.current} onTrack={track} />}
           {acc.free && acc.ref && acc.plan && <Invite ref_={acc.ref} perWeek={acc.plan.w} tg={tgRef.current} onTrack={track} />}
           <Guide />
           <Feedback initData={initData.current} />
@@ -601,6 +607,19 @@ function UniqInner() {
         .un-steps p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--un-muted); }
 
         /* Referral */
+        .un-offer { margin: 0 0 12px; border: 1.5px solid var(--un-text); border-radius: 14px; overflow: hidden; background: var(--un-accent-soft); box-shadow: 4px 4px 0 var(--un-text); }
+        .un-offer-bar { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; background: var(--un-text); color: oklch(0.95 0.01 75); font-size: 12.5px; font-weight: 700; letter-spacing: 0.02em; }
+        .un-offer-bar i { font-style: normal; opacity: .7; letter-spacing: 0.15em; }
+        .un-offer-body { padding: 16px 16px 14px; }
+        .un-offer h2 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 21px; line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 8px; }
+        .un-offer p { margin: 0 0 14px; font-size: 14.5px; line-height: 1.5; }
+        .un-offer-cta {
+          display: flex; align-items: center; justify-content: center; min-height: 52px; border-radius: 12px;
+          background: var(--un-accent); color: oklch(0.99 0.005 75); text-decoration: none;
+          font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 16px;
+        }
+        .un-offer-cta:active { transform: translateY(1px); }
+        .un-offer-note { margin-top: 8px; text-align: center; font-size: 12.5px; font-weight: 600; color: var(--un-muted); }
         .un-inv {
           margin-top: 22px; padding: 22px 18px 18px; border-radius: 22px;
           background: oklch(0.21 0.02 52); color: oklch(0.97 0.01 75);
@@ -816,6 +835,47 @@ function Invite({ ref_, perWeek, tg, onTrack }: { ref_: RefStats; perWeek: numbe
           <p className="un-inv-rule">Друг засчитается, когда подпишется на канал и сделает свой первый ролик.</p>
         </>
       )}
+    </section>
+  );
+}
+
+// A/B offer on the final screen. Copy is taken from the live landings and the /huki card.
+const OFFERS: Record<Offer, { file: string; title: string; text: string; cta: string; note: string; url: string }> = {
+  uroven: {
+    file: 'новый_уровень.exe',
+    title: 'Новый уровень контента',
+    text: 'Курс Саши по контенту: 6 уровней навыка, чтобы вывести блог и личный бренд на следующую ступень. Записан целиком, доступ сразу после оплаты.',
+    cta: 'Смотреть курс',
+    note: 'от 6 550 ₽',
+    url: 'https://thesashatoyz.com/uroven?utm_source=kabinet&utm_medium=uniq_a&utm_campaign=uroven',
+  },
+  potok: {
+    file: 'поток_спроса.exe',
+    title: 'Ролик есть. Теперь нужна тема, которая уже залетела',
+    text: 'В «Потоке Спроса» показываю, где брать заходы, которые собрали просмотры в твоей нише, и как налить в них свой смысл.',
+    cta: 'Забрать «Поток Спроса»',
+    note: 'сначала видео на 6 минут, потом решаешь',
+    url: 'https://thesashatoyz.com/potok-sprosa?utm_source=kabinet&utm_medium=uniq_b&utm_campaign=potok',
+  },
+};
+
+function OfferCard({ kind, tg, onTrack }: { kind: Offer; tg: TelegramWebAppLike | null; onTrack: (ev: string) => void }) {
+  const o = OFFERS[kind];
+  useEffect(() => { onTrack(`cta_view_${kind}`); }, [kind, onTrack]);
+  const open = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    onTrack(`cta_click_${kind}`);
+    const t = tg as (TelegramWebAppLike & { openLink?: (u: string) => void }) | null;
+    if (t?.openLink) { e.preventDefault(); t.openLink(o.url); }
+  };
+  return (
+    <section className="un-offer" aria-label={o.title}>
+      <div className="un-offer-bar"><span>{o.file}</span><i aria-hidden="true">_ □ ✕</i></div>
+      <div className="un-offer-body">
+        <h2>{o.title}</h2>
+        <p>{o.text}</p>
+        <a className="un-offer-cta" href={o.url} target="_blank" rel="noopener" onClick={open}>{o.cta} →</a>
+        <div className="un-offer-note">{o.note}</div>
+      </div>
     </section>
   );
 }
