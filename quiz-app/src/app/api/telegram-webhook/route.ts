@@ -18,6 +18,7 @@ import { canBuy, isOnSale, isPersonalKey, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, w
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { getDeal, formatPrice, formatDays } from '@/lib/deals';
 import { createInvoice as cpCreateInvoice, sweepPaid as cpSweepPaid } from '@/lib/cryptopay';
+import { createSubscription as ppCreateSubscription, sweepPaypal as ppSweep, PP_PLANS } from '@/lib/paypal';
 import { handleKbQuestion } from '@/lib/kb/ask';
 import { catchClientReply, isQuestion } from '@/lib/client-bot-reply';
 import { handleSalesQuestion } from '@/lib/sales/ask';
@@ -1481,6 +1482,47 @@ USDT, TON или BTC по курсу @CryptoBot. После оплаты дос�
       // человека и выдаём доступ, если вебхук ещё не успел.
       if (startParam === 'cpok') {
         await cpSweepPaid(chatId).catch((e) => console.error('[cryptopay] sweep on button', e));
+        await sendMessage(
+          chatId,
+          `${firstName}, если оплата прошла, доступ уже открыт 👇 Если кабинет пустой, подожди минуту и нажми ещё раз или напиши мне.`,
+          { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      // PayPal: t.me/testtoyzbot?start=pp_month / pp_year — подписка с
+      // автосписанием, привязанная к этому телеграму.
+      if (startParam === 'pp_month' || startParam === 'pp_year') {
+        const plan = startParam === 'pp_month' ? 'month' : 'year';
+        const cfg = PP_PLANS[plan];
+        const sub = await ppCreateSubscription(plan, chatId).catch((e) => { console.error('[paypal] subscription', e); return null; });
+        if (!sub) {
+          await sendMessage(chatId, `${firstName}, оплата PayPal не открылась, напиши мне, разберёмся.`);
+          return NextResponse.json({ ok: true });
+        }
+        await sendMessage(
+          chatId,
+          `${firstName}, держи оплату через PayPal ⚡
+
+<b>Личный бренд на 360, ${cfg.label}</b>
+$${cfg.usd.toLocaleString('en-US')} в ${plan === 'month' ? 'месяц' : 'год'}, PayPal будет списывать сам. Отменить можно в любой момент в PayPal.
+После оплаты доступ откроется сам.`,
+          { inline_keyboard: [[{ text: `Оплатить PayPal $${cfg.usd.toLocaleString('en-US')}`, url: sub.approveUrl }]] },
+        );
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'uroven_paypal',
+          metadata: { product: 'uroven', plan, sub: sub.id, usd: cfg.usd, startParam },
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      // Возврат из PayPal после подтверждения подписки.
+      if (startParam === 'ppok') {
+        await ppSweep(chatId).catch((e) => console.error('[paypal] sweep on return', e));
         await sendMessage(
           chatId,
           `${firstName}, если оплата прошла, доступ уже открыт 👇 Если кабинет пустой, подожди минуту и нажми ещё раз или напиши мне.`,
