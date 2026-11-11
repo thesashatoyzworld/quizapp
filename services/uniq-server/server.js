@@ -9,7 +9,7 @@ const { createMonitor, tgSend } = require('./monitor');
 
 // What the page may report (POST /api/ev). Anything else is rejected, so the log stays readable.
 const PAGE_EVENTS = new Set(['open', 'sub_screen', 'sub_ok', 'sub_no', 'pick', 'upload', 'download', 'download_all', 'share', 'copy', 'feedback', 'limit',
-  'cta_view_uroven', 'cta_click_uroven', 'cta_view_potok', 'cta_click_potok']);
+  'cta_view_uroven', 'cta_click_uroven', 'cta_view_potok', 'cta_click_potok', 'cta_view_360', 'cta_click_360']);
 
 const MAX_PER_VIDEO = 5;
 const MAX_BYTES = 500 * 1024 * 1024;

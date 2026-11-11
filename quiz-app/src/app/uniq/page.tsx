@@ -28,7 +28,7 @@ type Job = {
 type RefStats = { link: string; invited: number; credited: number; cap: number };
 type Plan = { w: number; v: number };
 type Week = { limit: number; used: number; nextAt: number | null };
-type Offer = 'uroven' | 'potok';
+type Offer = 'uroven' | 'potok' | '360';
 type Access = { token: string; url: string; max: number; free?: boolean; plan?: Plan; ref?: RefStats | null; offer?: Offer | null };
 
 const plural = (n: number, one: string, few: string, many: string) => {
@@ -102,7 +102,7 @@ function UniqInner() {
     const res = await fetch(`/api/cabinet/uniq${p.toString() ? `?${p}` : ''}`, { headers, credentials: 'same-origin', cache: 'no-store' });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.token) {
-      access.current = { token: data.token, url: String(data.url).replace(/\/+$/, ''), max: data.max || 5, free: !!data.free, plan: data.plan, ref: data.ref || null, offer: data.offer === 'uroven' || data.offer === 'potok' ? data.offer : null };
+      access.current = { token: data.token, url: String(data.url).replace(/\/+$/, ''), max: data.max || 5, free: !!data.free, plan: data.plan, ref: data.ref || null, offer: ['uroven', 'potok', '360'].includes(data.offer) ? data.offer : null };
       setAcc(access.current);
       setMax(access.current.max);
     }
@@ -461,7 +461,7 @@ function UniqInner() {
 
           {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} />}
           {job && error && <div className="un-error" role="alert">{error}</div>}
-          {job && job.status === 'done' && job.done > 0 && acc.offer && <OfferCard key={job.id} kind={acc.offer} tg={tgRef.current} onTrack={track} />}
+          {job && job.status === 'done' && job.done > 0 && acc.offer && <OfferCard key={job.id} kind={acc.offer} uid={tgRef.current?.initDataUnsafe?.user?.id ?? null} tg={tgRef.current} onTrack={track} />}
           {acc.free && acc.ref && acc.plan && <Invite ref_={acc.ref} perWeek={acc.plan.w} tg={tgRef.current} onTrack={track} />}
           <Guide />
           <Feedback initData={initData.current} />
@@ -847,7 +847,8 @@ const OFFERS: Record<Offer, { file: string; title: string; text: string; cta: st
     text: 'Курс Саши по контенту: 6 уровней навыка, чтобы вывести блог и личный бренд на следующую ступень. Записан целиком, доступ сразу после оплаты.',
     cta: 'Смотреть курс',
     note: 'от 6 550 ₽',
-    url: 'https://thesashatoyz.com/uroven?utm_source=kabinet&utm_medium=uniq_a&utm_campaign=uroven',
+    // from= is what the course landing and /pay/<tier> record as the source of a sale.
+    url: 'https://thesashatoyz.com/uroven?from=uniq-a&utm_source=kabinet&utm_medium=uniq_a&utm_campaign=uroven',
   },
   potok: {
     file: 'поток_спроса.exe',
@@ -857,10 +858,20 @@ const OFFERS: Record<Offer, { file: string; title: string; text: string; cta: st
     note: 'сначала видео на 6 минут, потом решаешь',
     url: 'https://thesashatoyz.com/potok-sprosa?utm_source=kabinet&utm_medium=uniq_b&utm_campaign=potok',
   },
+  '360': {
+    file: 'личный_бренд_360.exe',
+    title: 'Личный бренд на 360',
+    text: 'Выведем твой контент, продукт и продажи на новый уровень. Через 3 месяца есть результат под твой запрос или вернём деньги. Уникализатор там без лимита и на 5 версий.',
+    cta: 'Смотреть программу',
+    note: '10 000 ₽ в месяц · отменить можно в любой момент',
+    url: 'https://thesashatoyz.com/360?from=uniq-c&utm_source=kabinet&utm_medium=uniq_c&utm_campaign=360',
+  },
 };
 
-function OfferCard({ kind, tg, onTrack }: { kind: Offer; tg: TelegramWebAppLike | null; onTrack: (ev: string) => void }) {
-  const o = OFFERS[kind];
+function OfferCard({ kind, uid, tg, onTrack }: { kind: Offer; uid: number | null; tg: TelegramWebAppLike | null; onTrack: (ev: string) => void }) {
+  const base = OFFERS[kind];
+  // ?u= lets the course landing bind the checkout to this Telegram account.
+  const o = kind === 'uroven' && uid ? { ...base, url: `${base.url}&u=${uid}` } : base;
   useEffect(() => { onTrack(`cta_view_${kind}`); }, [kind, onTrack]);
   const open = (e: React.MouseEvent<HTMLAnchorElement>) => {
     onTrack(`cta_click_${kind}`);

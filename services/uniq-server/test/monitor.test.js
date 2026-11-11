@@ -81,9 +81,11 @@ test('digest: A/B offer after download', () => {
     { t, ev: 'page', uid: 'a', free: true, what: 'cta_view_uroven' }, { t, ev: 'page', uid: 'a', free: true, what: 'cta_view_uroven' },
     { t, ev: 'page', uid: 'a', free: true, what: 'cta_click_uroven' },
     { t, ev: 'page', uid: 'b', free: true, what: 'cta_view_potok' }, { t, ev: 'page', uid: 'c', free: true, what: 'cta_view_potok' },
+    { t, ev: 'page', uid: 'd', free: true, what: 'cta_view_360' }, { t, ev: 'page', uid: 'd', free: true, what: 'cta_click_360' },
   ];
   const text = digestText(ev, { from: 0, to: 2000 });
   assert.match(text, /курс: увидели 1, нажали 1/);
   assert.match(text, /поток спроса: увидели 2, нажали 0/);
+  assert.match(text, /360: увидели 1, нажали 1/);
   assert.doesNotMatch(digestText([], { from: 0, to: 2000 }), /Реклама/);
 });
