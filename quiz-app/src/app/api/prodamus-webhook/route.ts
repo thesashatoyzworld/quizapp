@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { floorPrice } from '@/content/prices';
 import { grantAccess } from '@/lib/access';
+import { startForDeal, startForUroven } from '@/lib/start360';
 import { getDeal, countPayment, dealProduct, parseDealOrderId, alreadyProcessed } from '@/lib/deals';
 import { markDuePaid } from '@/lib/payment-dues';
 import { matchPayer } from '@/lib/payer-match';
@@ -272,7 +273,7 @@ type DealProduct = NonNullable<ReturnType<typeof dealProduct>>;
 async function fulfillDeal(deal: DealRow, product: DealProduct, tgUserId: number, amount: number, orderId: string) {
   await Promise.all([
     createPurchase(tgUserId, product.slug, amount, 'uroven', orderId),
-    grantAccess({ product, telegramId: tgUserId, source: orderId, days: deal.days })
+    grantAccess({ product, telegramId: tgUserId, source: orderId, days: deal.days, notBefore: startForDeal(deal.id) })
       .catch((e) => console.error('[Access] deal grant failed:', e)),
   ]);
 
@@ -553,7 +554,7 @@ export async function POST(request: NextRequest) {
       } else {
         // Телеграма нет: платили не из бота. Доступ вешаем
         // на order_id, привяжется при входе в бота, и зовём Сашу разобраться.
-        await grantAccess({ product, telegramId: null, source: orderId as string, days: deal.days })
+        await grantAccess({ product, telegramId: null, source: orderId as string, days: deal.days, notBefore: startForDeal(deal.id) })
           .catch((e) => console.error('[Access] deal web grant failed:', e));
       }
 
@@ -691,7 +692,7 @@ export async function POST(request: NextRequest) {
         // Оплата привязана к Telegram → выдаём доступ и пишем в чат.
         await Promise.all([
           createPurchase(tgUserId, product.slug, amount, isPotok ? 'potok' : 'uroven', orderId as string),
-          grantAccess({ product, telegramId: tgUserId, source: orderId as string })
+          grantAccess({ product, telegramId: tgUserId, source: orderId as string, notBefore: startForUroven(product.slug, amount) })
             .catch((e) => console.error('[Access] uroven telegram grant failed:', e)),
         ]);
         // Тарифы 2 и 3 встречают своим пакетом: где что лежит, именная ссылка
@@ -762,7 +763,7 @@ export async function POST(request: NextRequest) {
           await schedulePaidReminder(String(orderId));
         }
 
-        await grantAccess({ product, telegramId: null, source: orderId as string })
+        await grantAccess({ product, telegramId: null, source: orderId as string, notBefore: startForUroven(product.slug, amount) })
           .catch((e) => console.error('[Access] uroven web grant failed:', e));
 
         await notifyAdminUroven(product.name, amount, email || phone || 'нет контакта', orderId as string, isPotok ? 'Поток Спроса' : undefined);

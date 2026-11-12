@@ -17,6 +17,7 @@
 // понимает, что доступ крипто-подписочный, а по dealId — что продлевать.
 // ─────────────────────────────────────────────────────────────
 
+import { startForDeal } from './start360';
 import crypto from 'crypto';
 import { prisma } from './prisma';
 import { grantAccess } from './access';
@@ -137,7 +138,7 @@ export async function fulfillInvoice(inv: CpInvoice, via: string): Promise<'gran
   await prisma.purchase.create({
     data: { userId: user.id, productId: prod.id, amount, source: 'cryptopay', prodamusOrderId: orderId },
   });
-  await grantAccess({ product, telegramId: tg, source: orderId, days: deal.days });
+  await grantAccess({ product, telegramId: tg, source: orderId, days: deal.days, notBefore: startForDeal(deal.id) });
   await countPayment(deal.id);
 
   const after = await prisma.productAccess.findFirst({

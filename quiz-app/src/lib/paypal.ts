@@ -17,6 +17,7 @@
 // PAYPAL_PLAN_MONTH, PAYPAL_PLAN_YEAR, PAYPAL_WEBHOOK_ID.
 // ─────────────────────────────────────────────────────────────
 
+import { startForDeal } from './start360';
 import { prisma } from './prisma';
 import { grantAccess } from './access';
 import { getDeal, dealProduct, alreadyProcessed, countPayment, formatPrice } from './deals';
@@ -159,7 +160,7 @@ export async function fulfillPayment(sub: PpSubscription, transactionId: string,
   await prisma.purchase.create({
     data: { userId: user.id, productId: prod.id, amount: deal.price, source: 'paypal', prodamusOrderId: orderId },
   });
-  await grantAccess({ product, telegramId: tg, source: `pp_${c.plan}_${sub.id}`, days: cfg.days });
+  await grantAccess({ product, telegramId: tg, source: `pp_${c.plan}_${sub.id}`, days: cfg.days, notBefore: startForDeal(deal.id) });
   await countPayment(deal.id);
 
   const after = await prisma.productAccess.findFirst({
