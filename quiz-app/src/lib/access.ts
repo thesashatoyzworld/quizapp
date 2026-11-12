@@ -27,11 +27,22 @@ interface GrantParams {
    * поэтому доплата продлевает, а не обнуляет.
    */
   days?: number | null;
+  /**
+   * Не раньше этой даты начинать оплаченный срок (общий старт набора).
+   * Работает только при первой покупке: активный доступ продлевается как обычно.
+   */
+  notBefore?: Date | null;
+}
+
+/** От какой даты считать срок: от текущего окончания, иначе от max(сейчас, старт набора). */
+function startBase(expiresAt: Date | null, now: Date, notBefore?: Date | null): Date {
+  if (expiresAt && expiresAt > now) return expiresAt;
+  return notBefore && notBefore > now ? notBefore : now;
 }
 
 /** Выдать или продлить доступ. Возвращает id записи ProductAccess. */
 export async function grantAccess(params: GrantParams): Promise<string> {
-  const { product, telegramId, userId, source, days } = params;
+  const { product, telegramId, userId, source, days, notBefore } = params;
   const now = new Date();
 
   // Ищем существующий доступ этого человека к этому продукту.
@@ -48,7 +59,7 @@ export async function grantAccess(params: GrantParams): Promise<string> {
 
   // Сделка: срок известен точно, продукт каталога даёт только slug и роль.
   if (days && days > 0) {
-    const base = existing?.expiresAt && existing.expiresAt > now ? existing.expiresAt : now;
+    const base = startBase(existing?.expiresAt ?? null, now, notBefore);
     const nextExpires = new Date(base);
     nextExpires.setDate(nextExpires.getDate() + days);
 
@@ -76,7 +87,7 @@ export async function grantAccess(params: GrantParams): Promise<string> {
 
   if (product.type === 'subscription') {
     // Продление: считаем от max(текущий срок, сейчас).
-    const base = existing?.expiresAt && existing.expiresAt > now ? existing.expiresAt : now;
+    const base = startBase(existing?.expiresAt ?? null, now, notBefore);
     const nextExpires = computeExpiresAt(product, base);
 
     if (existing) {
