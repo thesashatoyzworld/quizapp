@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runPaymentReminders } from '@/lib/payment-dues';
+import { sendRenewals360 } from '@/lib/renew360';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -15,7 +16,8 @@ export async function GET(request: NextRequest) {
   try {
     const dry = request.nextUrl.searchParams.get('dry') === '1';
     const result = await runPaymentReminders(new Date(), dry);
-    return NextResponse.json({ success: true, dry, ...result });
+    const renew = await sendRenewals360(new Date(), dry).catch((e) => ({ renew360Error: String(e) }));
+    return NextResponse.json({ success: true, dry, ...result, ...renew });
   } catch (error) {
     console.error('[Payment Reminders] Error:', error);
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
