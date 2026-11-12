@@ -54,7 +54,7 @@ test('auth, ownership and size limit', async () => {
   try {
     assert.strictEqual((await fetch(`${s.base}/api/me`)).status, 401);
     const me = await (await fetch(`${s.base}/api/me?t=${token('u1')}`)).json();
-    assert.deepStrictEqual(me, { uid: 'u1', maxPerVideo: 5, active: null, week: null });
+    assert.deepStrictEqual(me, { uid: 'u1', maxPerVideo: 5, active: null, last: null, week: null });
     const big = await fetch(`${s.base}/api/jobs?count=1`, {
       method: 'POST', headers: { Authorization: `Bearer ${token('u1')}` }, body: Buffer.alloc(4096) });
     assert.strictEqual(big.status, 413);

@@ -151,10 +151,11 @@ function UniqInner() {
         setState('ok');
         trackSection('uniq', id);
         track('open');
-        // Resume a job that is still in work (page reopened mid-processing).
+        // Resume a job that is still in work (page reopened mid-processing), or show the last
+        // finished one: long videos take half an hour and people close the page meanwhile.
         const me = await vpsGet('/api/me').catch(() => null);
         if (!stop && me?.status === 200) setWeek((me.data.week as Week) || null);
-        if (!stop && me?.status === 200 && me.data.active) setJob(me.data.active as Job);
+        if (!stop && me?.status === 200 && (me.data.active || me.data.last)) setJob((me.data.active || me.data.last) as Job);
       } catch {
         if (!stop) setState('guest');
       }

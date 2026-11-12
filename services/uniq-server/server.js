@@ -15,6 +15,9 @@ const MAX_PER_VIDEO = 5;
 const MAX_BYTES = 500 * 1024 * 1024;
 const MAX_DURATION = 180;
 const OUTPUT_TTL_MS = 24 * 3600 * 1000;
+const READY_PING_MS = 2 * 60 * 1000; // jobs longer than this get a «ready» message in the bot
+// «13.11 в 14:59» in Moscow time, for the «download before» line.
+const fmtUntil = (t) => { const d = new Date(t + 3 * 3600 * 1000); const p = (n) => String(n).padStart(2, '0'); return `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)} в ${p(d.getUTCHours())}:${p(d.getUTCMinutes())} мск`; };
 
 const b64u = (buf) => Buffer.from(buf).toString('base64url');
 
@@ -222,6 +225,19 @@ function createServer(opts = {}) {
     return null;
   }
 
+  // Latest finished job whose files are still on disk (kept 24 h). People close the page during
+  // long jobs: without this they come back to an empty screen and their versions are lost to them.
+  function lastDone(uid, key) {
+    let best = null;
+    for (const j of jobs.values()) {
+      if (j.uid !== uid || j.status !== 'done' || !j.done) continue;
+      if (key && j.key !== key) continue;
+      if (!j.versions.length || !j.versions.every((v) => fs.existsSync(v.file))) continue;
+      if (!best || j.finishedAt > best.finishedAt) best = j;
+    }
+    return best;
+  }
+
   async function pump() {
     if (running || !queue.length) return;
     const j = jobs.get(queue.shift());
@@ -259,7 +275,14 @@ function createServer(opts = {}) {
     j.status = j.done ? 'done' : 'failed';
     if (!j.done) j.error = 'не удалось обработать видео';
     giveQuotaBack(j);
-    if (j.done) remind(j.uid, 'check', j.finishedAt + 24 * 3600 * 1000);
+    if (j.done) remind(j.uid, 'check', Date.now() + 24 * 3600 * 1000);
+    // Long jobs: the page is usually closed by now, so say in the bot that the versions are ready.
+    if (j.done && Date.now() - j.startedAt >= READY_PING_MS) {
+      const text = `Готово: ${j.done} ${plural(j.done, 'версия', 'версии', 'версий')} ролика «${j.stem}» ждут в уникализаторе. Файлы хранятся сутки, скачай их до ${fmtUntil(Date.now() + OUTPUT_TTL_MS)}.`;
+      Promise.resolve().then(() => sendReminder(j.uid, text))
+        .then((ok) => mon.log('remind', { uid: j.uid, kind: 'ready', ok: !!ok }))
+        .catch(() => {});
+    }
     if (j.done && !seen[j.uid]) {
       seen[j.uid] = 1;
       writeJson(seenFile, seen);
@@ -369,6 +392,12 @@ function createServer(opts = {}) {
       const r = reserve(usage, key, count);
       if (r.error) {
         fs.rmSync(src, { force: true });
+        // Same video again: hand back the versions already made instead of a bare «limit» error.
+        const prev = lastDone(uid, key);
+        if (prev) {
+          mon.log('reuse', { uid, id: prev.id });
+          return send(res, 200, { jobId: prev.id, count: prev.count, used: r.used, remaining: 0, position: 0, reused: true });
+        }
         rejectLog('limit');
         return send(res, 429, { error: r.error, used: r.used, max: MAX_PER_VIDEO });
       }
@@ -457,7 +486,8 @@ function createServer(opts = {}) {
           limit: plan.w, used: used.length,
           nextAt: used.length >= plan.w ? used[used.length - plan.w] + WEEK_MS : null,
         } : null;
-        return send(res, 200, { uid: auth.uid, maxPerVideo: plan.v, active: a ? view(a) : null, week });
+        const ld = a ? null : lastDone(auth.uid);
+        return send(res, 200, { uid: auth.uid, maxPerVideo: plan.v, active: a ? view(a) : null, last: ld ? view(ld) : null, week });
       }
       // Behaviour events from the page (opened, downloaded, shared…) go to the same log as jobs.
       if (req.method === 'POST' && url.pathname === '/api/ev') {
