@@ -93,6 +93,20 @@ test('end to end: 3 + clamped 2 versions, all distinct, 6th rejected', { timeout
     assert.match(keys[0], /^u-e2e:/);
     assert.strictEqual(hist[keys[0]].versions.length, 5);
 
+    // Page reopened after the job: /api/me hands back the last finished job with its files.
+    const me2 = await (await fetch(`${s.base}/api/me?t=${t}`)).json();
+    assert.strictEqual(me2.active, null);
+    assert.strictEqual(me2.last.id, b.jobId);
+    assert.strictEqual(me2.last.versions.length, 2);
+
+    // Same video once more: versions already made come back instead of a «limit» error.
+    r = await upload(s.base, t, src, 1);
+    assert.strictEqual(r.status, 200);
+    const again = await r.json();
+    assert.deepStrictEqual({ jobId: again.jobId, reused: again.reused, remaining: again.remaining }, { jobId: b.jobId, reused: true, remaining: 0 });
+
+    // Files swept: the limit stays and is said plainly.
+    for (const id of [a.jobId, b.jobId]) fs.rmSync(path.join(s.dataDir, 'out', id), { recursive: true, force: true });
     r = await upload(s.base, t, src, 1);
     assert.strictEqual(r.status, 429);
     const e = await r.json();
