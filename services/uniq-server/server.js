@@ -8,7 +8,7 @@ const { probe, fingerprint, History, Job } = require('./core');
 const { createMonitor, tgSend } = require('./monitor');
 
 // What the page may report (POST /api/ev). Anything else is rejected, so the log stays readable.
-const PAGE_EVENTS = new Set(['open', 'sub_screen', 'sub_ok', 'sub_no', 'pick', 'upload', 'download', 'download_all', 'share', 'copy', 'feedback', 'limit',
+const PAGE_EVENTS = new Set(['open', 'sub_screen', 'sub_ok', 'sub_no', 'pick', 'upload', 'download', 'download_all', 'send', 'share', 'copy', 'feedback', 'limit',
   'cta_view_uroven', 'cta_click_uroven', 'cta_view_potok', 'cta_click_potok', 'cta_view_360', 'cta_click_360']);
 
 const MAX_PER_VIDEO = 5;
@@ -188,6 +188,7 @@ function createServer(opts = {}) {
   // A restart kills whatever was in flight: fail it and give the versions back.
   let killed = 0;
   for (const j of jobs.values()) {
+    delete j.sending;
     if (j.status === 'queued' || j.status === 'running') {
       killed++;
       refund(usage, j.key, j.count - j.done);
@@ -236,6 +237,37 @@ function createServer(opts = {}) {
       if (!best || j.finishedAt > best.finishedAt) best = j;
     }
     return best;
+  }
+
+  // iPhones: Telegram's downloadFile puts files into Telegram's own «Downloads», not the gallery.
+  // A video in the bot chat saves to the gallery in two taps, so the page can ask for that instead.
+  const BOT_UPLOAD_MAX = 50 * 1000 * 1000; // Bot API limit for uploads
+  const postVideo = opts.postVideo || (async (uid, file, caption) => {
+    const fd = new FormData();
+    fd.append('chat_id', String(uid));
+    fd.append('caption', caption);
+    fd.append('supports_streaming', 'true');
+    fd.append('video', await fs.openAsBlob(file, { type: 'video/mp4' }), path.basename(file));
+    const r = await fetch(`https://api.telegram.org/bot${tgToken}/sendVideo`, { method: 'POST', body: fd });
+    const body = await r.json().catch(() => ({}));
+    if (!body.ok) throw new Error(body.description || `HTTP ${r.status}`);
+    return true;
+  });
+  async function sendToChat(j) {
+    const vs = j.versions.filter((v) => fs.existsSync(v.file));
+    let sent = 0, big = 0, failed = 0;
+    for (const [n, v] of vs.entries()) {
+      if (v.size > BOT_UPLOAD_MAX) { big++; continue; }
+      try {
+        await postVideo(j.uid, v.file, `Версия ${n + 1} из ${vs.length}. Открой видео → ⋯ → «Сохранить в галерею».`);
+        sent++;
+      } catch (e) { failed++; console.error(`send ${j.id}/${v.i}: ${e.message}`); }
+    }
+    if (big && tgToken) {
+      await tgSend(tgToken, j.uid, `${big} ${plural(big, 'версия тяжелее', 'версии тяжелее', 'версий тяжелее')} 50 МБ, Телеграм не даёт боту прислать такие. Скачай их на странице или загрузи ролик полегче.`).catch(() => false);
+    }
+    mon.log('sent', { uid: j.uid, id: j.id, sent, big, failed });
+    return { sent, big, failed };
   }
 
   async function pump() {
@@ -389,17 +421,28 @@ function createServer(opts = {}) {
         return send(res, 400, { error: 'ролик длиннее 3 минут' });
       }
       const key = `${uid}:${fingerprint(src)}`;
-      const r = reserve(usage, key, count);
+      let r = reserve(usage, key, count);
       if (r.error) {
-        fs.rmSync(src, { force: true });
         // Same video again: hand back the versions already made instead of a bare «limit» error.
         const prev = lastDone(uid, key);
         if (prev) {
+          fs.rmSync(src, { force: true });
           mon.log('reuse', { uid, id: prev.id });
           return send(res, 200, { jobId: prev.id, count: prev.count, used: r.used, remaining: 0, position: 0, reused: true });
         }
-        rejectLog('limit');
-        return send(res, 429, { error: r.error, used: r.used, max: MAX_PER_VIDEO });
+        // The versions of this video are gone (files live 24 h, or the phone lost them): a fresh set
+        // instead of a dead end. Free plans are still held by the weekly quota checked above.
+        const inFlight = [...jobs.values()].some((j) => j.key === key && (j.status === 'queued' || j.status === 'running'));
+        if (!inFlight) {
+          delete usage[key];
+          r = reserve(usage, key, count);
+          mon.log('redo', { uid });
+        }
+        if (r.error) {
+          fs.rmSync(src, { force: true });
+          rejectLog('limit');
+          return send(res, 429, { error: r.error, used: r.used, max: MAX_PER_VIDEO });
+        }
       }
       saveUsage();
       // Only one upload per uid at a time (uploading set), so this check-then-add cannot race.
@@ -510,6 +553,17 @@ function createServer(opts = {}) {
         if (!j || j.uid !== auth.uid) return send(res, 404, { error: 'задача не найдена' });
         return send(res, 200, view(j));
       }
+      m = /^\/api\/jobs\/([\w-]+)\/send$/.exec(url.pathname);
+      if (req.method === 'POST' && m) {
+        const j = jobs.get(m[1]);
+        if (!j || j.uid !== auth.uid) return send(res, 404, { error: 'задача не найдена' });
+        if (!j.versions.length) return send(res, 409, { error: 'версий ещё нет' });
+        if (!/^\d+$/.test(String(j.uid)) || !tgToken) return send(res, 409, { error: 'бот недоступен, скачай на странице' });
+        if (j.sending) return send(res, 200, { ok: true, already: true });
+        j.sending = true;
+        sendToChat(j).catch((e) => console.error(`send: ${e.message}`)).finally(() => { j.sending = false; });
+        return send(res, 202, { ok: true, count: j.versions.length });
+      }
       m = /^\/files\/([\w-]+)\/(\d+)\.mp4$/.exec(url.pathname);
       if (req.method === 'GET' && m) return handleFile(req, res, m[1], +m[2], auth);
       send(res, 404, { error: 'не найдено' });
@@ -521,7 +575,7 @@ function createServer(opts = {}) {
   // Big uploads over slow links must not hit Node's default 5-minute request timeout.
   server.requestTimeout = 0;
   server.on('close', () => { clearInterval(sweepTimer); clearInterval(remindTimer); mon.stop(); });
-  server.uniq = { usage, history, jobs, queue, monitor: mon, quota, reminders, tickReminders };
+  server.uniq = { usage, history, jobs, queue, monitor: mon, quota, reminders, tickReminders, sendToChat };
   return server;
 }
 

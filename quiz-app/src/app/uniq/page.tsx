@@ -286,7 +286,37 @@ function UniqInner() {
     }
   }
 
+  // iPhone Telegram saves downloadFile into its own «Downloads», not the gallery. Videos sent to the
+  // bot chat save to the gallery from there, so inside Telegram that is the main way out.
+  const [sent, setSent] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
+  const [sentErr, setSentErr] = useState<string | null>(null);
+  async function sendToBot(jobId: string) {
+    const a = access.current;
+    if (!a || sent === 'sending') return;
+    track('send');
+    setSent('sending');
+    setSentErr(null);
+    try {
+      let res = await fetch(`${a.url}/api/jobs/${jobId}/send`, { method: 'POST', headers: { Authorization: `Bearer ${a.token}` } });
+      if (res.status === 401) {
+        await loadAccess();
+        const b = access.current;
+        if (b) res = await fetch(`${b.url}/api/jobs/${jobId}/send`, { method: 'POST', headers: { Authorization: `Bearer ${b.token}` } });
+      }
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { setSent('ok'); return; }
+      setSentErr(String(data.error || `ошибка ${res.status}`));
+      setSent('err');
+    } catch {
+      setSentErr('нет связи, попробуй ещё раз');
+      setSent('err');
+    }
+  }
+  const inTg = !!(tgRef.current as { initData?: string } | null)?.initData;
+
   function startNew() {
+    setSent('idle');
+    setSentErr(null);
     setJob(null);
     setFile(null);
     setRemaining(null);
@@ -467,7 +497,7 @@ function UniqInner() {
             </section>
           )}
 
-          {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} />}
+          {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} inTg={inTg} sent={sent} sentErr={sentErr} onSend={() => sendToBot(job.id)} />}
           {job && error && <div className="un-error" role="alert">{error}</div>}
           {job && job.status === 'done' && job.done > 0 && acc.offer && <OfferCard key={job.id} kind={acc.offer} uid={tgRef.current?.initDataUnsafe?.user?.id ?? null} tg={tgRef.current} onTrack={track} />}
           {acc.free && acc.ref && acc.plan && <Invite ref_={acc.ref} perWeek={acc.plan.w} tg={tgRef.current} onTrack={track} />}
@@ -556,6 +586,7 @@ function UniqInner() {
         .un-all { margin-top: 16px; background: var(--un-good); color: oklch(1 0 0); justify-content: space-between; padding: 0 16px; }
         .un-all:disabled { opacity: .7; cursor: default; }
         .un-all span { font-family: 'Manrope', system-ui, sans-serif; font-weight: 600; font-size: 13px; opacity: .85; }
+        .un-all-2 { margin-top: 0; background: var(--un-good-soft); color: var(--un-good); }
         .un-new { margin-top: 14px; background: none; border: 1px solid var(--un-line); color: var(--un-text); }
 
         /* Free plan meter */
@@ -903,7 +934,7 @@ function OfferCard({ kind, uid, tg, onTrack }: { kind: Offer; uid: number | null
 const n0 = (credited: number) => (credited ? ` · друзей засчитано: ${credited}` : '');
 
 const GUIDE: { t: string; d: string; art: 'save' | 'plus' | 'toggle' | 'spread' | 'bars' }[] = [
-  { t: 'Скачай все версии', d: 'Кнопка «скачать все», файлы лягут в галерею.', art: 'save' },
+  { t: 'Сохрани все версии', d: 'Кнопка «прислать в Телеграм»: версии придут в чат с ботом, оттуда сохраняются в галерею.', art: 'save' },
   { t: 'Инстаграм: «+» → Reels', d: 'Выбери одну версию и нажми «Далее».', art: 'plus' },
   { t: 'Включи «Пробная версия»', d: 'Рилс увидят только те, кто на тебя не подписан. Нужен профессиональный аккаунт.', art: 'toggle' },
   { t: 'Каждую версию отдельно', d: 'С промежутком пару часов, до шести пробных в день.', art: 'spread' },
@@ -945,7 +976,7 @@ function Guide() {
   );
 }
 
-function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bulk }: {
+function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bulk, inTg, sent, sentErr, onSend }: {
   job: Job;
   access: Access;
   remaining: number | null;
@@ -953,6 +984,10 @@ function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bul
   onDownload: (e: React.MouseEvent<HTMLAnchorElement>, href: string, name: string) => void;
   onDownloadAll: (items: { href: string; name: string }[]) => void;
   bulk: boolean;
+  inTg: boolean;
+  sent: 'idle' | 'sending' | 'ok' | 'err';
+  sentErr: string | null;
+  onSend: () => void;
 }) {
   const items = job.versions.map((v) => ({
     i: v.i, size: v.size,
@@ -987,8 +1022,20 @@ function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bul
       {job.status !== 'failed' && (
         <div className={finished ? 'un-bar un-bar-done' : 'un-bar'}><i style={{ width: `${Math.max(job.status === 'queued' ? 0 : 4, pct)}%` }} /></div>
       )}
+      {items.length > 0 && finished && inTg && (
+        <>
+          <button type="button" className="un-all" disabled={sent === 'sending'} onClick={onSend}>
+            {sent === 'sending' ? 'отправляю…' : sent === 'ok' ? 'отправлено, открой чат с ботом' : `прислать ${items.length > 1 ? 'все ' : ''}в Телеграм`}
+          </button>
+          <p className="un-status-sub" style={{ margin: '8px 0 14px' }}>
+            {sent === 'err'
+              ? `Не отправилось: ${sentErr}. Скачай кнопками ниже.`
+              : 'Видео придут в чат с ботом. Открой видео → ⋯ → «Сохранить в галерею». На айфоне кнопки «скачать» кладут файлы в загрузки Телеграма, а не в галерею.'}
+          </p>
+        </>
+      )}
       {items.length > 1 && finished && (
-        <button type="button" className="un-all" disabled={bulk} onClick={() => onDownloadAll(items)}>
+        <button type="button" className={inTg ? 'un-all un-all-2' : 'un-all'} disabled={bulk} onClick={() => onDownloadAll(items)}>
           {bulk ? 'скачиваю…' : `скачать все ${items.length}`}
           <span>{mb(items.reduce((n, it) => n + it.size, 0))}</span>
         </button>
