@@ -105,13 +105,18 @@ test('end to end: 3 + clamped 2 versions, all distinct, 6th rejected', { timeout
     const again = await r.json();
     assert.deepStrictEqual({ jobId: again.jobId, reused: again.reused, remaining: again.remaining }, { jobId: b.jobId, reused: true, remaining: 0 });
 
-    // Files swept: the limit stays and is said plainly.
+    // Files swept (24 h passed, the phone lost them): the same video makes a fresh set, no dead end.
     for (const id of [a.jobId, b.jobId]) fs.rmSync(path.join(s.dataDir, 'out', id), { recursive: true, force: true });
     r = await upload(s.base, t, src, 1);
-    assert.strictEqual(r.status, 429);
-    const e = await r.json();
-    assert.deepStrictEqual({ used: e.used, max: e.max }, { used: 5, max: 5 });
-    assert.match(e.error, /лимит 5 версий/);
+    assert.strictEqual(r.status, 200);
+    const redo = await r.json();
+    assert.ok(!redo.reused);
+    assert.strictEqual((await poll(s.base, redo.jobId, t)).done, 1);
+    assert.ok(fs.readFileSync(path.join(s.dataDir, 'log.jsonl'), 'utf8').includes('"ev":"redo"'));
+
+    // «Send to the bot»: every version goes to the person's chat as a video.
+    const sres = await fetch(`${s.base}/api/jobs/${redo.jobId}/send?t=${t}`, { method: 'POST' });
+    assert.strictEqual(sres.status, 409); // test uid has no Telegram chat
 
     // Another user gets their own quota for the same file.
     r = await upload(s.base, token('u-other'), src, 1);

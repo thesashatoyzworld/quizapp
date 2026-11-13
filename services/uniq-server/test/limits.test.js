@@ -152,3 +152,24 @@ test('page events: whitelisted and logged with the plan', async () => {
     assert.ok(log.some((e) => e.ev === 'page' && e.uid === '777' && e.what === 'open' && e.free === true));
   } finally { await s.close(); }
 });
+
+test('send to the bot posts every version as a video, skips ones over 50 MB', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'uniq-test-'));
+  const files = [1, 2].map((i) => { const f = path.join(dataDir, `v${i}.mp4`); fs.writeFileSync(f, 'x'); return f; });
+  fs.writeFileSync(path.join(dataDir, 'jobs.json'), JSON.stringify({
+    j1: { id: 'j1', uid: '555', key: '555:fp', stem: 'v', src: '', count: 2, status: 'done', done: 2, failed: 0, finishedAt: Date.now(),
+      versions: [{ i: 1, size: 1, file: files[0] }, { i: 2, size: 60e6, file: files[1] }] },
+  }));
+  const posted = [];
+  const s = await start({ dataDir, tgToken: 'x', postVideo: async (uid, file, caption) => { posted.push([uid, file, caption]); return true; } });
+  try {
+    assert.strictEqual((await fetch(`${s.base}/api/jobs/j1/send?t=${token('other')}`, { method: 'POST' })).status, 404);
+    const r = await fetch(`${s.base}/api/jobs/j1/send?t=${token('555')}`, { method: 'POST' });
+    assert.strictEqual(r.status, 202);
+    for (let i = 0; i < 50 && !fs.readFileSync(path.join(dataDir, 'log.jsonl'), 'utf8').includes('"ev":"sent"'); i++) await new Promise((x) => setTimeout(x, 20));
+    assert.deepStrictEqual(posted.map((p) => [p[0], p[1]]), [['555', files[0]]]);
+    assert.match(posted[0][2], /Версия 1 из 2/);
+    const sent = fs.readFileSync(path.join(dataDir, 'log.jsonl'), 'utf8').trim().split('\n').map(JSON.parse).find((e) => e.ev === 'sent');
+    assert.deepStrictEqual({ sent: sent.sent, big: sent.big, failed: sent.failed }, { sent: 1, big: 1, failed: 0 });
+  } finally { await s.close(); }
+});
