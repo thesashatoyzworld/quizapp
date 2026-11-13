@@ -424,7 +424,14 @@ function UniqInner() {
                   </>
                 )}
               </label>
-              <p className="un-hint">до 3 минут и 500 МБ · версия минутного ролика около минуты, страницу можно закрыть</p>
+              <p className="un-hint">до 3 минут и 500 МБ</p>
+              <p className="un-hint">
+                Чем длиннее и тяжелее ролик, тем дольше делаются версии. Минутный ролик: около минуты на версию.
+                Трёхминутный на 300–400 МБ: до получаса на 5 версий. Страницу можно закрыть, бот напишет, когда всё готово.
+              </p>
+              {file && file.size > 150 * 1024 * 1024 && (
+                <p className="un-hint un-hint-warn">Тяжёлый файл, версии будут делаться долго. Быстрее, если сжать ролик перед загрузкой.</p>
+              )}
 
               <div className="un-label" id="un-count-label">Сколько версий</div>
               <div className="un-count" role="radiogroup" aria-labelledby="un-count-label">
@@ -515,6 +522,7 @@ function UniqInner() {
         .un-drop-name { font-weight: 700; font-size: 15px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .un-drop-meta { font-size: 12.5px; color: var(--un-muted); }
         .un-hint { margin: 8px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--un-muted); }
+        .un-hint-warn { color: var(--un-accent); }
 
         .un-count { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
         .un-count-btn {
