@@ -238,7 +238,7 @@ export default function TrekerClient({
             className={`${styles.tag} ${styles.tagAll} ${tagFilter ? '' : styles.tagOn}`}
             onClick={() => setTagFilter(null)}
           >
-            все <span className={styles.tagCount}>{active.length}</span>
+            все <span className={styles.tagCount}>{active.filter((t) => inner(t.id) === 0 && !(t.steps.length === 0 && depth(t) === 1)).length}</span>
           </button>
           {knownTags.map(([t, n]) => (
             <TagChip
