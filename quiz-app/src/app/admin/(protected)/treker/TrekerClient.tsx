@@ -354,7 +354,7 @@ function TaskInside({
 
   async function suggest() {
     const undone = task.steps.filter((s) => !s.done).length;
-    if (undone && !window.confirm(`Заменить ${undone} несделанных шагов новыми? Сделанные останутся.`)) return;
+    if (undone && !window.confirm(`Раздробить ${undone} несделанных шагов мельче? Сделанные останутся.`)) return;
     setThinking(true);
     await run({ action: 'suggestSteps', id: task.id });
     setThinking(false);
@@ -457,7 +457,7 @@ function TaskInside({
       <div className={styles.stepsHead}>
         <div className={styles.label}>Шаги</div>
         <button type="button" className={styles.aiBtn} onClick={suggest} disabled={thinking}>
-          {thinking ? 'Раскладываю…' : task.steps.length ? '✨ Пересобрать несделанные' : '✨ Разбить на шаги'}
+          {thinking ? 'Раскладываю…' : task.steps.length ? '✨ Раздробить мельче' : '✨ Разбить на шаги'}
         </button>
       </div>
       {task.steps.length === 0 && (
@@ -485,6 +485,7 @@ function TaskInside({
             { ...task, steps: ids.map((id) => byId.get(id)!).filter(Boolean) },
           );
         }}
+        onSplit={(id) => run({ action: 'splitStep', id })}
         onDelete={(id) =>
           run({ action: 'deleteStep', id }, recompute({ ...task, steps: task.steps.filter((x) => x.id !== id) }))
         }
@@ -586,12 +587,14 @@ function StepList({
   onToggle,
   onRename,
   onReorder,
+  onSplit,
   onDelete,
 }: {
   steps: Step[];
   onToggle: (s: Step) => void;
   onRename: (id: string, title: string) => void;
   onReorder: (ids: string[]) => void;
+  onSplit: (id: string) => Promise<unknown>;
   onDelete: (id: string) => void;
 }) {
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -691,6 +694,7 @@ function StepList({
           onHandleKey={(dir) => onKeyMove(i, dir)}
           onToggle={() => onToggle(s)}
           onRename={(title) => onRename(s.id, title)}
+          onSplit={() => onSplit(s.id)}
           onDelete={() => onDelete(s.id)}
         />
       ))}
@@ -710,6 +714,7 @@ function StepRow({
   onHandleKey,
   onToggle,
   onRename,
+  onSplit,
   onDelete,
 }: {
   step: Step;
@@ -723,9 +728,11 @@ function StepRow({
   onHandleKey: (dir: -1 | 1) => void;
   onToggle: () => void;
   onRename: (title: string) => void;
+  onSplit: () => Promise<unknown>;
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [splitting, setSplitting] = useState(false);
   return (
     <li
       ref={liRef}
@@ -786,7 +793,20 @@ function StepRow({
           {step.title}
         </span>
       )}
-      <span className={styles.stepTools}>
+      <span className={`${styles.stepTools} ${splitting ? styles.stepToolsBusy : ''}`}>
+        <button
+          type="button"
+          disabled={splitting}
+          title="Раздробить этот шаг мельче"
+          aria-label="Раздробить шаг мельче"
+          onClick={async () => {
+            setSplitting(true);
+            await onSplit();
+            setSplitting(false);
+          }}
+        >
+          {splitting ? '…' : '✂'}
+        </button>
         <button type="button" onClick={onDelete} aria-label="Удалить шаг">
           ✕
         </button>
