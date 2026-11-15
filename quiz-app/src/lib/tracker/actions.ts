@@ -19,7 +19,8 @@ export type TrackerAction =
   | { action: 'deleteStep'; id: string }
   | { action: 'moveStep'; id: string; dir: -1 | 1 }
   | { action: 'reorderSteps'; taskId: string; ids: string[] }
-  | { action: 'toggle'; taskId: string; stepId: string; done: boolean };
+  | { action: 'toggle'; taskId: string; stepId: string; done: boolean }
+  | { action: 'completeTask'; id: string; done: boolean };
 
 export class BadInput extends Error {}
 
@@ -237,6 +238,41 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
         FROM unnest(${ids}::text[], ${ids.map((_, i) => i)}::int[]) AS v(id, pos)
         WHERE s.id = v.id AND s.task_id = ${a.taskId}`;
       return getTask(a.taskId);
+    }
+    case 'completeTask': {
+      // «Сделал задачу»: все шаги задачи и всего, что внутри, отмечены в текущем периоде.
+      const all = await prisma.trackerTask.findMany({
+        where: { archivedAt: null },
+        select: { id: true, parentId: true, kind: true, period: true, steps: { select: { id: true } } },
+      });
+      const ids = new Set([a.id]);
+      for (let grew = true; grew; ) {
+        grew = false;
+        for (const t of all) {
+          if (t.parentId && ids.has(t.parentId) && !ids.has(t.id)) {
+            ids.add(t.id);
+            grew = true;
+          }
+        }
+      }
+      const tasks = all.filter((t) => ids.has(t.id));
+      const rows = tasks.flatMap((t) => {
+        const periodKeyNow = periodKey(t.kind === 'routine' ? (t.period as Period) : null);
+        const stepIds = t.steps.length ? t.steps.map((x) => x.id) : [''];
+        return stepIds.map((stepId) => ({ taskId: t.id, stepId, periodKey: periodKeyNow }));
+      });
+      if (a.done) {
+        await prisma.trackerCheck.createMany({ data: rows, skipDuplicates: true });
+      } else {
+        await prisma.$transaction(
+          tasks.map((t) =>
+            prisma.trackerCheck.deleteMany({
+              where: { taskId: t.id, periodKey: periodKey(t.kind === 'routine' ? (t.period as Period) : null) },
+            }),
+          ),
+        );
+      }
+      return getTask(a.id);
     }
     case 'toggle': {
       const t = await prisma.trackerTask.findUniqueOrThrow({ where: { id: a.taskId } });
