@@ -1159,3 +1159,42 @@ button.tag:hover {
   overflow: hidden;
   overflow-wrap: anywhere;
 }
+
+/* «Сделал задачу» одной кнопкой, без отметки каждого шага. */
+.doneBtn {
+  align-self: flex-start;
+  background: var(--success);
+  color: #04160d;
+  border: none;
+  border-radius: 12px;
+  padding: 11px 18px;
+  min-height: 44px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.35);
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.doneBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.55);
+}
+
+.undoBtn {
+  align-self: flex-start;
+  background: transparent;
+  color: var(--success);
+  border: 1px solid rgba(0, 255, 136, 0.4);
+  border-radius: 12px;
+  padding: 9px 14px;
+  min-height: 40px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.undoBtn:hover {
+  border-color: var(--success);
+}

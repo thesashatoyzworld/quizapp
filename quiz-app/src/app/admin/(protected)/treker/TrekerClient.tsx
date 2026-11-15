@@ -185,6 +185,32 @@ export default function TrekerClient({
     const json = res?.ok ? await res.json().catch(() => null) : null;
     if (json?.tasks) setTasks(json.tasks);
   }
+
+  /** «Сделал задачу»: сразу заряжаем её и всё внутри, потом сверяемся с сервером. */
+  async function complete(id: string, done: boolean) {
+    const ids = new Set([id]);
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const t of tasks) {
+        if (!t.archived && t.parentId && ids.has(t.parentId) && !ids.has(t.id)) {
+          ids.add(t.id);
+          grew = true;
+        }
+      }
+    }
+    setError(null);
+    setTasks((all) =>
+      all.map((t) =>
+        ids.has(t.id) ? recompute({ ...t, doneWhole: done, steps: t.steps.map((x) => ({ ...x, done })) }) : t,
+      ),
+    );
+    try {
+      await call({ action: 'completeTask', id, done });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+    reload();
+  }
   const routines = shown.filter((t) => t.kind === 'routine');
   const quests = shown.filter((t) => t.kind === 'quest');
   const archived = withTree.filter((t) => t.archived);
@@ -201,6 +227,7 @@ export default function TrekerClient({
           kids={(tree.children.get(current.id) ?? []).map((k) => withTree.find((x) => x.id === k.id)!)}
           inner={inner}
           collapse={collapse}
+          onComplete={(done) => complete(current.id, done)}
           knownTags={knownTagNames}
           run={run}
           onOpen={open}
@@ -513,6 +540,7 @@ function TaskInside({
   kids,
   inner,
   collapse,
+  onComplete,
   knownTags,
   run,
   onOpen,
@@ -523,6 +551,7 @@ function TaskInside({
   kids: TaskView[];
   inner: (id: string) => number;
   collapse: (t: TaskView) => { task: TaskView; via: string[] };
+  onComplete: (done: boolean) => void;
   knownTags: string[];
   run: (body: Record<string, unknown>, optimistic?: TaskView) => Promise<TaskView | null>;
   onOpen: (id: string | null) => void;
@@ -675,7 +704,26 @@ function TaskInside({
             known={knownTags}
             onChange={(tags) => run({ action: 'setTags', id: task.id, tags }, { ...task, tags })}
           />
-          {nextStep && <div className={styles.next}>Следующий шаг: {nextStep.title}</div>}
+          {full ? (
+            <button
+              type="button"
+              className={styles.undoBtn}
+              onClick={() => {
+                const what = kids.length ? 'все шаги и задачи внутри' : 'все шаги';
+                if (window.confirm(`Вернуть в работу? Снимутся отметки: ${what}.`)) onComplete(false);
+              }}
+            >
+              ✓ Сделано · вернуть в работу
+            </button>
+          ) : (
+            <button type="button" className={styles.doneBtn} onClick={() => onComplete(true)}>
+              ✓{' '}
+              {task.kind === 'routine' && task.period
+                ? { day: 'Сделал на сегодня', week: 'Сделал на эту неделю', month: 'Сделал в этом месяце' }[task.period]
+                : 'Сделал задачу'}
+            </button>
+          )}
+          {nextStep && !full && <div className={styles.next}>Следующий шаг: {nextStep.title}</div>}
           {task.kind === 'routine' && task.period && (
             <div className={styles.periods}>
               {(['day', 'week', 'month'] as Period[]).map((p) => (
