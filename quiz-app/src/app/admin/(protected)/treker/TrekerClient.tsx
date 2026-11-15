@@ -69,22 +69,30 @@ export default function TrekerClient({
     setTasks((all) => (all.some((x) => x.id === t.id) ? all.map((x) => (x.id === t.id ? t : x)) : [...all, t]));
   }, []);
 
+  // Быстрые тапы по шагам шлют несколько запросов подряд, ответы приходят вразнобой.
+  // Применяем ответ сервера, только если он на последний запрос по этой задаче.
+  const seq = useRef<Record<string, number>>({});
+
   const run = useCallback(
     async (body: Record<string, unknown>, optimistic?: TaskView) => {
       setError(null);
-      const before = tasks;
+      const key = String(optimistic?.id ?? body.taskId ?? body.id ?? 'new');
+      const mine = (seq.current[key] = (seq.current[key] ?? 0) + 1);
       if (optimistic) put(optimistic);
       try {
         const t = await call(body);
-        if (t) put(t);
+        if (t && seq.current[key] === mine) put(t);
         return t;
       } catch (e) {
-        setTasks(before);
         setError(e instanceof Error ? e.message : String(e));
+        // Откат: перечитываем всё с сервера, а не угадываем прошлое состояние.
+        const res = await fetch('/api/admin/tracker').catch(() => null);
+        const json = res?.ok ? await res.json().catch(() => null) : null;
+        if (json?.tasks) setTasks(json.tasks);
         return null;
       }
     },
-    [put, tasks],
+    [put],
   );
 
   const active = tasks.filter((t) => !t.archived);
