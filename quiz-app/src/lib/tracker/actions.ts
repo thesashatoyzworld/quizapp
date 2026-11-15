@@ -5,7 +5,8 @@ import { PERIODS, periodKey, type Period } from './periods';
 import { splitIntoSteps, splitOneStep } from './split';
 
 export type TrackerAction =
-  | { action: 'createTask'; kind: 'quest' | 'routine'; title: string; period?: Period; note?: string; tags?: string[]; steps?: string[]; auto?: boolean }
+  | { action: 'createTask'; kind: 'quest' | 'routine'; title: string; period?: Period; note?: string; tags?: string[]; parentId?: string | null; steps?: string[]; auto?: boolean }
+  | { action: 'setParent'; id: string; parentId: string | null }
   | { action: 'setTags'; id: string; tags: string[] }
   | { action: 'suggestSteps'; id: string; coarser?: boolean }
   | { action: 'splitStep'; id: string }
@@ -43,6 +44,21 @@ export function cleanTags(t: unknown): string[] {
 function period(p: unknown): Period {
   if (!PERIODS.includes(p as Period)) throw new BadInput('неверный период');
   return p as Period;
+}
+
+async function existingParent(id: string): Promise<string> {
+  const p = await prisma.trackerTask.findUnique({ where: { id }, select: { id: true } });
+  if (!p) throw new BadInput('родительская задача не найдена');
+  return p.id;
+}
+
+/** Нельзя положить задачу внутрь самой себя или своего потомка. */
+async function assertNoCycle(id: string, parentId: string) {
+  const all = await prisma.trackerTask.findMany({ select: { id: true, parentId: true } });
+  const parent = new Map(all.map((t) => [t.id, t.parentId]));
+  for (let cur: string | null | undefined = parentId, guard = 0; cur; cur = parent.get(cur), guard++) {
+    if (cur === id || guard > 50) throw new BadInput('нельзя положить задачу внутрь самой себя');
+  }
 }
 
 /** Меняет местами соседей в списке по position. */
@@ -85,6 +101,7 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
           title,
           note,
           tags: cleanTags(a.tags),
+          parentId: a.parentId ? await existingParent(a.parentId) : null,
           period: p,
           position: (max._max.position ?? -1) + 1,
           steps: { create: steps.map((t, i) => ({ id: randomUUID(), title: clean(t), position: i })) },
@@ -158,13 +175,25 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
         data: { archivedAt: a.archived ? new Date() : null },
       });
       return getTask(a.id);
-    case 'deleteTask':
-      await prisma.trackerTask.delete({ where: { id: a.id } });
+    case 'deleteTask': {
+      // Дети удалённой задачи поднимаются на её уровень, а не пропадают.
+      const t = await prisma.trackerTask.findUniqueOrThrow({ where: { id: a.id }, select: { parentId: true } });
+      await prisma.$transaction([
+        prisma.trackerTask.updateMany({ where: { parentId: a.id }, data: { parentId: t.parentId } }),
+        prisma.trackerTask.delete({ where: { id: a.id } }),
+      ]);
       return null;
+    }
+    case 'setParent': {
+      const parentId = a.parentId ? await existingParent(a.parentId) : null;
+      if (parentId) await assertNoCycle(a.id, parentId);
+      await prisma.trackerTask.update({ where: { id: a.id }, data: { parentId } });
+      return getTask(a.id);
+    }
     case 'moveTask': {
       const t = await prisma.trackerTask.findUniqueOrThrow({ where: { id: a.id } });
       const list = await prisma.trackerTask.findMany({
-        where: { kind: t.kind, archivedAt: null },
+        where: { kind: t.kind, parentId: t.parentId, archivedAt: null },
         orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
         select: { id: true, position: true },
       });

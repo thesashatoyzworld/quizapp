@@ -41,6 +41,40 @@ function recompute(t: TaskView): TaskView {
   return { ...t, progress, history };
 }
 
+/**
+ * Заряд с учётом вложенности: шаги задачи и её дети считаются поровну,
+ * ребёнок даёт свою долю (0..1). Задача без шагов и детей = «сделано целиком».
+ */
+function treeProgress(tasks: TaskView[]): { progress: Map<string, number>; children: Map<string, TaskView[]> } {
+  const children = new Map<string, TaskView[]>();
+  const ids = new Set(tasks.filter((t) => !t.archived).map((t) => t.id));
+  for (const t of tasks) {
+    if (t.archived || !t.parentId || !ids.has(t.parentId)) continue;
+    const list = children.get(t.parentId) ?? [];
+    list.push(t);
+    children.set(t.parentId, list);
+  }
+  const progress = new Map<string, number>();
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  function of(id: string, depth = 0): number {
+    const cached = progress.get(id);
+    if (cached !== undefined) return cached;
+    const t = byId.get(id)!;
+    const kids = depth > 30 ? [] : (children.get(id) ?? []);
+    let units = t.steps.length + kids.length;
+    let done = t.steps.filter((s) => s.done).length + kids.reduce((sum, k) => sum + of(k.id, depth + 1), 0);
+    if (units === 0) {
+      units = 1;
+      done = t.doneWhole ? 1 : 0;
+    }
+    const p = done / units;
+    progress.set(id, p);
+    return p;
+  }
+  tasks.forEach((t) => of(t.id));
+  return { progress, children };
+}
+
 export default function TrekerClient({
   initialTasks,
   initialOpen,
@@ -111,12 +145,28 @@ export default function TrekerClient({
   }, [tasks]);
   const knownTagNames = knownTags.map(([t]) => t);
 
-  const active = tasks.filter((t) => !t.archived);
-  const shown = tagFilter ? active.filter((t) => t.tags.includes(tagFilter)) : active;
+  const tree = useMemo(() => treeProgress(tasks), [tasks]);
+  const withTree = useMemo(
+    () => tasks.map((t) => ({ ...t, progress: tree.progress.get(t.id) ?? t.progress })),
+    [tasks, tree],
+  );
+  const activeIds = new Set(tasks.filter((t) => !t.archived).map((t) => t.id));
+  const active = withTree.filter((t) => !t.archived);
+  // Без фильтра на главной только верхний уровень; с фильтром по метке все совпавшие с любого уровня.
+  const shown = tagFilter
+    ? active.filter((t) => t.tags.includes(tagFilter))
+    : active.filter((t) => !t.parentId || !activeIds.has(t.parentId));
+  const inner = (id: string) => tree.children.get(id)?.length ?? 0;
+
+  async function reload() {
+    const res = await fetch('/api/admin/tracker').catch(() => null);
+    const json = res?.ok ? await res.json().catch(() => null) : null;
+    if (json?.tasks) setTasks(json.tasks);
+  }
   const routines = shown.filter((t) => t.kind === 'routine');
   const quests = shown.filter((t) => t.kind === 'quest');
-  const archived = tasks.filter((t) => t.archived);
-  const current = openId ? tasks.find((t) => t.id === openId) : undefined;
+  const archived = withTree.filter((t) => t.archived);
+  const current = openId ? withTree.find((t) => t.id === openId) : undefined;
 
   if (current) {
     return (
@@ -125,12 +175,15 @@ export default function TrekerClient({
         <TaskInside
           key={current.id}
           task={current}
+          all={withTree}
+          kids={(tree.children.get(current.id) ?? []).map((k) => withTree.find((x) => x.id === k.id)!)}
+          inner={inner}
           knownTags={knownTagNames}
           run={run}
-          onBack={() => open(null)}
+          onOpen={open}
           onDeleted={() => {
-            setTasks((all) => all.filter((x) => x.id !== current.id));
-            open(null);
+            open(current.parentId && activeIds.has(current.parentId) ? current.parentId : null);
+            reload();
           }}
         />
       </div>
@@ -187,6 +240,7 @@ export default function TrekerClient({
         onAdd={() => setAdding('routine')}
         onCancel={() => setAdding(null)}
         onOpen={open}
+        inner={inner}
         onCreate={async (body) => {
           const t = await run({ action: 'createTask', kind: 'routine', ...body });
           if (t) setAdding(null);
@@ -204,6 +258,7 @@ export default function TrekerClient({
         onAdd={() => setAdding('quest')}
         onCancel={() => setAdding(null)}
         onOpen={open}
+        inner={inner}
         onCreate={async (body) => {
           const t = await run({ action: 'createTask', kind: 'quest', ...body });
           if (t) setAdding(null);
@@ -235,6 +290,7 @@ function Section({
   onAdd,
   onCancel,
   onOpen,
+  inner,
   onCreate,
 }: {
   title: string;
@@ -247,6 +303,7 @@ function Section({
   onAdd: () => void;
   onCancel: () => void;
   onOpen: (id: string) => void;
+  inner: (id: string) => number;
   onCreate: (body: { title: string; period?: Period; note?: string; tags: string[]; steps: string[] }) => Promise<void>;
 }) {
   return (
@@ -257,7 +314,7 @@ function Section({
       </div>
       <div className={styles.grid}>
         {tasks.map((t) => (
-          <TaskCard key={t.id} task={t} onOpen={onOpen} />
+          <TaskCard key={t.id} task={t} inner={inner(t.id)} onOpen={onOpen} />
         ))}
         {adding ? (
           <NewTask kind={kind} knownTags={knownTags} defaultTag={defaultTag} onCancel={onCancel} onCreate={onCreate} />
@@ -272,7 +329,17 @@ function Section({
   );
 }
 
-function TaskCard({ task, onOpen, small }: { task: TaskView; onOpen: (id: string) => void; small?: boolean }) {
+function TaskCard({
+  task,
+  onOpen,
+  small,
+  inner = 0,
+}: {
+  task: TaskView;
+  onOpen: (id: string) => void;
+  small?: boolean;
+  inner?: number;
+}) {
   const full = task.progress >= 1;
   return (
     <button type="button" className={styles.card} onClick={() => onOpen(task.id)}>
@@ -280,7 +347,7 @@ function TaskCard({ task, onOpen, small }: { task: TaskView; onOpen: (id: string
         progress={task.progress}
         size={small ? 72 : 112}
         label={full ? '✓' : pct(task.progress)}
-        sub={small ? undefined : counts(task)}
+        sub={small ? undefined : inner ? `${inner} внутри` : counts(task)}
       />
       <span className={styles.cardTitle}>{task.title}</span>
       {task.tags.length > 0 && !small && (
@@ -397,17 +464,65 @@ function NewTask({
 
 function TaskInside({
   task,
+  all,
+  kids,
+  inner,
   knownTags,
   run,
-  onBack,
+  onOpen,
   onDeleted,
 }: {
   task: TaskView;
+  all: TaskView[];
+  kids: TaskView[];
+  inner: (id: string) => number;
   knownTags: string[];
   run: (body: Record<string, unknown>, optimistic?: TaskView) => Promise<TaskView | null>;
-  onBack: () => void;
+  onOpen: (id: string | null) => void;
   onDeleted: () => void;
 }) {
+  const [addingKid, setAddingKid] = useState<Kind | null>(null);
+  const byId = useMemo(() => new Map(all.map((t) => [t.id, t])), [all]);
+  // Путь наверх: «Жизнь мечты › Финансы › …»
+  const path = useMemo(() => {
+    const out: TaskView[] = [];
+    for (let p = task.parentId ? byId.get(task.parentId) : undefined, i = 0; p && i < 30; p = p.parentId ? byId.get(p.parentId) : undefined, i++) {
+      if (!p.archived) out.unshift(p);
+    }
+    return out;
+  }, [task.parentId, byId]);
+  // Куда можно перенести: всё, кроме самой задачи и её потомков.
+  const moveTargets = useMemo(() => {
+    const banned = new Set([task.id]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const t of all) {
+        if (t.parentId && banned.has(t.parentId) && !banned.has(t.id)) {
+          banned.add(t.id);
+          grew = true;
+        }
+      }
+    }
+    const depth = (t: TaskView) => {
+      let d = 0;
+      for (let p = t.parentId ? byId.get(t.parentId) : undefined; p && d < 30; p = p.parentId ? byId.get(p.parentId) : undefined) d++;
+      return d;
+    };
+    // Порядок дерева: родитель, под ним дети с отступом.
+    const out: { id: string; label: string }[] = [];
+    const walk = (parent: string | null) => {
+      all
+        .filter((t) => !t.archived && !banned.has(t.id) && (t.parentId ?? null) === parent)
+        .forEach((t) => {
+          out.push({ id: t.id, label: `${'  '.repeat(depth(t))}${t.title}` });
+          walk(t.id);
+        });
+    };
+    walk(null);
+    return out;
+  }, [all, byId, task.id]);
+  const kidsDone = kids.filter((k) => k.progress >= 1).length;
   const [newStep, setNewStep] = useState('');
   const [note, setNote] = useState(task.note ?? '');
   const [editingTitle, setEditingTitle] = useState(false);
@@ -450,9 +565,19 @@ function TaskInside({
 
   return (
     <div className={styles.inside}>
-      <button type="button" className={styles.back} onClick={onBack}>
-        ← Все задачи
-      </button>
+      <nav className={styles.crumbs} aria-label="Путь">
+        <button type="button" className={styles.crumb} onClick={() => onOpen(null)}>
+          Все
+        </button>
+        {path.map((p) => (
+          <span key={p.id} className={styles.crumbItem}>
+            <span className={styles.crumbSep}>›</span>
+            <button type="button" className={styles.crumb} onClick={() => onOpen(p.id)}>
+              {p.title}
+            </button>
+          </span>
+        ))}
+      </nav>
 
       <div className={styles.hero}>
         <div className={styles.heroRing}>
@@ -461,7 +586,15 @@ function TaskInside({
             size={200}
             stroke={12}
             label={full ? '✓' : pct(task.progress)}
-            sub={task.steps.length ? `${doneCount} из ${task.steps.length} шагов` : full ? 'готово' : 'без шагов'}
+            sub={
+              kids.length
+                ? `${kidsDone} из ${kids.length} внутри${task.steps.length ? ` · ${doneCount}/${task.steps.length} шагов` : ''}`
+                : task.steps.length
+                  ? `${doneCount} из ${task.steps.length} шагов`
+                  : full
+                    ? 'готово'
+                    : 'без шагов'
+            }
           />
         </div>
         <div className={styles.heroText}>
@@ -526,6 +659,34 @@ function TaskInside({
           </div>
         </div>
       )}
+
+      <div className={styles.label}>Внутри</div>
+      <div className={`${styles.grid} ${styles.kidsGrid}`}>
+        {kids.map((k) => (
+          <TaskCard key={k.id} task={k} inner={inner(k.id)} onOpen={(id) => onOpen(id)} />
+        ))}
+        {addingKid ? (
+          <NewTask
+            kind={addingKid}
+            knownTags={knownTags}
+            defaultTag={null}
+            onCancel={() => setAddingKid(null)}
+            onCreate={async (body) => {
+              const t = await run({ action: 'createTask', kind: addingKid, parentId: task.id, ...body });
+              if (t) setAddingKid(null);
+            }}
+          />
+        ) : (
+          <div className={styles.addKid}>
+            <button type="button" className={styles.ghost} onClick={() => setAddingKid('quest')}>
+              + квест внутрь
+            </button>
+            <button type="button" className={styles.ghost} onClick={() => setAddingKid('routine')}>
+              + регулярная внутрь
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className={styles.stepsHead}>
         <div className={styles.label}>Шаги</div>
@@ -593,6 +754,24 @@ function TaskInside({
         }}
       />
 
+      <div className={styles.moveRow}>
+        <span className={styles.label}>Лежит внутри</span>
+        <select
+          className={styles.select}
+          value={task.parentId && byId.has(task.parentId) ? task.parentId : ''}
+          onChange={(e) =>
+            run({ action: 'setParent', id: task.id, parentId: e.target.value || null }, { ...task, parentId: e.target.value || null })
+          }
+        >
+          <option value="">— на главном экране —</option>
+          {moveTargets.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className={styles.footer}>
         <button type="button" className={styles.ghost} onClick={() => run({ action: 'moveTask', id: task.id, dir: -1 })}>
           ← левее
@@ -611,7 +790,10 @@ function TaskInside({
           type="button"
           className={styles.danger}
           onClick={async () => {
-            if (!window.confirm(`Удалить «${task.title}» вместе с шагами?`)) return;
+            const q = kids.length
+              ? `Удалить «${task.title}» с шагами? ${kids.length} задач внутри поднимутся на уровень выше.`
+              : `Удалить «${task.title}» вместе с шагами?`;
+            if (!window.confirm(q)) return;
             const res = await fetch('/api/admin/tracker', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS tracker_task (
   created_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE tracker_task ADD COLUMN IF NOT EXISTS parent_id TEXT;
+CREATE INDEX IF NOT EXISTS tracker_task_parent_idx ON tracker_task(parent_id);
 ALTER TABLE tracker_task ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 CREATE INDEX IF NOT EXISTS tracker_task_kind_position_idx ON tracker_task(kind, position);
 
