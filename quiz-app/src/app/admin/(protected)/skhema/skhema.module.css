@@ -360,3 +360,97 @@
   .row { flex-direction: column; }
   .walkPanel { width: auto; align-self: stretch; }
 }
+
+/* блок со схемой внутри */
+
+.linked {
+  box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.25), 4px 4px 0 -1px #0b0f17, 4px 4px 0 0 rgba(0, 240, 255, 0.45);
+}
+
+.linkBadge {
+  position: absolute;
+  top: -11px;
+  right: 8px;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 240, 255, 0.6);
+  background: #0b0f17;
+  color: #00f0ff;
+  cursor: pointer;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.linkBadge:hover {
+  background: rgba(0, 240, 255, 0.18);
+}
+
+.node {
+  position: relative;
+}
+
+.selectSmall {
+  background: var(--bg-secondary);
+  color: var(--text-primary, #e8eef5);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 0.78rem;
+  max-width: 200px;
+}
+
+.trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--text-primary, #e8eef5);
+}
+
+.trailLink {
+  font: inherit;
+  background: none;
+  border: none;
+  color: var(--neon-cyan);
+  cursor: pointer;
+  padding: 0;
+}
+
+.trailLink:hover {
+  text-decoration: underline;
+}
+
+.trailSep {
+  color: var(--text-muted);
+  margin: 0 6px;
+}
+
+.walkEnter {
+  font: inherit;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  padding: 9px 13px;
+  cursor: pointer;
+  border: 1px solid rgba(57, 255, 136, 0.55);
+  background: rgba(57, 255, 136, 0.12);
+  color: #b9ffd6;
+  text-align: left;
+}
+
+.walkChipLink {
+  font: inherit;
+  font-size: inherit;
+  background: rgba(0, 240, 255, 0.12);
+  cursor: pointer;
+  text-align: left;
+}
+
+.walkChipLink:hover {
+  background: rgba(0, 240, 255, 0.25);
+}
