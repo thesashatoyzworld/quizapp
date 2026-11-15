@@ -153,6 +153,75 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
   const currentJson = useMemo(() => JSON.stringify(serialize(nodes, edges)), [nodes, edges]);
   const dirty = currentJson !== savedJson.current;
 
+  /* ── режим «пройти по шагам» ── */
+  const [walk, setWalk] = useState<string[] | null>(null);
+  const current = walk?.[walk.length - 1] ?? null;
+  const kindOf = (id: string) => ((nodes.find((n) => n.id === id)?.data as StepData | undefined)?.kind ?? 'step');
+  const isSide = (id: string) => ['input', 'note'].includes(kindOf(id));
+  const labelOf = (id: string) => ((nodes.find((n) => n.id === id)?.data as StepData | undefined)?.label ?? '');
+  const inputsOf = (id: string) => edges.filter((e) => e.target === id && isSide(e.source)).map((e) => e.source);
+  const exits = current ? edges.filter((e) => e.source === current && !(isSide(e.target) && !e.label)) : [];
+
+  const startWalk = () => {
+    const flow = nodes.filter((n) => !isSide(n.id));
+    const starts = flow.filter((n) => !edges.some((e) => e.target === n.id && !isSide(e.source)));
+    const first = (starts.length ? starts : flow).sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x)[0];
+    if (first) setWalk([first.id]);
+  };
+  const go = (id: string) => setWalk((w) => (w ? [...w, id] : w));
+  const back = () => setWalk((w) => (w && w.length > 1 ? w.slice(0, -1) : w));
+
+  const visible = useMemo(() => {
+    if (!walk) return null;
+    const v = new Set(walk);
+    for (const id of walk) for (const e of edges) if (e.target === id && isSide(e.source)) v.add(e.source);
+    return v;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walk, edges, nodes]);
+
+  const shownNodes = useMemo(
+    () =>
+      visible
+        ? nodes.map((n) => ({
+            ...n,
+            hidden: !visible.has(n.id),
+            draggable: false,
+            className: n.id === current ? styles.walkCurrent : walk?.includes(n.id) ? styles.walkPast : styles.walkSide,
+          }))
+        : nodes,
+    [nodes, visible, current, walk],
+  );
+  const shownEdges = useMemo(
+    () =>
+      visible
+        ? edges.map((e) => ({
+            ...e,
+            hidden: !(visible.has(e.source) && visible.has(e.target)),
+            animated: !!walk && walk.length > 1 && e.source === walk[walk.length - 2] && e.target === current,
+          }))
+        : edges,
+    [edges, visible, walk, current],
+  );
+
+  useEffect(() => {
+    if (!current) return;
+    const ids = [current, ...inputsOf(current)];
+    const t = setTimeout(() => fitView({ nodes: ids.map((id) => ({ id })), duration: 500, padding: 0.6, maxZoom: 1.5 }), 30);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
+
+  useEffect(() => {
+    if (!walk) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setWalk(null);
+      if (e.key === 'ArrowLeft') back();
+      if ((e.key === 'ArrowRight' || e.key === 'Enter') && exits.length === 1) go(exits[0].target);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   const load = useCallback(
     (b: BoardView) => {
       const h = hydrate(b.data);
@@ -301,12 +370,20 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
         </select>
         <button className={styles.btnGhost} onClick={newBoard}>+ схема</button>
         <span className={styles.sep} />
-        {KINDS.map((k) => (
+        {walk ? (
+          <button className={styles.btn} onClick={() => { setWalk(null); requestAnimationFrame(() => fitView({ padding: 0.2, duration: 400 })); }}>
+            ✕ выйти из прохода
+          </button>
+        ) : (
+          <button className={styles.btn} onClick={startWalk}>▶ пройти по шагам</button>
+        )}
+        <span className={styles.sep} />
+        {!walk && KINDS.map((k) => (
           <button key={k.kind} className={`${styles.add} ${styles[`a_${k.kind}`]}`} onClick={() => addNode(k.kind)}>
             + {k.label}
           </button>
         ))}
-        {selectedNodes.length > 0 && (
+        {!walk && selectedNodes.length > 0 && (
           <>
             <span className={styles.sep} />
             <span className={styles.muted}>тип:</span>
@@ -326,10 +403,11 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
         </div>
       )}
 
+      <div className={styles.row}>
       <div className={styles.canvas}>
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
+          nodes={shownNodes}
+          edges={shownEdges}
           nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -339,13 +417,17 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
           colorMode="dark"
           fitView
           fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
-          deleteKeyCode={['Backspace', 'Delete']}
+          deleteKeyCode={walk ? null : ['Backspace', 'Delete']}
+          nodesConnectable={!walk}
+          elementsSelectable={!walk}
           zoomOnDoubleClick={false}
           onDoubleClick={(e) => {
+            if (walk) return;
             if ((e.target as HTMLElement).classList.contains('react-flow__pane')) addNode('step', screenToFlowPosition({ x: e.clientX, y: e.clientY }));
           }}
-          onNodeDoubleClick={(_, n) => setNodes((ns) => ns.map((x) => (x.id === n.id ? { ...x, data: { ...x.data, editing: true } } : x)))}
+          onNodeDoubleClick={(_, n) => !walk && setNodes((ns) => ns.map((x) => (x.id === n.id ? { ...x, data: { ...x.data, editing: true } } : x)))}
           onEdgeDoubleClick={(_, edge) => {
+            if (walk) return;
             const label = window.prompt('Подпись стрелки (пусто = убрать)', String(edge.label ?? ''));
             if (label === null) return;
             setEdges((es) => es.map((x) => (x.id === edge.id ? { ...x, label: label.trim() || undefined } : x)));
@@ -353,11 +435,36 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
         >
           <Background gap={24} size={1} />
           <Controls showInteractive={false} />
-          <MiniMap pannable zoomable className={styles.minimap} />
+          {!walk && <MiniMap pannable zoomable className={styles.minimap} />}
         </ReactFlow>
       </div>
+        {walk && current && (
+          <div className={styles.walkPanel}>
+            <div className={styles.walkStep}>шаг {walk.length}</div>
+            <div className={styles.walkTitle}>{labelOf(current)}</div>
+            {inputsOf(current).length > 0 && (
+              <div className={styles.walkInputs}>
+                <span>на входе:</span>
+                {inputsOf(current).map((id) => (
+                  <span key={id} className={styles.walkChip}>{labelOf(id)}</span>
+                ))}
+              </div>
+            )}
+            <div className={styles.walkActions}>
+              <button className={styles.btnGhost} onClick={back} disabled={walk.length < 2}>← назад</button>
+              {exits.length === 0 && <span className={styles.muted}>конец схемы</span>}
+              {exits.map((e) => (
+                <button key={e.id} className={styles.walkGo} onClick={() => go(e.target)}>
+                  {e.label ? <b>{String(e.label)}</b> : <b>дальше</b>} → {labelOf(e.target).slice(0, 48)}
+                  {labelOf(e.target).length > 48 ? '…' : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
-      <div className={styles.hint}>
+      <div className={styles.hint} hidden={!!walk}>
         Двойной клик по пустому месту: новый шаг. Двойной клик по блоку: править текст (Enter сохранить, Shift+Enter новая строка).
         Тяни от точки на краю блока к другому блоку: стрелка. Двойной клик по стрелке: подпись. Выделить и Backspace: удалить.
       </div>

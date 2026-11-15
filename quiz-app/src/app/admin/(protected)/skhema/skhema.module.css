@@ -248,3 +248,115 @@
   gap: 12px;
   align-items: center;
 }
+
+/* проход по шагам */
+
+.canvas {
+  position: relative;
+}
+
+.walkCurrent > div {
+  box-shadow: 0 0 0 2px #00f0ff, 0 0 28px rgba(0, 240, 255, 0.45);
+  transform: scale(1.04);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.walkPast {
+  opacity: 0.45;
+}
+
+.walkSide {
+  opacity: 0.85;
+}
+
+.row {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+}
+
+.row .canvas {
+  flex: 1;
+  min-width: 0;
+}
+
+.walkPanel {
+  width: 340px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  max-height: 100%;
+  overflow: auto;
+  background: rgba(13, 18, 28, 0.96);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 14px;
+  padding: 16px 18px;
+  z-index: 10;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.walkStep {
+  font-family: var(--font-display);
+  color: var(--neon-cyan);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.walkTitle {
+  font-size: 1.15rem;
+  line-height: 1.35;
+  color: #f2f6fa;
+  white-space: pre-wrap;
+  margin-bottom: 10px;
+}
+
+.walkInputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.walkChip {
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: #bdf8ff;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.walkActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.walkGo {
+  font: inherit;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  padding: 9px 13px;
+  cursor: pointer;
+  border: 1px solid rgba(0, 240, 255, 0.5);
+  background: rgba(0, 240, 255, 0.14);
+  color: #e8fdff;
+  text-align: left;
+}
+
+.walkGo:hover {
+  background: rgba(0, 240, 255, 0.24);
+}
+
+.walkGo b {
+  color: var(--neon-cyan);
+}
+
+@media (max-width: 900px) {
+  .row { flex-direction: column; }
+  .walkPanel { width: auto; align-self: stretch; }
+}
