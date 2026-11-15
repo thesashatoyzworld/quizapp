@@ -152,11 +152,33 @@ export default function TrekerClient({
   );
   const activeIds = new Set(tasks.filter((t) => !t.archived).map((t) => t.id));
   const active = withTree.filter((t) => !t.archived);
-  // Без фильтра на главной только верхний уровень; с фильтром по метке все совпавшие с любого уровня.
+  const inner = (id: string) => tree.children.get(id)?.length ?? 0;
+  const activeById = new Map(active.map((t) => [t.id, t]));
+  const parentOf = (t: TaskView) => (t.parentId ? activeById.get(t.parentId) : undefined);
+  const depth = (t: TaskView) => {
+    let d = 0;
+    for (let p = parentOf(t); p && d < 30; p = parentOf(p)) d++;
+    return d;
+  };
+  /** Цепочку из одного звена («Финансы → 1,6 млн → 100 человек») проскакиваем до развилки. */
+  const collapse = (t: TaskView): { task: TaskView; via: string[] } => {
+    const via: string[] = [];
+    let node = t;
+    for (let i = 0; i < 30 && node.steps.length === 0; i++) {
+      const kids = tree.children.get(node.id) ?? [];
+      if (kids.length !== 1) break;
+      via.push(node.title);
+      node = activeById.get(kids[0].id) ?? node;
+    }
+    return { task: node, via };
+  };
+  // Главная = то, что делать: задачи без вложенных, с любого уровня. Пустые области
+  // сразу под целью («Путешествия» без шагов) задачами не считаются.
+  const goals = active.filter((t) => !parentOf(t) && inner(t.id) > 0);
   const shown = tagFilter
     ? active.filter((t) => t.tags.includes(tagFilter))
-    : active.filter((t) => !t.parentId || !activeIds.has(t.parentId));
-  const inner = (id: string) => tree.children.get(id)?.length ?? 0;
+    : active.filter((t) => inner(t.id) === 0 && !(t.steps.length === 0 && depth(t) === 1));
+  const where = (t: TaskView) => parentOf(t)?.title;
 
   async function reload() {
     const res = await fetch('/api/admin/tracker').catch(() => null);
@@ -178,6 +200,7 @@ export default function TrekerClient({
           all={withTree}
           kids={(tree.children.get(current.id) ?? []).map((k) => withTree.find((x) => x.id === k.id)!)}
           inner={inner}
+          collapse={collapse}
           knownTags={knownTagNames}
           run={run}
           onOpen={open}
@@ -229,6 +252,20 @@ export default function TrekerClient({
         </div>
       )}
 
+      {goals.length > 0 && !tagFilter && (
+        <section className={styles.section}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.h2}>Цели</h2>
+            <span className={styles.hint}>заряжаются от всего, что внутри</span>
+          </div>
+          <div className={styles.grid}>
+            {goals.map((g) => (
+              <TaskCard key={g.id} task={g} inner={inner(g.id)} onOpen={open} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <Section
         title="Регулярные"
         hint="сами сбрасываются в новый день, неделю или месяц"
@@ -241,6 +278,7 @@ export default function TrekerClient({
         onCancel={() => setAdding(null)}
         onOpen={open}
         inner={inner}
+        where={where}
         onCreate={async (body) => {
           const t = await run({ action: 'createTask', kind: 'routine', ...body });
           if (t) setAdding(null);
@@ -259,6 +297,7 @@ export default function TrekerClient({
         onCancel={() => setAdding(null)}
         onOpen={open}
         inner={inner}
+        where={where}
         onCreate={async (body) => {
           const t = await run({ action: 'createTask', kind: 'quest', ...body });
           if (t) setAdding(null);
@@ -291,6 +330,7 @@ function Section({
   onCancel,
   onOpen,
   inner,
+  where,
   onCreate,
 }: {
   title: string;
@@ -304,6 +344,7 @@ function Section({
   onCancel: () => void;
   onOpen: (id: string) => void;
   inner: (id: string) => number;
+  where: (t: TaskView) => string | undefined;
   onCreate: (body: { title: string; period?: Period; note?: string; tags: string[]; steps: string[] }) => Promise<void>;
 }) {
   return (
@@ -314,7 +355,7 @@ function Section({
       </div>
       <div className={styles.grid}>
         {tasks.map((t) => (
-          <TaskCard key={t.id} task={t} inner={inner(t.id)} onOpen={onOpen} />
+          <TaskCard key={t.id} task={t} inner={inner(t.id)} where={where(t)} onOpen={onOpen} />
         ))}
         {adding ? (
           <NewTask kind={kind} knownTags={knownTags} defaultTag={defaultTag} onCancel={onCancel} onCreate={onCreate} />
@@ -334,11 +375,14 @@ function TaskCard({
   onOpen,
   small,
   inner = 0,
+  where,
 }: {
   task: TaskView;
   onOpen: (id: string) => void;
   small?: boolean;
   inner?: number;
+  /** Откуда задача: родитель или проскоченная цепочка. */
+  where?: string;
 }) {
   const full = task.progress >= 1;
   return (
@@ -350,6 +394,7 @@ function TaskCard({
         sub={small ? undefined : inner ? `${inner} внутри` : counts(task)}
       />
       <span className={styles.cardTitle}>{task.title}</span>
+      {where && !small && <span className={styles.cardWhere}>{where}</span>}
       {task.tags.length > 0 && !small && (
         <span className={styles.cardTags}>
           {task.tags.map((t) => (
@@ -467,6 +512,7 @@ function TaskInside({
   all,
   kids,
   inner,
+  collapse,
   knownTags,
   run,
   onOpen,
@@ -476,6 +522,7 @@ function TaskInside({
   all: TaskView[];
   kids: TaskView[];
   inner: (id: string) => number;
+  collapse: (t: TaskView) => { task: TaskView; via: string[] };
   knownTags: string[];
   run: (body: Record<string, unknown>, optimistic?: TaskView) => Promise<TaskView | null>;
   onOpen: (id: string | null) => void;
@@ -664,9 +711,18 @@ function TaskInside({
         <>
           <div className={styles.label}>Внутри</div>
           <div className={`${styles.grid} ${styles.kidsGrid}`}>
-            {kids.map((k) => (
-              <TaskCard key={k.id} task={k} inner={inner(k.id)} onOpen={(id) => onOpen(id)} />
-            ))}
+            {kids.map((k) => {
+              const c = collapse(k);
+              return (
+                <TaskCard
+                  key={k.id}
+                  task={c.task}
+                  inner={inner(c.task.id)}
+                  where={c.via.length ? c.via.join(' › ') : undefined}
+                  onOpen={(id) => onOpen(id)}
+                />
+              );
+            })}
             {addingKid ? (
               <NewTask
                 kind={addingKid}
