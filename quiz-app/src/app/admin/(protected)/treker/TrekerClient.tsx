@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TaskView } from '@/lib/tracker/data';
 import type { Period } from '@/lib/tracker/periods';
+import PhotoImport from './PhotoImport';
 import Ring from './Ring';
+import { TagChip, TagEditor } from './Tags';
 import styles from './treker.module.css';
 
 type Kind = 'quest' | 'routine';
@@ -100,9 +102,18 @@ export default function TrekerClient({
     [put],
   );
 
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const knownTags = useMemo(() => {
+    const count = new Map<string, number>();
+    tasks.filter((t) => !t.archived).forEach((t) => t.tags.forEach((g) => count.set(g, (count.get(g) ?? 0) + 1)));
+    return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [tasks]);
+  const knownTagNames = knownTags.map(([t]) => t);
+
   const active = tasks.filter((t) => !t.archived);
-  const routines = active.filter((t) => t.kind === 'routine');
-  const quests = active.filter((t) => t.kind === 'quest');
+  const shown = tagFilter ? active.filter((t) => t.tags.includes(tagFilter)) : active;
+  const routines = shown.filter((t) => t.kind === 'routine');
+  const quests = shown.filter((t) => t.kind === 'quest');
   const archived = tasks.filter((t) => t.archived);
   const current = openId ? tasks.find((t) => t.id === openId) : undefined;
 
@@ -113,6 +124,7 @@ export default function TrekerClient({
         <TaskInside
           key={current.id}
           task={current}
+          knownTags={knownTagNames}
           run={run}
           onBack={() => open(null)}
           onDeleted={() => {
@@ -135,10 +147,40 @@ export default function TrekerClient({
       </div>
       {error && <div className={styles.error}>{error}</div>}
 
+      <div className={styles.toolbar}>
+        <PhotoImport
+          knownTags={knownTagNames}
+          onCreate={async (t) => !!(await run({ action: 'createTask', ...t }))}
+        />
+      </div>
+
+      {knownTags.length > 0 && (
+        <div className={styles.filters}>
+          <button
+            type="button"
+            className={`${styles.tag} ${styles.tagAll} ${tagFilter ? '' : styles.tagOn}`}
+            onClick={() => setTagFilter(null)}
+          >
+            все <span className={styles.tagCount}>{active.length}</span>
+          </button>
+          {knownTags.map(([t, n]) => (
+            <TagChip
+              key={t}
+              tag={t}
+              count={n}
+              active={tagFilter === t}
+              onClick={() => setTagFilter(tagFilter === t ? null : t)}
+            />
+          ))}
+        </div>
+      )}
+
       <Section
         title="Регулярные"
         hint="сами сбрасываются в новый день, неделю или месяц"
         tasks={routines}
+        knownTags={knownTagNames}
+        defaultTag={tagFilter}
         kind="routine"
         adding={adding === 'routine'}
         onAdd={() => setAdding('routine')}
@@ -154,6 +196,8 @@ export default function TrekerClient({
         title="Квесты"
         hint="разовые: круг заряжается шаг за шагом"
         tasks={quests}
+        knownTags={knownTagNames}
+        defaultTag={tagFilter}
         kind="quest"
         adding={adding === 'quest'}
         onAdd={() => setAdding('quest')}
@@ -183,6 +227,8 @@ function Section({
   title,
   hint,
   tasks,
+  knownTags,
+  defaultTag,
   kind,
   adding,
   onAdd,
@@ -193,12 +239,14 @@ function Section({
   title: string;
   hint: string;
   tasks: TaskView[];
+  knownTags: string[];
+  defaultTag: string | null;
   kind: Kind;
   adding: boolean;
   onAdd: () => void;
   onCancel: () => void;
   onOpen: (id: string) => void;
-  onCreate: (body: { title: string; period?: Period; note?: string; steps: string[] }) => Promise<void>;
+  onCreate: (body: { title: string; period?: Period; note?: string; tags: string[]; steps: string[] }) => Promise<void>;
 }) {
   return (
     <section className={styles.section}>
@@ -211,7 +259,7 @@ function Section({
           <TaskCard key={t.id} task={t} onOpen={onOpen} />
         ))}
         {adding ? (
-          <NewTask kind={kind} onCancel={onCancel} onCreate={onCreate} />
+          <NewTask kind={kind} knownTags={knownTags} defaultTag={defaultTag} onCancel={onCancel} onCreate={onCreate} />
         ) : (
           <button type="button" className={styles.addCard} onClick={onAdd}>
             <span className={styles.addRing}>+</span>
@@ -234,6 +282,13 @@ function TaskCard({ task, onOpen, small }: { task: TaskView; onOpen: (id: string
         sub={small ? undefined : counts(task)}
       />
       <span className={styles.cardTitle}>{task.title}</span>
+      {task.tags.length > 0 && !small && (
+        <span className={styles.cardTags}>
+          {task.tags.map((t) => (
+            <TagChip key={t} tag={t} />
+          ))}
+        </span>
+      )}
       {task.kind === 'routine' && task.period && !small && (
         <span className={styles.cardMeta}>
           {PERIOD_NOW[task.period]}
@@ -246,16 +301,21 @@ function TaskCard({ task, onOpen, small }: { task: TaskView; onOpen: (id: string
 
 function NewTask({
   kind,
+  knownTags,
+  defaultTag,
   onCancel,
   onCreate,
 }: {
   kind: Kind;
+  knownTags: string[];
+  defaultTag: string | null;
   onCancel: () => void;
-  onCreate: (body: { title: string; period?: Period; note?: string; steps: string[] }) => Promise<void>;
+  onCreate: (body: { title: string; period?: Period; note?: string; tags: string[]; steps: string[] }) => Promise<void>;
 }) {
   const [title, setTitle] = useState('');
   const [period, setPeriod] = useState<Period>('day');
   const [note, setNote] = useState('');
+  const [tags, setTags] = useState<string[]>(defaultTag ? [defaultTag] : []);
   const [manual, setManual] = useState(false);
   const [steps, setSteps] = useState('');
   const [busy, setBusy] = useState(false);
@@ -268,6 +328,7 @@ function NewTask({
       title,
       period: kind === 'routine' ? period : undefined,
       note: note.trim() || undefined,
+      tags,
       steps: manual ? steps.split('\n').map((s) => s.trim()).filter(Boolean) : [],
     });
     setBusy(false);
@@ -304,6 +365,7 @@ function NewTask({
         value={note}
         onChange={(e) => setNote(e.target.value)}
       />
+      <TagEditor tags={tags} known={knownTags} onChange={setTags} />
       {manual ? (
         <textarea
           className={styles.textarea}
@@ -334,11 +396,13 @@ function NewTask({
 
 function TaskInside({
   task,
+  knownTags,
   run,
   onBack,
   onDeleted,
 }: {
   task: TaskView;
+  knownTags: string[];
   run: (body: Record<string, unknown>, optimistic?: TaskView) => Promise<TaskView | null>;
   onBack: () => void;
   onDeleted: () => void;
@@ -422,6 +486,11 @@ function TaskInside({
               {task.title}
             </h1>
           )}
+          <TagEditor
+            tags={task.tags}
+            known={knownTags}
+            onChange={(tags) => run({ action: 'setTags', id: task.id, tags }, { ...task, tags })}
+          />
           {nextStep && <div className={styles.next}>Следующий шаг: {nextStep.title}</div>}
           {task.kind === 'routine' && task.period && (
             <div className={styles.periods}>
