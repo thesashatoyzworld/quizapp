@@ -1679,3 +1679,14 @@ model TrackerCheck {
   @@id([taskId, stepId, periodKey])
   @@map("tracker_check")
 }
+
+/** Редактируемая блок-схема в админке (/admin/skhema). data = { nodes, edges } React Flow. version растёт на каждое сохранение. */
+model AdminBoard {
+  slug      String   @id
+  title     String
+  data      Json     @default("{}")
+  version   Int      @default(1)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("admin_board")
+}
