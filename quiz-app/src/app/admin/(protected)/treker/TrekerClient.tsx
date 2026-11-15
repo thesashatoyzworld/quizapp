@@ -660,33 +660,45 @@ function TaskInside({
         </div>
       )}
 
-      <div className={styles.label}>Внутри</div>
-      <div className={`${styles.grid} ${styles.kidsGrid}`}>
-        {kids.map((k) => (
-          <TaskCard key={k.id} task={k} inner={inner(k.id)} onOpen={(id) => onOpen(id)} />
-        ))}
-        {addingKid ? (
-          <NewTask
-            kind={addingKid}
-            knownTags={knownTags}
-            defaultTag={null}
-            onCancel={() => setAddingKid(null)}
-            onCreate={async (body) => {
-              const t = await run({ action: 'createTask', kind: addingKid, parentId: task.id, ...body });
-              if (t) setAddingKid(null);
-            }}
-          />
-        ) : (
-          <div className={styles.addKid}>
-            <button type="button" className={styles.ghost} onClick={() => setAddingKid('quest')}>
-              + квест внутрь
-            </button>
-            <button type="button" className={styles.ghost} onClick={() => setAddingKid('routine')}>
-              + регулярная внутрь
-            </button>
+      {kids.length > 0 || addingKid ? (
+        <>
+          <div className={styles.label}>Внутри</div>
+          <div className={`${styles.grid} ${styles.kidsGrid}`}>
+            {kids.map((k) => (
+              <TaskCard key={k.id} task={k} inner={inner(k.id)} onOpen={(id) => onOpen(id)} />
+            ))}
+            {addingKid ? (
+              <NewTask
+                kind={addingKid}
+                knownTags={knownTags}
+                defaultTag={null}
+                onCancel={() => setAddingKid(null)}
+                onCreate={async (body) => {
+                  const t = await run({ action: 'createTask', kind: addingKid, parentId: task.id, ...body });
+                  if (t) setAddingKid(null);
+                }}
+              />
+            ) : (
+              <div className={styles.addKid}>
+                <button type="button" className={styles.ghost} onClick={() => setAddingKid('quest')}>
+                  + квест внутрь
+                </button>
+                <button type="button" className={styles.ghost} onClick={() => setAddingKid('routine')}>
+                  + регулярная внутрь
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      ) : (
+        // У обычной задачи пустой блок «Внутри» не нужен: одна тихая строка.
+        <div className={styles.addKidInline}>
+          <button type="button" className={styles.linkBtn} onClick={() => setAddingKid('quest')}>
+            + задача внутрь
+          </button>
+          <span className={styles.hint}>круг будет заряжаться и от неё</span>
+        </div>
+      )}
 
       <div className={styles.stepsHead}>
         <div className={styles.label}>Шаги</div>
