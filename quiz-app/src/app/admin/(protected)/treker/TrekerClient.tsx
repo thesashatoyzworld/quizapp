@@ -62,8 +62,13 @@ export default function TrekerClient({
     setOpenId(id);
     const url = id ? `?t=${id}` : window.location.pathname;
     window.history.pushState(null, '', url);
-    window.scrollTo({ top: 0 });
   }, []);
+
+  // Скролл наверх после того, как экран сменился, иначе круг внутри задачи срезан.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+    document.querySelector('main')?.scrollTo({ top: 0 });
+  }, [openId]);
 
   const put = useCallback((t: TaskView) => {
     setTasks((all) => (all.some((x) => x.id === t.id) ? all.map((x) => (x.id === t.id ? t : x)) : [...all, t]));
@@ -193,7 +198,7 @@ function Section({
   onAdd: () => void;
   onCancel: () => void;
   onOpen: (id: string) => void;
-  onCreate: (body: { title: string; period?: Period; steps: string[] }) => Promise<void>;
+  onCreate: (body: { title: string; period?: Period; note?: string; steps: string[] }) => Promise<void>;
 }) {
   return (
     <section className={styles.section}>
@@ -246,10 +251,12 @@ function NewTask({
 }: {
   kind: Kind;
   onCancel: () => void;
-  onCreate: (body: { title: string; period?: Period; steps: string[] }) => Promise<void>;
+  onCreate: (body: { title: string; period?: Period; note?: string; steps: string[] }) => Promise<void>;
 }) {
   const [title, setTitle] = useState('');
   const [period, setPeriod] = useState<Period>('day');
+  const [note, setNote] = useState('');
+  const [manual, setManual] = useState(false);
   const [steps, setSteps] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -260,7 +267,8 @@ function NewTask({
     await onCreate({
       title,
       period: kind === 'routine' ? period : undefined,
-      steps: steps.split('\n').map((s) => s.trim()).filter(Boolean),
+      note: note.trim() || undefined,
+      steps: manual ? steps.split('\n').map((s) => s.trim()).filter(Boolean) : [],
     });
     setBusy(false);
   }
@@ -291,14 +299,30 @@ function NewTask({
       )}
       <textarea
         className={styles.textarea}
-        rows={4}
-        placeholder={'Шаги, по одному на строку.\nМожно оставить пустым и добавить потом.'}
-        value={steps}
-        onChange={(e) => setSteps(e.target.value)}
+        rows={2}
+        placeholder="Пара слов контекста, если надо (для кого, к какому сроку, что уже есть)"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
       />
+      {manual ? (
+        <textarea
+          className={styles.textarea}
+          rows={4}
+          placeholder="Шаги, по одному на строку"
+          value={steps}
+          onChange={(e) => setSteps(e.target.value)}
+        />
+      ) : (
+        <div className={styles.hint}>
+          Шаги разложит нейронка, потом их можно поправить.{' '}
+          <button type="button" className={styles.linkBtn} onClick={() => setManual(true)}>
+            Вписать самому
+          </button>
+        </div>
+      )}
       <div className={styles.formRow}>
         <button type="submit" className={styles.primary} disabled={!title.trim() || busy}>
-          {busy ? 'Создаю…' : 'Создать'}
+          {busy ? (manual ? 'Создаю…' : 'Раскладываю на шаги…') : 'Создать'}
         </button>
         <button type="button" className={styles.ghost} onClick={onCancel}>
           Отмена
@@ -325,6 +349,16 @@ function TaskInside({
   const stepInput = useRef<HTMLInputElement>(null);
   const full = task.progress >= 1;
   const doneCount = task.steps.filter((s) => s.done).length;
+
+  const [thinking, setThinking] = useState(false);
+
+  async function suggest() {
+    const undone = task.steps.filter((s) => !s.done).length;
+    if (undone && !window.confirm(`Заменить ${undone} несделанных шагов новыми? Сделанные останутся.`)) return;
+    setThinking(true);
+    await run({ action: 'suggestSteps', id: task.id });
+    setThinking(false);
+  }
 
   const nextStep = useMemo(() => task.steps.find((s) => !s.done), [task.steps]);
 
@@ -420,7 +454,12 @@ function TaskInside({
         </div>
       )}
 
-      <div className={styles.label}>Шаги</div>
+      <div className={styles.stepsHead}>
+        <div className={styles.label}>Шаги</div>
+        <button type="button" className={styles.aiBtn} onClick={suggest} disabled={thinking}>
+          {thinking ? 'Раскладываю…' : task.steps.length ? '✨ Пересобрать несделанные' : '✨ Разбить на шаги'}
+        </button>
+      </div>
       {task.steps.length === 0 && (
         <button
           type="button"
