@@ -1057,3 +1057,10 @@ button.tag:hover {
 .checkOn .checkDot {
   transform: scale(0.62);
 }
+
+.aiBtns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}

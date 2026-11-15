@@ -7,7 +7,7 @@ import { splitIntoSteps, splitOneStep } from './split';
 export type TrackerAction =
   | { action: 'createTask'; kind: 'quest' | 'routine'; title: string; period?: Period; note?: string; tags?: string[]; steps?: string[]; auto?: boolean }
   | { action: 'setTags'; id: string; tags: string[] }
-  | { action: 'suggestSteps'; id: string }
+  | { action: 'suggestSteps'; id: string; coarser?: boolean }
   | { action: 'splitStep'; id: string }
   | { action: 'updateTask'; id: string; title?: string; note?: string | null; period?: Period }
   | { action: 'archiveTask'; id: string; archived: boolean }
@@ -113,6 +113,7 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
         period: t.period as Period | null,
         done: done.map((s) => s.title),
         plan: t.steps.filter((s) => !doneIds.has(s.id)).map((s) => s.title),
+        coarser: a.coarser === true,
       });
       if (!fresh.length) throw new BadInput('нейронка не предложила шагов, попробуй ещё раз');
       // Пачкой, а не по шагу: 20+ отдельных запросов не влезают в лимит транзакции.

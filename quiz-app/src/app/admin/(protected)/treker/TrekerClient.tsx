@@ -415,14 +415,17 @@ function TaskInside({
   const full = task.progress >= 1;
   const doneCount = task.steps.filter((s) => s.done).length;
 
-  const [thinking, setThinking] = useState(false);
+  const [thinking, setThinking] = useState<'finer' | 'coarser' | null>(null);
 
-  async function suggest() {
+  async function suggest(coarser = false) {
     const undone = task.steps.filter((s) => !s.done).length;
-    if (undone && !window.confirm(`Раздробить ${undone} несделанных шагов мельче? Сделанные останутся.`)) return;
-    setThinking(true);
-    await run({ action: 'suggestSteps', id: task.id });
-    setThinking(false);
+    const q = coarser
+      ? `Укрупнить ${undone} несделанных шагов: склеить мелкие технические в соседние? Сделанные останутся.`
+      : `Раздробить ${undone} несделанных шагов мельче? Сделанные останутся.`;
+    if (undone && !window.confirm(q)) return;
+    setThinking(coarser ? 'coarser' : 'finer');
+    await run({ action: 'suggestSteps', id: task.id, coarser });
+    setThinking(null);
   }
 
   const nextStep = useMemo(() => task.steps.find((s) => !s.done), [task.steps]);
@@ -526,9 +529,16 @@ function TaskInside({
 
       <div className={styles.stepsHead}>
         <div className={styles.label}>Шаги</div>
-        <button type="button" className={styles.aiBtn} onClick={suggest} disabled={thinking}>
-          {thinking ? 'Раскладываю…' : task.steps.length ? '✨ Раздробить мельче' : '✨ Разбить на шаги'}
-        </button>
+        <span className={styles.aiBtns}>
+          {task.steps.filter((s) => !s.done).length > 1 && (
+            <button type="button" className={styles.aiBtn} onClick={() => suggest(true)} disabled={!!thinking}>
+              {thinking === 'coarser' ? 'Склеиваю…' : 'Укрупнить'}
+            </button>
+          )}
+          <button type="button" className={styles.aiBtn} onClick={() => suggest(false)} disabled={!!thinking}>
+            {thinking === 'finer' ? 'Раскладываю…' : task.steps.length ? '✨ Раздробить мельче' : '✨ Разбить на шаги'}
+          </button>
+        </span>
       </div>
       {task.steps.length === 0 && (
         <button
