@@ -7,6 +7,7 @@ import styles from './admin-shell.module.css';
 // Пользователи, Оплаты, Рассылки, all leftovers of the archived quiz bot.
 const NAV_LINKS = [
   { href: '/admin/shtab', label: 'Штаб' },
+  { href: '/admin/treker', label: 'Трекер' },
   { href: '/admin/idei', label: 'Идеи' },
   { href: '/admin/roadmaps', label: 'Карты клиентов' },
   { href: '/admin/reels', label: 'Ролики' },
