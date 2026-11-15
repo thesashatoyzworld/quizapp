@@ -626,15 +626,21 @@ function StepList({
       heights: rects.map((r) => r.height),
       gap: rects.length > 1 ? rects[1].top - rects[0].bottom : 6,
     });
-    e.currentTarget.setPointerCapture(e.pointerId);
-    if (onHandle) e.preventDefault();
+    // Захват только у ручки: на строке он ломал бы клик по тексту (правка шага).
+    if (onHandle) {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    }
   }
 
   function onPointerMove(e: React.PointerEvent) {
     if (!drag || e.pointerId !== drag.pointerId) return;
     const dy = e.clientY - drag.startY;
     const active = drag.active || Math.abs(dy) > DRAG_THRESHOLD;
-    if (active && !drag.active) window.getSelection()?.removeAllRanges();
+    if (active && !drag.active) {
+      window.getSelection()?.removeAllRanges();
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
     setDrag({ ...drag, dy, active });
   }
 
@@ -642,6 +648,7 @@ function StepList({
     if (!drag || e.pointerId !== drag.pointerId) return;
     if (drag.active) {
       justDragged.current = true;
+      setTimeout(() => (justDragged.current = false), 0);
       const ids = dragOrder(steps, drag);
       // Без анимации на кадр смены порядка, иначе строки прыгают из старых мест.
       setSettling(true);
