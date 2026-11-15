@@ -822,3 +822,238 @@
   color: #d7b8ff;
   cursor: progress;
 }
+
+/* ---------- метки ---------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.tag {
+  --tag: var(--neon-cyan);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--tag) 35%, transparent);
+  background: color-mix(in srgb, var(--tag) 8%, transparent);
+  color: color-mix(in srgb, var(--tag) 80%, white);
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+button.tag {
+  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+button.tag:hover {
+  border-color: color-mix(in srgb, var(--tag) 70%, transparent);
+}
+
+.tagOn {
+  background: color-mix(in srgb, var(--tag) 22%, transparent);
+  border-color: var(--tag);
+  color: #fff;
+}
+
+.tagAll {
+  --tag: rgba(255, 255, 255, 0.7);
+}
+
+.tagDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tag);
+}
+
+.tagCount {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tagX {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 0 0 0 2px;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.tagX:hover {
+  opacity: 1;
+}
+
+.cardTags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: -2px;
+}
+
+.tagEditor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tagInput {
+  width: 110px;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 16px;
+  padding: 3px 10px;
+}
+
+.tagInput:focus {
+  outline: none;
+  border-color: rgba(0, 240, 255, 0.55);
+  border-style: solid;
+}
+
+/* ---------- фото тетрадки ---------- */
+
+.toolbar {
+  margin-bottom: 18px;
+}
+
+.photoBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  color: var(--neon-cyan);
+  border-radius: 12px;
+  padding: 10px 16px;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.photoBtn:hover {
+  background: rgba(0, 240, 255, 0.14);
+}
+
+.photoPanel {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 760px;
+}
+
+.photoHead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.photoThumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.photoTitle {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.foundList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.found {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--bg-primary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.found .check {
+  margin-top: 6px;
+}
+
+.foundOff {
+  opacity: 0.45;
+}
+
+.foundBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.foundTitle {
+  padding: 7px 10px;
+}
+
+.foundMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.select {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.foundNote {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: pre-line;
+}
+
+.foundExisting {
+  font-size: 0.78rem;
+  color: var(--xp-gold);
+}
+
+.checkOn {
+  border-color: var(--success);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+}
+
+.checkOn .checkDot {
+  transform: scale(0.62);
+}

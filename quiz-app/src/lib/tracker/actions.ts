@@ -5,7 +5,8 @@ import { PERIODS, periodKey, type Period } from './periods';
 import { splitIntoSteps, splitOneStep } from './split';
 
 export type TrackerAction =
-  | { action: 'createTask'; kind: 'quest' | 'routine'; title: string; period?: Period; note?: string; steps?: string[]; auto?: boolean }
+  | { action: 'createTask'; kind: 'quest' | 'routine'; title: string; period?: Period; note?: string; tags?: string[]; steps?: string[]; auto?: boolean }
+  | { action: 'setTags'; id: string; tags: string[] }
   | { action: 'suggestSteps'; id: string }
   | { action: 'splitStep'; id: string }
   | { action: 'updateTask'; id: string; title?: string; note?: string | null; period?: Period }
@@ -26,6 +27,17 @@ function clean(s: unknown, max = 300): string {
   if (!v) throw new BadInput('пустой текст');
   if (v.length > max) throw new BadInput(`длиннее ${max} символов`);
   return v;
+}
+
+/** Метки: в нижнем регистре, без решётки, без повторов, до 8 штук по 24 символа. */
+export function cleanTags(t: unknown): string[] {
+  if (!Array.isArray(t)) return [];
+  const out: string[] = [];
+  for (const raw of t) {
+    const v = String(raw ?? '').trim().replace(/^#+/, '').toLowerCase().slice(0, 24);
+    if (v && !out.includes(v)) out.push(v);
+  }
+  return out.slice(0, 8);
 }
 
 function period(p: unknown): Period {
@@ -72,6 +84,7 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
           kind,
           title,
           note,
+          tags: cleanTags(a.tags),
           period: p,
           position: (max._max.position ?? -1) + 1,
           steps: { create: steps.map((t, i) => ({ id: randomUUID(), title: clean(t), position: i })) },
@@ -135,6 +148,9 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
       ]);
       return getTask(t.id);
     }
+    case 'setTags':
+      await prisma.trackerTask.update({ where: { id: a.id }, data: { tags: cleanTags(a.tags) } });
+      return getTask(a.id);
     case 'archiveTask':
       await prisma.trackerTask.update({
         where: { id: a.id },
