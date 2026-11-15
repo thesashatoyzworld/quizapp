@@ -5,7 +5,7 @@
    подтягиваются опросом раз в 4 секунды. */
 
 import '@xyflow/react/dist/style.css';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   addEdge,
   Background,
@@ -30,7 +30,10 @@ import type { BoardListItem, BoardView } from '@/lib/board/data';
 import styles from './skhema.module.css';
 
 type Kind = 'step' | 'goal' | 'decision' | 'input' | 'note';
-type StepData = { label: string; kind: Kind; editing?: boolean };
+type StepData = { label: string; kind: Kind; editing?: boolean; link?: string };
+
+/** Открыть схему, на которую ссылается блок, и названия схем для подписи. */
+const LinkCtx = createContext<{ open: (slug: string) => void; titles: Record<string, string> }>({ open: () => {}, titles: {} });
 type StepNode = Node<StepData, 'step'>;
 
 const KINDS: { kind: Kind; label: string }[] = [
@@ -83,8 +86,21 @@ function LabelEditor({ id, label }: { id: string; label: string }) {
 }
 
 function StepNodeView({ id, data, selected }: NodeProps<StepNode>) {
+  const { open, titles } = useContext(LinkCtx);
   return (
-    <div className={`${styles.node} ${styles[`k_${data.kind}`] ?? ''}`}>
+    <div className={`${styles.node} ${styles[`k_${data.kind}`] ?? ''} ${data.link ? styles.linked : ''}`}>
+      {data.link && (
+        <button
+          className={`${styles.linkBadge} nodrag`}
+          title={`Открыть схему «${titles[data.link] ?? data.link}»`}
+          onClick={(e) => {
+            e.stopPropagation();
+            open(data.link!);
+          }}
+        >
+          ↗ {titles[data.link] ?? 'открыть'}
+        </button>
+      )}
       <NodeResizer isVisible={selected} minWidth={120} minHeight={44} lineClassName={styles.resizeLine} handleClassName={styles.resizeHandle} />
       {(['top', 'right', 'bottom', 'left'] as const).map((p) => (
         <Handle key={p} id={p} type="source" position={Position[(p[0].toUpperCase() + p.slice(1)) as 'Top']} className={styles.handle} />
@@ -108,7 +124,11 @@ function serialize(nodes: Node[], edges: Edge[]): Saved {
       position: { x: Math.round(n.position.x), y: Math.round(n.position.y) },
       ...(n.width ? { width: Math.round(n.width) } : {}),
       ...(n.height ? { height: Math.round(n.height) } : {}),
-      data: { label: (n.data as StepData).label ?? '', kind: (n.data as StepData).kind ?? 'step' },
+      data: {
+        label: (n.data as StepData).label ?? '',
+        kind: (n.data as StepData).kind ?? 'step',
+        ...((n.data as StepData).link ? { link: (n.data as StepData).link } : {}),
+      },
     })),
     edges: edges.map((e) => ({
       id: e.id,
@@ -232,6 +252,7 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
       setBoard(b);
       setConflict(null);
       setStatus('saved');
+      setWalk(null);
     },
     [setNodes, setEdges],
   );
@@ -322,13 +343,43 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
   const setKind = (kind: Kind) => setNodes((ns) => ns.map((n) => (n.selected ? { ...n, data: { ...n.data, kind } } : n)));
   const selectedNodes = nodes.filter((n) => n.selected);
 
-  const openBoard = async (slug: string) => {
+  // путь «откуда пришли»: Пайплайн каруселей › Музей идей
+  const [trail, setTrail] = useState<{ slug: string; title: string }[]>([]);
+  const titles = useMemo(() => Object.fromEntries(boards.map((b) => [b.slug, b.title])), [boards]);
+
+  const openBoard = async (slug: string, how: 'jump' | 'enter' | 'up' = 'jump') => {
     if (dirty) await save();
     const res = await fetch(`/api/admin/board?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' });
     if (!res.ok) return;
+    const from = board;
     load((await res.json()).board);
+    if (how === 'jump') setTrail([]);
+    if (how === 'enter' && from) setTrail((t) => [...t, { slug: from.slug, title: from.title }]);
+    if (how === 'up') setTrail((t) => t.slice(0, Math.max(0, t.findIndex((x) => x.slug === slug))));
     window.history.replaceState(null, '', `?b=${slug}`);
-    requestAnimationFrame(() => fitView({ padding: 0.2 }));
+    setTimeout(() => fitView({ padding: 0.2 }), 50);
+  };
+
+  const openRef = useRef(openBoard);
+  useEffect(() => {
+    openRef.current = openBoard;
+  });
+  const linkCtx = useMemo(() => ({ open: (slug: string) => openRef.current(slug, 'enter'), titles }), [titles]);
+
+  const setLink = async (value: string) => {
+    const target = selectedNodes[0];
+    if (!target) return;
+    let link: string | undefined = value || undefined;
+    if (value === '__new') {
+      const title = window.prompt('Название схемы внутри блока', (target.data as StepData).label.slice(0, 60));
+      if (!title?.trim()) return;
+      const res = await fetch('/api/admin/board', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', title }) });
+      if (!res.ok) return;
+      const { board: b } = (await res.json()) as { board: BoardView };
+      setBoards((bs) => [...bs, { slug: b.slug, title: b.title, updatedAt: b.updatedAt }]);
+      link = b.slug;
+    }
+    setNodes((ns) => ns.map((n) => (n.id === target.id ? { ...n, data: { ...n.data, link } } : n)));
   };
 
   const newBoard = async () => {
@@ -361,7 +412,7 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
   return (
     <div className={styles.wrap}>
       <div className={styles.bar}>
-        <select className={styles.select} value={board.slug} onChange={(e) => openBoard(e.target.value)}>
+        <select className={styles.select} value={board.slug} onChange={(e) => openBoard(e.target.value, 'jump')}>
           {boards.map((b) => (
             <option key={b.slug} value={b.slug}>
               {b.title}
@@ -390,10 +441,40 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
             {KINDS.map((k) => (
               <button key={k.kind} title={k.label} className={`${styles.dot} ${styles[`a_${k.kind}`]}`} onClick={() => setKind(k.kind)} />
             ))}
+            {selectedNodes.length === 1 && (
+              <>
+                <span className={styles.muted}>внутри:</span>
+                <select className={styles.selectSmall} value={(selectedNodes[0].data as StepData).link ?? ''} onChange={(e) => setLink(e.target.value)}>
+                  <option value="">нет</option>
+                  {boards
+                    .filter((b) => b.slug !== board.slug)
+                    .map((b) => (
+                      <option key={b.slug} value={b.slug}>
+                        {b.title}
+                      </option>
+                    ))}
+                  <option value="__new">+ новая схема</option>
+                </select>
+              </>
+            )}
           </>
         )}
         <span className={`${styles.status} ${styles[`s_${status}`]}`}>{statusText[status]}</span>
       </div>
+
+      {trail.length > 0 && (
+        <div className={styles.trail}>
+          {trail.map((t) => (
+            <span key={t.slug}>
+              <button className={styles.trailLink} onClick={() => openBoard(t.slug, 'up')}>
+                {t.title}
+              </button>
+              <span className={styles.trailSep}>›</span>
+            </span>
+          ))}
+          <b>{board.title}</b>
+        </div>
+      )}
 
       {conflict && (
         <div className={styles.conflict}>
@@ -405,6 +486,7 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
 
       <div className={styles.row}>
       <div className={styles.canvas}>
+        <LinkCtx.Provider value={linkCtx}>
         <ReactFlow
           nodes={shownNodes}
           edges={shownEdges}
@@ -437,6 +519,7 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
           <Controls showInteractive={false} />
           {!walk && <MiniMap pannable zoomable className={styles.minimap} />}
         </ReactFlow>
+        </LinkCtx.Provider>
       </div>
         {walk && current && (
           <div className={styles.walkPanel}>
@@ -445,12 +528,24 @@ function Canvas({ boards: initialBoards, initial }: { boards: BoardListItem[]; i
             {inputsOf(current).length > 0 && (
               <div className={styles.walkInputs}>
                 <span>на входе:</span>
-                {inputsOf(current).map((id) => (
-                  <span key={id} className={styles.walkChip}>{labelOf(id)}</span>
-                ))}
+                {inputsOf(current).map((id) => {
+                  const link = (nodes.find((n) => n.id === id)?.data as StepData | undefined)?.link;
+                  return link ? (
+                    <button key={id} className={`${styles.walkChip} ${styles.walkChipLink}`} onClick={() => openBoard(link, 'enter')}>
+                      ↗ {labelOf(id)}
+                    </button>
+                  ) : (
+                    <span key={id} className={styles.walkChip}>{labelOf(id)}</span>
+                  );
+                })}
               </div>
             )}
             <div className={styles.walkActions}>
+              {(nodes.find((n) => n.id === current)?.data as StepData | undefined)?.link && (
+                <button className={styles.walkEnter} onClick={() => openBoard((nodes.find((n) => n.id === current)!.data as StepData).link!, 'enter')}>
+                  ↗ зайти внутрь: {titles[(nodes.find((n) => n.id === current)!.data as StepData).link!] ?? 'схема'}
+                </button>
+              )}
               <button className={styles.btnGhost} onClick={back} disabled={walk.length < 2}>← назад</button>
               {exits.length === 0 && <span className={styles.muted}>конец схемы</span>}
               {exits.map((e) => (
