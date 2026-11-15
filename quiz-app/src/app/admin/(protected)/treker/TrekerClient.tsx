@@ -62,8 +62,13 @@ export default function TrekerClient({
     setOpenId(id);
     const url = id ? `?t=${id}` : window.location.pathname;
     window.history.pushState(null, '', url);
-    window.scrollTo({ top: 0 });
   }, []);
+
+  // Скролл наверх после того, как экран сменился, иначе круг внутри задачи срезан.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+    document.querySelector('main')?.scrollTo({ top: 0 });
+  }, [openId]);
 
   const put = useCallback((t: TaskView) => {
     setTasks((all) => (all.some((x) => x.id === t.id) ? all.map((x) => (x.id === t.id ? t : x)) : [...all, t]));
