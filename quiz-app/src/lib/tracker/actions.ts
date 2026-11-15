@@ -102,12 +102,13 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
         plan: t.steps.filter((s) => !doneIds.has(s.id)).map((s) => s.title),
       });
       if (!fresh.length) throw new BadInput('нейронка не предложила шагов, попробуй ещё раз');
+      // Пачкой, а не по шагу: 20+ отдельных запросов не влезают в лимит транзакции.
       await prisma.$transaction([
         prisma.trackerStep.deleteMany({ where: { taskId: t.id, id: { notIn: done.map((s) => s.id) } } }),
         ...done.map((s, i) => prisma.trackerStep.update({ where: { id: s.id }, data: { position: i } })),
-        ...fresh.map((title, i) =>
-          prisma.trackerStep.create({ data: { id: randomUUID(), taskId: t.id, title, position: done.length + i } }),
-        ),
+        prisma.trackerStep.createMany({
+          data: fresh.map((title, i) => ({ id: randomUUID(), taskId: t.id, title, position: done.length + i })),
+        }),
       ]);
       return getTask(t.id);
     }
@@ -120,20 +121,17 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
       });
       const parts = await splitOneStep({ task: t.title, step: step.title, around: t.steps.map((s) => s.title) });
       if (parts.length < 2) throw new BadInput('нейронка не смогла раздробить шаг, попробуй ещё раз');
-      const at = t.steps.findIndex((s) => s.id === step.id);
-      const order: ({ id: string } | { title: string })[] = [
-        ...t.steps.slice(0, at),
-        ...parts.map((title) => ({ title })),
-        ...t.steps.slice(at + 1),
-      ];
+      // Подшаги встают на место шага, всё ниже сдвигается одним запросом.
       await prisma.$transaction([
         prisma.trackerCheck.deleteMany({ where: { taskId: t.id, stepId: step.id } }),
         prisma.trackerStep.delete({ where: { id: step.id } }),
-        ...order.map((x, position) =>
-          'id' in x
-            ? prisma.trackerStep.update({ where: { id: x.id }, data: { position } })
-            : prisma.trackerStep.create({ data: { id: randomUUID(), taskId: t.id, title: x.title, position } }),
-        ),
+        prisma.trackerStep.updateMany({
+          where: { taskId: t.id, position: { gt: step.position } },
+          data: { position: { increment: parts.length - 1 } },
+        }),
+        prisma.trackerStep.createMany({
+          data: parts.map((title, i) => ({ id: randomUUID(), taskId: t.id, title, position: step.position + i })),
+        }),
       ]);
       return getTask(t.id);
     }
@@ -187,7 +185,11 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
       const have = new Set(steps.map((x) => x.id));
       const ids = Array.isArray(a.ids) ? a.ids.map(String) : [];
       if (ids.length !== have.size || !ids.every((id) => have.has(id))) throw new BadInput('список шагов устарел, обнови страницу');
-      await prisma.$transaction(ids.map((id, position) => prisma.trackerStep.update({ where: { id }, data: { position } })));
+      // Один UPDATE на весь список: по шагу на запрос с длинным списком не влезает в лимит транзакции.
+      await prisma.$executeRaw`
+        UPDATE tracker_step AS s SET position = v.pos
+        FROM unnest(${ids}::text[], ${ids.map((_, i) => i)}::int[]) AS v(id, pos)
+        WHERE s.id = v.id AND s.task_id = ${a.taskId}`;
       return getTask(a.taskId);
     }
     case 'toggle': {
