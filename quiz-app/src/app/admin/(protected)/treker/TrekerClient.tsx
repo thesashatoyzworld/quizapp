@@ -83,7 +83,8 @@ export default function TrekerClient({
   const run = useCallback(
     async (body: Record<string, unknown>, optimistic?: TaskView) => {
       setError(null);
-      const key = String(optimistic?.id ?? body.taskId ?? body.id ?? 'new');
+      // Новые задачи без id: у каждой свой ключ, иначе параллельные создания (фото тетрадки) глушат друг друга.
+      const key = String(optimistic?.id ?? body.taskId ?? body.id ?? `new-${Math.random()}`);
       const mine = (seq.current[key] = (seq.current[key] ?? 0) + 1);
       if (optimistic) put(optimistic);
       try {
