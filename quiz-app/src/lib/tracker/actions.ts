@@ -2,9 +2,11 @@ import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { getTask, type TaskView } from './data';
 import { PERIODS, periodKey, type Period } from './periods';
+import { splitIntoSteps } from './split';
 
 export type TrackerAction =
-  | { action: 'createTask'; kind: 'quest' | 'routine'; title: string; period?: Period; steps?: string[] }
+  | { action: 'createTask'; kind: 'quest' | 'routine'; title: string; period?: Period; note?: string; steps?: string[]; auto?: boolean }
+  | { action: 'suggestSteps'; id: string }
   | { action: 'updateTask'; id: string; title?: string; note?: string | null; period?: Period }
   | { action: 'archiveTask'; id: string; archived: boolean }
   | { action: 'deleteTask'; id: string }
@@ -51,13 +53,24 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
       const kind = a.kind === 'routine' ? 'routine' : 'quest';
       const id = randomUUID();
       const max = await prisma.trackerTask.aggregate({ where: { kind }, _max: { position: true } });
-      const steps = (a.steps ?? []).map((s) => String(s).trim()).filter(Boolean).slice(0, 50);
+      const title = clean(a.title, 200);
+      const p = kind === 'routine' ? period(a.period ?? 'day') : null;
+      const note = a.note ? String(a.note).trim().slice(0, 4000) || null : null;
+      let steps = (a.steps ?? []).map((s) => String(s).trim()).filter(Boolean).slice(0, 50);
+      // Шаги не вписаны руками: раскладывает нейронка. Не вышло = задача без шагов, не ошибка.
+      if (!steps.length && a.auto !== false) {
+        steps = await splitIntoSteps({ title, note, kind, period: p }).catch((e) => {
+          console.error('[Tracker split]', e);
+          return [];
+        });
+      }
       await prisma.trackerTask.create({
         data: {
           id,
           kind,
-          title: clean(a.title, 200),
-          period: kind === 'routine' ? period(a.period ?? 'day') : null,
+          title,
+          note,
+          period: p,
           position: (max._max.position ?? -1) + 1,
           steps: { create: steps.map((t, i) => ({ id: randomUUID(), title: clean(t), position: i })) },
         },
@@ -71,6 +84,29 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
       if (a.period !== undefined) data.period = period(a.period);
       await prisma.trackerTask.update({ where: { id: a.id }, data });
       return getTask(a.id);
+    }
+    case 'suggestSteps': {
+      // Пересобрать: сделанные шаги остаются, несделанные заменяются новыми.
+      const t = await prisma.trackerTask.findUniqueOrThrow({ where: { id: a.id }, include: { steps: { orderBy: { position: 'asc' } }, checks: true } });
+      const key = periodKey(t.kind === 'routine' ? (t.period as Period) : null);
+      const doneIds = new Set(t.checks.filter((c) => c.periodKey === key).map((c) => c.stepId));
+      const done = t.steps.filter((s) => doneIds.has(s.id));
+      const fresh = await splitIntoSteps({
+        title: t.title,
+        note: t.note,
+        kind: t.kind === 'routine' ? 'routine' : 'quest',
+        period: t.period as Period | null,
+        done: done.map((s) => s.title),
+      });
+      if (!fresh.length) throw new BadInput('нейронка не предложила шагов, попробуй ещё раз');
+      await prisma.$transaction([
+        prisma.trackerStep.deleteMany({ where: { taskId: t.id, id: { notIn: done.map((s) => s.id) } } }),
+        ...done.map((s, i) => prisma.trackerStep.update({ where: { id: s.id }, data: { position: i } })),
+        ...fresh.map((title, i) =>
+          prisma.trackerStep.create({ data: { id: randomUUID(), taskId: t.id, title, position: done.length + i } }),
+        ),
+      ]);
+      return getTask(t.id);
     }
     case 'archiveTask':
       await prisma.trackerTask.update({

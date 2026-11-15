@@ -4,6 +4,8 @@ import { BadInput, runAction, type TrackerAction } from '@/lib/tracker/actions';
 import { listTasks } from '@/lib/tracker/data';
 
 export const dynamic = 'force-dynamic';
+// Разбивка на шаги нейронкой идёт до 20-30 с.
+export const maxDuration = 60;
 
 export async function GET() {
   if (!(await getAdminSession())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
