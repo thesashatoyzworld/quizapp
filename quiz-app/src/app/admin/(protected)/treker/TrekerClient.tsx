@@ -1,0 +1,566 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { TaskView } from '@/lib/tracker/data';
+import type { Period } from '@/lib/tracker/periods';
+import Ring from './Ring';
+import styles from './treker.module.css';
+
+type Kind = 'quest' | 'routine';
+
+const PERIOD_LABEL: Record<Period, string> = { day: 'каждый день', week: 'каждую неделю', month: 'каждый месяц' };
+const PERIOD_NOW: Record<Period, string> = { day: 'сегодня', week: 'эта неделя', month: 'этот месяц' };
+
+async function call(body: Record<string, unknown>): Promise<TaskView | null> {
+  const res = await fetch('/api/admin/tracker', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `ошибка ${res.status}`);
+  return json.task ?? null;
+}
+
+function pct(p: number) {
+  return `${Math.round(p * 100)}%`;
+}
+
+function counts(t: TaskView) {
+  if (t.steps.length === 0) return t.doneWhole ? 'готово' : 'без шагов';
+  return `${t.steps.filter((s) => s.done).length}/${t.steps.length}`;
+}
+
+function recompute(t: TaskView): TaskView {
+  const progress = t.steps.length ? t.steps.filter((s) => s.done).length / t.steps.length : t.doneWhole ? 1 : 0;
+  const history = t.history.length
+    ? [...t.history.slice(0, -1), { ...t.history[t.history.length - 1], progress }]
+    : t.history;
+  return { ...t, progress, history };
+}
+
+export default function TrekerClient({
+  initialTasks,
+  initialOpen,
+}: {
+  initialTasks: TaskView[];
+  initialOpen: string | null;
+}) {
+  const [tasks, setTasks] = useState(initialTasks);
+  const [openId, setOpenId] = useState<string | null>(initialOpen);
+  const [adding, setAdding] = useState<Kind | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Кнопка «назад» на телефоне закрывает задачу, а не уходит из раздела.
+  useEffect(() => {
+    const onPop = () => setOpenId(new URLSearchParams(window.location.search).get('t'));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const open = useCallback((id: string | null) => {
+    setOpenId(id);
+    const url = id ? `?t=${id}` : window.location.pathname;
+    window.history.pushState(null, '', url);
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  const put = useCallback((t: TaskView) => {
+    setTasks((all) => (all.some((x) => x.id === t.id) ? all.map((x) => (x.id === t.id ? t : x)) : [...all, t]));
+  }, []);
+
+  const run = useCallback(
+    async (body: Record<string, unknown>, optimistic?: TaskView) => {
+      setError(null);
+      const before = tasks;
+      if (optimistic) put(optimistic);
+      try {
+        const t = await call(body);
+        if (t) put(t);
+        return t;
+      } catch (e) {
+        setTasks(before);
+        setError(e instanceof Error ? e.message : String(e));
+        return null;
+      }
+    },
+    [put, tasks],
+  );
+
+  const active = tasks.filter((t) => !t.archived);
+  const routines = active.filter((t) => t.kind === 'routine');
+  const quests = active.filter((t) => t.kind === 'quest');
+  const archived = tasks.filter((t) => t.archived);
+  const current = openId ? tasks.find((t) => t.id === openId) : undefined;
+
+  if (current) {
+    return (
+      <div className={styles.page}>
+        {error && <div className={styles.error}>{error}</div>}
+        <TaskInside
+          key={current.id}
+          task={current}
+          run={run}
+          onBack={() => open(null)}
+          onDeleted={() => {
+            setTasks((all) => all.filter((x) => x.id !== current.id));
+            open(null);
+          }}
+        />
+      </div>
+    );
+  }
+
+  const routinesDone = routines.filter((t) => t.progress >= 1).length;
+  const questsLeft = quests.filter((t) => t.progress < 1).length;
+
+  return (
+    <div className={styles.page}>
+      <h1 className={styles.h1}>ТРЕКЕР</h1>
+      <div className={styles.sub}>
+        Регулярные: {routinesDone}/{routines.length} заряжено · квестов в работе: {questsLeft}
+      </div>
+      {error && <div className={styles.error}>{error}</div>}
+
+      <Section
+        title="Регулярные"
+        hint="сами сбрасываются в новый день, неделю или месяц"
+        tasks={routines}
+        kind="routine"
+        adding={adding === 'routine'}
+        onAdd={() => setAdding('routine')}
+        onCancel={() => setAdding(null)}
+        onOpen={open}
+        onCreate={async (body) => {
+          const t = await run({ action: 'createTask', kind: 'routine', ...body });
+          if (t) setAdding(null);
+        }}
+      />
+
+      <Section
+        title="Квесты"
+        hint="разовые: круг заряжается шаг за шагом"
+        tasks={quests}
+        kind="quest"
+        adding={adding === 'quest'}
+        onAdd={() => setAdding('quest')}
+        onCancel={() => setAdding(null)}
+        onOpen={open}
+        onCreate={async (body) => {
+          const t = await run({ action: 'createTask', kind: 'quest', ...body });
+          if (t) setAdding(null);
+        }}
+      />
+
+      {archived.length > 0 && (
+        <details className={styles.archive}>
+          <summary className={styles.archiveSummary}>Архив · {archived.length}</summary>
+          <div className={styles.grid}>
+            {archived.map((t) => (
+              <TaskCard key={t.id} task={t} onOpen={open} small />
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function Section({
+  title,
+  hint,
+  tasks,
+  kind,
+  adding,
+  onAdd,
+  onCancel,
+  onOpen,
+  onCreate,
+}: {
+  title: string;
+  hint: string;
+  tasks: TaskView[];
+  kind: Kind;
+  adding: boolean;
+  onAdd: () => void;
+  onCancel: () => void;
+  onOpen: (id: string) => void;
+  onCreate: (body: { title: string; period?: Period; steps: string[] }) => Promise<void>;
+}) {
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHead}>
+        <h2 className={styles.h2}>{title}</h2>
+        <span className={styles.hint}>{hint}</span>
+      </div>
+      <div className={styles.grid}>
+        {tasks.map((t) => (
+          <TaskCard key={t.id} task={t} onOpen={onOpen} />
+        ))}
+        {adding ? (
+          <NewTask kind={kind} onCancel={onCancel} onCreate={onCreate} />
+        ) : (
+          <button type="button" className={styles.addCard} onClick={onAdd}>
+            <span className={styles.addRing}>+</span>
+            <span className={styles.cardTitle}>{kind === 'quest' ? 'Новый квест' : 'Новая регулярная'}</span>
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TaskCard({ task, onOpen, small }: { task: TaskView; onOpen: (id: string) => void; small?: boolean }) {
+  const full = task.progress >= 1;
+  return (
+    <button type="button" className={styles.card} onClick={() => onOpen(task.id)}>
+      <Ring
+        progress={task.progress}
+        size={small ? 72 : 112}
+        label={full ? '✓' : pct(task.progress)}
+        sub={small ? undefined : counts(task)}
+      />
+      <span className={styles.cardTitle}>{task.title}</span>
+      {task.kind === 'routine' && task.period && !small && (
+        <span className={styles.cardMeta}>
+          {PERIOD_NOW[task.period]}
+          {!full && task.timeLeft ? ` · ещё ${task.timeLeft}` : ''}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function NewTask({
+  kind,
+  onCancel,
+  onCreate,
+}: {
+  kind: Kind;
+  onCancel: () => void;
+  onCreate: (body: { title: string; period?: Period; steps: string[] }) => Promise<void>;
+}) {
+  const [title, setTitle] = useState('');
+  const [period, setPeriod] = useState<Period>('day');
+  const [steps, setSteps] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim() || busy) return;
+    setBusy(true);
+    await onCreate({
+      title,
+      period: kind === 'routine' ? period : undefined,
+      steps: steps.split('\n').map((s) => s.trim()).filter(Boolean),
+    });
+    setBusy(false);
+  }
+
+  return (
+    <form className={styles.newTask} onSubmit={submit}>
+      <input
+        className={styles.input}
+        autoFocus
+        placeholder={kind === 'quest' ? 'Что за квест' : 'Что делаем регулярно'}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        maxLength={200}
+      />
+      {kind === 'routine' && (
+        <div className={styles.periods}>
+          {(['day', 'week', 'month'] as Period[]).map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`${styles.chip} ${period === p ? styles.chipOn : ''}`}
+              onClick={() => setPeriod(p)}
+            >
+              {PERIOD_LABEL[p]}
+            </button>
+          ))}
+        </div>
+      )}
+      <textarea
+        className={styles.textarea}
+        rows={4}
+        placeholder={'Шаги, по одному на строку.\nМожно оставить пустым и добавить потом.'}
+        value={steps}
+        onChange={(e) => setSteps(e.target.value)}
+      />
+      <div className={styles.formRow}>
+        <button type="submit" className={styles.primary} disabled={!title.trim() || busy}>
+          {busy ? 'Создаю…' : 'Создать'}
+        </button>
+        <button type="button" className={styles.ghost} onClick={onCancel}>
+          Отмена
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function TaskInside({
+  task,
+  run,
+  onBack,
+  onDeleted,
+}: {
+  task: TaskView;
+  run: (body: Record<string, unknown>, optimistic?: TaskView) => Promise<TaskView | null>;
+  onBack: () => void;
+  onDeleted: () => void;
+}) {
+  const [newStep, setNewStep] = useState('');
+  const [note, setNote] = useState(task.note ?? '');
+  const [editingTitle, setEditingTitle] = useState(false);
+  const stepInput = useRef<HTMLInputElement>(null);
+  const full = task.progress >= 1;
+  const doneCount = task.steps.filter((s) => s.done).length;
+
+  const nextStep = useMemo(() => task.steps.find((s) => !s.done), [task.steps]);
+
+  function toggle(stepId: string, done: boolean) {
+    const optimistic = recompute(
+      stepId === ''
+        ? { ...task, doneWhole: done }
+        : { ...task, steps: task.steps.map((s) => (s.id === stepId ? { ...s, done } : s)) },
+    );
+    run({ action: 'toggle', taskId: task.id, stepId, done }, optimistic);
+  }
+
+  async function addStep(e: React.FormEvent) {
+    e.preventDefault();
+    const title = newStep.trim();
+    if (!title) return;
+    setNewStep('');
+    await run({ action: 'addStep', taskId: task.id, title });
+    stepInput.current?.focus();
+  }
+
+  return (
+    <div className={styles.inside}>
+      <button type="button" className={styles.back} onClick={onBack}>
+        ← Все задачи
+      </button>
+
+      <div className={styles.hero}>
+        <div className={styles.heroRing}>
+          <Ring
+            progress={task.progress}
+            size={200}
+            stroke={12}
+            label={full ? '✓' : pct(task.progress)}
+            sub={task.steps.length ? `${doneCount} из ${task.steps.length} шагов` : full ? 'готово' : 'без шагов'}
+          />
+        </div>
+        <div className={styles.heroText}>
+          <div className={styles.kind}>
+            {task.kind === 'quest' ? 'Квест' : `Регулярная · ${task.period ? PERIOD_LABEL[task.period] : ''}`}
+            {task.kind === 'routine' && task.timeLeft && !full ? ` · до сброса ${task.timeLeft}` : ''}
+          </div>
+          {editingTitle ? (
+            <input
+              className={`${styles.input} ${styles.titleInput}`}
+              autoFocus
+              defaultValue={task.title}
+              maxLength={200}
+              onBlur={(e) => {
+                setEditingTitle(false);
+                const v = e.target.value.trim();
+                if (v && v !== task.title) run({ action: 'updateTask', id: task.id, title: v }, { ...task, title: v });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                if (e.key === 'Escape') setEditingTitle(false);
+              }}
+            />
+          ) : (
+            <h1 className={styles.title} onClick={() => setEditingTitle(true)} title="Нажми, чтобы переименовать">
+              {task.title}
+            </h1>
+          )}
+          {nextStep && <div className={styles.next}>Следующий шаг: {nextStep.title}</div>}
+          {task.kind === 'routine' && task.period && (
+            <div className={styles.periods}>
+              {(['day', 'week', 'month'] as Period[]).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={`${styles.chip} ${task.period === p ? styles.chipOn : ''}`}
+                  onClick={() => p !== task.period && run({ action: 'updateTask', id: task.id, period: p })}
+                >
+                  {PERIOD_LABEL[p]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {task.history.length > 0 && (
+        <div className={styles.history}>
+          <div className={styles.label}>Последние {task.history.length}</div>
+          <div className={styles.historyRow}>
+            {task.history.map((h, i) => (
+              <div key={h.key} className={styles.historyItem} title={h.key}>
+                <Ring progress={h.progress} size={26} stroke={4} />
+                {i === task.history.length - 1 && <span className={styles.historyNow}>{PERIOD_NOW[task.period!]}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className={styles.label}>Шаги</div>
+      {task.steps.length === 0 && (
+        <button
+          type="button"
+          className={`${styles.wholeBtn} ${task.doneWhole ? styles.wholeOn : ''}`}
+          onClick={() => toggle('', !task.doneWhole)}
+        >
+          {task.doneWhole ? '✓ Сделано' : 'Отметить сделанным'}
+        </button>
+      )}
+      <ol className={styles.steps}>
+        {task.steps.map((s, i) => (
+          <StepRow
+            key={s.id}
+            step={s}
+            first={i === 0}
+            last={i === task.steps.length - 1}
+            onToggle={() => toggle(s.id, !s.done)}
+            onRename={(title) =>
+              run(
+                { action: 'updateStep', id: s.id, title },
+                { ...task, steps: task.steps.map((x) => (x.id === s.id ? { ...x, title } : x)) },
+              )
+            }
+            onMove={(dir) => run({ action: 'moveStep', id: s.id, dir })}
+            onDelete={() =>
+              run({ action: 'deleteStep', id: s.id }, recompute({ ...task, steps: task.steps.filter((x) => x.id !== s.id) }))
+            }
+          />
+        ))}
+      </ol>
+      <form className={styles.addStep} onSubmit={addStep}>
+        <input
+          ref={stepInput}
+          className={styles.input}
+          placeholder="+ шаг (Enter, чтобы добавить)"
+          value={newStep}
+          onChange={(e) => setNewStep(e.target.value)}
+          maxLength={300}
+        />
+      </form>
+
+      <div className={styles.label}>Заметка</div>
+      <textarea
+        className={styles.textarea}
+        rows={3}
+        placeholder="Ссылки, контекст, на чём остановился"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        onBlur={() => {
+          if (note !== (task.note ?? '')) run({ action: 'updateTask', id: task.id, note }, { ...task, note });
+        }}
+      />
+
+      <div className={styles.footer}>
+        <button type="button" className={styles.ghost} onClick={() => run({ action: 'moveTask', id: task.id, dir: -1 })}>
+          ← левее
+        </button>
+        <button type="button" className={styles.ghost} onClick={() => run({ action: 'moveTask', id: task.id, dir: 1 })}>
+          правее →
+        </button>
+        <button
+          type="button"
+          className={styles.ghost}
+          onClick={() => run({ action: 'archiveTask', id: task.id, archived: !task.archived })}
+        >
+          {task.archived ? 'Вернуть из архива' : 'В архив'}
+        </button>
+        <button
+          type="button"
+          className={styles.danger}
+          onClick={async () => {
+            if (!window.confirm(`Удалить «${task.title}» вместе с шагами?`)) return;
+            const res = await fetch('/api/admin/tracker', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'deleteTask', id: task.id }),
+            });
+            if (res.ok) onDeleted();
+          }}
+        >
+          Удалить
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StepRow({
+  step,
+  first,
+  last,
+  onToggle,
+  onRename,
+  onMove,
+  onDelete,
+}: {
+  step: { id: string; title: string; done: boolean };
+  first: boolean;
+  last: boolean;
+  onToggle: () => void;
+  onRename: (title: string) => void;
+  onMove: (dir: -1 | 1) => void;
+  onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <li className={`${styles.step} ${step.done ? styles.stepDone : ''}`}>
+      <button
+        type="button"
+        className={styles.check}
+        onClick={onToggle}
+        aria-label={step.done ? 'Снять отметку' : 'Отметить шаг'}
+        aria-pressed={step.done}
+      >
+        <span className={styles.checkDot} />
+      </button>
+      {editing ? (
+        <input
+          className={`${styles.input} ${styles.stepInput}`}
+          autoFocus
+          defaultValue={step.title}
+          maxLength={300}
+          onBlur={(e) => {
+            setEditing(false);
+            const v = e.target.value.trim();
+            if (v && v !== step.title) onRename(v);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+        />
+      ) : (
+        <span className={styles.stepTitle} onClick={() => setEditing(true)}>
+          {step.title}
+        </span>
+      )}
+      <span className={styles.stepTools}>
+        <button type="button" disabled={first} onClick={() => onMove(-1)} aria-label="Выше">
+          ↑
+        </button>
+        <button type="button" disabled={last} onClick={() => onMove(1)} aria-label="Ниже">
+          ↓
+        </button>
+        <button type="button" onClick={onDelete} aria-label="Удалить шаг">
+          ✕
+        </button>
+      </span>
+    </li>
+  );
+}

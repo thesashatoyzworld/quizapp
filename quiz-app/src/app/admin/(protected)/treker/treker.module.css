@@ -1,0 +1,690 @@
+/* Трекер задач. Тема общая для админки: тёмный фон, циановый акцент, Orbitron.
+   Круг = задача, заряжается по шагам. На 100% зелёный и светится. */
+
+.page {
+  max-width: 1100px;
+}
+
+.h1 {
+  font-family: var(--font-display);
+  color: var(--neon-cyan);
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+}
+
+.sub {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 28px;
+}
+
+.error {
+  background: rgba(255, 42, 109, 0.12);
+  border: 1px solid rgba(255, 42, 109, 0.4);
+  color: var(--danger);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.section {
+  margin-bottom: 40px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.h2 {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+/* ---------- карточка-круг ---------- */
+
+.card,
+.addCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.1);
+  border-radius: 16px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s, background 0.2s;
+  min-width: 0;
+}
+
+.card:hover,
+.addCard:hover {
+  border-color: rgba(0, 240, 255, 0.35);
+  background: var(--bg-tertiary);
+  transform: translateY(-2px);
+}
+
+.card:focus-visible,
+.addCard:focus-visible {
+  outline: 2px solid var(--neon-cyan);
+  outline-offset: 2px;
+}
+
+.cardTitle {
+  font-size: 0.9rem;
+  line-height: 1.3;
+  color: var(--text-primary);
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.cardMeta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: -4px;
+}
+
+.addCard {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.addCard .cardTitle {
+  color: var(--text-muted);
+}
+
+.addRing {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+  color: var(--text-muted);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.addCard:hover .addRing {
+  color: var(--neon-cyan);
+  border-color: rgba(0, 240, 255, 0.5);
+}
+
+/* ---------- круг ---------- */
+
+.ring {
+  position: relative;
+  flex-shrink: 0;
+  --ring-color: var(--neon-cyan);
+  --ring-glow: rgba(0, 240, 255, 0.45);
+}
+
+.ring svg {
+  display: block;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.ringTrack {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.07);
+}
+
+.ringArc {
+  fill: none;
+  stroke: var(--ring-color);
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px var(--ring-glow));
+  transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.4s;
+}
+
+.ringEmpty .ringArc {
+  stroke: transparent;
+  filter: none;
+}
+
+.ringFull {
+  --ring-color: var(--success);
+  --ring-glow: rgba(0, 255, 136, 0.55);
+}
+
+.ringFull svg {
+  animation: fullGlow 2.6s ease-in-out infinite;
+}
+
+/* Искра бежит по заполненной дуге от начала к краю, как индикатор зарядки. */
+.ringSpark {
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 5px #fff);
+  animation: spark 2.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes spark {
+  0% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  85% {
+    opacity: 0.85;
+  }
+  100% {
+    stroke-dashoffset: var(--arc);
+    opacity: 0;
+  }
+}
+
+@keyframes fullGlow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(0, 255, 136, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(0, 255, 136, 0.6));
+  }
+}
+
+.ringCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.ringLabel {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ringFull .ringLabel {
+  color: var(--success);
+}
+
+.ringSub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- форма новой задачи ---------- */
+
+.newTask {
+  grid-column: 1 / -1;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 16px;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 16px; /* меньше 16px iOS зумит страницу при фокусе */
+  padding: 10px 12px;
+}
+
+.textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: rgba(0, 240, 255, 0.55);
+}
+
+.periods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.chipOn {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  background: rgba(0, 240, 255, 0.08);
+}
+
+.formRow {
+  display: flex;
+  gap: 8px;
+}
+
+.primary,
+.ghost,
+.danger {
+  font: inherit;
+  font-size: 0.85rem;
+  border-radius: 10px;
+  padding: 9px 16px;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.primary {
+  background: var(--neon-cyan);
+  color: #04131a;
+  border: none;
+  font-weight: 600;
+}
+
+.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.ghost:hover {
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(255, 42, 109, 0.35);
+  margin-left: auto;
+}
+
+/* ---------- внутри задачи ---------- */
+
+.inside {
+  max-width: 720px;
+}
+
+.back {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 6px 0;
+  margin-bottom: 16px;
+}
+
+.back:hover {
+  color: var(--neon-cyan);
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 28px;
+}
+
+/* «Заходишь внутрь»: круг вырастает из карточки. */
+.heroRing {
+  animation: zoomIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.heroRing .ringLabel {
+  font-size: 2.2rem;
+}
+
+.heroRing .ringSub {
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.55);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.heroText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeUp 0.45s 0.08s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fadeUp {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.kind {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.title {
+  font-size: 1.6rem;
+  line-height: 1.2;
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: text;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.titleInput {
+  font-size: 1.3rem;
+}
+
+.next {
+  font-size: 0.9rem;
+  color: var(--neon-cyan);
+}
+
+.label {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 24px 0 10px;
+}
+
+.history {
+  margin-bottom: 4px;
+}
+
+.history .label {
+  margin-top: 0;
+}
+
+.historyRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.historyItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.historyNow {
+  font-size: 0.6rem;
+  color: var(--neon-cyan);
+}
+
+.steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.step:hover {
+  border-color: rgba(0, 240, 255, 0.2);
+}
+
+.check {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 240, 255, 0.45);
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.2s;
+}
+
+.checkDot {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--success);
+  transform: scale(0);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.stepDone .check {
+  border-color: var(--success);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+}
+
+.stepDone .checkDot {
+  transform: scale(0.62);
+}
+
+.stepTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+  cursor: text;
+  overflow-wrap: anywhere;
+  transition: color 0.2s;
+}
+
+.stepDone .stepTitle {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 255, 255, 0.25);
+}
+
+.stepInput {
+  flex: 1;
+  padding: 6px 10px;
+}
+
+.stepTools {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.step:hover .stepTools,
+.step:focus-within .stepTools {
+  opacity: 1;
+}
+
+.stepTools button {
+  width: 30px;
+  height: 30px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.stepTools button:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.stepTools button:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.addStep {
+  margin-top: 8px;
+}
+
+.wholeBtn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px dashed rgba(0, 240, 255, 0.4);
+  background: transparent;
+  color: var(--neon-cyan);
+  font: inherit;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+.wholeOn {
+  border-style: solid;
+  border-color: var(--success);
+  color: var(--success);
+  background: rgba(0, 255, 136, 0.06);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.archive {
+  margin-top: 12px;
+}
+
+.archiveSummary {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.archive .grid {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  opacity: 0.7;
+}
+
+/* ---------- телефон ---------- */
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .heroRing {
+    align-self: center;
+  }
+
+  .title {
+    font-size: 1.3rem;
+  }
+
+  /* На телефоне нет наведения: инструменты шага видны всегда, но тише. */
+  .stepTools {
+    opacity: 0.6;
+  }
+
+  .danger {
+    margin-left: 0;
+  }
+}
+
+/* Без анимаций: заполнение видно сразу, искра и пульс выключены. */
+@media (prefers-reduced-motion: reduce) {
+  .ringArc,
+  .checkDot {
+    transition: none;
+  }
+
+  .ringSpark {
+    display: none;
+  }
+
+  .ringFull svg,
+  .heroRing,
+  .heroText {
+    animation: none;
+  }
+}

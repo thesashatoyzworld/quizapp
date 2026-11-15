@@ -1630,3 +1630,52 @@ model UniqReferral {
   @@index([referrerId])
   @@map("uniq_referrals")
 }
+
+// Трекер задач Саши в админке (/admin/treker). Задача = круг, который заряжается
+// по мере выполнения шагов. quest = разовая, routine = повторяется каждый день,
+// неделю или месяц: отметки шагов живут в периоде и сами сбрасываются в новом.
+model TrackerTask {
+  id         String    @id
+  /** quest | routine */
+  kind       String
+  title      String
+  note       String?
+  /** Для routine: day | week | month. Для quest null. */
+  period     String?
+  position   Int       @default(0)
+  archivedAt DateTime? @map("archived_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  steps  TrackerStep[]
+  checks TrackerCheck[]
+
+  @@index([kind, position])
+  @@map("tracker_task")
+}
+
+model TrackerStep {
+  id        String   @id
+  taskId    String   @map("task_id")
+  title     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task TrackerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, position])
+  @@map("tracker_step")
+}
+
+/** Отметка «шаг сделан» в периоде. Квест: periodKey = 'once'. Задача без шагов: stepId = ''. */
+model TrackerCheck {
+  taskId    String   @map("task_id")
+  stepId    String   @map("step_id")
+  periodKey String   @map("period_key")
+  doneAt    DateTime @default(now()) @map("done_at")
+
+  task TrackerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, stepId, periodKey])
+  @@map("tracker_check")
+}
