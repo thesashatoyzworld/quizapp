@@ -15,6 +15,7 @@ export type TrackerAction =
   | { action: 'updateStep'; id: string; title: string }
   | { action: 'deleteStep'; id: string }
   | { action: 'moveStep'; id: string; dir: -1 | 1 }
+  | { action: 'reorderSteps'; taskId: string; ids: string[] }
   | { action: 'toggle'; taskId: string; stepId: string; done: boolean };
 
 export class BadInput extends Error {}
@@ -152,6 +153,14 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
       });
       await swap(list, a.id, a.dir, (id, position) => prisma.trackerStep.update({ where: { id }, data: { position } }));
       return getTask(s.taskId);
+    }
+    case 'reorderSteps': {
+      const steps = await prisma.trackerStep.findMany({ where: { taskId: a.taskId }, select: { id: true } });
+      const have = new Set(steps.map((x) => x.id));
+      const ids = Array.isArray(a.ids) ? a.ids.map(String) : [];
+      if (ids.length !== have.size || !ids.every((id) => have.has(id))) throw new BadInput('список шагов устарел, обнови страницу');
+      await prisma.$transaction(ids.map((id, position) => prisma.trackerStep.update({ where: { id }, data: { position } })));
+      return getTask(a.taskId);
     }
     case 'toggle': {
       const t = await prisma.trackerTask.findUniqueOrThrow({ where: { id: a.taskId } });

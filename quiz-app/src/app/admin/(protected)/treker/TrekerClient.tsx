@@ -469,27 +469,26 @@ function TaskInside({
           {task.doneWhole ? '✓ Сделано' : 'Отметить сделанным'}
         </button>
       )}
-      <ol className={styles.steps}>
-        {task.steps.map((s, i) => (
-          <StepRow
-            key={s.id}
-            step={s}
-            first={i === 0}
-            last={i === task.steps.length - 1}
-            onToggle={() => toggle(s.id, !s.done)}
-            onRename={(title) =>
-              run(
-                { action: 'updateStep', id: s.id, title },
-                { ...task, steps: task.steps.map((x) => (x.id === s.id ? { ...x, title } : x)) },
-              )
-            }
-            onMove={(dir) => run({ action: 'moveStep', id: s.id, dir })}
-            onDelete={() =>
-              run({ action: 'deleteStep', id: s.id }, recompute({ ...task, steps: task.steps.filter((x) => x.id !== s.id) }))
-            }
-          />
-        ))}
-      </ol>
+      <StepList
+        steps={task.steps}
+        onToggle={(s) => toggle(s.id, !s.done)}
+        onRename={(id, title) =>
+          run(
+            { action: 'updateStep', id, title },
+            { ...task, steps: task.steps.map((x) => (x.id === id ? { ...x, title } : x)) },
+          )
+        }
+        onReorder={(ids) => {
+          const byId = new Map(task.steps.map((x) => [x.id, x]));
+          run(
+            { action: 'reorderSteps', taskId: task.id, ids },
+            { ...task, steps: ids.map((id) => byId.get(id)!).filter(Boolean) },
+          );
+        }}
+        onDelete={(id) =>
+          run({ action: 'deleteStep', id }, recompute({ ...task, steps: task.steps.filter((x) => x.id !== id) }))
+        }
+      />
       <form className={styles.addStep} onSubmit={addStep}>
         <input
           ref={stepInput}
@@ -547,26 +546,209 @@ function TaskInside({
   );
 }
 
-function StepRow({
-  step,
-  first,
-  last,
+type Step = { id: string; title: string; done: boolean };
+
+type Drag = {
+  id: string;
+  pointerId: number;
+  startY: number;
+  dy: number;
+  /** Строка уже поехала (мышь сдвинулась дальше порога). */
+  active: boolean;
+  tops: number[];
+  heights: number[];
+  gap: number;
+};
+
+const DRAG_THRESHOLD = 5;
+
+/** Новый порядок, пока тянем: куда встал перетаскиваемый шаг. */
+function dragOrder(steps: Step[], d: Drag): string[] {
+  const from = steps.findIndex((s) => s.id === d.id);
+  const center = d.tops[from] + d.heights[from] / 2 + d.dy;
+  const others = steps.filter((s) => s.id !== d.id);
+  let index = 0;
+  steps.forEach((s, i) => {
+    if (s.id !== d.id && d.tops[i] + d.heights[i] / 2 < center) index++;
+  });
+  const ids = others.map((s) => s.id);
+  ids.splice(index, 0, d.id);
+  return ids;
+}
+
+/**
+ * Шаги, которые тянутся мышкой за любое место строки, а пальцем за ручку ⠿
+ * (иначе строка перехватывала бы прокрутку на телефоне). Пока тянем, DOM не
+ * меняется: строки только сдвигаются transform-ом, порядок пишется на отпускании.
+ */
+function StepList({
+  steps,
   onToggle,
   onRename,
-  onMove,
+  onReorder,
   onDelete,
 }: {
-  step: { id: string; title: string; done: boolean };
-  first: boolean;
-  last: boolean;
+  steps: Step[];
+  onToggle: (s: Step) => void;
+  onRename: (id: string, title: string) => void;
+  onReorder: (ids: string[]) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const [settling, setSettling] = useState(false);
+  const refs = useRef(new Map<string, HTMLLIElement>());
+  const justDragged = useRef(false);
+
+  const order = drag?.active ? dragOrder(steps, drag) : null;
+
+  function offset(id: string, i: number): number {
+    if (!drag?.active || !order) return 0;
+    if (id === drag.id) return drag.dy;
+    const k = order.indexOf(id);
+    let top = drag.tops[0];
+    for (let j = 0; j < k; j++) top += drag.heights[steps.findIndex((s) => s.id === order[j])] + drag.gap;
+    return top - drag.tops[i];
+  }
+
+  function onPointerDown(e: React.PointerEvent<HTMLLIElement>, id: string) {
+    const t = e.target as HTMLElement;
+    const onHandle = !!t.closest('[data-handle]');
+    if (e.button !== 0) return;
+    if (!onHandle && (e.pointerType !== 'mouse' || t.closest('button, input, textarea'))) return;
+    const rects = steps.map((s) => refs.current.get(s.id)!.getBoundingClientRect());
+    setDrag({
+      id,
+      pointerId: e.pointerId,
+      startY: e.clientY,
+      dy: 0,
+      active: onHandle,
+      tops: rects.map((r) => r.top),
+      heights: rects.map((r) => r.height),
+      gap: rects.length > 1 ? rects[1].top - rects[0].bottom : 6,
+    });
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (onHandle) e.preventDefault();
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const dy = e.clientY - drag.startY;
+    const active = drag.active || Math.abs(dy) > DRAG_THRESHOLD;
+    if (active && !drag.active) window.getSelection()?.removeAllRanges();
+    setDrag({ ...drag, dy, active });
+  }
+
+  function onPointerUp(e: React.PointerEvent) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    if (drag.active) {
+      justDragged.current = true;
+      const ids = dragOrder(steps, drag);
+      // Без анимации на кадр смены порядка, иначе строки прыгают из старых мест.
+      setSettling(true);
+      requestAnimationFrame(() => requestAnimationFrame(() => setSettling(false)));
+      if (ids.some((id, i) => id !== steps[i].id)) onReorder(ids);
+    }
+    setDrag(null);
+  }
+
+  function onKeyMove(i: number, dir: -1 | 1) {
+    const j = i + dir;
+    if (j < 0 || j >= steps.length) return;
+    const ids = steps.map((s) => s.id);
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    onReorder(ids);
+  }
+
+  return (
+    <ol className={`${styles.steps} ${drag?.active ? styles.stepsDragging : ''} ${settling ? styles.stepsSettling : ''}`}>
+      {steps.map((s, i) => (
+        <StepRow
+          key={s.id}
+          step={s}
+          liRef={(el) => {
+            if (el) refs.current.set(s.id, el);
+            else refs.current.delete(s.id);
+          }}
+          lifted={drag?.active === true && drag.id === s.id}
+          y={offset(s.id, i)}
+          onPointerDown={(e) => onPointerDown(e, s.id)}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onClickCapture={(e) => {
+            if (justDragged.current) {
+              justDragged.current = false;
+              e.stopPropagation();
+              e.preventDefault();
+            }
+          }}
+          onHandleKey={(dir) => onKeyMove(i, dir)}
+          onToggle={() => onToggle(s)}
+          onRename={(title) => onRename(s.id, title)}
+          onDelete={() => onDelete(s.id)}
+        />
+      ))}
+    </ol>
+  );
+}
+
+function StepRow({
+  step,
+  liRef,
+  lifted,
+  y,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onClickCapture,
+  onHandleKey,
+  onToggle,
+  onRename,
+  onDelete,
+}: {
+  step: Step;
+  liRef: (el: HTMLLIElement | null) => void;
+  lifted: boolean;
+  y: number;
+  onPointerDown: (e: React.PointerEvent<HTMLLIElement>) => void;
+  onPointerMove: (e: React.PointerEvent) => void;
+  onPointerUp: (e: React.PointerEvent) => void;
+  onClickCapture: (e: React.MouseEvent) => void;
+  onHandleKey: (dir: -1 | 1) => void;
   onToggle: () => void;
   onRename: (title: string) => void;
-  onMove: (dir: -1 | 1) => void;
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   return (
-    <li className={`${styles.step} ${step.done ? styles.stepDone : ''}`}>
+    <li
+      ref={liRef}
+      className={`${styles.step} ${step.done ? styles.stepDone : ''} ${lifted ? styles.stepLifted : ''}`}
+      style={y ? { transform: `translateY(${y}px)` } : undefined}
+      onPointerDown={editing ? undefined : onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onClickCapture={onClickCapture}
+    >
+      <span
+        className={styles.handle}
+        data-handle
+        role="button"
+        tabIndex={0}
+        aria-label="Перетащить шаг (стрелки вверх и вниз)"
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            onHandleKey(-1);
+          }
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            onHandleKey(1);
+          }
+        }}
+      >
+        ⠿
+      </span>
       <button
         type="button"
         className={styles.check}
@@ -598,12 +780,6 @@ function StepRow({
         </span>
       )}
       <span className={styles.stepTools}>
-        <button type="button" disabled={first} onClick={() => onMove(-1)} aria-label="Выше">
-          ↑
-        </button>
-        <button type="button" disabled={last} onClick={() => onMove(1)} aria-label="Ниже">
-          ↓
-        </button>
         <button type="button" onClick={onDelete} aria-label="Удалить шаг">
           ✕
         </button>
