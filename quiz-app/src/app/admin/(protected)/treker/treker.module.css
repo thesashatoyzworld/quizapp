@@ -1064,3 +1064,85 @@ button.tag:hover {
   justify-content: flex-end;
   gap: 6px;
 }
+
+/* ---------- вложенность ---------- */
+
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.crumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.crumb {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+  padding: 6px 2px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crumb:hover {
+  color: var(--neon-cyan);
+}
+
+.crumbSep {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.kidsGrid {
+  margin-bottom: 8px;
+}
+
+.addKid {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+}
+
+.moveRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.moveRow .label {
+  margin: 0;
+}
+
+.moveRow .select {
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 220px;
+  padding: 8px 12px;
+  white-space: pre;
+}
+
+.addKidInline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 20px 0 -8px;
+  font-size: 0.85rem;
+}

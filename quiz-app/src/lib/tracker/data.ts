@@ -10,6 +10,7 @@ export type TaskView = {
   note: string | null;
   period: Period | null;
   tags: string[];
+  parentId: string | null;
   archived: boolean;
   steps: StepView[];
   /** Задача без шагов отмечается целиком. */
@@ -54,6 +55,7 @@ export function toView(row: NonNullable<Row>, now = new Date()): TaskView {
     note: row.note,
     period,
     tags: row.tags ?? [],
+    parentId: row.parentId ?? null,
     archived: !!row.archivedAt,
     steps: row.steps.map((s) => ({ id: s.id, title: s.title, done: doneSteps.has(s.id) })),
     doneWhole: doneSteps.has(''),

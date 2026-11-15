@@ -1642,6 +1642,8 @@ model TrackerTask {
   note       String?
   /** Для routine: day | week | month. Для quest null. */
   period     String?
+  /** Задача-родитель: круг родителя заряжается от детей («Жизнь мечты» → «Финансы» → …). */
+  parentId   String?   @map("parent_id")
   /** Метки задачи («контент», «клиенты», «360»), фильтр на главной трекера. */
   tags       String[]  @default([])
   position   Int       @default(0)
