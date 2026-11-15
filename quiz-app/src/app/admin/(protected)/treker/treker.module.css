@@ -811,3 +811,14 @@
     transition: none;
   }
 }
+
+/* Шаг дробится нейронкой: инструменты видны, пока ждём. */
+.stepToolsBusy {
+  opacity: 1;
+}
+
+.stepToolsBusy button:disabled {
+  opacity: 1;
+  color: #d7b8ff;
+  cursor: progress;
+}
