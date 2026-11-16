@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { href: '/admin/ssylki', label: 'Ссылки для оплаты' },
   { href: '/admin/revenue', label: 'Выручка' },
   { href: '/admin/rashody', label: 'Расходы' },
+  { href: '/admin/byudzhet', label: 'Бюджет' },
   { href: '/admin/instagram', label: 'Instagram' },
 ];
 
