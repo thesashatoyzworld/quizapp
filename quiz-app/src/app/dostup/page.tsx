@@ -53,6 +53,7 @@ function DostupInner() {
   const [hasReels, setHasReels] = useState(false);
   // Уникализатор в бете: вкладку видят Саша и тестеры, после UNIQ_OPEN=1 все.
   const [hasUniq, setHasUniq] = useState(false);
+  const [optTester, setOptTester] = useState(false);
   const [preview, setPreview] = useState(false);
   // Telegram id of the viewer — forwarded to gated cross-domain materials
   // (kabinet.thesashatoyz.com workshops) so their soft-gate can identify the user.
@@ -92,6 +93,7 @@ function DostupInner() {
           setHasForum(!!data.hasForum);
           setHasReels(!!data.hasReels);
           setHasUniq(!!data.hasUniq);
+          setOptTester(!!data.optimizatorTester);
           setPreview(!!data.preview);
           setUnlocked(data.unlockedRoles || []);
           trackCabinetOpen(tgId ?? data.telegramId ?? null);
@@ -181,7 +183,7 @@ function DostupInner() {
                 // Разделитель-подзаголовок перед материалом (группировка внутри раздела).
                 const sub = m.subhead ? <div className="kb-subhead">{m.subhead}</div> : null;
                 // Материал старшего тарифа: виден, но под замком, если тариф ниже.
-                if (m.minTier != null && (m.tierRole ? tiers[m.tierRole] ?? 0 : myTier) < m.minTier) {
+                if (m.minTier != null && !(optTester && m.url === '/optimizator') && (m.tierRole ? tiers[m.tierRole] ?? 0 : myTier) < m.minTier) {
                   return (
                     <Fragment key={i}>
                       {sub}
