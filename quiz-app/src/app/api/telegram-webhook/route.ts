@@ -1185,6 +1185,11 @@ export async function POST(request: NextRequest) {
           update: {},
         });
         const referrerId = parseRefParam(startParam);
+        // Where people come from: uniq_tg / uniq_mail / uniq_ig ... (a number after uniq_ is a referral).
+        const src = referrerId ? 'ref' : (startParam.slice(5) || 'direct').slice(0, 32);
+        await prisma.event.create({
+          data: { type: 'uniq_start', source: 'uniq', telegramId: BigInt(chatId), metadata: { src } },
+        }).catch((e) => console.error('[uniq] start source save failed:', e));
         let fromWho = '';
         if (referrerId) {
           try {
