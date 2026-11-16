@@ -253,21 +253,50 @@ function createServer(opts = {}) {
     if (!body.ok) throw new Error(body.description || `HTTP ${r.status}`);
     return true;
   });
+  // A version over the bot limit gets a lighter copy for the chat: bitrate picked to land at ~45 MB.
+  // Below ~1.2 Mbit/s (videos over ~5 min) the copy would look bad, so those stay download-only.
+  const LIGHT_TARGET = 45 * 1000 * 1000, LIGHT_MIN_KBPS = 1200, LIGHT_AUDIO_KBPS = 128;
+  const makeLight = opts.makeLight || (async (file) => {
+    const { dur } = await probe(ffmpeg, file);
+    const kbps = Math.min(10000, Math.floor((LIGHT_TARGET * 8) / 1000 / dur) - LIGHT_AUDIO_KBPS);
+    if (!(dur > 0) || kbps < LIGHT_MIN_KBPS) return null;
+    const out = file.replace(/\.mp4$/, '') + '_tg.mp4';
+    const args = ['-v', 'error', '-y', '-i', file, '-map', '0:v:0', '-map', '0:a:0?',
+      '-vf', "scale='if(lt(iw,ih),min(iw,1080),-2)':'if(lt(iw,ih),-2,min(ih,1080))'",
+      '-c:v', 'libx264', '-preset', process.env.UNIQ_PRESET || 'veryfast', '-threads', String(process.env.UNIQ_THREADS || 2),
+      '-b:v', `${kbps}k`, '-maxrate', `${kbps}k`, '-bufsize', `${kbps * 2}k`,
+      '-c:a', 'aac', '-b:a', `${LIGHT_AUDIO_KBPS}k`, '-map_metadata', '0', '-movflags', '+faststart', out];
+    const nice = process.env.UNIQ_NICE ?? '10';
+    const [cmd, argv] = nice !== '0' ? ['nice', ['-n', nice, ffmpeg, ...args]] : [ffmpeg, args];
+    const code = await new Promise((resolve) => {
+      const p = require('child_process').spawn(cmd, argv, { stdio: 'ignore' });
+      p.on('error', () => resolve(-1)); p.on('close', resolve);
+    });
+    if (code !== 0 || !fs.existsSync(out)) { fs.rmSync(out, { force: true }); return null; }
+    if (fs.statSync(out).size > BOT_UPLOAD_MAX) { fs.rmSync(out, { force: true }); return null; }
+    return out;
+  });
   async function sendToChat(j) {
     const vs = j.versions.filter((v) => fs.existsSync(v.file));
-    let sent = 0, big = 0, failed = 0;
+    let sent = 0, big = 0, failed = 0, light = 0;
     for (const [n, v] of vs.entries()) {
-      if (v.size > BOT_UPLOAD_MAX) { big++; continue; }
+      let file = v.file, tmp = null;
+      if (v.size > BOT_UPLOAD_MAX) {
+        tmp = await makeLight(v.file).catch((e) => { console.error(`light ${j.id}/${v.i}: ${e.message}`); return null; });
+        if (!tmp) { big++; continue; }
+        file = tmp; light++;
+      }
       try {
-        await postVideo(j.uid, v.file, `Версия ${n + 1} из ${vs.length}. Открой видео → ⋯ → «Сохранить в галерею».`);
+        await postVideo(j.uid, file, `Версия ${n + 1} из ${vs.length}. Открой видео → ⋯ → «Сохранить в галерею».`);
         sent++;
       } catch (e) { failed++; console.error(`send ${j.id}/${v.i}: ${e.message}`); }
+      finally { if (tmp) fs.rmSync(tmp, { force: true }); }
     }
     if (big && tgToken) {
-      await tgSend(tgToken, j.uid, `${big} ${plural(big, 'версия тяжелее', 'версии тяжелее', 'версий тяжелее')} 50 МБ, Телеграм не даёт боту прислать такие. Скачай их на странице или загрузи ролик полегче.`).catch(() => false);
+      await tgSend(tgToken, j.uid, `${big} ${plural(big, 'версия тяжелее', 'версии тяжелее', 'версий тяжелее')} 50 МБ, Телеграм не даёт боту прислать такие. Ролик слишком длинный для чата: скачай их на странице.`).catch(() => false);
     }
-    mon.log('sent', { uid: j.uid, id: j.id, sent, big, failed });
-    return { sent, big, failed };
+    mon.log('sent', { uid: j.uid, id: j.id, sent, big, failed, light });
+    return { sent, big, failed, light };
   }
 
   async function pump() {
