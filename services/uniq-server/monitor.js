@@ -124,6 +124,7 @@ function createMonitor(opts = {}) {
     if (now - (lastAlert.get(key) || 0) < everyMs) return Promise.resolve(false);
     lastAlert.set(key, now);
     console.error(`ALERT ${key}: ${text}`);
+    log('alert', { key, text: String(text).slice(0, 500) }); // the Mac bug watcher reads alerts from the log
     return sendTg(`⚠️ Уникализатор: ${text}`);
   }
 
