@@ -181,7 +181,7 @@ function DostupInner() {
                 // Разделитель-подзаголовок перед материалом (группировка внутри раздела).
                 const sub = m.subhead ? <div className="kb-subhead">{m.subhead}</div> : null;
                 // Материал старшего тарифа: виден, но под замком, если тариф ниже.
-                if (m.minTier != null && myTier < m.minTier) {
+                if (m.minTier != null && (m.tierRole ? tiers[m.tierRole] ?? 0 : myTier) < m.minTier) {
                   return (
                     <Fragment key={i}>
                       {sub}
