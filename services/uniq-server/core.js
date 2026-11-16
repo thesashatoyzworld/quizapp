@@ -154,8 +154,17 @@ function pick(used) {
   return best;
 }
 
+// Instagram re-encodes to 1080p 30fps anyway; a 4K/60fps source only made versions 4x heavier
+// (over the 50 MB bot upload limit) and the encode several times slower.
+const MAX_SHORT = 1080, MAX_FPS = 30;
+function outGeometry(info) {
+  const f = Math.min(1, MAX_SHORT / Math.min(info.W, info.H));
+  return { W: even(info.W * f), H: even(info.H * f), fps: Math.min(info.fps, MAX_FPS) };
+}
+
 function buildArgs(src, dst, p, info) {
-  const { W, H, dur, hasAudio, fps } = info;
+  const { dur, hasAudio } = info;
+  const { W, H, fps } = outGeometry(info);
   const w = even(W * p.zoom), h = even(H * p.zoom);
   const mx = Math.floor((W - w) / 2), my = Math.floor((H - h) / 2);
   let x = mx + Math.floor(pyRound(p.dx * mx) / 2) * 2;
@@ -187,7 +196,7 @@ function buildArgs(src, dst, p, info) {
       '-c:a', 'aac', '-b:a', '160k', '-ar', '48000');
   }
   args.push('-c:v', 'libx264', '-preset', process.env.UNIQ_PRESET || 'veryfast',
-    '-threads', String(process.env.UNIQ_THREADS || 2), '-crf', String(p.crf), '-profile:v', 'high',
+    '-threads', String(process.env.UNIQ_THREADS || 2), '-crf', String(p.crf), '-maxrate', '10M', '-bufsize', '20M', '-profile:v', 'high',
     '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709',
     '-map_metadata', '-1', '-map_chapters', '-1',
     '-metadata', `asset_id=${crypto.randomUUID()}`,
