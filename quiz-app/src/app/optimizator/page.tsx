@@ -88,6 +88,37 @@ function CopyButton({ text, label, primary }: { text: string; label: string; pri
   );
 }
 
+type TgShare = { Telegram?: { WebApp?: { initData?: string; openTelegramLink?: (url: string) => void } } };
+
+// Sends the read-only link to a friend, student or client: Telegram share sheet inside the bot,
+// the system share sheet on phones, otherwise copies the link.
+function ShareRun({ url }: { url: string }) {
+  const [done, setDone] = useState(false);
+  const text = 'Разбор сценария рилса';
+  async function share() {
+    const tg = (window as unknown as TgShare).Telegram?.WebApp;
+    if (tg?.initData && tg.openTelegramLink) {
+      tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
+      return;
+    }
+    if (typeof navigator.share === 'function') {
+      try { await navigator.share({ title: text, url }); return; } catch (e) { if ((e as Error)?.name === 'AbortError') return; }
+    }
+    await copyText(url);
+    setDone(true);
+    setTimeout(() => setDone(false), 1800);
+  }
+  return (
+    <section className="op-card op-share">
+      <p className="op-p">Разбор можно отправить другу, ученику или клиенту: по ссылке он откроется без входа.</p>
+      <div className="op-row">
+        <button type="button" className="op-copy op-copy-primary" onClick={share}>{done ? '✓ Ссылка скопирована' : 'Поделиться разбором'}</button>
+        <CopyButton text={url} label="Скопировать ссылку" />
+      </div>
+    </section>
+  );
+}
+
 function Source({ source }: { source: string | null }) {
   const url = sourceUrl(source);
   if (!url) return null;
@@ -441,14 +472,14 @@ function Details({ a }: { a: StudentAnalysis }) {
   );
 }
 
-function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
+function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; shared?: boolean }) {
   const a: StudentAnalysis = run.result;
   if (!a.input_ok) {
     return (
       <section className="op-card op-result">
         <div className="op-eyebrow">Разбор не получился</div>
         <p className="op-verdict">{a.verdict}</p>
-        <button type="button" className="op-ghost" onClick={onNew}>Вставить другой сценарий</button>
+        {onNew && <button type="button" className="op-ghost" onClick={onNew}>Вставить другой сценарий</button>}
       </section>
     );
   }
@@ -467,7 +498,16 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
         {why && <p className="op-meta-why">{why}</p>}
       </div>
 
-      {run.ladder ? <LadderBlock l={run.ladder} /> : (
+      {!shared && run.shareUrl && <ShareRun url={run.shareUrl} />}
+
+      {shared && (
+        <details className="op-card op-details" open>
+          <summary>Сценарий<span>текст, который разбирали</span></summary>
+          <div className="op-sect"><pre className="op-script">{run.script}</pre></div>
+        </details>
+      )}
+
+      {run.ladder ? <LadderBlock l={run.ladder} /> : shared ? null : (
         <section className="op-card op-ladder-none">
           <p className="op-p op-muted">
             Сравнения с твоими прошлыми роликами нет: не указан ник, аккаунт закрыт или в нём меньше 4 рилсов с речью.
@@ -526,7 +566,8 @@ function Result({ run, onNew }: { run: SavedRun; onNew: () => void }) {
 
       <Details a={a} />
 
-      <button type="button" className="op-ghost op-again" onClick={onNew}>Разобрать другой сценарий</button>
+      {onNew && <button type="button" className="op-ghost op-again" onClick={onNew}>Разобрать другой сценарий</button>}
+      {shared && <p className="op-p op-muted op-made">Разбор сделан в Оптимизаторе рилсов SASHA TOYZ по методике Каллавея.</p>}
     </div>
   );
 }
@@ -558,7 +599,7 @@ function Waiting({ startedAt }: { startedAt: number }) {
 }
 
 function OptimizatorInner() {
-  const [state, setState] = useState<'load' | 'guest' | 'locked' | 'ok'>('load');
+  const [state, setState] = useState<'load' | 'guest' | 'locked' | 'ok' | 'shared' | 'shared_bad'>('load');
   const [used, setUsed] = useState(0);
   const [limit, setLimit] = useState(0);
   const [items, setItems] = useState<HistoryItem[]>([]);
@@ -590,6 +631,17 @@ function OptimizatorInner() {
   useEffect(() => {
     let stop = false;
     (async () => {
+      // Shared link (/optimizator?r=<token>): read-only, no login.
+      const shareTok = new URLSearchParams(window.location.search).get('r');
+      if (shareTok) {
+        try {
+          const res = await fetch(`/api/optimizator/shared?t=${encodeURIComponent(shareTok)}`, { cache: 'no-store' });
+          const data = await res.json().catch(() => ({}));
+          if (stop) return;
+          if (data.run) { setRun(data.run); setState('shared'); } else setState('shared_bad');
+        } catch { if (!stop) setState('shared_bad'); }
+        return;
+      }
       const tg = await waitForTelegramWebApp();
       if (stop) return;
       if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
@@ -672,12 +724,24 @@ function OptimizatorInner() {
         <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Manrope:wght@400;500;600;700&subset=cyrillic,latin&display=swap" rel="stylesheet" />
       </noscript>
 
-      <header className="op-top">
-        <a className="op-back" href="/dostup">‹ Кабинет</a>
-        <div className="op-brand">Оптимизатор рилсов</div>
-        <div className="op-sub">Вставь текст ролика. Покажу, есть ли спрос на тему, главные правки и переписанный текст</div>
-        <OpenInBrowser path="/optimizator" className="op-browser" />
-      </header>
+      {state === 'shared' || state === 'shared_bad' ? (
+        <header className="op-top">
+          <div className="op-brand">Разбор сценария рилса</div>
+          <div className="op-sub">Оптимизатор рилсов SASHA TOYZ: спрос на тему, что поправить и пример текста</div>
+        </header>
+      ) : (
+        <header className="op-top">
+          <a className="op-back" href="/dostup">‹ Кабинет</a>
+          <div className="op-brand">Оптимизатор рилсов</div>
+          <div className="op-sub">Вставь текст ролика. Покажу, есть ли спрос на тему, главные правки и переписанный текст</div>
+          <OpenInBrowser path="/optimizator" className="op-browser" />
+        </header>
+      )}
+
+      {state === 'shared' && run && <Result run={run} shared />}
+      {state === 'shared_bad' && (
+        <div className="op-card"><p className="op-p">Разбор по этой ссылке не открылся. Попроси прислать ссылку ещё раз.</p></div>
+      )}
 
       {state === 'load' && (
         <div className="op-state"><div className="op-spinner" /><p>Загрузка…</p></div>
@@ -1033,6 +1097,8 @@ function OptimizatorInner() {
         }
         .op-ghost:hover { border-color: var(--op-accent); color: var(--op-accent); }
         .op-again { margin: 4px 0 12px; }
+        .op-share .op-row { margin-top: 12px; }
+        .op-made { text-align: center; margin: 8px 0 12px; font-size: 13px; }
 
         .op-history { margin-top: 22px; }
         .op-hist {

@@ -104,7 +104,19 @@ export async function getRun(telegramId: number, id: string): Promise<SavedRun |
   const r = await prisma.optimizatorRun.findFirst({
     where: { id, telegramId: BigInt(telegramId), status: 'ok' },
   });
-  if (!r || !r.result) return null;
+  return r ? toSavedRun(r) : null;
+}
+
+/** A run opened by its signed share link: anyone who has the link. */
+export async function getSharedRun(id: string): Promise<SavedRun | null> {
+  const r = await prisma.optimizatorRun.findFirst({ where: { id, status: 'ok' } });
+  return r ? toSavedRun(r) : null;
+}
+
+type RunRow = NonNullable<Awaited<ReturnType<typeof prisma.optimizatorRun.findFirst>>>;
+
+function toSavedRun(r: RunRow): SavedRun | null {
+  if (!r.result) return null;
   const { ladder, instagram: _ig, ...analysis } = r.result as unknown as Analysis & {
     ladder?: Ladder & { usage?: unknown };
     instagram?: string;
