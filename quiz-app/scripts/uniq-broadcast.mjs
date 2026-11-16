@@ -8,7 +8,7 @@
 // Usage (from quiz-app, needs .env.local with DATABASE_URL and BOT_TOKEN):
 //   node scripts/uniq-broadcast.mjs                       # dry run: audience size and waves
 //   node scripts/uniq-broadcast.mjs --test                # send only to Sasha (788334680)
-//   node scripts/uniq-broadcast.mjs --send [--batch=100] [--gap=30] [--limit=N]
+//   node scripts/uniq-broadcast.mjs --send [--batch=200] [--gap=30] [--limit=N]
 //        --batch  people per wave, --gap  minutes between waves, --limit  stop after N sends
 //   Waves go out only 10:00-21:00 Almaty (UTC+5); outside that the script waits.
 //
@@ -20,16 +20,21 @@ import pg from 'pg';
 
 config({ path: '.env.local' });
 
-// DRAFT: needs Sasha's approval before --send.
-const TEXT = `Сделал бесплатный уникализатор для рилсов.
+// Approved by Sasha 16.11.2026.
+const TEXT = `как набирать просмотры через рилс
 
-Загружаешь ролик, получаешь несколько разных версий и выкладываешь их пробными рилсами. Так один удачный ролик получает ещё несколько попыток дойти до новых людей.
+сделали бесплатный уникализатор - берете свой ролик, загружаете и получаете версии
 
-Бесплатно для подписчиков канала: ролик в неделю, за каждого приведённого друга +1.
+эти версии можно грузить в пробные рилс и инстаграм вас не запалит
 
-Открывай по кнопке ниже.`;
+мы таким образом загрузили рилс 25 раз и набрали 200к просмотров и 1000 подписчиков
 
-const BUTTON = { inline_keyboard: [[{ text: 'Открыть уникализатор', web_app: { url: 'https://world.thesashatoyz.com/uniq' } }]] };
+используй, пока есть такая возможность
+
+открывай по кнопке ниже`;
+
+// cta=360: people from the broadcast see only the «Личный бренд на 360» offer on the final screen.
+const BUTTON = { inline_keyboard: [[{ text: 'Открыть уникализатор', web_app: { url: 'https://world.thesashatoyz.com/uniq?cta=360' } }]] };
 const SASHA = 788334680;
 const ADMINS = new Set([788334680, 6013902004]);
 const LOG = '.uniq-broadcast-sent.txt'; // not committed: one id per line
@@ -75,7 +80,7 @@ async function send(chatId) {
 
 async function main() {
   if (!process.env.BOT_TOKEN) throw new Error('BOT_TOKEN missing in .env.local');
-  const batch = arg('batch', 100);
+  const batch = arg('batch', 200);
   const gapMin = arg('gap', 30);
   const limit = arg('limit', Infinity);
 
