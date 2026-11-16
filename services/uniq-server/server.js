@@ -247,6 +247,12 @@ function createServer(opts = {}) {
     fd.append('chat_id', String(uid));
     fd.append('caption', caption);
     fd.append('supports_streaming', 'true');
+    // Without the size Telegram draws the player in a default box and the vertical video looks squashed.
+    try {
+      const { W, H, dur } = await probe(ffmpeg, file);
+      if (W && H) { fd.append('width', String(W)); fd.append('height', String(H)); }
+      if (dur > 0) fd.append('duration', String(Math.round(dur)));
+    } catch { /* send without the size rather than not at all */ }
     fd.append('video', await fs.openAsBlob(file, { type: 'video/mp4' }), path.basename(file));
     const r = await fetch(`https://api.telegram.org/bot${tgToken}/sendVideo`, { method: 'POST', body: fd });
     const body = await r.json().catch(() => ({}));
