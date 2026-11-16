@@ -1,0 +1,433 @@
+/* Бюджет до запуска. Тема админки: тёмный фон, циановый акцент.
+   Основной вход с телефона, всё должно влезать в 390px без горизонтального скролла. */
+
+.page {
+  max-width: 760px;
+  font-variant-numeric: tabular-nums;
+}
+
+.h1 {
+  font-family: var(--font-display);
+  color: var(--neon-cyan);
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+}
+
+.sub {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 20px;
+}
+
+.h2 {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.error {
+  background: rgba(255, 42, 109, 0.12);
+  border: 1px solid rgba(255, 42, 109, 0.4);
+  color: var(--danger);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.neg {
+  color: var(--danger) !important;
+}
+
+/* ---------- неделя «Жизнь» ---------- */
+
+.week {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.weekHead {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.weekBig {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  line-height: 1.2;
+  margin: 4px 0 2px;
+}
+
+/* ---------- полоса ---------- */
+
+.bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin: 8px 0 6px;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--neon-cyan);
+  border-radius: 999px;
+}
+
+.bar i.barOver {
+  background: var(--danger);
+}
+
+/* ---------- месяцы ---------- */
+
+.months {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 24px 0 16px;
+}
+
+.chip {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.chipOn {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  background: rgba(0, 240, 255, 0.08);
+}
+
+.chipSub {
+  opacity: 0.6;
+  font-size: 0.75rem;
+}
+
+/* ---------- корзины ---------- */
+
+.group {
+  margin-bottom: 28px;
+}
+
+.groupHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 10px;
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bucket {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.1);
+  border-radius: 14px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.bucketHead {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bucketName {
+  min-width: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.caret {
+  display: inline-block;
+  width: 16px;
+  color: var(--neon-cyan);
+}
+
+.bucketHint {
+  display: block;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding-left: 16px;
+}
+
+.left {
+  flex-shrink: 0;
+  text-align: right;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.leftLabel {
+  display: block;
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.rows {
+  margin-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.items {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 0.85rem;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.rowDate {
+  color: var(--text-muted);
+}
+
+.rowName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.rowAmount {
+  text-align: right;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.rowActions {
+  grid-column: 2 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.select {
+  background: var(--bg-primary);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.8rem;
+  min-height: 32px;
+}
+
+.del {
+  background: transparent;
+  border: 1px solid rgba(255, 42, 109, 0.35);
+  color: var(--danger);
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* ---------- ручной ввод ---------- */
+
+.panel {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  background: var(--bg-primary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 16px; /* меньше 16px iOS зумит страницу при фокусе */
+  padding: 9px 10px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: rgba(0, 240, 255, 0.55);
+}
+
+.formRow {
+  display: flex;
+  gap: 8px;
+}
+
+.primary,
+.ghost {
+  font: inherit;
+  font-size: 0.85rem;
+  border-radius: 10px;
+  padding: 9px 16px;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.primary {
+  background: var(--neon-cyan);
+  color: #04131a;
+  border: none;
+  font-weight: 600;
+}
+
+.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.ghost:hover {
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ---------- скрины ---------- */
+
+.uploadBtn {
+  width: 100%;
+  min-height: 52px;
+  background: var(--neon-cyan);
+  color: #04131a;
+  border: none;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+.uploadBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.shots {
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shotList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shot {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.shotHead {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shotHead:disabled {
+  cursor: default;
+}
+
+.shotStatus {
+  min-width: 0;
+  color: var(--text-secondary);
+}
+
+.pending {
+  color: var(--xp-gold, var(--neon-cyan));
+}
+
+.rowOff {
+  opacity: 0.5;
+}
+
+.rowNote {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: normal;
+}
