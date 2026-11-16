@@ -5,6 +5,7 @@ import { signUniqToken } from '@/lib/uniq/token';
 import { uniqPaid, uniqPlan, uniqTabVisible, UNIQ_ADMINS } from '@/lib/uniq/access';
 import { isChannelMember, UNIQ_CHANNEL_URL } from '@/lib/uniq/channel';
 import { refStats, type RefStats } from '@/lib/uniq/referral';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -66,6 +67,16 @@ export async function GET(request: NextRequest) {
   const asFree = q.get('as') === 'free' && UNIQ_ADMINS.has(id);
   if (asFree) tiers = {};
 
+  // ?src=<campaign> (e.g. bc = the bot broadcast): one uniq_open event per person and campaign,
+  // so we know who came from where and never send them the same campaign again.
+  const src = (q.get('src') || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 32);
+  if (src) {
+    try {
+      const seen = await prisma.event.findFirst({ where: { type: 'uniq_open', telegramId: BigInt(id), metadata: { path: ['src'], equals: src } }, select: { id: true } });
+      if (!seen) await prisma.event.create({ data: { type: 'uniq_open', source: 'uniq', telegramId: BigInt(id), metadata: { src } } });
+    } catch (err) { console.error('[uniq] open source save failed:', err); }
+  }
+
   // Until Sasha opens it to everyone (UNIQ_OPEN=1): students, tier 3, testers only.
   if (!asFree && !uniqPaid(id, tiers) && !uniqTabVisible(id, undefined, tiers)) return fail(403, 'paid', 'Уникализатор открыт ученикам курса «Новый уровень».');
 
@@ -102,7 +113,8 @@ export async function GET(request: NextRequest) {
   // Tier 1 students see 360 (the step up); «Поток» buyers split course / 360; the rest split three ways by uid.
   let offer: Offer | null = null;
   if (free) {
-    const forced = asFree ? q.get('cta') : null;
+    // ?cta= picks the offer: Sasha's preview, or a campaign link (the broadcast shows only 360).
+    const forced = q.get('cta');
     const pool: Offer[] = 'uroven' in tiers ? ['360'] : 'potok' in tiers ? ['uroven', '360'] : ['uroven', 'potok', '360'];
     offer = forced && (OFFERS as readonly string[]).includes(forced) ? (forced as Offer) : pool[id % pool.length];
   }
