@@ -114,12 +114,11 @@ export async function failShot(id: string, error: string): Promise<void> {
 type RawOp = { date?: unknown; merchant?: unknown; amount?: unknown; currency?: unknown; bucket?: unknown; skip?: unknown; reason?: unknown };
 
 /** Records recognized operations as expenses and closes the shot. */
-export async function completeShot(id: string, out: { bank?: unknown; operations?: unknown }): Promise<ShotResult | null> {
+export async function completeShot(id: string, out: { operations?: unknown }): Promise<ShotResult | null> {
   const rows0 = await prisma.$queryRaw<{ status: string }[]>`SELECT status FROM budget_shots WHERE id = ${id}`;
   if (rows0[0]?.status !== 'pending') return null;
 
   const ops = (Array.isArray(out.operations) ? out.operations : []) as RawOp[];
-  const bank: Source = out.bank === 'kaspi' ? 'kaspi' : out.bank === 'tbank' ? 'tbank' : 'manual';
   const rows: ShotRow[] = [];
   const seen = new Map<string, number>();
   for (const o of ops.slice(0, 80)) {
@@ -137,7 +136,7 @@ export async function completeShot(id: string, out: { bank?: unknown; operations
     } else if (date < PERIOD.from || date > PERIOD.to) {
       row.reason = 'вне периода бюджета';
     } else {
-      const source: Source = bank === 'manual' ? (currency === 'RUB' ? 'tbank' : 'kaspi') : bank;
+      const source: Source = currency === 'RUB' ? 'tbank' : 'kaspi';
       const e = { spentAt: date, amount, currency, bucket, merchant, source, note: '' };
       const nth = (seen.get(fingerprint(e)) ?? 0) + 1;
       seen.set(fingerprint(e), nth);
