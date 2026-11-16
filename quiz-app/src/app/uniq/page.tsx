@@ -90,7 +90,7 @@ function UniqInner() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Fresh token from the cabinet. Returns the HTTP status for the caller to branch on.
-  const loadAccess = useCallback(async (checked = false): Promise<{ status: number; error?: string; code?: string }> => {
+  const loadAccess = useCallback(async (checked: boolean | 'auto' = false): Promise<{ status: number; error?: string; code?: string }> => {
     const headers: Record<string, string> = initData.current ? { 'x-tg-init-data': initData.current } : {};
     const p = new URLSearchParams();
     if (previewAs()) {
@@ -98,7 +98,8 @@ function UniqInner() {
       const cta = new URLSearchParams(window.location.search).get('cta');
       if (cta) p.set('cta', cta);
     }
-    if (checked) p.set('checked', '1');
+    if (checked === 'auto') p.set('auto', '1');
+    else if (checked) p.set('checked', '1');
     const res = await fetch(`/api/cabinet/uniq${p.toString() ? `?${p}` : ''}`, { headers, credentials: 'same-origin', cache: 'no-store' });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.token) {
@@ -132,6 +133,45 @@ function UniqInner() {
       body: JSON.stringify({ ev }), keepalive: true,
     }).catch(() => { /* analytics only */ });
   }, []);
+
+  // Subscribe screen: manual «Я подписался» and a silent re-check. Opens the tool as soon as the
+  // subscription is visible; the silent one never shows an error.
+  const subOpen = useRef(false);
+  const checkSub = useCallback(async (silent: boolean) => {
+    if (subOpen.current) return;
+    if (!silent) { setSubBusy(true); setSubMsg(null); }
+    const r = await loadAccess(silent ? 'auto' : true).catch(() => ({ status: 0 } as { status: number; code?: string }));
+    if (!silent) setSubBusy(false);
+    if (access.current && !subOpen.current) {
+      subOpen.current = true;
+      setState('ok');
+      trackSection('uniq', tgRef.current?.initDataUnsafe?.user?.id ?? null);
+      track('open');
+      const me = await vpsGet('/api/me').catch(() => null);
+      if (me?.status === 200) setWeek((me.data.week as Week) || null);
+      return;
+    }
+    if (!silent) setSubMsg(r.code === 'subscribe' ? 'Пока не вижу подписку. Подпишись и нажми ещё раз.' : 'Не получилось проверить. Попробуй ещё раз.');
+  }, [loadAccess, track, vpsGet]);
+
+  // While the subscribe screen is up: re-check when the person comes back from the channel
+  // and every 5 s for 3 minutes (the mini app often stays visible behind the channel).
+  useEffect(() => {
+    if (state !== 'subscribe') return;
+    const started = Date.now();
+    const onBack = () => { if (document.visibilityState === 'visible') void checkSub(true); };
+    document.addEventListener('visibilitychange', onBack);
+    window.addEventListener('focus', onBack);
+    const iv = setInterval(() => {
+      if (Date.now() - started > 3 * 60 * 1000) { clearInterval(iv); return; }
+      if (document.visibilityState === 'visible') void checkSub(true);
+    }, 5000);
+    return () => {
+      document.removeEventListener('visibilitychange', onBack);
+      window.removeEventListener('focus', onBack);
+      clearInterval(iv);
+    };
+  }, [state, checkSub]);
 
   useEffect(() => {
     let stop = false;
@@ -357,7 +397,7 @@ function UniqInner() {
         <div className="un-card">
           <h1 className="un-lock-h1">Сначала подпишись на канал</h1>
           <p className="un-lock-p">
-            Уникализатор бесплатный для подписчиков моего канала. Подпишись, вернись сюда и нажми «Я подписался».
+            Уникализатор бесплатный для подписчиков моего канала. Подпишись и возвращайся сюда: я сам увижу подписку и открою.
           </p>
           <button
             type="button"
@@ -374,21 +414,7 @@ function UniqInner() {
             type="button"
             className="un-new"
             disabled={subBusy}
-            onClick={async () => {
-              setSubBusy(true);
-              setSubMsg(null);
-              const r = await loadAccess(true).catch(() => ({ status: 0 } as { status: number; code?: string }));
-              setSubBusy(false);
-              if (access.current) {
-                setState('ok');
-                trackSection('uniq', tgRef.current?.initDataUnsafe?.user?.id ?? null);
-                track('open');
-                const me = await vpsGet('/api/me').catch(() => null);
-                if (me?.status === 200) setWeek((me.data.week as Week) || null);
-                return;
-              }
-              setSubMsg(r.code === 'subscribe' ? 'Пока не вижу подписку. Подпишись и нажми ещё раз.' : 'Не получилось проверить. Попробуй ещё раз.');
-            }}
+            onClick={() => { void checkSub(false); }}
           >
             {subBusy ? 'Проверяю…' : 'Я подписался'}
           </button>

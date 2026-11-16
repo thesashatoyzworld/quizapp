@@ -72,15 +72,18 @@ export async function GET(request: NextRequest) {
   // Free users: subscription to the channel is the price. Telegram outage → let them through.
   if (!uniqPaid(id, tiers) || asFree) {
     const checked = q.get('checked') === '1';
+    // auto=1: the subscribe screen re-checking by itself (on return from the channel and every few
+    // seconds). A miss is not logged, or the funnel would count every poll.
+    const auto = q.get('auto') === '1';
     const member = asFree && !checked ? false : await isChannelMember(id);
     if (member === false) {
-      await vpsEvent(id, checked ? 'sub_no' : 'sub_screen');
+      if (!auto) await vpsEvent(id, checked ? 'sub_no' : 'sub_screen');
       return NextResponse.json(
         { error: 'Уникализатор бесплатный для подписчиков канала. Подпишись и вернись сюда.', code: 'subscribe', channel: UNIQ_CHANNEL_URL },
         { status: 403, headers: { 'Cache-Control': 'no-store' } },
       );
     }
-    if (checked) await vpsEvent(id, 'sub_ok');
+    if (checked || auto) await vpsEvent(id, 'sub_ok');
   }
 
   const secret = process.env.UNIQ_SECRET || '';
