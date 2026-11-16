@@ -3,8 +3,8 @@ import { verifiedViewer } from '@/lib/reels/store';
 import { tiersForTelegram } from '@/lib/kb/tier';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { analyzeScript } from '@/lib/optimizator/analyze';
-import { LADDER_ON, MODEL, TESTER_LIMIT, TESTER_USERNAMES, UNLIMITED_IDS, limitFor, monthKey } from '@/lib/optimizator/config';
-import { prisma } from '@/lib/prisma';
+import { LADDER_ON, MODEL, TESTER_LIMIT, UNLIMITED_IDS, limitFor, monthKey } from '@/lib/optimizator/config';
+import { isOptimizatorTester } from '@/lib/optimizator/testers';
 import { findDemand, scriptPhrases, type DemandEvidence } from '@/lib/optimizator/demand';
 import { runLadder } from '@/lib/optimizator/ladder';
 import { bazaFor, topicOf } from '@/lib/optimizator/baza';
@@ -40,24 +40,10 @@ async function viewerOf(request: NextRequest): Promise<Viewer | null> {
   const tiers = await tiersForTelegram(id);
   const tier = tiers.uroven ?? 0;
   const admin = UNLIMITED_IDS.has(id);
-  if (tiers.uroven === undefined && !admin && await isTester(request, id)) return { id, tier: 0, limit: TESTER_LIMIT };
+  if (tiers.uroven === undefined && !admin && await isOptimizatorTester(id, request.headers.get('x-tg-init-data'))) return { id, tier: 0, limit: TESTER_LIMIT };
   return { id, tier: admin ? Math.max(tier, 3) : tier, limit: tiers.uroven !== undefined || admin ? limitFor(id, tier) : 0 };
 }
 
-// Tester by username: from the signed initData (Mini App), else from the bot's users table.
-async function isTester(request: NextRequest, id: number): Promise<boolean> {
-  if (!TESTER_USERNAMES.size) return false;
-  let name = '';
-  try {
-    const u = JSON.parse(new URLSearchParams(request.headers.get('x-tg-init-data') || '').get('user') || '{}') as { id?: number; username?: string };
-    if (u.id === id) name = u.username || '';
-  } catch { /* no initData */ }
-  if (!name) {
-    const row = await prisma.user.findUnique({ where: { telegramId: BigInt(id) }, select: { username: true } }).catch(() => null);
-    name = row?.username || '';
-  }
-  return TESTER_USERNAMES.has(name.toLowerCase());
-}
 
 const fail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) =>
   NextResponse.json({ error, code, ...extra }, { status });

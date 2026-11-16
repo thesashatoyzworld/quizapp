@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { FORUM_ADMINS, forumTabVisible } from '@/lib/forum';
 import { isLichka, REELS_CLIENTS_OPEN } from '@/lib/reels/store';
 import { uniqTabVisible, UNIQ_ADMINS } from '@/lib/uniq/access';
+import { isOptimizatorTester } from '@/lib/optimizator/testers';
 
 export const runtime = 'nodejs';
 
@@ -91,10 +92,13 @@ export async function GET(request: NextRequest) {
     // Платный доступ проверяет /api/cabinet/uniq по подписанной личности.
     const hasUniq = asFree || uniqTabVisible(telegramId, undefined, tiers);
 
+    // Тестер оптимизатора без курса: строка «Оптимизатор рилсов» у него открыта, хотя тарифа нет.
+    const optimizatorTester = !asFree && telegramId != null && !tiers.uroven && (await isOptimizatorTester(telegramId, request.headers.get('x-tg-init-data')));
+
     // identified — знаем ЛИ мы, кто это (по Telegram или сессии). Кабинет так
     // отличает «вошёл, но без покупок» (показать разделы под замком) от «не вошёл»
     // (показать кнопку входа).
-    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, hasPersonal, hasRoadmap, hasForum, hasReels, hasUniq, preview: asFree, pending: false, token: null });
+    return NextResponse.json({ success: true, identified: telegramId != null, telegramId, unlockedRoles, tiers, hasPersonal, hasRoadmap, hasForum, hasReels, hasUniq, optimizatorTester, preview: asFree, pending: false, token: null });
   } catch (error) {
     console.error('[Cabinet] rooms error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
