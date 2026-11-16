@@ -1,0 +1,11 @@
+[Unit]
+Description=Budget screenshot recognizer (drains the cabinet queue)
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/budget-shots.env
+WorkingDirectory=/opt/budget-shots
+ExecStart=/usr/bin/node /opt/budget-shots/run.mjs
+Nice=10
+TimeoutStartSec=3h
