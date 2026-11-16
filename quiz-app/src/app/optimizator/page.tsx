@@ -501,7 +501,7 @@ function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; sha
       {!shared && run.shareUrl && <ShareRun url={run.shareUrl} />}
 
       {shared && (
-        <details className="op-card op-details" open>
+        <details className="op-card op-details">
           <summary>Сценарий<span>текст, который разбирали</span></summary>
           <div className="op-sect"><pre className="op-script">{run.script}</pre></div>
         </details>
