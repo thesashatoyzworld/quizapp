@@ -973,10 +973,25 @@ export async function POST(request: NextRequest) {
           chatId: m.chat.id,
           telegramId: tgId,
           text: m.text,
+          from: [m.from?.first_name, m.from?.username ? `@${m.from.username}` : ''].filter(Boolean).join(' ') || undefined,
         });
         if (kb.handled) return NextResponse.json({ ok: true });
       }
       if (caught) return NextResponse.json({ ok: true });
+    }
+
+    // /menu: Telegram suggests it, people press it. Without a handler the bot stayed silent.
+    if (update.message?.text?.trim() === '/menu') {
+      await sendBotMessage(
+        update.message.chat.id,
+        'Что открыть?',
+        { inline_keyboard: [
+          [{ text: 'Уникализатор', web_app: { url: 'https://world.thesashatoyz.com/uniq' } }],
+          [{ text: 'Кабинет', web_app: { url: 'https://world.thesashatoyz.com' } }],
+        ] },
+        null,
+      );
+      return NextResponse.json({ ok: true });
     }
 
     // Handle /start command (with or without parameters)
