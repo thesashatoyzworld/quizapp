@@ -230,9 +230,21 @@ function UniqInner() {
     setRemaining(null);
   }
 
+  // Free plan with this week's videos spent: the VPS answers 429 before the upload ends, and the
+  // browser reports that as a dropped connection. So the page says it up front and blocks the button.
+  const weekOut = (): string | null => {
+    const p = access.current?.free ? access.current.plan : undefined;
+    if (!p?.w || !week || week.used < p.w) return null;
+    const wait = week.nextAt ? Math.max(0, week.nextAt - Date.now()) : 0;
+    const more = p.w < 5 ? ' Приведи друга (ссылка ниже), и каждую неделю будет на 1 ролик больше.' : '';
+    return `Ролик на эту неделю уже сделан. Следующий можно${wait ? ` через ${inDays(wait)}` : ' скоро'}.${more}`;
+  };
+
   function upload(f: File, n: number, retried = false) {
     const a = access.current;
     if (!a) return;
+    const out = weekOut();
+    if (out) { setError(out); return; }
     setError(null);
     setUploadPct(0);
     const xhr = new XMLHttpRequest();
@@ -264,7 +276,7 @@ function UniqInner() {
     };
     xhr.onerror = () => {
       setUploadPct(null);
-      setError('Загрузка прервалась. Проверь интернет и попробуй ещё раз.');
+      setError(weekOut() || 'Загрузка прервалась. Проверь интернет и попробуй ещё раз.');
     };
     xhr.send(f);
   }
@@ -361,6 +373,8 @@ function UniqInner() {
     setRemaining(null);
     setError(null);
     if (inputRef.current) inputRef.current.value = '';
+    // The finished job used a slot: refresh the meter so the limit is shown before the next upload.
+    vpsGet('/api/me').then((me) => { if (me?.status === 200) setWeek((me.data.week as Week) || null); }).catch(() => {});
   }
 
   const busy = uploadPct !== null || jobActive;
@@ -514,10 +528,11 @@ function UniqInner() {
                   <div className="un-bar"><i style={{ width: `${uploadPct}%` }} /></div>
                 </div>
               ) : (
-                <button type="button" className="un-run" disabled={!file || busy} onClick={() => file && upload(file, count)}>
-                  уникализировать
+                <button type="button" className="un-run" disabled={!file || busy || !!weekOut()} onClick={() => file && upload(file, count)}>
+                  {weekOut() ? 'лимит на неделю исчерпан' : 'уникализировать'}
                 </button>
               )}
+              {weekOut() && !error && <p className="un-hint un-hint-warn">{weekOut()}</p>}
               {error && <div className="un-error" role="alert">{error}</div>}
             </section>
           )}
