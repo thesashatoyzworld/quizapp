@@ -10,6 +10,7 @@ import { bazaFor, topicOf } from '@/lib/optimizator/baza';
 import {
   getRun, history, lastUsername, releaseSlot, reserveSlot, saveRun, studentLadder, usedThisMonth, type StoredDemand,
 } from '@/lib/optimizator/store';
+import { shareUrl } from '@/lib/optimizator/share';
 import { SCRIPT_MAX, SCRIPT_MIN, normalizeUsername, toStudent, type Analysis, type DemandLink } from '@/lib/optimizator/view';
 
 export const runtime = 'nodejs';
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
     if (id) {
       const run = await getRun(v.id, id);
       if (!run) return fail(404, 'not_found', 'Разбор не найден');
-      return NextResponse.json({ run });
+      return NextResponse.json({ run: { ...run, shareUrl: shareUrl(run.id) } });
     }
     const [used, items, instagram] = await Promise.all([
       usedThisMonth(v.id), history(v.id), lastUsername(v.id).catch(() => null),
@@ -202,6 +203,7 @@ export async function POST(request: NextRequest) {
       demandLinks: demand.links,
       ladder: ladder ? studentLadder(ladder) : null,
       baza,
+      shareUrl: runId ? shareUrl(runId) : undefined,
     },
     used: reserved,
     limit: v.limit,

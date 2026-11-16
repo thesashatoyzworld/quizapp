@@ -223,6 +223,8 @@ export interface SavedRun {
   ladder: Ladder | null;
   /** Examples from the reels base; absent in runs saved before 10.11.2026. */
   baza?: BazaBlock | null;
+  /** Owner only: public read-only link to this run. */
+  shareUrl?: string;
 }
 
 /** Instagram username from "@nick", "nick" or a profile link; null when it does not look like one. */
