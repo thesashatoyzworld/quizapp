@@ -7,6 +7,10 @@ export const MONTHLY_LIMIT: Record<number, number> = { 1: 10, 2: 30, 3: 100 };
 /** Telegram ids without a limit (Sasha). */
 export const UNLIMITED_IDS = new Set<number>([788334680]);
 
+/** Testers without the course, by Telegram username (lowercase, no @): Sasha gives access by hand. */
+export const TESTER_USERNAMES = new Set<string>(['belyjsneg']);
+export const TESTER_LIMIT = 30;
+
 /** Effectively unlimited for the counter. */
 export const UNLIMITED = 100_000;
 
