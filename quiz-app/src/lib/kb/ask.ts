@@ -4,7 +4,7 @@
 // сообщение не забрала, оно попадает сюда.
 
 import { prisma } from '@/lib/prisma';
-import { sendBotMessage } from '@/lib/telegram';
+import { sendBotMessage, notifyAdmin } from '@/lib/telegram';
 import { visibleTo } from './map';
 import { tiersForTelegram } from './tier';
 import { answerQuestion, usdOf, ZERO_USAGE, type KbUsage } from './answer';
@@ -79,6 +79,8 @@ export async function handleKbQuestion(params: {
   chatId: number;
   telegramId: number;
   text: string;
+  /** Name for Sasha when the message is forwarded (people without the course). */
+  from?: string;
 }): Promise<KbResult> {
   const { chatId, telegramId } = params;
   const question = params.text.trim();
@@ -99,10 +101,23 @@ export async function handleKbQuestion(params: {
   const entries = visibleTo(tiers);
 
   if (!entries.length) {
+    // Not a student: most of them came for the free uniqualizer and write about it.
+    // «No access to the course» read as a brush-off, so the message goes to Sasha instead.
+    const today = await prisma.event.count({
+      where: { type: 'bot_inbox', telegramId: BigInt(telegramId), createdAt: { gt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+    }).catch(() => 0);
+    await prisma.event.create({
+      data: { type: 'bot_inbox', telegramId: BigInt(telegramId), metadata: { text: question.slice(0, 2000), from: params.from || null } },
+    }).catch((e) => console.error('[kb] inbox log failed', e));
+    if (today < 5) {
+      await notifyAdmin(`💬 Написал в бота (без курса)\nОт: ${params.from || 'id ' + telegramId} (id ${telegramId})\n\n${question}`, { parseMode: null, disableLinkPreview: true });
+    }
     await sendBotMessage(
       chatId,
-      'Я отвечаю по материалам «Нового уровня контента» — у тебя к ним пока нет доступа.',
-      { inline_keyboard: [[{ text: 'Что это за курс', url: 'https://thesashatoyz.com/uroven' }]] },
+      today < 5
+        ? 'Передал Саше, он прочитает. Если это про уникализатор, внизу него есть форма «Пожелания и баги», туда тоже можно.'
+        : 'Сообщения сегодня уже у Саши, он прочитает.',
+      { inline_keyboard: [[{ text: 'Открыть уникализатор', web_app: { url: 'https://world.thesashatoyz.com/uniq' } }]] },
       null,
     );
     return { handled: true };
