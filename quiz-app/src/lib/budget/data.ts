@@ -15,10 +15,7 @@ export interface Expense {
   note: string;
 }
 
-export type ExpenseInput = Omit<Expense, 'id'> & {
-  /** Save even if the same operation is already recorded (two equal coffees in a day). */
-  force?: boolean;
-};
+export type ExpenseInput = Omit<Expense, 'id'>;
 
 export async function listExpenses(): Promise<Expense[]> {
   const rows = await prisma.$queryRaw<Record<string, string | null>[]>`
@@ -39,14 +36,6 @@ export async function listExpenses(): Promise<Expense[]> {
   }));
 }
 
-/** Which of these fingerprints are already in the table. */
-export async function existingFingerprints(list: string[]): Promise<Set<string>> {
-  if (!list.length) return new Set();
-  const rows = await prisma.$queryRaw<{ fingerprint: string }[]>`
-    SELECT fingerprint FROM budget_expenses WHERE fingerprint = ANY(${list}::text[])`;
-  return new Set(rows.map((r) => r.fingerprint));
-}
-
 export function validExpense(e: Partial<ExpenseInput>): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(e.spentAt))) return 'дата в формате ГГГГ-ММ-ДД';
   if (!Number.isFinite(e.amount) || Number(e.amount) <= 0) return 'сумма должна быть больше нуля';
@@ -55,19 +44,18 @@ export function validExpense(e: Partial<ExpenseInput>): string | null {
   return null;
 }
 
-/** Inserts rows, skipping already recorded operations. Returns how many were saved. */
-export async function addExpenses(list: ExpenseInput[]): Promise<number> {
-  let saved = 0;
-  for (const e of list) {
-    const fp = e.source === 'manual' || e.force ? null : fingerprint(e);
-    const n = await prisma.$executeRaw`
-      INSERT INTO budget_expenses (id, spent_at, amount, currency, bucket, merchant, source, note, fingerprint)
-      VALUES (${randomUUID()}, ${e.spentAt}::date, ${e.amount}, ${e.currency}, ${e.bucket},
-              ${e.merchant.slice(0, 200)}, ${e.source}, ${e.note.slice(0, 500)}, ${fp})
-      ON CONFLICT DO NOTHING`;
-    saved += n;
-  }
-  return saved;
+/**
+ * Inserts one row. False when the same operation is already recorded: screenshot
+ * rows carry a fingerprint, manual rows do not (two equal coffees are fine).
+ */
+export async function addExpense(e: ExpenseInput): Promise<boolean> {
+  const fp = e.source === 'manual' ? null : fingerprint(e);
+  const n = await prisma.$executeRaw`
+    INSERT INTO budget_expenses (id, spent_at, amount, currency, bucket, merchant, source, note, fingerprint)
+    VALUES (${randomUUID()}, ${e.spentAt}::date, ${e.amount}, ${e.currency}, ${e.bucket},
+            ${e.merchant.slice(0, 200)}, ${e.source}, ${e.note.slice(0, 500)}, ${fp})
+    ON CONFLICT DO NOTHING`;
+  return n > 0;
 }
 
 export async function setBucket(id: string, bucket: string): Promise<void> {

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Expense } from '@/lib/budget/data';
+import type { Shot } from '@/lib/budget/shots';
 import {
   BUCKETS, INFO, MONTHS, almatyToday, bucketsFor, currentLifeWeek, defaultMonth,
   formatMoney, type Bucket, type Currency, type MonthKey,
@@ -14,16 +15,44 @@ function shortDate(d: string) {
   return `${d.slice(8, 10)}.${d.slice(5, 7)}`;
 }
 
-export default function BudgetClient({ initial }: { initial: Expense[] }) {
+const MAX_SIDE = 2000;
+
+/** Shrink a phone screenshot to ~2000px JPEG: originals do not fit in one request. */
+async function shrink(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('не открылась картинка'));
+      i.src = url;
+    });
+    const k = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.naturalWidth * k);
+    canvas.height = Math.round(img.naturalHeight * k);
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+export default function BudgetClient({ initial, initialShots }: { initial: Expense[]; initialShots: Shot[] }) {
   const [expenses, setExpenses] = useState(initial);
+  const [shots, setShots] = useState(initialShots);
+  const [upload, setUpload] = useState<{ done: number; total: number } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [month, setMonth] = useState<MonthKey>(defaultMonth());
   const [open, setOpen] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function call(body: Record<string, unknown>): Promise<boolean> {
-    setBusy(true);
-    setError(null);
+  async function call(body: Record<string, unknown>, quiet = false): Promise<boolean> {
+    if (!quiet) {
+      setBusy(true);
+      setError(null);
+    }
     try {
       const res = await fetch('/api/admin/budget', {
         method: 'POST',
@@ -33,13 +62,41 @@ export default function BudgetClient({ initial }: { initial: Expense[] }) {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || `ошибка ${res.status}`);
       setExpenses(json.expenses as Expense[]);
+      setShots(json.shots as Shot[]);
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (!quiet) setError(e instanceof Error ? e.message : String(e));
       return false;
     } finally {
-      setBusy(false);
+      if (!quiet) setBusy(false);
     }
+  }
+
+  // While something is being recognized on the server, refresh every 5 seconds.
+  const pending = shots.some((s) => s.status === 'pending');
+  useEffect(() => {
+    if (!pending) return;
+    const t = setInterval(() => call({ action: 'list' }, true), 5000);
+    return () => clearInterval(t);
+  }, [pending]);
+
+  async function onFiles(files: FileList | null) {
+    const list = [...(files ?? [])];
+    if (!list.length) return;
+    setError(null);
+    const failed: string[] = [];
+    for (let i = 0; i < list.length; i++) {
+      setUpload({ done: i, total: list.length });
+      try {
+        const ok = await call({ action: 'shot', image: await shrink(list[i]) }, true);
+        if (!ok) failed.push(list[i].name);
+      } catch {
+        failed.push(list[i].name);
+      }
+    }
+    setUpload(null);
+    if (fileInput.current) fileInput.current.value = '';
+    if (failed.length) setError(`Не загрузились: ${failed.join(', ')}. Попробуй ещё раз`);
   }
 
   const inMonth = expenses.filter((e) => e.spentAt.startsWith(month));
@@ -55,7 +112,27 @@ export default function BudgetClient({ initial }: { initial: Expense[] }) {
         {INFO.withdrawals.map((w) => `${formatMoney(w.amount, 'RUB')} (${w.label})`).join(', ')}
       </p>
 
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(e) => onFiles(e.target.files)}
+      />
+      <button
+        type="button"
+        className={styles.uploadBtn}
+        disabled={!!upload}
+        onClick={() => fileInput.current?.click()}
+      >
+        {upload ? `Загружаю ${upload.done + 1} из ${upload.total}…` : 'Загрузить скрины'}
+      </button>
+      <p className={styles.hint}>Скрины операций из Kaspi и Т-Банка. Расходы запишутся сами, корзину потом можно поменять.</p>
+
       {error && <div className={styles.error}>{error}</div>}
+
+      <Shots shots={shots} />
 
       <section className={styles.week}>
         <div className={styles.weekHead}>
@@ -68,7 +145,7 @@ export default function BudgetClient({ initial }: { initial: Expense[] }) {
         <Bar spent={weekSpent} limit={week.limit} />
       </section>
 
-      <ManualAdd busy={busy} onSave={(e) => call({ action: 'save', expenses: [e] })} />
+      <ManualAdd busy={busy} onSave={(e) => call({ action: 'save', expense: e })} />
 
       <div className={styles.months} role="tablist">
         {MONTHS.map((m) => (
@@ -285,5 +362,61 @@ function ManualAdd({
         </button>
       </div>
     </form>
+  );
+}
+
+const OUTCOME: Record<string, string> = { added: 'записано', duplicate: 'уже было', skipped: 'пропущено' };
+
+function Shots({ shots }: { shots: Shot[] }) {
+  const [open, setOpen] = useState<string | null>(null);
+  if (!shots.length) return null;
+  return (
+    <section className={styles.shots}>
+      <div className={styles.h2}>Последние распознанные</div>
+      <ul className={styles.shotList}>
+        {shots.map((s) => {
+          const when = new Date(s.createdAt).toLocaleString('ru-RU', {
+            timeZone: 'Asia/Almaty', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+          });
+          const r = s.result;
+          return (
+            <li key={s.id} className={styles.shot}>
+              <button
+                type="button"
+                className={styles.shotHead}
+                disabled={!r}
+                aria-expanded={open === s.id}
+                onClick={() => setOpen(open === s.id ? null : s.id)}
+              >
+                <span className={styles.rowDate}>{when}</span>
+                <span className={styles.shotStatus}>
+                  {s.status === 'pending' && <span className={styles.pending}>распознаётся… обычно 1–3 минуты</span>}
+                  {s.status === 'error' && <span className={styles.neg}>не распознался: {s.error}</span>}
+                  {r && `записано ${r.added} · уже было ${r.duplicates} · пропущено ${r.skipped}`}
+                </span>
+              </button>
+              {open === s.id && r && (
+                <div className={styles.rows}>
+                  {r.rows.map((x, i) => (
+                    <div key={i} className={`${styles.row} ${x.outcome === 'added' ? '' : styles.rowOff}`}>
+                      <span className={styles.rowDate}>{x.date ? shortDate(x.date) : '?'}</span>
+                      <span className={styles.rowName}>
+                        {x.merchant || 'без названия'}
+                        <span className={styles.rowNote}>
+                          {OUTCOME[x.outcome]}
+                          {x.outcome === 'added' && `, ${BUCKETS.find((b) => b.id === x.bucket)?.label ?? x.bucket}`}
+                          {x.reason && `: ${x.reason}`}
+                        </span>
+                      </span>
+                      <span className={styles.rowAmount}>{formatMoney(x.amount, x.currency)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

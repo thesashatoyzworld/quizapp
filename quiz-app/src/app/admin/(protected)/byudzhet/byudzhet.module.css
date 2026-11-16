@@ -350,3 +350,84 @@
   color: var(--text-primary);
   border-color: rgba(255, 255, 255, 0.3);
 }
+
+/* ---------- скрины ---------- */
+
+.uploadBtn {
+  width: 100%;
+  min-height: 52px;
+  background: var(--neon-cyan);
+  color: #04131a;
+  border: none;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+.uploadBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.shots {
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shotList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shot {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.shotHead {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shotHead:disabled {
+  cursor: default;
+}
+
+.shotStatus {
+  min-width: 0;
+  color: var(--text-secondary);
+}
+
+.pending {
+  color: var(--xp-gold, var(--neon-cyan));
+}
+
+.rowOff {
+  opacity: 0.5;
+}
+
+.rowNote {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: normal;
+}
