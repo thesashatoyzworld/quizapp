@@ -34,7 +34,7 @@ const TEXT = `как набирать просмотры через рилс
 открывай по кнопке ниже`;
 
 // cta=360: people from the broadcast see only the «Личный бренд на 360» offer on the final screen.
-const BUTTON = { inline_keyboard: [[{ text: 'Открыть уникализатор', web_app: { url: 'https://world.thesashatoyz.com/uniq?cta=360' } }]] };
+const BUTTON = { inline_keyboard: [[{ text: 'Открыть уникализатор', web_app: { url: 'https://world.thesashatoyz.com/uniq?src=bc&cta=360' } }]] };
 const SASHA = 788334680;
 const ADMINS = new Set([788334680, 6013902004]);
 const LOG = '.uniq-broadcast-sent.txt'; // not committed: one id per line
@@ -56,6 +56,8 @@ async function audience() {
       SELECT DISTINCT u.telegram_id::text AS id
       FROM users u
       WHERE u.telegram_id > 0
+        -- already got this broadcast, or already opened the uniqualizer from anywhere
+        AND NOT EXISTS (SELECT 1 FROM events e WHERE e.telegram_id = u.telegram_id AND e.type IN ('uniq_bc_sent', 'uniq_start', 'uniq_open'))
         AND NOT EXISTS (
           SELECT 1 FROM product_access a
           WHERE a.telegram_id = u.telegram_id AND a.role = 'uroven' AND a.status = 'active'
@@ -67,6 +69,15 @@ async function audience() {
   } finally {
     await db.end();
   }
+}
+
+// Durable record in the DB (the local log file is only a fast resume list).
+async function markSent(id) {
+  const db = new pg.Client({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  try {
+    await db.connect();
+    await db.query(`INSERT INTO events (id, telegram_id, type, source, metadata, created_at) VALUES (gen_random_uuid(), $1, 'uniq_bc_sent', 'uniq', '{"src":"bc"}', now())`, [id]);
+  } catch (e) { console.error('markSent', id, e.message); } finally { await db.end().catch(() => {}); }
 }
 
 async function send(chatId) {
@@ -103,7 +114,7 @@ async function main() {
     for (const id of wave) {
       try {
         const r = await send(id);
-        if (r.ok) sent++;
+        if (r.ok) { sent++; await markSent(id); }
         else if (r.error_code === 403 || r.error_code === 400) blocked++;
         else if (r.error_code === 429) { await sleep(((r.parameters?.retry_after ?? 5) + 1) * 1000); failed++; continue; }
         else failed++;

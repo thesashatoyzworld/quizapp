@@ -93,11 +93,10 @@ function UniqInner() {
   const loadAccess = useCallback(async (checked: boolean | 'auto' = false): Promise<{ status: number; error?: string; code?: string }> => {
     const headers: Record<string, string> = initData.current ? { 'x-tg-init-data': initData.current } : {};
     const p = new URLSearchParams();
-    if (previewAs()) {
-      p.set('as', 'free');
-      const cta = new URLSearchParams(window.location.search).get('cta');
-      if (cta) p.set('cta', cta);
-    }
+    const qs = new URLSearchParams(window.location.search);
+    if (previewAs()) p.set('as', 'free');
+    // Campaign links (/uniq?src=bc&cta=360): the cabinet logs the source and picks the offer.
+    for (const k of ['cta', 'src'] as const) { const v = qs.get(k); if (v) p.set(k, v); }
     if (checked === 'auto') p.set('auto', '1');
     else if (checked) p.set('checked', '1');
     const res = await fetch(`/api/cabinet/uniq${p.toString() ? `?${p}` : ''}`, { headers, credentials: 'same-origin', cache: 'no-store' });
