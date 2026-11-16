@@ -757,6 +757,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Uniq bug watcher (runs on Sasha's Mac): «Выкатить» / «Отклонить» under a proposed fix.
+      // The tap is only recorded here; the watcher polls events and does the merge + deploy itself.
+      if ((data.startsWith('uqfix_ok:') || data.startsWith('uqfix_no:')) && cb.message) {
+        if (!isAdminChat(cb.message.chat.id)) {
+          await answerCallbackQuery(cb.id);
+          return NextResponse.json({ ok: true });
+        }
+        const ok = data.startsWith('uqfix_ok:');
+        const fixId = data.slice(data.indexOf(':') + 1);
+        await prisma.event.create({
+          data: { type: 'uniq_fix_decision', source: 'uniq', telegramId: BigInt(cb.message.chat.id), metadata: { id: fixId, ok } },
+        });
+        await answerCallbackQuery(cb.id, ok ? 'Выкатываю…' : 'Отклонено');
+        const base = ((cb.message as { text?: string }).text || '')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        await editMessageText(cb.message.chat.id, cb.message.message_id,
+          `${base}\n\n${ok ? '⏳ Выкатываю, напишу, когда будет готово (до 10 минут).' : '✖️ Отклонено, PR закрою.'}`);
+        return NextResponse.json({ ok: true });
+      }
+
       // Unknown callback — just ack
       await answerCallbackQuery(cb.id);
       return NextResponse.json({ ok: true });
