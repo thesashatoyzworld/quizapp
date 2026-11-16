@@ -48,8 +48,9 @@ export function validExpense(e: Partial<ExpenseInput>): string | null {
  * Inserts one row. False when the same operation is already recorded: screenshot
  * rows carry a fingerprint, manual rows do not (two equal coffees are fine).
  */
-export async function addExpense(e: ExpenseInput): Promise<boolean> {
-  const fp = e.source === 'manual' ? null : fingerprint(e);
+export async function addExpense(e: ExpenseInput, nth = 1): Promise<boolean> {
+  // nth: the same operation repeated on one screenshot (two bus tickets) is 2 rows, not a duplicate.
+  const fp = e.source === 'manual' ? null : fingerprint(e) + (nth > 1 ? `#${nth}` : '');
   const n = await prisma.$executeRaw`
     INSERT INTO budget_expenses (id, spent_at, amount, currency, bucket, merchant, source, note, fingerprint)
     VALUES (${randomUUID()}, ${e.spentAt}::date, ${e.amount}, ${e.currency}, ${e.bucket},

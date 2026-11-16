@@ -5,7 +5,7 @@
 // then the rows are recorded here automatically. Sasha fixes buckets afterwards.
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
-import { BUCKETS, BUCKET_IDS, almatyToday, defaultBucket, type Currency, type Source } from '@/content/budget';
+import { BUCKETS, BUCKET_IDS, PERIOD, almatyToday, defaultBucket, fingerprint, type Currency, type Source } from '@/content/budget';
 import { addExpense } from './data';
 
 export type ShotRow = {
@@ -121,6 +121,7 @@ export async function completeShot(id: string, out: { bank?: unknown; operations
   const ops = (Array.isArray(out.operations) ? out.operations : []) as RawOp[];
   const bank: Source = out.bank === 'kaspi' ? 'kaspi' : out.bank === 'tbank' ? 'tbank' : 'manual';
   const rows: ShotRow[] = [];
+  const seen = new Map<string, number>();
   for (const o of ops.slice(0, 80)) {
     const amount = Math.round(Math.abs(Number(o.amount)) * 100) / 100;
     if (!(amount > 0)) continue;
@@ -133,9 +134,14 @@ export async function completeShot(id: string, out: { bank?: unknown; operations
       row.reason = String(o.reason || 'не расход').slice(0, 200);
     } else if (!date) {
       row.reason = 'дата не видна, добавь вручную';
+    } else if (date < PERIOD.from || date > PERIOD.to) {
+      row.reason = 'вне периода бюджета';
     } else {
       const source: Source = bank === 'manual' ? (currency === 'RUB' ? 'tbank' : 'kaspi') : bank;
-      const ok = await addExpense({ spentAt: date, amount, currency, bucket, merchant, source, note: '' });
+      const e = { spentAt: date, amount, currency, bucket, merchant, source, note: '' };
+      const nth = (seen.get(fingerprint(e)) ?? 0) + 1;
+      seen.set(fingerprint(e), nth);
+      const ok = await addExpense(e, nth);
       row.outcome = ok ? 'added' : 'duplicate';
     }
     rows.push(row);
