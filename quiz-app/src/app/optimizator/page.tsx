@@ -572,6 +572,60 @@ function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; sha
   );
 }
 
+function Feedback({ initData, runId }: { initData: string; runId: string | null }) {
+  const [text, setText] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [err, setErr] = useState('');
+  async function submit() {
+    if (!text.trim() || state === 'sending') return;
+    setState('sending');
+    try {
+      const res = await fetch('/api/cabinet/optimizator/feedback', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', ...(initData ? { 'x-tg-init-data': initData } : {}) },
+        body: JSON.stringify({ text, runId: runId || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Не получилось отправить.');
+      setText('');
+      setState('sent');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Не получилось отправить.');
+      setState('error');
+    }
+  }
+  return (
+    <details className="op-card op-details op-fb">
+      <summary>Пожелания и баги<span>оптимизатор в тестовом режиме, напиши, что поправить</span></summary>
+      <div className="op-sect">
+        <p className="op-p op-muted">
+          Разбор не попал, что-то сломалось или хочется новую функцию, напиши. Придёт Саше лично{runId ? ', вместе со ссылкой на открытый разбор' : ''}.
+        </p>
+        {state === 'sent' ? (
+          <div className="op-fb-ok">
+            Спасибо, получил! <button type="button" onClick={() => setState('idle')}>написать ещё</button>
+          </div>
+        ) : (
+          <>
+            <textarea
+              className="op-fb-text"
+              rows={4}
+              maxLength={2000}
+              placeholder="Например: правка про первую фразу не подходит, у меня ролик-история"
+              value={text}
+              onChange={(e) => { setText(e.target.value); if (state === 'error') setState('idle'); }}
+            />
+            <button type="button" className="op-copy op-copy-primary op-fb-send" disabled={!text.trim() || state === 'sending'} onClick={submit}>
+              {state === 'sending' ? 'Отправляю…' : 'Отправить'}
+            </button>
+            {state === 'error' && <div className="op-error" role="alert">{err}</div>}
+          </>
+        )}
+      </div>
+    </details>
+  );
+}
+
 function Waiting({ startedAt }: { startedAt: number }) {
   const [now, setNow] = useState(startedAt);
   useEffect(() => {
@@ -821,6 +875,8 @@ function OptimizatorInner() {
           <div ref={resultRef} className="op-anchor">
             {run && <Result run={run} onNew={startNew} />}
           </div>
+
+          <Feedback initData={initData.current} runId={run?.id || null} />
 
           {items.length > 0 && (
             <section className="op-history">
@@ -1098,6 +1154,15 @@ function OptimizatorInner() {
         .op-ghost:hover { border-color: var(--op-accent); color: var(--op-accent); }
         .op-again { margin: 4px 0 12px; }
         .op-share .op-row { margin-top: 12px; }
+        .op-fb-text {
+          width: 100%; border: 1px solid var(--op-line); border-radius: 12px; padding: 12px 14px;
+          font: inherit; font-size: 15px; line-height: 1.45; color: var(--op-text); background: var(--op-bg); resize: vertical;
+        }
+        .op-fb-text:focus { outline: 2px solid var(--op-accent); outline-offset: 1px; }
+        .op-fb-send { width: 100%; margin-top: 10px; }
+        .op-fb-send:disabled { background: var(--op-line); border-color: var(--op-line); color: var(--op-muted); cursor: default; }
+        .op-fb-ok { font-size: 14.5px; font-weight: 600; color: var(--op-good); background: var(--op-good-soft); border-radius: 12px; padding: 12px 14px; }
+        .op-fb-ok button { margin-left: 6px; border: none; background: none; padding: 0; color: var(--op-muted); font: inherit; text-decoration: underline; cursor: pointer; }
         .op-made { text-align: center; margin: 8px 0 12px; font-size: 13px; }
 
         .op-history { margin-top: 22px; }
