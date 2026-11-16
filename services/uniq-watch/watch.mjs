@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// Uniq bug watcher. Runs on Sasha's Mac from launchd every 10 minutes (see README.md).
+// Uniq bug watcher. Runs on the VPS next to uniq-server: systemd uniq-watch.timer, every 10 minutes (see README.md).
 //
-// One tick:
+// One tick (as root):
 //   1. Sasha's taps on «Выкатить» / «Отклонить» (events uniq_fix_decision, written by the bot webhook)
-//      → merge the PR and deploy it to the VPS with a backup and a health check, or close the PR.
-//   2. New signals: feedback from the /uniq page (events uniq_feedback) and alerts in the VPS log.
-//   3. Signals found → headless Claude in a fresh worktree from origin/master: diagnose, fix, test, open a PR.
-//      Its verdict goes to Sasha in @testtoyzbot. Nothing reaches production without his tap.
+//      → squash the fix branch into master and push (Vercel deploys the cabinet), copy uniq-server files
+//      to /opt/uniq-server with a backup, restart, health check, roll back on failure. Or drop the branch.
+//   2. New signals: feedback from the /uniq page (events uniq_feedback) and alerts in /var/lib/uniq/log.jsonl.
+//   3. Signals found → headless Claude as the unprivileged user uqclaude in a throwaway clone:
+//      diagnose, fix, test, commit. Claude has no GitHub key, no database and no write access to the service;
+//      the watcher pushes its branch and asks Sasha in @testtoyzbot. Nothing reaches production without his tap.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -17,21 +19,21 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = execFileSync('git', ['-C', HERE, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
-const QUIZ_APP = process.env.UNIQ_WATCH_QUIZ_APP || path.join(os.homedir(), 'Documents/ClaudeCode/Projects/TheSasha/quiz-app');
-const STATE_DIR = process.env.UNIQ_WATCH_DIR || path.join(os.homedir(), '.uniq-watch');
-const STATE_FILE = path.join(STATE_DIR, 'state.json');
-const LOCK = path.join(STATE_DIR, 'lock');
-const SSH = ['-o', 'ConnectTimeout=15', '-o', 'BatchMode=yes', '-i', path.join(os.homedir(), '.ssh/vps_timeweb'), 'root@72.56.16.252'];
-const CLAUDE = process.env.UNIQ_WATCH_CLAUDE || path.join(os.homedir(), '.local/bin/claude');
+const STATE_DIR = process.env.UNIQ_WATCH_DIR || '/var/lib/uqwatch';
+const REPO = process.env.UNIQ_WATCH_REPO || path.join(STATE_DIR, 'quizapp'); // clone with the deploy key (push)
+const DEPS = process.env.UNIQ_WATCH_DEPS || '/opt/quizapp/quiz-app'; // node_modules with pg
+const SERVICE_DIR = '/opt/uniq-server';
+const LOG = process.env.UNIQ_LOG || '/var/lib/uniq/log.jsonl';
+const CLAUDE_USER = process.env.UNIQ_WATCH_CLAUDE_USER || 'uqclaude';
 const CLAUDE_TIMEOUT_MS = 45 * 60 * 1000;
 const MAX_RUNS_PER_DAY = 6;
 const IGNORE_ALERTS = /^(queue)$/; // load, not a bug
+const GH = 'https://github.com/thesashatoyzworld/quizapp';
 const DRY = process.argv.includes('--dry'); // collect and print signals, change nothing
 
-const req = createRequire(path.join(QUIZ_APP, 'package.json'));
-req('dotenv').config({ path: path.join(QUIZ_APP, '.env.local'), quiet: true });
-const pg = req('pg');
+const STATE_FILE = path.join(STATE_DIR, 'state.json');
+const LOCK = path.join(STATE_DIR, 'lock');
+const pg = createRequire(path.join(DEPS, 'package.json'))('pg');
 const BOT = process.env.BOT_TOKEN;
 const SASHA = (process.env.ADMIN_CHAT_ID || '788334680').trim();
 
@@ -42,7 +44,7 @@ const say = (...a) => console.log(new Date().toISOString(), ...a);
 function sh(cmd, args, opts = {}) {
   return execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 << 20, ...opts }).trim();
 }
-const ssh = (remote, opts) => sh('ssh', [...SSH, remote], opts);
+const git = (args, cwd = REPO) => sh('git', ['-c', 'safe.directory=*', '-C', cwd, ...args]);
 
 async function db(fn) {
   const c = new pg.Client({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
@@ -81,8 +83,8 @@ function lock() {
 // ---------- signals ----------
 async function collect(state) {
   const signals = [];
-  // VPS log: alerts (failed versions, crash, restart mid-job, cabinet unreachable) and failed bot sends.
-  const lines = ssh('tail -n 3000 /var/lib/uniq/log.jsonl').split('\n');
+  // Service log: alerts (failed versions, crash, restart mid-job, cabinet unreachable) and failed bot sends.
+  const lines = sh('tail', ['-n', '3000', LOG]).split('\n');
   let logT = state.logT;
   for (const l of lines) {
     let e; try { e = JSON.parse(l); } catch { continue; }
@@ -91,14 +93,19 @@ async function collect(state) {
     if (e.ev === 'alert' && !IGNORE_ALERTS.test(e.key)) signals.push({ kind: 'alert', at: new Date(e.t).toISOString(), key: e.key, text: e.text });
     if (e.ev === 'sent' && e.failed > 0) signals.push({ kind: 'send_failed', at: new Date(e.t).toISOString(), uid: e.uid, job: e.id, failed: e.failed });
   }
-  // Feedback form under /uniq.
+  // Feedback form under /uniq. Claude gets no database, so everything it needs about the person goes in here.
   const fb = await db((c) => c.query(
-    `select id, created_at, telegram_id::text as tg, metadata from events
-     where type = 'uniq_feedback' and created_at > $1 order by created_at`, [state.fbAt]));
+    `select e.created_at, e.telegram_id::text as tg, e.metadata,
+       (select json_agg(json_build_object('product', pa.product, 'tier', pa.tier, 'expires', pa.expires_at))
+          from product_access pa where pa.telegram_id = e.telegram_id) as access
+     from events e where e.type = 'uniq_feedback' and e.created_at > $1 order by e.created_at`, [state.fbAt])
+    .catch(() => c.query(
+      `select created_at, telegram_id::text as tg, metadata from events
+       where type = 'uniq_feedback' and created_at > $1 order by created_at`, [state.fbAt])));
   let fbAt = state.fbAt;
   for (const r of fb.rows) {
     fbAt = r.created_at.toISOString();
-    signals.push({ kind: 'feedback', at: fbAt, tg: r.tg, from: r.metadata?.from, text: r.metadata?.text });
+    signals.push({ kind: 'feedback', at: fbAt, tg: r.tg, from: r.metadata?.from, text: r.metadata?.text, access: r.access || undefined });
   }
   return { signals, logT, fbAt };
 }
@@ -108,23 +115,28 @@ function prompt(fix, signals, resultFile) {
   return fs.readFileSync(path.join(HERE, 'prompt.md'), 'utf8')
     .replaceAll('{{ID}}', fix.id)
     .replaceAll('{{RESULT}}', resultFile)
-    .replaceAll('{{QUIZ_APP_ENV}}', path.join(QUIZ_APP, '.env.local'))
     .replaceAll('{{SIGNALS}}', JSON.stringify(signals, null, 2));
 }
 
 function runClaude(cwd, text, logFile) {
+  const { uid, gid } = fs.statSync(cwd); // the clone is chowned to uqclaude
+  const home = sh('getent', ['passwd', CLAUDE_USER]).split(':')[5];
+  const env = {
+    PATH: '/usr/local/bin:/usr/bin:/bin', HOME: home, USER: CLAUDE_USER, LANG: 'C.UTF-8',
+    CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN, FORCE_COLOR: '0',
+  };
   return new Promise((resolve) => {
     const out = fs.openSync(logFile, 'a');
-    const p = spawn(CLAUDE, ['-p', text, '--permission-mode', 'bypassPermissions'], { cwd, stdio: ['ignore', out, out] });
+    const p = spawn('claude', ['-p', text, '--permission-mode', 'bypassPermissions'], { cwd, env, uid, gid, stdio: ['ignore', out, out] });
     const timer = setTimeout(() => { p.kill('SIGTERM'); resolve('timeout'); }, CLAUDE_TIMEOUT_MS);
     p.on('error', (e) => { clearTimeout(timer); resolve(`spawn: ${e.message}`); });
     p.on('close', (code) => { clearTimeout(timer); resolve(code === 0 ? 'ok' : `exit ${code}`); });
   });
 }
 
-function removeWorktree(fix) {
-  try { sh('git', ['-C', REPO, 'worktree', 'remove', '--force', fix.wt]); } catch { fs.rmSync(fix.wt, { recursive: true, force: true }); }
-  try { sh('git', ['-C', REPO, 'worktree', 'prune']); } catch { /* ignore */ }
+function cleanup(fix) {
+  fs.rmSync(fix.wt, { recursive: true, force: true });
+  try { git(['branch', '-D', fix.branch]); } catch { /* gone */ }
 }
 
 const describe = (s) => s.kind === 'feedback' ? `отзыв от ${s.from || s.tg}: «${String(s.text || '').slice(0, 300)}»`
@@ -140,32 +152,52 @@ async function startFix(state, signals) {
   state.fixes[id] = fix;
   saveState(state);
 
-  sh('git', ['-C', REPO, 'fetch', '-q', 'origin', 'master']);
-  sh('git', ['-C', REPO, 'worktree', 'add', '-q', '-b', fix.branch, fix.wt, 'origin/master']);
-  try { fs.symlinkSync(path.join(QUIZ_APP, 'node_modules'), path.join(fix.wt, 'quiz-app/node_modules')); } catch { /* ok */ }
+  // Throwaway clone owned by uqclaude; objects are shared read-only with REPO, so it is cheap.
+  git(['fetch', '-q', 'origin', 'master']);
+  git(['branch', '-f', fix.branch, 'origin/master']);
+  fs.mkdirSync(path.dirname(fix.wt), { recursive: true });
+  sh('git', ['clone', '-q', '--shared', '-b', fix.branch, REPO, fix.wt]);
+  git(['config', 'user.name', 'Sasha Toyz'], fix.wt);
+  git(['config', 'user.email', 'thesashatoyz@gmail.com'], fix.wt);
+  try { fs.symlinkSync(path.join(DEPS, 'node_modules'), path.join(fix.wt, 'quiz-app/node_modules')); } catch { /* ok */ }
+  const resultFile = path.join(fix.wt, '.uniq-fix-result.json');
+  sh('chown', ['-R', `${CLAUDE_USER}:${CLAUDE_USER}`, fix.wt]);
 
   await tg(`🔧 Уникализатор: вижу проблему, разбираюсь сам.\n\n${signals.map((s) => '• ' + describe(s)).join('\n')}\n\nНапишу, что нашёл (обычно 10–30 минут).`);
-  const resultFile = path.join(dir, 'result.json');
   const how = await runClaude(fix.wt, prompt(fix, signals, resultFile), path.join(dir, 'claude.log'));
   let r = null;
   try { r = JSON.parse(fs.readFileSync(resultFile, 'utf8')); } catch { /* no verdict */ }
+  fs.rmSync(resultFile, { force: true });
   fix.finishedAt = new Date().toISOString();
   fix.result = r;
 
-  if (r && r.kind === 'fix' && r.pr_url) {
+  // What Claude committed on top of master. Its own word is not enough: the commits decide.
+  let ahead = 0, files = [];
+  try {
+    ahead = Number(git(['rev-list', '--count', `origin/${fix.branch}..HEAD`], fix.wt) || 0);
+    files = git(['diff', '--name-only', `origin/${fix.branch}`, 'HEAD'], fix.wt).split('\n').filter(Boolean);
+  } catch { /* no commits */ }
+
+  if (r && r.kind === 'fix' && ahead > 0) {
+    git(['fetch', '-q', '-f', fix.wt, `HEAD:refs/heads/${fix.branch}`]);
+    git(['push', '-q', '-f', 'origin', `${fix.branch}:${fix.branch}`]);
     fix.status = 'proposed';
-    fix.pr = r.pr_url;
-    const where = [r.deploy_vps && 'сервер уникализатора', r.deploy_vercel && 'кабинет (Vercel)'].filter(Boolean).join(' и ');
-    await tg(`🛠 ${r.title || 'Починка уникализатора'}\n\n${r.summary || ''}\n\nКуда поедет: ${where || '—'}. Проверено: ${r.checked || '—'}`,
+    fix.files = files;
+    fix.vps = files.some((f) => f.startsWith('services/uniq-server/'));
+    fix.vercel = files.some((f) => f.startsWith('quiz-app/'));
+    const where = [fix.vps && 'сервер уникализатора', fix.vercel && 'кабинет (Vercel)'].filter(Boolean).join(' и ');
+    saveState(state);
+    await tg(`🛠 ${r.title || 'Починка уникализатора'}\n\n${r.summary || ''}\n\nКуда поедет: ${where || 'только тесты/доки'}. Проверено: ${r.checked || '—'}`,
       [[{ text: '✅ Выкатить', callback_data: `uqfix_ok:${id}` }, { text: '✖️ Отклонить', callback_data: `uqfix_no:${id}` }],
-        [{ text: 'Открыть PR', url: r.pr_url }]]);
+        [{ text: 'Что поменял', url: `${GH}/compare/master...${encodeURIComponent(fix.branch)}` }]]);
+    fs.rmSync(fix.wt, { recursive: true, force: true }); // the branch now lives in REPO and on GitHub
   } else {
     fix.status = 'closed';
-    removeWorktree(fix);
+    cleanup(fix);
     if (r && (r.kind === 'not_bug' || r.kind === 'noise')) {
       await tg(`💬 ${r.title || 'Не баг'}\n\n${r.summary || ''}${r.reply_draft ? `\n\nЧерновик ответа${r.who ? ' для ' + r.who : ''}:\n${r.reply_draft}` : ''}`);
     } else {
-      await tg(`⚠️ Уникализатор: не смог починить сам (${how}).\n\n${r?.summary || 'Вердикта нет.'}\n\nЛог: ${path.join(dir, 'claude.log')}`);
+      await tg(`⚠️ Уникализатор: не смог починить сам (${how}${r && r.kind === 'fix' ? ', правка не закоммичена' : ''}).\n\n${r?.summary || 'Вердикта нет.'}\n\nРасшифровка: ${path.join(dir, 'claude.log')}`);
     }
   }
   saveState(state);
@@ -181,61 +213,71 @@ async function decisions(state) {
   for (const f of waiting) {
     const d = rows.filter((r) => r.metadata.id === f.id).pop();
     if (f.status === 'proposed' && !d) continue;
+    if (DRY) { say('decision (dry):', f.id, d?.metadata); continue; }
     if (d && d.metadata.ok === false) {
-      if (!DRY) { try { sh('gh', ['pr', 'close', f.pr, '--delete-branch'], { cwd: REPO }); } catch (e) { say('close:', e.message); } removeWorktree(f); }
+      try { git(['push', '-q', 'origin', '--delete', f.branch]); } catch (e) { say('delete branch:', e.message); }
+      cleanup(f);
       f.status = 'rejected';
       saveState(state);
       continue;
     }
     f.status = 'approved';
-    if (!DRY) await deploy(state, f);
+    await deploy(state, f);
   }
-}
-
-function vpsBusy() {
-  return ssh('pgrep -c ffmpeg || true') !== '0';
 }
 
 async function deploy(state, f) {
   const r = f.result || {};
-  if (r.deploy_vps && vpsBusy()) { say(`deploy ${f.id}: VPS is encoding, retry next tick`); saveState(state); return; }
+  if (f.vps && sh('sh', ['-c', 'pgrep -c ffmpeg || true']) !== '0') { say(`deploy ${f.id}: encoding in progress, next tick`); saveState(state); return; }
   try {
     if (!f.merged) {
-      sh('gh', ['pr', 'merge', f.pr, '--squash', '--delete-branch'], { cwd: REPO });
-      f.merged = true;
+      git(['fetch', '-q', 'origin', 'master']);
+      git(['checkout', '-q', '--detach', 'origin/master']);
+      try {
+        git(['merge', '--squash', f.branch]);
+      } catch (e) {
+        git(['reset', '-q', '--hard', 'origin/master']);
+        throw new Error(`не сливается с master (кто-то поменял те же места): ${e.message.slice(0, 120)}`);
+      }
+      git(['-c', 'user.name=Sasha Toyz', '-c', 'user.email=thesashatoyz@gmail.com', 'commit', '-q', '-m',
+        `uniq: ${r.title || 'auto fix'} (uniq-watch ${f.id})\n\n${(r.summary || '').slice(0, 1500)}\n\nCo-Authored-By: Claude <noreply@anthropic.com>`]);
+      git(['push', '-q', 'origin', 'HEAD:master']);
+      try { git(['push', '-q', 'origin', '--delete', f.branch]); } catch { /* ok */ }
+      f.merged = git(['rev-parse', '--short', 'HEAD']);
       saveState(state);
     }
     let vpsNote = '';
-    if (r.deploy_vps) {
-      sh('git', ['-C', REPO, 'fetch', '-q', 'origin', 'master']);
-      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'uniq-deploy-'));
-      const files = sh('git', ['-C', REPO, 'ls-tree', '--name-only', 'origin/master', 'services/uniq-server/'])
-        .split('\n').filter((p) => p.endsWith('.js'));
-      for (const p of files) fs.writeFileSync(path.join(tmp, path.basename(p)), sh('git', ['-C', REPO, 'show', `origin/master:${p}`]) + '\n');
-      const bak = `/opt/uniq-server/bak-${f.id}`;
-      ssh(`mkdir -p ${bak} && cp /opt/uniq-server/*.js ${bak}/`);
-      sh('scp', ['-q', ...SSH.slice(0, -1), ...fs.readdirSync(tmp).map((n) => path.join(tmp, n)), `${SSH.at(-1)}:/opt/uniq-server/`]);
-      ssh('chown uniq:uniq /opt/uniq-server/server.js; systemctl restart uniq-server');
+    if (f.vps) {
+      const bak = path.join(SERVICE_DIR, `bak-${f.id}`);
+      fs.mkdirSync(bak, { recursive: true });
+      const live = fs.readdirSync(SERVICE_DIR).filter((n) => n.endsWith('.js'));
+      for (const n of live) fs.copyFileSync(path.join(SERVICE_DIR, n), path.join(bak, n));
+      const files = git(['ls-tree', '--name-only', 'HEAD', 'services/uniq-server/']).split('\n').filter((p) => p.endsWith('.js'));
+      for (const p of files) fs.writeFileSync(path.join(SERVICE_DIR, path.basename(p)), git(['show', `HEAD:${p}`]) + '\n');
+      sh('chown', ['uniq:uniq', path.join(SERVICE_DIR, 'server.js')]);
+      sh('systemctl', ['restart', 'uniq-server']);
       await new Promise((ok) => setTimeout(ok, 4000));
-      const healthy = ssh('systemctl is-active uniq-server; curl -s -o /dev/null -w "%{http_code}" https://uniq.thesashatoyz.com/api/me') ;
-      if (!/active\s*401/.test(healthy.replace(/\n/g, ' '))) {
-        ssh(`cp ${bak}/*.js /opt/uniq-server/ && chown uniq:uniq /opt/uniq-server/server.js && systemctl restart uniq-server`);
+      const active = sh('sh', ['-c', 'systemctl is-active uniq-server || true']);
+      const code = sh('sh', ['-c', 'curl -s -o /dev/null -w "%{http_code}" https://uniq.thesashatoyz.com/api/me || true']);
+      if (active !== 'active' || code !== '401') {
+        for (const n of live) fs.copyFileSync(path.join(bak, n), path.join(SERVICE_DIR, n));
+        sh('systemctl', ['restart', 'uniq-server']);
         f.status = 'rolled_back';
         saveState(state);
-        await tg(`❌ ${r.title || 'Починка'}: после выкатки сервис не ответил как надо (${healthy.replace(/\n/g, ' ')}). Вернул прошлую версию, сервис работает как до починки. PR смёржен, его надо откатить: ${f.pr}`);
+        await tg(`❌ ${r.title || 'Починка'}: после выкатки сервис не ответил как надо (${active}, ${code}). Вернул прошлую версию, уникализатор работает как до починки. В master правка осталась (${f.merged}), её надо откатить.`);
         return;
       }
       vpsNote = 'Сервер обновлён и отвечает. ';
     }
     f.status = 'deployed';
-    removeWorktree(f);
+    cleanup(f);
     saveState(state);
-    await tg(`✅ Выкатил: ${r.title || f.id}. ${vpsNote}${r.deploy_vercel ? 'Кабинет обновится сам через 2–3 минуты (Vercel). ' : ''}${r.reply_draft ? `\n\nЧерновик ответа${r.who ? ' для ' + r.who : ''}:\n${r.reply_draft}` : ''}`);
+    await tg(`✅ Выкатил: ${r.title || f.id}. ${vpsNote}${f.vercel ? 'Кабинет обновится сам через 2–3 минуты (Vercel). ' : ''}${r.reply_draft ? `\n\nЧерновик ответа${r.who ? ' для ' + r.who : ''}:\n${r.reply_draft}` : ''}`);
   } catch (e) {
     f.status = 'deploy_failed';
     f.error = e.message;
     saveState(state);
-    await tg(`❌ Не смог выкатить ${r.title || f.id}: ${String(e.message).slice(0, 300)}`);
+    await tg(`❌ Не смог выкатить «${r.title || f.id}»: ${String(e.message).slice(0, 300)}`);
   }
 }
 
@@ -271,7 +313,7 @@ async function main() {
   }
 }
 
-main().catch(async (e) => {
+main().catch((e) => {
   say('tick failed:', e.stack || e.message);
   fs.rmSync(LOCK, { force: true });
   process.exitCode = 1;

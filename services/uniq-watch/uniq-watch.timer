@@ -1,0 +1,9 @@
+[Unit]
+Description=Uniq bug watcher every 10 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitInactiveSec=10min
+
+[Install]
+WantedBy=timers.target

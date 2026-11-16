@@ -1,21 +1,22 @@
 # uniq-watch
 
-Bug watcher for the uniqualizer. Runs on Sasha's Mac (launchd, every 10 min, skips while the Mac sleeps).
+Bug watcher for the uniqualizer. Runs on the VPS (toyz-cloud-nl) next to uniq-server: `uniq-watch.timer`, every 10 min.
 
-Signals: `uniq_feedback` events (form under /uniq) and `alert` / failed `sent` events in `/var/lib/uniq/log.jsonl` on the VPS.
-On a signal it runs headless `claude -p` (subscription, $0) in a fresh worktree from origin/master with `prompt.md`;
-Claude fixes, tests and opens a PR, or says it is not a bug. Sasha gets the verdict in @testtoyzbot with
-«Выкатить» / «Отклонить». The bot webhook records the tap (`uniq_fix_decision` event), the next tick merges the PR and,
-for `services/uniq-server` changes, copies the files to `/opt/uniq-server` (backup in `bak-<id>/`), restarts and checks
-health; on a failed check it restores the backup. Cabinet changes deploy through Vercel on merge.
+Signals: `uniq_feedback` events (form under /uniq) and `alert` / failed `sent` events in `/var/lib/uniq/log.jsonl`.
+On a signal the watcher (root) makes a throwaway clone and runs headless `claude -p` with `prompt.md` as the
+unprivileged user `uqclaude` (no GitHub key, no database, no write access to the service; token =
+CLAUDE_CODE_OAUTH_TOKEN, Sasha's subscription). Claude fixes, tests and commits, or says it is not a bug.
+If there are commits the watcher pushes `fix/uniq-auto-<id>` and sends Sasha the verdict in @testtoyzbot with
+«Выкатить» / «Отклонить». The bot webhook records the tap (`uniq_fix_decision` event); the next tick squashes the
+branch into master and pushes (Vercel deploys the cabinet) and, for `services/uniq-server` changes, copies the files
+to `/opt/uniq-server` (backup in `bak-<id>/`), restarts and checks health; on a failed check it restores the backup.
 
-Runtime checkout: `~/Documents/ClaudeCode/Projects/TheSasha/quiz-app-watch` (detached origin/master; update with
-`git -C … fetch && git -C … checkout --detach origin/master`). Deps and env come from `TheSasha/quiz-app`
-(node_modules, `.env.local`: DIRECT_URL, BOT_TOKEN, ADMIN_CHAT_ID). State, logs and Claude transcripts: `~/.uniq-watch/`.
+Install / update (from a checkout on the Mac): `services/uniq-watch/deploy.sh`.
+Files on the VPS: code `/opt/uniq-watch`, env `/etc/uniq-watch.env` (BOT_TOKEN, ADMIN_CHAT_ID, DIRECT_URL,
+CLAUDE_CODE_OAUTH_TOKEN), state, logs and Claude transcripts `/var/lib/uqwatch/`, push clone `/var/lib/uqwatch/quizapp`.
 
-    cp com.sashatoyz.uniq-watch.plist ~/Library/LaunchAgents/
-    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.sashatoyz.uniq-watch.plist
-    node watch.mjs --dry      # print new signals, change nothing
-    tail -f ~/.uniq-watch/watch.log
+    systemctl list-timers uniq-watch.timer
+    journalctl -u uniq-watch -n 50
+    cd /opt/uniq-watch && set -a && . /etc/uniq-watch.env && node watch.mjs --dry   # new signals, change nothing
 
 Limits: one Claude run at a time, at most 6 a day, 45 min per run.

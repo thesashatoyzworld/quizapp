@@ -1,0 +1,11 @@
+[Unit]
+Description=Uniq bug watcher (one tick)
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/uniq-watch.env
+WorkingDirectory=/opt/uniq-watch
+ExecStart=/usr/bin/node /opt/uniq-watch/watch.mjs
+Nice=10
+TimeoutStartSec=3h
