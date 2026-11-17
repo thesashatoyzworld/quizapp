@@ -81,9 +81,11 @@ export async function POST(req: NextRequest) {
 
     // Уровень проверяем, только если он вообще пришёл: в листе ожидания
     // его могли не трогать.
+    // The form keeps an untouched level as 0 and used to send it as-is;
+    // treat 0 as "not answered" so short waitlist forms are not rejected.
     const rawLevel = cap(answers.level);
     let level: number | null = null;
-    if (rawLevel) {
+    if (rawLevel && rawLevel !== '0') {
       const n = Number(rawLevel);
       if (!Number.isInteger(n) || n < 1 || n > 6) {
         return NextResponse.json({ error: 'bad level' }, { status: 400 });
