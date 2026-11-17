@@ -95,16 +95,19 @@ async function collect(state) {
   }
   // Feedback form under /uniq. Claude gets no database, so everything it needs about the person goes in here.
   const fb = await db((c) => c.query(
-    `select e.created_at, e.telegram_id::text as tg, e.metadata,
+    `select e.created_at::text as at_raw, e.telegram_id::text as tg, e.metadata,
        (select json_agg(json_build_object('product', pa.product, 'tier', pa.tier, 'expires', pa.expires_at))
           from product_access pa where pa.telegram_id = e.telegram_id) as access
-     from events e where e.type = 'uniq_feedback' and e.created_at > $1 order by e.created_at`, [state.fbAt])
+     from events e where e.type = 'uniq_feedback' and e.created_at > $1::timestamp order by e.created_at`, [state.fbAt])
     .catch(() => c.query(
-      `select created_at, telegram_id::text as tg, metadata from events
-       where type = 'uniq_feedback' and created_at > $1 order by created_at`, [state.fbAt])));
+      `select created_at::text as at_raw, telegram_id::text as tg, metadata from events
+       where type = 'uniq_feedback' and created_at > $1::timestamp order by created_at`, [state.fbAt])));
   let fbAt = state.fbAt;
   for (const r of fb.rows) {
-    fbAt = r.created_at.toISOString();
+    // events.created_at is timestamp without time zone (UTC). Going through a JS Date
+    // shifts it by the VPS zone (+3), the cursor lands 3 h back and the same feedback
+    // is picked up again on every tick. Keep the raw text and compare as timestamp.
+    fbAt = r.at_raw;
     signals.push({ kind: 'feedback', at: fbAt, tg: r.tg, from: r.metadata?.from, text: r.metadata?.text, access: r.access || undefined });
   }
   return { signals, logT, fbAt };
@@ -179,7 +182,9 @@ async function startFix(state, signals) {
   } catch { /* no commits */ }
 
   if (r && r.kind === 'fix' && ahead > 0) {
-    git(['fetch', '-q', '-f', fix.wt, `HEAD:refs/heads/${fix.branch}`]);
+    // Push from the uqclaude-owned clone into REPO: a fetch the other way runs
+    // upload-pack inside the clone, which refuses it as dubious ownership.
+    git(['push', '-q', '-f', REPO, `HEAD:refs/heads/${fix.branch}`], fix.wt);
     git(['push', '-q', '-f', 'origin', `${fix.branch}:${fix.branch}`]);
     fix.status = 'proposed';
     fix.files = files;
