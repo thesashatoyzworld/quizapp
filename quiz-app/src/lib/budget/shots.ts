@@ -5,7 +5,7 @@
 // then the rows are recorded here automatically. Sasha fixes buckets afterwards.
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
-import { BUCKETS, BUCKET_IDS, PERIOD, almatyToday, defaultBucket, fingerprint, type Currency, type Source } from '@/content/budget';
+import { BEFORE_PLAN, BUCKETS, BUCKET_IDS, PERIOD, almatyToday, defaultBucket, fingerprint, type Currency, type Source } from '@/content/budget';
 import { addExpense } from './data';
 
 export type ShotRow = {
@@ -137,6 +137,8 @@ export async function completeShot(id: string, out: { operations?: unknown }): P
       row.reason = 'дата не видна, добавь вручную';
     } else if (date < PERIOD.from || date > PERIOD.to) {
       row.reason = 'вне периода бюджета';
+    } else if (BEFORE_PLAN.some((p) => p.date === date && p.amount === amount && p.currency === currency)) {
+      row.reason = 'было до плана, уже учтено в остатке';
     } else {
       const source: Source = currency === 'RUB' ? 'tbank' : 'kaspi';
       const e = { spentAt: date, amount, currency, bucket, merchant, source, note: '' };
