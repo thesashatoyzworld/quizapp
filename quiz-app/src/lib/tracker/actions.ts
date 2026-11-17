@@ -8,6 +8,7 @@ export type TrackerAction =
   | { action: 'createTask'; kind: 'quest' | 'routine'; title: string; period?: Period; note?: string; tags?: string[]; parentId?: string | null; steps?: string[]; auto?: boolean }
   | { action: 'setParent'; id: string; parentId: string | null }
   | { action: 'setTags'; id: string; tags: string[] }
+  | { action: 'setMap'; id: string; stage: string | null; later?: boolean; week?: string | null }
   | { action: 'suggestSteps'; id: string; coarser?: boolean }
   | { action: 'splitStep'; id: string }
   | { action: 'updateTask'; id: string; title?: string; note?: string | null; period?: Period }
@@ -170,6 +171,15 @@ export async function runAction(a: TrackerAction): Promise<TaskView | null> {
     case 'setTags':
       await prisma.trackerTask.update({ where: { id: a.id }, data: { tags: cleanTags(a.tags) } });
       return getTask(a.id);
+    case 'setMap': {
+      const stage = a.stage ? String(a.stage).trim().slice(0, 40) || null : null;
+      const week = a.week && /^\d{4}-\d{2}-\d{2}$/.test(String(a.week)) ? String(a.week) : null;
+      await prisma.trackerTask.update({
+        where: { id: a.id },
+        data: { mapStage: stage, mapLater: stage ? a.later === true : false, mapWeek: stage ? week : null },
+      });
+      return getTask(a.id);
+    }
     case 'archiveTask':
       await prisma.trackerTask.update({
         where: { id: a.id },

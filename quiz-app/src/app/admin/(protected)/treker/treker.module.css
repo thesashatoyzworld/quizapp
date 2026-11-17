@@ -1198,3 +1198,44 @@ button.tag:hover {
 .undoBtn:hover {
   border-color: var(--success);
 }
+
+/* ---------- вход на карту запуска ---------- */
+
+.mapLink {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  margin-bottom: 24px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 14px;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.mapLink:hover {
+  border-color: rgba(0, 240, 255, 0.55);
+  background: var(--bg-tertiary);
+}
+
+.mapLink b {
+  display: block;
+  font-weight: 600;
+}
+
+.mapLinkIcon {
+  font-size: 1.4rem;
+}
+
+.mapLinkSub {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.mapLinkGo {
+  margin-left: auto;
+  color: var(--neon-cyan);
+}

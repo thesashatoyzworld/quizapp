@@ -11,6 +11,8 @@ export type TaskView = {
   period: Period | null;
   tags: string[];
   parentId: string | null;
+  /** Карта запуска: колонка пути клиента, «потом» и неделя (понедельник). */
+  map: { stage: string; later: boolean; week: string | null } | null;
   archived: boolean;
   steps: StepView[];
   /** Задача без шагов отмечается целиком. */
@@ -56,6 +58,7 @@ export function toView(row: NonNullable<Row>, now = new Date()): TaskView {
     period,
     tags: row.tags ?? [],
     parentId: row.parentId ?? null,
+    map: row.mapStage ? { stage: row.mapStage, later: row.mapLater, week: row.mapWeek ?? null } : null,
     archived: !!row.archivedAt,
     steps: row.steps.map((s) => ({ id: s.id, title: s.title, done: doneSteps.has(s.id) })),
     doneWhole: doneSteps.has(''),
