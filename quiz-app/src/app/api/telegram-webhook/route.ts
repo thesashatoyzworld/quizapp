@@ -822,6 +822,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // /metki — сколько записей в лист ожидания 360 пришло с каждой метки.
+    // Пост в канале ссылается на thesashatoyz.com/360?from=tg_<пост>, метка доходит до анкеты.
+    if (
+      update.message?.text?.trim().split(/[\s@]/)[0] === '/metki' &&
+      String(update.message.chat.id) === (process.env.ADMIN_CHAT_ID || '').trim()
+    ) {
+      const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+      const [all, week] = await Promise.all([
+        prisma.dwyLead.groupBy({ by: ['source'], where: { kind: '360' }, _count: { _all: true } }),
+        prisma.dwyLead.groupBy({ by: ['source'], where: { kind: '360', createdAt: { gte: weekAgo } }, _count: { _all: true } }),
+      ]);
+      const weekBy = new Map(week.map((r) => [r.source || 'direct', r._count._all]));
+      const rows = all
+        .map((r) => ({ src: r.source || 'direct', n: r._count._all }))
+        .sort((x, y) => y.n - x.n);
+      const total = rows.reduce((t, r) => t + r.n, 0);
+      const reply = rows.length
+        ? [
+            `Лист ожидания 360: ${total}`,
+            '',
+            ...rows.map((r) => `${r.src} — ${r.n}${weekBy.get(r.src) ? ` (за 7 дней ${weekBy.get(r.src)})` : ''}`),
+          ].join('\n')
+        : 'В листе ожидания 360 пока никого';
+      await sendBotMessage(update.message.chat.id, reply, undefined, null);
+      return NextResponse.json({ ok: true });
+    }
+
     // Команды Саши по анкетам. Только из его чата, ADMIN_CHAT_ID.
     if (
       update.message?.text?.startsWith('/anketa_') &&
