@@ -13,7 +13,8 @@ import path from 'node:path';
 
 const CABINET = (process.env.CABINET_URL || 'https://world.thesashatoyz.com').replace(/\/$/, '');
 const CLAUDE_USER = process.env.BUDGET_CLAUDE_USER || 'uqclaude';
-const TIMEOUT_MS = 4 * 60 * 1000;
+const TIMEOUT_MS = 10 * 60 * 1000;
+const PY = process.env.BUDGET_PY || '/opt/budget-shots/venv/bin/python';
 const MAX_PER_RUN = 40;
 
 const headers = {
@@ -44,7 +45,7 @@ function runClaude(dir, prompt, schema) {
     let err = '';
     p.stdout.on('data', (d) => { out += d; });
     p.stderr.on('data', (d) => { err += d; });
-    const timer = setTimeout(() => { p.kill('SIGTERM'); reject(new Error('распознавание не уложилось в 4 минуты')); }, TIMEOUT_MS);
+    const timer = setTimeout(() => { p.kill('SIGTERM'); reject(new Error('распознавание не уложилось в 10 минут')); }, TIMEOUT_MS);
     p.on('error', (e) => { clearTimeout(timer); reject(e); });
     p.on('close', (code) => {
       clearTimeout(timer);
@@ -63,12 +64,24 @@ for (let n = 0; n < MAX_PER_RUN; n++) {
   const { prompt, schema, shots } = await api('GET');
   const shot = shots?.[0];
   if (!shot) break;
-  const m = /^data:image\/(\w+);base64,(.+)$/s.exec(shot.image);
+  const m = /^data:(image\/(\w+)|application\/pdf);base64,(.+)$/s.exec(shot.image);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'budget-shot-'));
   try {
-    if (!m) throw new Error('битая картинка');
-    const file = path.join(dir, `shot.${m[1] === 'jpeg' ? 'jpg' : m[1]}`);
-    fs.writeFileSync(file, Buffer.from(m[2], 'base64'));
+    if (!m) throw new Error('битый файл');
+    let file;
+    if (m[1] === 'application/pdf') {
+      // Statements: give Claude the text layer, it is exact and cheap to read.
+      const pdf = path.join(dir, 'statement.pdf');
+      fs.writeFileSync(pdf, Buffer.from(m[3], 'base64'));
+      const text = execFileSync(PY, ['-c', 'import pymupdf,sys\nprint("\\n".join(p.get_text() for p in pymupdf.open(sys.argv[1])))', pdf],
+        { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 });
+      if (!text.trim()) throw new Error('в PDF нет текста, пришли скрин');
+      file = path.join(dir, 'statement.txt');
+      fs.writeFileSync(file, text);
+    } else {
+      file = path.join(dir, `shot.${m[2] === 'jpeg' ? 'jpg' : m[2]}`);
+      fs.writeFileSync(file, Buffer.from(m[3], 'base64'));
+    }
     execFileSync('chown', ['-R', `${CLAUDE_USER}:`, dir]);
     const output = await runClaude(dir, prompt.replaceAll('{{FILE}}', file), schema);
     const r = await api('POST', { id: shot.id, output });

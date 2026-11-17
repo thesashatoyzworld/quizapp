@@ -59,7 +59,9 @@ export function shotPrompt(today = almatyToday()): string {
   const buckets = BUCKETS.map(
     (b) => `- ${b.id} (${b.currency === 'RUB' ? '₽' : '₸'}): ${b.label}, ${b.hint}${b.items ? `; в плане: ${b.items.join(', ')}` : ''}`,
   ).join('\n');
-  return `Открой инструментом Read картинку {{FILE}}. Это скриншот банковского приложения Саши: Kaspi (тенге) или Т-Банк (рубли). Выпиши каждую операцию для учёта личного бюджета и ответь строго по схеме. Ничего не выдумывай: чего не видно на скрине, того нет.
+  return `Открой инструментом Read файл {{FILE}}. Это скриншот банковского приложения Саши или текст PDF-выписки (файл .txt): Kaspi (тенге) или Т-Банк (рубли). Выпиши каждую операцию для учёта личного бюджета и ответь строго по схеме. Ничего не выдумывай: чего нет в файле, того нет.
+
+Если это выписка: операции раньше ${PERIOD.from} не выписывай вовсе. В выписке Kaspi у каждой операции дата ДД.ММ.ГГ, сумма со знаком (минус = расход, плюс = поступление), тип (Покупка, Перевод, Пополнение, Снятие, Разное) и детали. merchant = детали. Снятие наличных = расход, bucket life. Шапку и итоги выписки («Пополнения», «Покупки», «Доступно на») не выписывай.
 
 Сегодня ${today} (Алматы).
 
@@ -121,7 +123,7 @@ export async function completeShot(id: string, out: { operations?: unknown }): P
   const ops = (Array.isArray(out.operations) ? out.operations : []) as RawOp[];
   const rows: ShotRow[] = [];
   const seen = new Map<string, number>();
-  for (const o of ops.slice(0, 80)) {
+  for (const o of ops.slice(0, 500)) {
     const amount = Math.round(Math.abs(Number(o.amount)) * 100) / 100;
     if (!(amount > 0)) continue;
     const currency: Currency = o.currency === 'RUB' ? 'RUB' : 'KZT';

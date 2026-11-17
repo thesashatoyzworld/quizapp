@@ -31,9 +31,9 @@ export async function POST(request: NextRequest) {
   try {
     if (action === 'shot') {
       const image = String(body.image || '');
-      const m = /^data:image\/(jpeg|png|webp|gif);base64,(.+)$/.exec(image);
-      if (!m) return bad('нужна картинка jpeg, png или webp');
-      if (m[2].length > 4_000_000) return bad('скрин слишком большой');
+      const m = /^data:(image\/(?:jpeg|png|webp|gif)|application\/pdf);base64,(.+)$/.exec(image);
+      if (!m) return bad('нужна картинка jpeg, png, webp или PDF');
+      if (m[2].length > 4_000_000) return bad('файл слишком большой');
       await addShot(image);
       after(triggerRecognizer);
     } else if (action === 'save') {
