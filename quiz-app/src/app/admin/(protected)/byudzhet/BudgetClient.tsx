@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Expense } from '@/lib/budget/data';
-import type { Shot } from '@/lib/budget/shots';
+import type { Balance, Shot } from '@/lib/budget/shots';
 import {
   BUCKETS, INFO, MONTHS, SKIP_BUCKET, almatyToday, bucketsFor, currentLifeWeek, defaultMonth,
   formatMoney, type Bucket, type Currency, type MonthKey,
@@ -50,8 +50,11 @@ function readAsDataUrl(file: File): Promise<string> {
 
 const isPdf = (f: File) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
 
-export default function BudgetClient({ initial, initialShots }: { initial: Expense[]; initialShots: Shot[] }) {
+export default function BudgetClient({
+  initial, initialShots, initialBalances,
+}: { initial: Expense[]; initialShots: Shot[]; initialBalances: Balance[] }) {
   const [expenses, setExpenses] = useState(initial);
+  const [balances, setBalances] = useState(initialBalances);
   const [shots, setShots] = useState(initialShots);
   const [upload, setUpload] = useState<{ done: number; total: number } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -75,6 +78,7 @@ export default function BudgetClient({ initial, initialShots }: { initial: Expen
       if (!res.ok) throw new Error(json.error || `ошибка ${res.status}`);
       setExpenses(json.expenses as Expense[]);
       setShots(json.shots as Shot[]);
+      if (json.balances) setBalances(json.balances as Balance[]);
       return true;
     } catch (e) {
       if (!quiet) setError(e instanceof Error ? e.message : String(e));
@@ -146,6 +150,8 @@ export default function BudgetClient({ initial, initialShots }: { initial: Expen
       <p className={styles.hint}>Скрины операций или PDF-выписка из Kaspi и Т-Банка. Расходы запишутся сами, корзину потом можно поменять.</p>
 
       {error && <div className={styles.error}>{error}</div>}
+
+      <Balances balances={balances} expenses={expenses} />
 
       <Shots shots={shots} />
 
@@ -371,6 +377,43 @@ function SplitForm({
         <button type="button" className={styles.ghost} onClick={onClose}>Отмена</button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Card balance from the latest statement vs what the current month still needs by its limits.
+ * The rest is the money already set aside for the next months.
+ */
+function Balances({ balances, expenses }: { balances: Balance[]; expenses: Expense[] }) {
+  if (!balances.length) return null;
+  const month = defaultMonth();
+  return (
+    <section className={styles.week}>
+      {balances.map((b) => {
+        const need = bucketsFor(b.currency).reduce((s, bk) => {
+          const spent = sum(expenses.filter((e) => e.bucket === bk.id && e.spentAt.startsWith(month)));
+          return s + Math.max(0, bk.limits[month] - spent);
+        }, 0);
+        const rest = b.amount - need;
+        const label = MONTHS.find((m) => m.key === month)?.label.toLowerCase() ?? '';
+        return (
+          <div key={b.currency} className={styles.balance}>
+            <div className={styles.weekHead}>
+              {b.currency === 'KZT' ? 'На Kaspi' : 'На рублёвом счёте'} по выписке на {shortDate(b.date)}
+            </div>
+            <div className={styles.balanceBig}>{formatMoney(b.amount, b.currency)}</div>
+            <div className={styles.hint}>
+              {need > 0 && `до конца месяца (${label}) по лимитам ещё нужно ${formatMoney(need, b.currency)} · `}
+              {rest >= 0 ? (
+                <>сверху {formatMoney(rest, b.currency)}, {b.currency === 'KZT' ? 'это деньги на следующие месяцы' : 'это выводы на Kaspi, подушка и следующие месяцы'}</>
+              ) : (
+                <span className={styles.neg}>не хватает {formatMoney(-rest, b.currency)} до конца месяца</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </section>
   );
 }
 

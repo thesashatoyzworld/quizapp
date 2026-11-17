@@ -4,7 +4,7 @@ import { BUCKET_IDS, SKIP_BUCKET } from '@/content/budget';
 import {
   addExpense, deleteExpense, listExpenses, setBucket, splitExpense, updateExpense, validExpense, type ExpenseInput,
 } from '@/lib/budget/data';
-import { addShot, listShots } from '@/lib/budget/shots';
+import { addShot, latestBalances, listShots } from '@/lib/budget/shots';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
     } else if (action !== 'list') {
       return bad('неизвестное действие');
     }
-    const [expenses, shots] = await Promise.all([listExpenses(), listShots()]);
-    return NextResponse.json({ expenses, shots });
+    const [expenses, shots, balances] = await Promise.all([listExpenses(), listShots(), latestBalances()]);
+    return NextResponse.json({ expenses, shots, balances });
   } catch (error) {
     console.error('[Admin Budget POST]', error);
     return NextResponse.json({ error: 'не получилось, попробуй ещё раз' }, { status: 500 });

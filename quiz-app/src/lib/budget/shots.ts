@@ -18,7 +18,9 @@ export type ShotRow = {
   reason: string | null;
 };
 
-export type ShotResult = { added: number; duplicates: number; skipped: number; rows: ShotRow[] };
+export type Balance = { amount: number; date: string; currency: Currency };
+
+export type ShotResult = { added: number; duplicates: number; skipped: number; rows: ShotRow[]; balance?: Balance | null };
 
 export interface Shot {
   id: string;
@@ -32,6 +34,21 @@ export const SHOT_SCHEMA = {
   type: 'object',
   properties: {
     bank: { type: 'string', enum: ['kaspi', 'tbank', 'unknown'] },
+    balance: {
+      anyOf: [
+        {
+          type: 'object',
+          properties: {
+            amount: { type: 'number' },
+            date: { type: 'string' },
+            currency: { type: 'string', enum: ['KZT', 'RUB'] },
+          },
+          required: ['amount', 'date', 'currency'],
+          additionalProperties: false,
+        },
+        { type: 'null' },
+      ],
+    },
     operations: {
       type: 'array',
       items: {
@@ -50,7 +67,7 @@ export const SHOT_SCHEMA = {
       },
     },
   },
-  required: ['bank', 'operations'],
+  required: ['bank', 'operations', 'balance'],
   additionalProperties: false,
 };
 
@@ -75,6 +92,7 @@ export function shotPrompt(today = almatyToday()): string {
 - Переводы «Дарья П.» это расход семьи, не пропускать: bucket life. Исключение: перевод «Дарья П.» ровно на 162 000 ₸ это налоги за Дашу, bucket must.
 - bucket: подходящая корзина из списка ниже, по валюте операции. Если не похоже ни на что из плана: other для тенге, rother для рублей.
 - reason для расходов: null.
+- balance: остаток на карте на самый поздний момент, который виден в файле. В выписке Kaspi это «Доступно на ДД.ММ.ГГ» на дату конца периода (не на начало), в выписке Т-Банка исходящий остаток. На скрине баланс, если он виден сверху. date ГГГГ-ММ-ДД. Если остатка не видно, null.
 
 Корзины:
 ${buckets}`;
@@ -116,7 +134,7 @@ export async function failShot(id: string, error: string): Promise<void> {
 type RawOp = { date?: unknown; merchant?: unknown; amount?: unknown; currency?: unknown; bucket?: unknown; skip?: unknown; reason?: unknown };
 
 /** Records recognized operations as expenses and closes the shot. */
-export async function completeShot(id: string, out: { operations?: unknown }): Promise<ShotResult | null> {
+export async function completeShot(id: string, out: { operations?: unknown; balance?: unknown }): Promise<ShotResult | null> {
   const rows0 = await prisma.$queryRaw<{ status: string }[]>`SELECT status FROM budget_shots WHERE id = ${id}`;
   if (rows0[0]?.status !== 'pending') return null;
 
@@ -149,7 +167,13 @@ export async function completeShot(id: string, out: { operations?: unknown }): P
     }
     rows.push(row);
   }
+  const b = out.balance as { amount?: unknown; date?: unknown; currency?: unknown } | null | undefined;
+  const balance: Balance | null =
+    b && Number.isFinite(Number(b.amount)) && typeof b.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.date)
+      ? { amount: Number(b.amount), date: b.date, currency: b.currency === 'RUB' ? 'RUB' : 'KZT' }
+      : null;
   const result: ShotResult = {
+    balance,
     added: rows.filter((r) => r.outcome === 'added').length,
     duplicates: rows.filter((r) => r.outcome === 'duplicate').length,
     skipped: rows.filter((r) => r.outcome === 'skipped').length,
@@ -159,4 +183,14 @@ export async function completeShot(id: string, out: { operations?: unknown }): P
     UPDATE budget_shots SET status = 'done', result = ${JSON.stringify(result)}::jsonb, processed_at = now()
      WHERE id = ${id}`;
   return result;
+}
+
+/** Latest known card balance per currency, from the most recent statement or screenshot that showed it. */
+export async function latestBalances(): Promise<Balance[]> {
+  const rows = await prisma.$queryRaw<{ b: Balance }[]>`
+    SELECT DISTINCT ON (result->'balance'->>'currency') result->'balance' AS b
+      FROM budget_shots
+     WHERE status = 'done' AND jsonb_typeof(result->'balance') = 'object'
+     ORDER BY result->'balance'->>'currency', result->'balance'->>'date' DESC, created_at DESC`;
+  return rows.map((r: { b: Balance }) => r.b);
 }
