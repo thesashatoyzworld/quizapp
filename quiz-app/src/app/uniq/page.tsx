@@ -1091,6 +1091,13 @@ function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bul
           ))}
         </ul>
       )}
+      {items.length > 0 && finished && (
+        <p className="un-status-sub" style={{ margin: '14px 0 0' }}>
+          Разница между версиями почти не видна глазу, так и задумано. Меняются кроп, скорость, цвет и метка в кадре:
+          по ним Инстаграм ловит повтор, а не по тому, как ролик выглядит для человека.{' '}
+          <a href="https://thesashatoyz.com/blog/shema-perezaliva?utm_source=kabinet&utm_medium=uniq_note" target="_blank" rel="noopener" style={{ color: 'inherit', textDecoration: 'underline' }}>Зачем это и как выкладывать: схема перезалива →</a>
+        </p>
+      )}
       {(job.status === 'done' || job.status === 'failed') && (
         <>
           {remaining !== null && (
