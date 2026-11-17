@@ -128,7 +128,7 @@ export const LIFE_WEEKS: { start: string; limit: number }[] = [
 ];
 
 export const INFO = {
-  cushion: 266_715,
+  cushion: 265_115,
   withdrawals: [
     { label: '17.11, выведено по 5,12', amount: 320_000 },
     { label: 'до 01.12', amount: 172_000 },
