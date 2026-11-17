@@ -316,7 +316,7 @@ function DwyInner() {
             : {}),
           answers: {
             name, contact, phone, instagram,
-            who, hasProduct, product, level, tried, want, income, hours,
+            who, hasProduct, product, level: level || null, tried, want, income, hours,
             following, readiness,
             followers: followersSet ? followers : null,
           },
