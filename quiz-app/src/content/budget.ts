@@ -127,6 +127,11 @@ export const LIFE_WEEKS: { start: string; limit: number }[] = [
   { start: '2027-01-11', limit: 275_000 },
 ];
 
+/** Operations already counted in the starting balance (made before the plan on 16.11). */
+export const BEFORE_PLAN: { date: string; amount: number; currency: Currency }[] = [
+  { date: '2026-11-16', amount: 200_000, currency: 'KZT' }, // Дарья П., balance 70 904 was after it
+];
+
 export const INFO = {
   cushion: 265_115,
   withdrawals: [
