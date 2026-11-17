@@ -431,3 +431,42 @@
   color: var(--text-muted);
   white-space: normal;
 }
+
+.tx {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 6px;
+}
+
+.tx .row {
+  border-bottom: 0;
+}
+
+.txActions {
+  display: flex;
+  gap: 16px;
+  padding: 0 0 4px 0;
+}
+
+.link {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link:hover {
+  opacity: 1;
+}
+
+.splitRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
