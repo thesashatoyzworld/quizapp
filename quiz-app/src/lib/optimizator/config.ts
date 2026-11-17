@@ -20,8 +20,9 @@ export function limitFor(telegramId: number, tier: number): number {
   return MONTHLY_LIMIT[Math.min(tier, 3)] ?? 0;
 }
 
-/** Tested model. Thinking is on by default; it needs max_tokens >= 20000 or the JSON gets cut. */
-export const MODEL = 'claude-sonnet-5-5';
+/** Tested model (17.11 defect loop: Opus 0.47 vs Sonnet 0.42 on fixes, 0.80 vs 0.72 on hit/flop pairs).
+ * Thinking is always on (default effort medium, as tested); it needs max_tokens >= 20000 or the JSON gets cut. */
+export const MODEL = 'claude-opus-5-5';
 export const MAX_TOKENS = 24_000;
 
 /** Calendar month key in Moscow time: YYYY-MM. */
