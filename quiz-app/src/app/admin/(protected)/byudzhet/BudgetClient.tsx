@@ -38,6 +38,18 @@ async function shrink(file: File): Promise<string> {
   }
 }
 
+/** PDF statements go as is: they are small and the server extracts the text. */
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error('не прочитался файл'));
+    r.readAsDataURL(file);
+  });
+}
+
+const isPdf = (f: File) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+
 export default function BudgetClient({ initial, initialShots }: { initial: Expense[]; initialShots: Shot[] }) {
   const [expenses, setExpenses] = useState(initial);
   const [shots, setShots] = useState(initialShots);
@@ -88,7 +100,10 @@ export default function BudgetClient({ initial, initialShots }: { initial: Expen
     for (let i = 0; i < list.length; i++) {
       setUpload({ done: i, total: list.length });
       try {
-        const ok = await call({ action: 'shot', image: await shrink(list[i]) }, true);
+        const f = list[i];
+        if (isPdf(f) && f.size > 3_000_000) throw new Error('big');
+        const data = isPdf(f) ? (await readAsDataUrl(f)).replace(/^data:[^;]*;/, 'data:application/pdf;') : await shrink(f);
+        const ok = await call({ action: 'shot', image: data }, true);
         if (!ok) failed.push(list[i].name);
       } catch {
         failed.push(list[i].name);
@@ -115,7 +130,7 @@ export default function BudgetClient({ initial, initialShots }: { initial: Expen
       <input
         ref={fileInput}
         type="file"
-        accept="image/*"
+        accept="image/*,application/pdf,.pdf"
         multiple
         hidden
         onChange={(e) => onFiles(e.target.files)}
@@ -126,9 +141,9 @@ export default function BudgetClient({ initial, initialShots }: { initial: Expen
         disabled={!!upload}
         onClick={() => fileInput.current?.click()}
       >
-        {upload ? `Загружаю ${upload.done + 1} из ${upload.total}…` : 'Загрузить скрины'}
+        {upload ? `Загружаю ${upload.done + 1} из ${upload.total}…` : 'Загрузить скрины или PDF'}
       </button>
-      <p className={styles.hint}>Скрины операций из Kaspi и Т-Банка. Расходы запишутся сами, корзину потом можно поменять.</p>
+      <p className={styles.hint}>Скрины операций или PDF-выписка из Kaspi и Т-Банка. Расходы запишутся сами, корзину потом можно поменять.</p>
 
       {error && <div className={styles.error}>{error}</div>}
 
