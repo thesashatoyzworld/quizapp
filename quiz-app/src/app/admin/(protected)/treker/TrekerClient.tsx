@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TaskView } from '@/lib/tracker/data';
 import type { Period } from '@/lib/tracker/periods';
+import Link from 'next/link';
+import { mondayOf, shortDate, todayLocal, weeksUntil, type MapView } from '@/lib/tracker/karta-shared';
 import PhotoImport from './PhotoImport';
 import Ring from './Ring';
 import { TagChip, TagEditor } from './Tags';
@@ -78,9 +80,11 @@ function treeProgress(tasks: TaskView[]): { progress: Map<string, number>; child
 export default function TrekerClient({
   initialTasks,
   initialOpen,
+  map,
 }: {
   initialTasks: TaskView[];
   initialOpen: string | null;
+  map: MapView | null;
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [openId, setOpenId] = useState<string | null>(initialOpen);
@@ -175,9 +179,17 @@ export default function TrekerClient({
   // Главная = то, что делать: задачи без вложенных, с любого уровня. Пустые области
   // сразу под целью («Путешествия» без шагов) задачами не считаются.
   const goals = active.filter((t) => !parentOf(t) && inner(t.id) > 0);
+  // Задачи с карты запуска на главной только свои для этой недели (и несделанные хвосты),
+  // остальные живут на карте и открываются там уровнями.
+  const thisWeek = mondayOf(todayLocal());
+  // Регулярные и задачи без недели не прячем.
+  const onMapLater = (t: TaskView) =>
+    !!t.map &&
+    t.kind !== 'routine' &&
+    (t.map.later || (!!t.map.week && (t.map.week > thisWeek || (t.map.week < thisWeek && t.progress >= 1))));
   const shown = tagFilter
     ? active.filter((t) => t.tags.includes(tagFilter))
-    : active.filter((t) => inner(t.id) === 0 && !(t.steps.length === 0 && depth(t) === 1));
+    : active.filter((t) => inner(t.id) === 0 && !(t.steps.length === 0 && depth(t) === 1) && !onMapLater(t));
   const where = (t: TaskView) => parentOf(t)?.title;
 
   async function reload() {
@@ -231,6 +243,7 @@ export default function TrekerClient({
           knownTags={knownTagNames}
           run={run}
           onOpen={open}
+          map={map}
           onDeleted={() => {
             open(current.parentId && activeIds.has(current.parentId) ? current.parentId : null);
             reload();
@@ -250,6 +263,17 @@ export default function TrekerClient({
         Регулярные: {routinesDone}/{routines.length} заряжено · квестов в работе: {questsLeft}
       </div>
       {error && <div className={styles.error}>{error}</div>}
+
+      {map && (
+        <Link href="/admin/treker/karta" className={styles.mapLink}>
+          <span className={styles.mapLinkIcon}>🗺</span>
+          <span>
+            <b>Карта запуска</b>
+            <span className={styles.mapLinkSub}>{map.title} · {shortDate(map.deadline)}</span>
+          </span>
+          <span className={styles.mapLinkGo}>→</span>
+        </Link>
+      )}
 
       <div className={styles.toolbar}>
         <PhotoImport
@@ -544,8 +568,10 @@ function TaskInside({
   knownTags,
   run,
   onOpen,
+  map,
   onDeleted,
 }: {
+  map: MapView | null;
   task: TaskView;
   all: TaskView[];
   kids: TaskView[];
@@ -888,6 +914,8 @@ function TaskInside({
         </select>
       </div>
 
+      {map && <OnMap task={task} map={map} run={run} />}
+
       <div className={styles.footer}>
         <button type="button" className={styles.ghost} onClick={() => run({ action: 'moveTask', id: task.id, dir: -1 })}>
           ← левее
@@ -1190,5 +1218,63 @@ function StepRow({
         </button>
       </span>
     </li>
+  );
+}
+
+/** Где задача на карте запуска: шаг пути клиента, неделя и «к запуску / потом». */
+function OnMap({
+  task,
+  map,
+  run,
+}: {
+  task: TaskView;
+  map: MapView;
+  run: (body: Record<string, unknown>, optimistic?: TaskView) => Promise<TaskView | null>;
+}) {
+  const m = task.map;
+  const weeks = weeksUntil(mondayOf(todayLocal()), map.deadline);
+  if (m?.week && !weeks.includes(m.week)) weeks.unshift(m.week);
+  const set = (next: { stage: string | null; later?: boolean; week?: string | null }) =>
+    run(
+      { action: 'setMap', id: task.id, ...next },
+      { ...task, map: next.stage ? { stage: next.stage, later: !!next.later, week: next.week ?? null } : null },
+    );
+  return (
+    <div className={styles.moveRow}>
+      <span className={styles.label}>На карте</span>
+      <select
+        className={styles.select}
+        value={m?.stage ?? ''}
+        onChange={(e) => set({ stage: e.target.value || null, later: m?.later, week: m?.week })}
+      >
+        <option value="">— не на карте —</option>
+        {map.stages.map((s) => (
+          <option key={s.key} value={s.key}>
+            {s.title}
+          </option>
+        ))}
+      </select>
+      {m && (
+        <>
+          <select
+            className={styles.select}
+            value={m.later ? 'later' : (m.week ?? '')}
+            onChange={(e) =>
+              e.target.value === 'later'
+                ? set({ stage: m.stage, later: true, week: null })
+                : set({ stage: m.stage, later: false, week: e.target.value || null })
+            }
+          >
+            <option value="">к запуску, без недели</option>
+            {weeks.map((w) => (
+              <option key={w} value={w}>
+                неделя {shortDate(w)}
+              </option>
+            ))}
+            <option value="later">потом, после запуска</option>
+          </select>
+        </>
+      )}
+    </div>
   );
 }

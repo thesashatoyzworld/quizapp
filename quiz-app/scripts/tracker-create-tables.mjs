@@ -24,6 +24,23 @@ ALTER TABLE tracker_task ADD COLUMN IF NOT EXISTS parent_id TEXT;
 CREATE INDEX IF NOT EXISTS tracker_task_parent_idx ON tracker_task(parent_id);
 ALTER TABLE tracker_task ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 CREATE INDEX IF NOT EXISTS tracker_task_kind_position_idx ON tracker_task(kind, position);
+ALTER TABLE tracker_task ADD COLUMN IF NOT EXISTS map_stage TEXT;
+ALTER TABLE tracker_task ADD COLUMN IF NOT EXISTS map_later BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE tracker_task ADD COLUMN IF NOT EXISTS map_week TEXT;
+
+CREATE TABLE IF NOT EXISTS tracker_map (
+  id           TEXT PRIMARY KEY,
+  title        TEXT NOT NULL,
+  goal_task_id TEXT,
+  deadline     TEXT NOT NULL,
+  stages       JSONB NOT NULL,
+  milestones   JSONB NOT NULL,
+  level        INTEGER NOT NULL DEFAULT 1,
+  level_base   INTEGER NOT NULL DEFAULT 0,
+  hints_seen   TEXT[] NOT NULL DEFAULT '{}',
+  created_at   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE IF NOT EXISTS tracker_step (
   id         TEXT PRIMARY KEY,
