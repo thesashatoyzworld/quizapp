@@ -132,6 +132,9 @@ export const BEFORE_PLAN: { date: string; amount: number; currency: Currency }[]
   { date: '2026-11-16', amount: 200_000, currency: 'KZT' }, // Дарья П., balance 70 904 was after it
 ];
 
+/** Pseudo-bucket: the row stays (so a re-uploaded statement does not bring it back) but is not counted. */
+export const SKIP_BUCKET = 'skip';
+
 export const INFO = {
   cushion: 265_115,
   withdrawals: [

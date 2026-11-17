@@ -1,7 +1,9 @@
 import { after, NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/admin-auth';
-import { BUCKET_IDS } from '@/content/budget';
-import { addExpense, deleteExpense, listExpenses, setBucket, validExpense, type ExpenseInput } from '@/lib/budget/data';
+import { BUCKET_IDS, SKIP_BUCKET } from '@/content/budget';
+import {
+  addExpense, deleteExpense, listExpenses, setBucket, splitExpense, updateExpense, validExpense, type ExpenseInput,
+} from '@/lib/budget/data';
 import { addShot, listShots } from '@/lib/budget/shots';
 
 export const dynamic = 'force-dynamic';
@@ -52,8 +54,22 @@ export async function POST(request: NextRequest) {
       await addExpense(item);
     } else if (action === 'bucket') {
       const bucket = String(body.bucket || '');
-      if (!BUCKET_IDS.includes(bucket)) return bad('нет такой корзины');
+      if (!BUCKET_IDS.includes(bucket) && bucket !== SKIP_BUCKET) return bad('нет такой корзины');
       await setBucket(String(body.id || ''), bucket);
+    } else if (action === 'update') {
+      const e = (body.expense ?? {}) as Partial<ExpenseInput>;
+      const spentAt = String(e.spentAt || '');
+      const amount = Number(e.amount);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(spentAt)) return bad('дата в формате ГГГГ-ММ-ДД');
+      if (!(amount > 0)) return bad('сумма должна быть больше нуля');
+      await updateExpense(String(body.id || ''), { spentAt, amount, merchant: String(e.merchant || ''), note: String(e.note || '') });
+    } else if (action === 'split') {
+      const parts = (Array.isArray(body.parts) ? body.parts : []).map((p: Record<string, unknown>) => ({
+        amount: Math.round(Number(p?.amount) * 100) / 100,
+        bucket: String(p?.bucket || ''),
+      }));
+      const err = await splitExpense(String(body.id || ''), parts);
+      if (err) return bad(err);
     } else if (action === 'delete') {
       await deleteExpense(String(body.id || ''));
     } else if (action !== 'list') {

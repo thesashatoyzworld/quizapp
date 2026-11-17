@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Expense } from '@/lib/budget/data';
 import type { Shot } from '@/lib/budget/shots';
 import {
-  BUCKETS, INFO, MONTHS, almatyToday, bucketsFor, currentLifeWeek, defaultMonth,
+  BUCKETS, INFO, MONTHS, SKIP_BUCKET, almatyToday, bucketsFor, currentLifeWeek, defaultMonth,
   formatMoney, type Bucket, type Currency, type MonthKey,
 } from '@/content/budget';
 import styles from './byudzhet.module.css';
@@ -181,7 +181,7 @@ export default function BudgetClient({ initial, initialShots }: { initial: Expen
       {(['KZT', 'RUB'] as Currency[]).map((cur) => {
         const buckets = bucketsFor(cur);
         const limit = buckets.reduce((s, b) => s + b.limits[month], 0);
-        const spent = sum(inMonth.filter((e) => e.currency === cur));
+        const spent = sum(inMonth.filter((e) => e.currency === cur && e.bucket !== SKIP_BUCKET));
         return (
           <section key={cur} className={styles.group}>
             <div className={styles.groupHead}>
@@ -208,7 +208,169 @@ export default function BudgetClient({ initial, initialShots }: { initial: Expen
           </section>
         );
       })}
+
+      <Transactions rows={inMonth} busy={busy} call={call} />
     </div>
+  );
+}
+
+const bucketLabel = (id: string) => (id === SKIP_BUCKET ? 'Не считать' : BUCKETS.find((b) => b.id === id)?.label ?? id);
+const parseAmount = (s: string) => Number(s.replace(/\s/g, '').replace(',', '.'));
+
+/** Every operation of the month: change bucket, edit, split one transfer into several buckets, delete. */
+function Transactions({
+  rows, busy, call,
+}: {
+  rows: Expense[];
+  busy: boolean;
+  call: (body: Record<string, unknown>) => Promise<boolean>;
+}) {
+  const [mode, setMode] = useState<{ id: string; kind: 'edit' | 'split' } | null>(null);
+  return (
+    <section className={styles.group}>
+      <div className={styles.groupHead}>
+        <span className={styles.h2}>Все операции</span>
+        <span className={styles.hint}>{rows.length} за месяц</span>
+      </div>
+      <p className={styles.hint}>
+        «Не считать» оставляет операцию в списке, но убирает из бюджета, и при новой выписке она не вернётся.
+        «Разделить», когда один перевод на несколько целей.
+      </p>
+      {!rows.length && <div className={styles.hint}>За этот месяц операций нет</div>}
+      <div className={styles.rows}>
+        {rows.map((e) => (
+          <div key={e.id} className={`${styles.tx} ${e.bucket === SKIP_BUCKET ? styles.rowOff : ''}`}>
+            <div className={styles.row}>
+              <span className={styles.rowDate}>{shortDate(e.spentAt)}</span>
+              <span className={styles.rowName}>
+                {e.merchant || 'без названия'}
+                {e.note && <span className={styles.rowNote}>{e.note}</span>}
+              </span>
+              <span className={styles.rowAmount}>{formatMoney(e.amount, e.currency)}</span>
+              <span className={styles.rowActions}>
+                <select
+                  className={styles.select}
+                  value={e.bucket}
+                  disabled={busy}
+                  aria-label="Корзина"
+                  onChange={(ev) => call({ action: 'bucket', id: e.id, bucket: ev.target.value })}
+                >
+                  {bucketsFor(e.currency).map((b) => (
+                    <option key={b.id} value={b.id}>{b.label}</option>
+                  ))}
+                  <option value={SKIP_BUCKET}>Не считать</option>
+                </select>
+              </span>
+            </div>
+            <div className={styles.txActions}>
+              <button type="button" className={styles.link} onClick={() => setMode({ id: e.id, kind: 'edit' })}>Изменить</button>
+              <button type="button" className={styles.link} onClick={() => setMode({ id: e.id, kind: 'split' })}>Разделить</button>
+              <button
+                type="button"
+                className={styles.link}
+                disabled={busy}
+                onClick={() => {
+                  const warn = e.source === 'manual' ? '' : '\nПри новой загрузке выписки она вернётся. Чтобы убрать насовсем, выбери «Не считать».';
+                  if (confirm(`Удалить ${e.merchant || 'запись'} на ${formatMoney(e.amount, e.currency)}?${warn}`)) call({ action: 'delete', id: e.id });
+                }}
+              >
+                Удалить
+              </button>
+            </div>
+            {mode?.id === e.id && mode.kind === 'edit' && (
+              <EditForm e={e} busy={busy} onClose={() => setMode(null)} call={call} />
+            )}
+            {mode?.id === e.id && mode.kind === 'split' && (
+              <SplitForm e={e} busy={busy} onClose={() => setMode(null)} call={call} />
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EditForm({
+  e, busy, onClose, call,
+}: {
+  e: Expense;
+  busy: boolean;
+  onClose: () => void;
+  call: (body: Record<string, unknown>) => Promise<boolean>;
+}) {
+  const [spentAt, setSpentAt] = useState(e.spentAt);
+  const [amount, setAmount] = useState(String(e.amount));
+  const [merchant, setMerchant] = useState(e.merchant);
+  const [note, setNote] = useState(e.note);
+  const value = parseAmount(amount);
+  async function submit(ev: React.FormEvent) {
+    ev.preventDefault();
+    if (await call({ action: 'update', id: e.id, expense: { spentAt, amount: value, merchant: merchant.trim(), note: note.trim() } })) onClose();
+  }
+  return (
+    <form className={styles.panel} onSubmit={submit}>
+      <div className={styles.formGrid}>
+        <input className={styles.input} type="date" value={spentAt} onChange={(x) => setSpentAt(x.target.value)} required />
+        <input className={styles.input} inputMode="decimal" value={amount} onChange={(x) => setAmount(x.target.value)} required />
+        <input className={`${styles.input} ${styles.wide}`} placeholder="Что это" value={merchant} maxLength={200} onChange={(x) => setMerchant(x.target.value)} />
+        <input className={`${styles.input} ${styles.wide}`} placeholder="Заметка" value={note} maxLength={500} onChange={(x) => setNote(x.target.value)} />
+      </div>
+      <div className={styles.formRow}>
+        <button type="submit" className={styles.primary} disabled={busy || !(value > 0)}>Сохранить</button>
+        <button type="button" className={styles.ghost} onClick={onClose}>Отмена</button>
+      </div>
+    </form>
+  );
+}
+
+function SplitForm({
+  e, busy, onClose, call,
+}: {
+  e: Expense;
+  busy: boolean;
+  onClose: () => void;
+  call: (body: Record<string, unknown>) => Promise<boolean>;
+}) {
+  const buckets = bucketsFor(e.currency);
+  const [first, setFirst] = useState(e.bucket === SKIP_BUCKET ? buckets[0].id : e.bucket);
+  const [parts, setParts] = useState<{ amount: string; bucket: string }[]>([{ amount: '', bucket: buckets[0].id }]);
+  const rest = Math.round((e.amount - parts.reduce((s, p) => s + (parseAmount(p.amount) || 0), 0)) * 100) / 100;
+  const ok = rest > 0 && parts.every((p) => parseAmount(p.amount) > 0);
+  async function submit(ev: React.FormEvent) {
+    ev.preventDefault();
+    const body = [{ amount: rest, bucket: first }, ...parts.map((p) => ({ amount: parseAmount(p.amount), bucket: p.bucket }))];
+    if (await call({ action: 'split', id: e.id, parts: body })) onClose();
+  }
+  const pick = (value: string, onChange: (v: string) => void) => (
+    <select className={styles.input} value={value} onChange={(x) => onChange(x.target.value)}>
+      {buckets.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+    </select>
+  );
+  return (
+    <form className={styles.panel} onSubmit={submit}>
+      <div className={styles.hint}>Всего {formatMoney(e.amount, e.currency)}. Впиши суммы частей, остаток уйдёт в первую строку.</div>
+      <div className={styles.splitRow}>
+        <span className={`${styles.input} ${rest > 0 ? '' : styles.neg}`}>{formatMoney(rest, e.currency)}</span>
+        {pick(first, setFirst)}
+      </div>
+      {parts.map((p, i) => (
+        <div key={i} className={styles.splitRow}>
+          <input
+            className={styles.input}
+            inputMode="decimal"
+            placeholder="Сумма"
+            value={p.amount}
+            onChange={(x) => setParts(parts.map((q, j) => (j === i ? { ...q, amount: x.target.value } : q)))}
+          />
+          {pick(p.bucket, (v) => setParts(parts.map((q, j) => (j === i ? { ...q, bucket: v } : q))))}
+        </div>
+      ))}
+      <div className={styles.formRow}>
+        <button type="button" className={styles.ghost} onClick={() => setParts([...parts, { amount: '', bucket: buckets[0].id }])}>+ часть</button>
+        <button type="submit" className={styles.primary} disabled={busy || !ok}>Разделить</button>
+        <button type="button" className={styles.ghost} onClick={onClose}>Отмена</button>
+      </div>
+    </form>
   );
 }
 

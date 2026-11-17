@@ -66,3 +66,40 @@ export async function setBucket(id: string, bucket: string): Promise<void> {
 export async function deleteExpense(id: string): Promise<void> {
   await prisma.$executeRaw`DELETE FROM budget_expenses WHERE id = ${id}`;
 }
+
+/** Edits a row in place. The fingerprint stays, so the bank row is still recognized as a duplicate. */
+export async function updateExpense(
+  id: string,
+  e: { spentAt: string; amount: number; merchant: string; note: string },
+): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE budget_expenses
+       SET spent_at = ${e.spentAt}::date, amount = ${e.amount},
+           merchant = ${e.merchant.slice(0, 200)}, note = ${e.note.slice(0, 500)}
+     WHERE id = ${id}`;
+}
+
+/**
+ * Splits one operation into parts with their own buckets (one transfer to Даша = taxes + credit + life).
+ * The first part keeps the original row and its fingerprint, the rest become manual rows.
+ */
+export async function splitExpense(id: string, parts: { amount: number; bucket: string }[]): Promise<string | null> {
+  const rows = await prisma.$queryRaw<{ amount: string; spent_at: string; currency: string; merchant: string | null; note: string | null }[]>`
+    SELECT amount::text AS amount, spent_at::text AS spent_at, currency, merchant, note FROM budget_expenses WHERE id = ${id}`;
+  const o = rows[0];
+  if (!o) return 'запись не найдена';
+  const total = Number(o.amount);
+  if (parts.length < 2) return 'нужно хотя бы две части';
+  if (parts.some((p) => !(p.amount > 0) || !BUCKET_IDS.includes(p.bucket))) return 'у каждой части сумма и корзина';
+  if (Math.abs(parts.reduce((s, p) => s + p.amount, 0) - total) > 0.005) return 'части должны в сумме дать всю операцию';
+  const note = `часть операции на ${total.toLocaleString('ru-RU')}`;
+  await prisma.$transaction([
+    prisma.$executeRaw`UPDATE budget_expenses SET amount = ${parts[0].amount}, bucket = ${parts[0].bucket}, note = ${note} WHERE id = ${id}`,
+    ...parts.slice(1).map(
+      (p) => prisma.$executeRaw`
+        INSERT INTO budget_expenses (id, spent_at, amount, currency, bucket, merchant, source, note)
+        VALUES (${randomUUID()}, ${o.spent_at}::date, ${p.amount}, ${o.currency}, ${p.bucket}, ${o.merchant ?? ''}, 'manual', ${note})`,
+    ),
+  ]);
+  return null;
+}
