@@ -38,6 +38,9 @@ export default function KartaClient({ map: initialMap, tasks }: { map: MapView; 
   const toUnlock = Math.max(0, UNLOCK_AFTER - (doneNow - map.levelBase));
   const goal = map.goalTaskId ? tasks.find((t) => t.id === map.goalTaskId) : undefined;
   const daysLeft = daysBetween(today, map.deadline);
+  // Заряд цели = доля сделанного из того, что нужно к запуску.
+  const needed = cards.filter((c) => !c.map.later);
+  const launchProgress = needed.length ? needed.reduce((s, c) => s + Math.min(1, c.progress), 0) / needed.length : 0;
 
   const weekCards = (w: string) => cards.filter((c) => !c.map.later && c.map.week === w);
   // Хвосты прошлых недель тоже «на этой неделе»: несделанное не пропадает.
@@ -72,7 +75,7 @@ export default function KartaClient({ map: initialMap, tasks }: { map: MapView; 
       {error && <div className={styles.error}>{error}</div>}
 
       <header className={styles.goal}>
-        <Ring progress={goal?.progress ?? 0} size={72} stroke={6} />
+        <Ring progress={launchProgress} size={72} stroke={6} label={`${Math.round(launchProgress * 100)}%`} />
         <div>
           <div className={styles.kicker}>{map.title}</div>
           <h1 className={styles.goalTitle}>{goal?.title ?? 'Цель запуска'}</h1>
@@ -323,7 +326,9 @@ function MapCard({ c }: { c: Card }) {
   return (
     <Link href={open(c.id)} className={`${styles.mapCard} ${isDone(c) ? styles.mapCardDone : ''}`}>
       <Ring progress={c.progress} size={18} stroke={3} />
-      <span className={styles.mapCardTitle}>{c.title}</span>
+      <span className={styles.mapCardTitle} title={c.title}>
+        {c.title}
+      </span>
       {c.map.week && !isDone(c) && <span className={styles.mapCardWeek}>{shortDate(c.map.week)}</span>}
     </Link>
   );

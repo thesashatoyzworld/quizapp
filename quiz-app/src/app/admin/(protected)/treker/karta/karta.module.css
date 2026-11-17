@@ -325,6 +325,12 @@
   text-decoration: line-through;
 }
 
+@media (max-width: 640px) {
+  .stageTag {
+    display: none;
+  }
+}
+
 .stageTag {
   margin-left: auto;
   font-size: 0.7rem;
@@ -391,9 +397,10 @@
 }
 
 .mapCard {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: start;
+  gap: 4px 8px;
   padding: 8px;
   background: var(--bg-secondary);
   border: 1px solid rgba(0, 240, 255, 0.08);
@@ -412,15 +419,19 @@
   opacity: 0.5;
 }
 
+/* Карта = обзор: длинное название режем до трёх строк, целиком оно внутри задачи. */
 .mapCardTitle {
-  flex: 1;
   min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .mapCardWeek {
+  grid-column: 2;
   font-size: 0.65rem;
   color: var(--text-muted);
-  white-space: nowrap;
 }
 
 .line {

@@ -182,8 +182,11 @@ export default function TrekerClient({
   // Задачи с карты запуска на главной только свои для этой недели (и несделанные хвосты),
   // остальные живут на карте и открываются там уровнями.
   const thisWeek = mondayOf(todayLocal());
+  // Регулярные и задачи без недели не прячем.
   const onMapLater = (t: TaskView) =>
-    !!t.map && (t.map.later || !t.map.week || t.map.week > thisWeek || (t.map.week < thisWeek && t.progress >= 1));
+    !!t.map &&
+    t.kind !== 'routine' &&
+    (t.map.later || (!!t.map.week && (t.map.week > thisWeek || (t.map.week < thisWeek && t.progress >= 1))));
   const shown = tagFilter
     ? active.filter((t) => t.tags.includes(tagFilter))
     : active.filter((t) => inner(t.id) === 0 && !(t.steps.length === 0 && depth(t) === 1) && !onMapLater(t));

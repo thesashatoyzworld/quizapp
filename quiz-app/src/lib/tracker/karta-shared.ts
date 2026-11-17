@@ -77,7 +77,13 @@ export function milestoneOfWeek(ms: Milestone[], monday: string): Milestone | un
   const sunday = addDays(monday, 6);
   return (
     ms.find((m) => m.kind === 'launch' && m.from >= monday && m.from <= sunday) ??
-    ms.find((m) => m.kind === 'pause' && m.from <= monday && (m.to ?? m.from) >= sunday) ??
+    // Пауза закрашивает неделю, если занимает в ней хотя бы 4 дня.
+    ms.find((m) => {
+      if (m.kind !== 'pause') return false;
+      const from = m.from > monday ? m.from : monday;
+      const to = (m.to ?? m.from) < sunday ? (m.to ?? m.from) : sunday;
+      return from <= to && daysBetween(from, to) + 1 >= 4;
+    }) ??
     ms.find((m) => m.from >= monday && m.from <= sunday)
   );
 }
