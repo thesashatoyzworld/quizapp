@@ -118,6 +118,8 @@ import { LICHNOE_LICHNYY_SOZVON_ARTEM_2026_11_16 } from './lichnyy-sozvon-artem-
 
 import { LICHNOE_LICHNYY_SOZVON_DANIEL_2026_11_16 } from './lichnyy-sozvon-daniel-2026-11-16';
 
+import { LICHNOE_LICHNYY_SOZVON_MARIYA_2026_11_17 } from './lichnyy-sozvon-mariya-2026-11-17';
+
 export interface LichnyMaterial {
   slug: string;
   /** Кому виден материал. Telegram id, ничего кроме них не открывает доступ. */
@@ -140,6 +142,18 @@ export interface LichnyMaterial {
 }
 
 export const LICHNOE: LichnyMaterial[] = [
+  {
+    slug: 'lichnyy-sozvon-mariya-2026-11-17',
+    telegramIds: [5393791951, 788334680],
+    client: "Мария",
+    title: "Деньги, которые можно купить дёшево",
+    subtitle: "Разобрали, почему из десяти первых разговоров в группу зашла одна и почему созвоны пока убираем, разложили выручку и собрали план на два миллиона (четыре группы по девять, личка двадцать в неделю, супервизия, коучинг и мини-продукт), посмотрели, что охваты с доходом не связаны, а повторы тем дают меньше оплат, чем новизна, собрали календарь до февраля с промо утренней группы с тридцатого ноября и стратсессией десятого января, упростили хозяйство (почту и канал «Анонсы» закрываем, Макс отдаём ассистенту) и договорились о размеченных ссылках, чтобы видеть, откуда человек пришёл и что довело его до оплаты",
+    date: '2026-11-17',
+    duration: "65 мин",
+    tags: ["план на два миллиона", "календарь промо", "упрощение площадок", "метки и трекинг", "инста"],
+    kinescopeId: 'hDd49RPYZqCsuJ38qav8ZY',
+    html: LICHNOE_LICHNYY_SOZVON_MARIYA_2026_11_17,
+  },
   {
     slug: 'lichnyy-sozvon-daniel-2026-11-16',
     telegramIds: [397715074, 788334680],
