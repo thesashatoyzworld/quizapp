@@ -9,11 +9,12 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { z } from 'zod';
 import { actorForKey, keyFromRequest } from '@/lib/studio/keys';
 import {
-  StudioError, addComment, attachPost, getItem, getLibraryEntry, libraryOpenToDanya, listItems, listLibrary, listRules, loadBoard, saveLibraryEntry,
-  searchLibrary, updateItem,
+  StudioError, addComment, attachPost, getItem, getLibraryEntry, getMuzeyPoint, libraryOpenToDanya, listItems, listLibrary, listRules, loadBoard,
+  editMuzeyPointTitle, hideMuzeyPoint, listGuide, podborPoints, saveGuideSection, saveLibraryEntry, searchLibrary, useMuzeyPoint, updateItem,
 } from '@/lib/studio/store';
 import { LIB_BASES, type LibBase } from '@/lib/studio/library';
 import { guideMarkdown } from '@/lib/studio/guide';
+import { guideToMarkdown } from '@/lib/studio/carousel-guide';
 import {
   STAGES, STAGE_LABEL, addDays, aggregateVariants, fmt, localDate, weekStart, type Actor, type Kind, type Stage,
 } from '@/lib/studio/view';
@@ -40,11 +41,30 @@ function safe<A>(fn: (args: A) => Promise<unknown>) {
   };
 }
 
+const CAROUSEL_FLOW = [
+  'Собери карусель Саши. Начни с get_carousel_guide: прочитай гайд целиком и иди строго по нему, не по памяти.',
+  'Порядок: podbor_points (поинт из музея идей, get_point для цитат) → карточка (сохрани её комментарием к карточке карусели через add_comment) → use_point (поинт + заход + карусель) → слайды → подсушка → само-чек → готовый текст отдай Саше комментарием через add_comment. Его правки вноси буквально. После публикации attach_post.',
+].join('\n');
+
+/** Server-level instructions: clients inject them, so Danya's AI gets the flow without a local skill. */
+const INSTRUCTIONS = 'Студия Саши: контент Instagram. Когда просят карусель, поинт или заход: сначала вызови get_carousel_guide целиком и иди строго по нему; поинты бери через podbor_points; связку поинт + заход фиксируй use_point; готовый текст отдай Саше комментарием через add_comment. Как пользоваться Студией в целом: get_onboarding.';
+
 function buildServer(actor: Actor) {
-  const server = new McpServer({ name: 'studio', version: '1.0.0' });
+  const server = new McpServer({ name: 'studio', version: '1.0.0' }, { instructions: INSTRUCTIONS });
+
+  server.registerPrompt('karusel', {
+    title: 'Карусель Саши',
+    description: 'Собрать карусель Саши по гайду: гайд → поинт из музея → карточка → use_point → слайды → подсушка → текст Саше.',
+    argsSchema: { tema: z.string().optional() },
+  }, ({ tema }: { tema?: string }) => ({
+    messages: [{
+      role: 'user' as const,
+      content: { type: 'text' as const, text: `${CAROUSEL_FLOW}${tema?.trim() ? `\n\nТема или заход: ${tema.trim()}` : ''}` },
+    }],
+  }));
 
   server.registerTool('get_onboarding', {
-    description: 'Как работать в Студии Саши: цикл карточки, копии, как судим статистику, правила, библиотека, какой инструмент для чего. Прочитай один раз в начале работы.',
+    description: 'Как работать в Студии Саши: цикл карточки, копии, как судим статистику, правила, библиотека, как собирать карусели из музея идей, какой инструмент для чего. Прочитай один раз в начале работы.',
     inputSchema: {},
   }, safe(async () => ({ markdown: guideMarkdown({ libraryOpen: actor === 'sasha' || (await libraryOpenToDanya()) }) })));
 
@@ -150,6 +170,46 @@ function buildServer(actor: Actor) {
     if (actor !== 'sasha') throw new StudioError('править библиотеку может только Саша');
     return { ok: true, id: await saveLibraryEntry(actor, args, 'sasha-mcp') };
   }));
+
+  server.registerTool('get_carousel_guide', {
+    description: '«Как пишем карусели»: порядок работы, карточка, железные правила, скелет, голос Саши, подсушка, само-чек, пруфы и образцы (залетевшие карусели Саши, эталон голоса и ритма, строки не копировать). ОБЯЗАТЕЛЬНО вызвать и прочитать ЦЕЛИКОМ до того, как писать любую карточку или любой слайд, и идти строго по нему, а не по памяти. Без slug вернёт все разделы; со slug один раздел.',
+    inputSchema: { slug: z.string().optional() },
+  }, safe(async ({ slug }: { slug?: string }) => ({ markdown: guideToMarkdown(await listGuide(slug?.trim() || undefined)) })));
+
+  server.registerTool('update_guide', {
+    description: 'Поправить раздел «Как пишем карусели» (slug из get_carousel_guide). body = весь новый текст раздела в markdown, не кусок: он заменит старый. note = коротко, что и почему поменял. Старая версия сохраняется в истории, Саша может вернуть. Править только когда человек прямо попросил.',
+    inputSchema: { slug: z.string(), body: z.string().min(1).max(50000), note: z.string().max(500).optional(), title: z.string().max(200).optional() },
+  }, safe(async ({ slug, body, note, title }: { slug: string; body: string; note?: string; title?: string }) => saveGuideSection(actor, slug, { body, note, title })));
+
+  server.registerTool('podbor_points', {
+    description: 'Музей идей Саши: поинты для карточек каруселей из его созвонов. Сначала «горячее» (hot: мысль, к которой Саша возвращался на разных созвонах за 2 недели), потом мысли, которые он повторяет чаще всего. У каждого id, мысль, почему он сейчас, 2-3 дословные цитаты Саши (созвон, дата, таймкод) и used: сколько раз уже использован, uses: пары «заход → карусель» с цифрами, если карусель вышла. Работает пара поинт + заход: брать уже использованный поинт с новым или проверенным заходом нормально, смотри по цифрам, какие пары сработали. tolko_novye: true = только ещё не использованные. Поинт для карточки бери отсюда, а не из головы. Источник в карточке пиши как [созвон дата таймкод].',
+    inputSchema: { limit: z.number().int().min(1).max(50).optional(), tolko_novye: z.boolean().optional() },
+  }, safe(async ({ limit, tolko_novye }: { limit?: number; tolko_novye?: boolean }) => ({ points: await podborPoints(actor, limit ?? 10, !!tolko_novye) })));
+
+  server.registerTool('get_point', {
+    description: 'Поинт из музея целиком по id из podbor_points: все цитаты Саши, которые можно использовать, суть каждой и все прошлые использования (заход → карусель, цифры).',
+    inputSchema: { id: z.string() },
+  }, safe(async ({ id }: { id: string }) => getMuzeyPoint(actor, id)));
+
+  server.registerTool('use_point', {
+    description: 'Записать использование поинта: поинт + заход в карусели. Вызывать после того, как Саша сказал «да» на карточку. zahod = текст захода (заголовка), karusel = короткое название карусели латиницей через дефис (например nedelya-2026-11-29-huk), item_id = id карточки карусели из list_schedule, если она есть (по ней подтянутся цифры). Поинт из подбора не пропадает, у него растёт счётчик использований.',
+    inputSchema: { id: z.string(), zahod: z.string().min(1).max(500), karusel: z.string().min(1).max(120), item_id: z.string().optional() },
+  }, safe(async ({ id, zahod, karusel, item_id }: { id: string; zahod: string; karusel: string; item_id?: string }) => useMuzeyPoint(actor, id, zahod, karusel, item_id)));
+
+  server.registerTool('hide_point', {
+    description: 'Пометить поинт из музея как «мимо» (не про нас, банально, не подходит для каруселей): он пропадёт из podbor_points у всех. Это единственный способ убрать поинт: использованные поинты остаются. reason обязательно: коротко, почему мимо. Вернуть: unhide_point. Делать только когда человек прямо попросил.',
+    inputSchema: { id: z.string(), reason: z.string().min(1).max(500) },
+  }, safe(async ({ id, reason }: { id: string; reason: string }) => hideMuzeyPoint(actor, id, true, reason)));
+
+  server.registerTool('unhide_point', {
+    description: 'Вернуть в podbor_points поинт, который раньше пометили «мимо» через hide_point.',
+    inputSchema: { id: z.string() },
+  }, safe(async ({ id }: { id: string }) => hideMuzeyPoint(actor, id, false)));
+
+  server.registerTool('edit_point_title', {
+    description: 'Переписать формулировку поинта из музея (как он показывается в podbor_points и get_point). Исходная формулировка музея сохраняется (originalTitle). Пустой title = вернуть исходную. note = зачем поменял. Делать только когда человек прямо попросил.',
+    inputSchema: { id: z.string(), title: z.string().max(1000), note: z.string().max(500).optional() },
+  }, safe(async ({ id, title, note }: { id: string; title: string; note?: string }) => editMuzeyPointTitle(actor, id, title, note)));
 
   return server;
 }

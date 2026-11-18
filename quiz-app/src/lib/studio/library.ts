@@ -106,7 +106,7 @@ export function personNames(entries: LibraryEntry[]): string[] {
 }
 
 /** «Женя» also catches «Жени», «Женей»; «Стас» catches «Стаса», «Стасом». */
-function namesRegex(names: string[]): RegExp | null {
+export function namesRegex(names: string[]): RegExp | null {
   if (!names.length) return null;
   const forms = names.map((n) => (/[аяь]$/.test(n) ? `${n.slice(0, -1)}(?:а|я|ы|и|е|у|ю|ой|ей|ь)` : `${n}(?:а|у|ом|е|ем)?`));
   return new RegExp(`(?<!\\p{L})(?:${forms.join('|')})(?!\\p{L})`, 'gu');
