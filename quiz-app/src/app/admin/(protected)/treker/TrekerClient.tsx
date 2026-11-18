@@ -1234,10 +1234,15 @@ function OnMap({
   const m = task.map;
   const weeks = weeksUntil(mondayOf(todayLocal()), map.deadline);
   if (m?.week && !weeks.includes(m.week)) weeks.unshift(m.week);
-  const set = (next: { stage: string | null; later?: boolean; week?: string | null }) =>
+  const set = (next: { stage: string | null; later?: boolean; week?: string | null; move?: string | null }) =>
     run(
       { action: 'setMap', id: task.id, ...next },
-      { ...task, map: next.stage ? { stage: next.stage, later: !!next.later, week: next.week ?? null } : null },
+      {
+        ...task,
+        map: next.stage
+          ? { stage: next.stage, later: !!next.later, week: next.week ?? null, move: next.move ?? m?.move ?? null }
+          : null,
+      },
     );
   return (
     <div className={styles.moveRow}>
@@ -1273,6 +1278,15 @@ function OnMap({
             ))}
             <option value="later">потом, после запуска</option>
           </select>
+          <input
+            key={m.move ?? ''}
+            className={styles.select}
+            defaultValue={m.move ?? ''}
+            placeholder="что это даёт счёту"
+            onBlur={(e) => {
+              if (e.target.value.trim() !== (m.move ?? '')) set({ ...m, move: e.target.value });
+            }}
+          />
         </>
       )}
     </div>
