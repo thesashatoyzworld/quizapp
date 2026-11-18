@@ -53,6 +53,28 @@ CREATE TABLE IF NOT EXISTS studio_muzey_taken (
   synced_to_repo  BOOLEAN NOT NULL DEFAULT false
 );
 
+-- Edits to points by Sasha or Danya, keyed by point id (S0084 or the stable hot id),
+-- so they survive the daily sync. title = shown instead of the original formula (NULL = original).
+CREATE TABLE IF NOT EXISTS studio_muzey_overrides (
+  point_id    TEXT PRIMARY KEY,
+  hidden      BOOLEAN NOT NULL DEFAULT false,
+  reason      TEXT,
+  title       TEXT,
+  updated_by  TEXT NOT NULL,
+  updated_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Every museum edit: hide | unhide | title | title-revert.
+CREATE TABLE IF NOT EXISTS studio_muzey_log (
+  id          SERIAL PRIMARY KEY,
+  point_id    TEXT NOT NULL,
+  action      TEXT NOT NULL,
+  value       TEXT,
+  note        TEXT,
+  actor       TEXT NOT NULL,
+  created_at  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- «Как пишем карусели»: guide sections, editable by Sasha and Danya, every save versioned.
 CREATE TABLE IF NOT EXISTS studio_guide_sections (
   slug        TEXT PRIMARY KEY,

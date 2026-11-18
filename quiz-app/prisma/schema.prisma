@@ -1652,3 +1652,26 @@ model StudioGuideVersion {
   @@index([slug])
   @@map("studio_guide_versions")
 }
+
+model StudioMuzeyOverride {
+  pointId   String   @id @map("point_id")
+  hidden    Boolean  @default(false)
+  reason    String?
+  title     String?
+  updatedBy String   @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("studio_muzey_overrides")
+}
+
+model StudioMuzeyLog {
+  id        Int      @id @default(autoincrement())
+  pointId   String   @map("point_id")
+  action    String // hide | unhide | title | title-revert
+  value     String?
+  note      String?
+  actor     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("studio_muzey_log")
+}
