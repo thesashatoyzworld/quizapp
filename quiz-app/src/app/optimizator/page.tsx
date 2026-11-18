@@ -31,9 +31,6 @@ const STEPS = [
 /** Typical run is 70-135 s; steps are spread over ~110 s. */
 const STEP_MS = 14_000;
 
-const READINESS: Record<string, string> = {
-  ready: 'Можно выкладывать', needs_work: 'Нужны правки', rewrite: 'Лучше переписать',
-};
 const FORMAT_LEVEL: Record<string, string> = {
   facts: 'факты', explanation: 'объяснение', application: 'применение', story: 'история',
 };
@@ -161,16 +158,6 @@ function WithPlaceholders({ text, fill }: { text: string; fill: string[] }) {
   );
 }
 
-function scoreTone(score: number, max: number) {
-  const r = score / max;
-  return r >= 0.75 ? 'op-good' : r >= 0.5 ? 'op-mid' : 'op-low';
-}
-
-/** 0-100 scores on the v4+ scale: ready from 65, weak below 45. */
-function scoreTone100(score: number) {
-  return score >= 65 ? 'op-good' : score >= 45 ? 'op-mid' : 'op-low';
-}
-
 function fmtDate(iso: string) {
   try {
     return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
@@ -281,10 +268,8 @@ function ReasonsBlock({ r }: { r: ViewerReasons }) {
                 <span className="op-crit-name">{title}</span>
                 <span className={`op-reason-ans ${tone}`}>
                   {kind && v.answer !== 'no' ? kind : `причина: ${REASON_ANSWER[v.answer] || v.answer}`}
-                  <b>{v.score}<small>/10</small></b>
                 </span>
               </div>
-              <div className="op-bar"><i className={tone} style={{ width: `${v.score * 10}%` }} /></div>
               <p className="op-p">{v.reason}</p>
               {v.fix && <p className="op-p op-reason-fix">{v.fix}</p>}
             </div>
@@ -346,27 +331,7 @@ function Details({ a }: { a: StudentAnalysis }) {
   ];
   return (
     <details className="op-card op-details">
-      <summary>Подробнее <span>балл, потенциал охвата, тема и угол, первая фраза, критерии, ещё три хука</span></summary>
-
-      <div className="op-sect">
-        <h3 className="op-h3">Общий балл</h3>
-        <div className="op-reach">
-          <span className={`op-reach-n ${a.reach_from_model ? scoreTone100(a.overall_score) : scoreTone(a.overall_score, 100)}`}>{a.overall_score}</span>
-          <span className="op-muted">
-            из 100{READINESS[a.readiness] ? `, ${READINESS[a.readiness].toLowerCase()}` : ''}. Между прогонами одного текста балл гуляет на ±5: сравнивай не цифры, а правки.
-          </span>
-        </div>
-      </div>
-
-      <div className="op-sect">
-        <h3 className="op-h3">Потенциал охвата</h3>
-        <div className="op-reach">
-          <span className={`op-reach-n ${a.reach_from_model ? scoreTone100(a.reach_potential) : scoreTone(a.reach_potential, 100)}`}>{a.reach_potential}</span>
-          <span className="op-muted">
-            {a.reach_from_model ? 'против твоего обычного ролика. Обычный около 65, уровень залёта от 75' : 'по теме, углу и хуку'}
-          </span>
-        </div>
-      </div>
+      <summary>Подробнее <span>тема и угол, первая фраза, разбор по критериям, ещё три хука</span></summary>
 
       <div className="op-sect">
         <h3 className="op-h3">Главная мысль</h3>
@@ -418,9 +383,7 @@ function Details({ a }: { a: StudentAnalysis }) {
             <div className="op-crit" key={c.id}>
               <div className="op-crit-head">
                 <span className="op-crit-name">{c.name}</span>
-                <span className={`op-crit-score ${scoreTone(c.score, 10)}`}>{c.score}<small>/10</small></span>
               </div>
-              <div className="op-bar"><i className={scoreTone(c.score, 10)} style={{ width: `${c.score * 10}%` }} /></div>
               <p className="op-p">{c.reasoning}</p>
               {c.quote && <blockquote className="op-quote op-quote-sm">{c.quote}</blockquote>}
               {c.source_type === 'kallaway' && <Source source={c.source} />}
@@ -507,7 +470,7 @@ function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; sha
         </details>
       )}
 
-      {run.ladder ? <LadderBlock l={run.ladder} /> : shared ? null : (
+      {run.ladder?.confident ? <LadderBlock l={run.ladder} /> : shared || run.ladder ? null : (
         <section className="op-card op-ladder-none">
           <p className="op-p op-muted">
             Сравнения с твоими прошлыми роликами нет: не указан ник, аккаунт закрыт или в нём меньше 4 рилсов с речью.
@@ -515,15 +478,17 @@ function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; sha
         </section>
       )}
 
-      <section className={run.ladder ? 'op-card op-summary' : 'op-card op-summary op-hero'}>
+      <section className={run.ladder?.confident ? 'op-card op-summary' : 'op-card op-summary op-hero'}>
         <p className="op-verdict">{a.verdict}</p>
+        <p className="op-p op-muted op-lottery">
+          Оценки в баллах нет специально. Один и тот же текст у Саши набирал от 2 до 13 тысяч просмотров в разных
+          заливках: текст поднимает шансы, но не решает. Поправь главное и залей 3 версии и больше.
+        </p>
       </section>
-
-      {a.viewer_reasons && <ReasonsBlock r={a.viewer_reasons} />}
 
       {a.top_fixes.length > 0 && (
         <section className="op-card">
-          <h2 className="op-h2">Что поправить</h2>
+          <h2 className="op-h2">Что поправить в первую очередь</h2>
           <ol className="op-fix">
             {a.top_fixes.slice(0, 3).map((f, i) => (
               <li key={i}>
@@ -534,6 +499,8 @@ function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; sha
           </ol>
         </section>
       )}
+
+      {a.viewer_reasons && <ReasonsBlock r={a.viewer_reasons} />}
 
       {run.baza && <BazaExamples b={run.baza} />}
 
@@ -884,7 +851,6 @@ function OptimizatorInner() {
               {items.map((h) => (
                 <button type="button" key={h.id} className={run?.id === h.id ? 'op-hist op-hist-on' : 'op-hist'}
                   onClick={() => loadRun(h.id)}>
-                  <span className={`op-hist-score ${h.score !== null ? scoreTone100(h.score) : ''}`}>{h.score ?? '·'}</span>
                   <span className="op-hist-body">
                     <span className="op-hist-line">{h.firstLine || 'Без текста'}</span>
                     <span className="op-hist-meta">{fmtDate(h.createdAt)} · {h.goal === 'conversion' ? 'заявки' : 'охват'}</span>
@@ -1054,9 +1020,6 @@ function OptimizatorInner() {
         .op-sect { padding: 14px 18px 16px; border-top: 1px solid var(--op-line); }
         .op-h3 { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 15px; letter-spacing: -0.01em; margin: 0 0 6px; }
         .op-gate-head .op-h3 { margin: 0; }
-        .op-reach { display: flex; align-items: center; gap: 12px; }
-        .op-reach-n { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; }
-        .op-reach-n.op-good { color: var(--op-good); } .op-reach-n.op-mid { color: var(--op-mid); } .op-reach-n.op-low { color: var(--op-low); }
 
         .op-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; font-size: 14px; line-height: 1.45; }
         .op-dl dt { font-weight: 700; color: var(--op-muted); font-size: 12.5px; padding-top: 2px; }
@@ -1085,20 +1048,13 @@ function OptimizatorInner() {
         .op-crit:first-child { border-top: none; padding-top: 2px; }
         .op-crit-head { display: flex; justify-content: space-between; align-items: baseline; }
         .op-crit-name { font-weight: 700; font-size: 15px; }
-        .op-crit-score { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; }
-        .op-crit-score small { font-size: 11px; color: var(--op-muted); font-weight: 700; }
-        .op-crit-score.op-good { color: var(--op-good); } .op-crit-score.op-mid { color: var(--op-mid); } .op-crit-score.op-low { color: var(--op-low); }
         .op-reasons { display: grid; gap: 14px; margin-top: 10px; }
         .op-reason + .op-reason { padding-top: 14px; border-top: 1px solid var(--op-line); }
         .op-reason-ans { display: inline-flex; align-items: baseline; gap: 8px; font-size: 12.5px; font-weight: 700; }
-        .op-reason-ans b { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; }
         .op-reason-ans small { font-size: 11px; color: var(--op-muted); font-weight: 700; }
         .op-reason-ans.op-good { color: var(--op-good); } .op-reason-ans.op-mid { color: var(--op-mid); } .op-reason-ans.op-low { color: var(--op-low); }
         .op-reason-fix { color: var(--op-muted); }
         .op-reason-fix::before { content: '→ '; }
-        .op-bar { height: 4px; background: var(--op-bg); border-radius: 99px; margin-top: 6px; overflow: hidden; }
-        .op-bar i { display: block; height: 100%; border-radius: 99px; }
-        .op-bar i.op-good { background: var(--op-good); } .op-bar i.op-mid { background: var(--op-mid); } .op-bar i.op-low { background: var(--op-low); }
         .op-src { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--op-accent); text-decoration: none; }
         .op-src:hover { text-decoration: underline; }
 
@@ -1172,8 +1128,6 @@ function OptimizatorInner() {
           padding: 11px 13px; margin-bottom: 8px; font-family: inherit; color: var(--op-text);
         }
         .op-hist:hover, .op-hist-on { border-color: var(--op-accent); }
-        .op-hist-score { flex: 0 0 auto; width: 40px; font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 20px; text-align: center; font-variant-numeric: tabular-nums; }
-        .op-hist-score.op-good { color: var(--op-good); } .op-hist-score.op-mid { color: var(--op-mid); } .op-hist-score.op-low { color: var(--op-low); }
         .op-hist-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
         .op-hist-line { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .op-hist-meta { font-size: 11.5px; color: var(--op-muted); }
