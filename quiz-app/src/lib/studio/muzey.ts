@@ -5,6 +5,7 @@
 // «мимо» (hide_point) takes a point out. Pure: no database (crypto only for hot ids).
 
 import { createHash } from 'crypto';
+import { namesRegex, redactText } from './library';
 import type { Actor } from './view';
 
 export interface MuzeyExhibit {
@@ -260,4 +261,35 @@ export function hideNotice(title: string, hidden: boolean, reason: string | null
 
 export function titleNotice(before: string, after: string, note: string | null): string {
   return `Даня переписал поинт в музее:\nбыло: ${escapeHtml(before)}\nстало: ${escapeHtml(after)}` + (note ? `\nЗаметка: ${escapeHtml(note)}` : '');
+}
+
+/**
+ * Where a quote is from, without whose call it was: «Личный: ramil», a client
+ * slug or a server job path become a neutral kind of call. For Danya only.
+ */
+export function sourceLabel(istochnik: string | null): string | null {
+  const s = (istochnik ?? '').trim();
+  if (!s) return null;
+  if (s.startsWith('Групповой') || s.startsWith('server/group')) return 'Групповой созвон';
+  if (s.startsWith('server/lead/')) return 'Созвон с лидом';
+  if (/^Урок:\s*vorkshop/i.test(s)) return 'Воркшоп';
+  if (/^Урок:\s*kurs/i.test(s)) return 'Урок курса';
+  if (s.startsWith('Урок')) return 'Урок';
+  return 'Личный созвон'; // «Личный: …», server/client/…, client slugs
+}
+
+/** Danya's copy of an exhibit: neutral source, contacts and known client names out of the text. */
+export function exhibitForDanya(e: MuzeyExhibit, names: string[] = []): MuzeyExhibit {
+  const re = namesRegex(names);
+  const r = (t: string) => { const out = redactText(t); return re ? out.replace(re, '[имя]') : out; };
+  return {
+    ...e, istochnik: sourceLabel(e.istochnik), doslovno: r(e.doslovno), sut: r(e.sut), tsifra: e.tsifra === null ? null : r(e.tsifra),
+  };
+}
+
+/** Point formula for Danya: same redaction as quotes. */
+export function titleForDanya(title: string, names: string[] = []): string {
+  const re = namesRegex(names);
+  const out = redactText(title);
+  return re ? out.replace(re, '[имя]') : out;
 }

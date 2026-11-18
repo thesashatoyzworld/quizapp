@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyOverrides, hideNotice, hotId, isUsed, mapExhibit, mapMuzey, parsePokazano, pickPoints, takeNotice, visibleTo, type MuzeyExhibit } from './muzey';
+import { exhibitForDanya, sourceLabel, titleForDanya, applyOverrides, hideNotice, hotId, isUsed, mapExhibit, mapMuzey, parsePokazano, pickPoints, takeNotice, visibleTo, type MuzeyExhibit } from './muzey';
 
 function ex(id: string, p: Partial<MuzeyExhibit> = {}): Record<string, unknown> {
   return { id, sut: 's', doslovno: `цитата ${id}`, kto: 'Саша', taym: '00:01:00', tsifra: null, pokazyvat: 'да', istochnik: 'Созвон', data: '2026-11-01', src_sha: 'x', portret: 'p', ...p };
@@ -102,4 +102,23 @@ test('overrides: hidden points leave podbor, a new title is shown, the original 
   assert.equal(edited[1].originalTitle, 'Повторяет');
   assert.equal(edited[0].hideReason, 'мимо');
   assert.equal(hideNotice('a & b', true, '<x>'), 'Даня убрал поинт из музея как «мимо»: a &amp; b\nПричина: &lt;x&gt;');
+});
+
+test('Danya: neutral source, no client names or contacts in quotes', () => {
+  assert.equal(sourceLabel('Личный: ramil'), 'Личный созвон');
+  assert.equal(sourceLabel('evgenia-sokolchik'), 'Личный созвон');
+  assert.equal(sourceLabel('server/client/2026-09-18/abc'), 'Личный созвон');
+  assert.equal(sourceLabel('server/lead/2026-10-02/abc'), 'Созвон с лидом');
+  assert.equal(sourceLabel('server/group_unconfirmed/2026-10-30/abc'), 'Групповой созвон');
+  assert.equal(sourceLabel('Групповой созвон'), 'Групповой созвон');
+  assert.equal(sourceLabel('Урок: vorkshop-soldout'), 'Воркшоп');
+  assert.equal(sourceLabel('Урок: kurs-02-uroven-1'), 'Урок курса');
+  const e = exhibitForDanya(mapExhibit(ex('E1', {
+    istochnik: 'Личный: ramil', doslovno: 'Стасу я сказал, пиши @stas_x', tsifra: 'у Стаса 200к', sut: 'Стас заработал',
+  })), ['Стас']);
+  assert.equal(e.istochnik, 'Личный созвон');
+  assert.equal(e.doslovno, '[имя] я сказал, пиши [ник]');
+  assert.equal(e.tsifra, 'у [имя] 200к');
+  assert.equal(e.sut, '[имя] заработал');
+  assert.equal(titleForDanya('Стас и Саша', ['Стас']), '[имя] и Саша');
 });

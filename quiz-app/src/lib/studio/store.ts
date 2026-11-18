@@ -12,7 +12,7 @@ import {
   type Actor, type Board, type CommentView, type ItemView, type Kind, type RuleView, type Snapshot, type Stage,
 } from './view';
 import {
-  applyOverrides, hideNotice, mapMuzey, parsePokazano, pickPoints, quotesFor, takeNotice, takenKey, titleNotice, usesOf,
+  applyOverrides, exhibitForDanya, hideNotice, titleForDanya, mapMuzey, parsePokazano, pickPoints, quotesFor, takeNotice, takenKey, titleNotice, usesOf,
   type MuzeyExhibit, type MuzeyPoint, type MuzeyTaken, type UseStats,
 } from './muzey';
 import { GUIDE_AUTHOR, checkGuideEdit, guideEditNotice, type GuideSectionView, type GuideVersionView } from './carousel-guide';
@@ -378,18 +378,32 @@ export async function syncMuzey(input: { goryachee?: unknown; smysly?: unknown; 
   };
 }
 
-async function loadMuzey() {
-  const [points, exhibits, rows, overrides] = await Promise.all([
+/** Client names Danya never sees (same list the library redacts). */
+async function danyaNames(): Promise<string[]> {
+  return danyaContext((await prisma.studioLibrary.findMany()).map(libView)).names;
+}
+
+async function loadMuzey(actor: Actor) {
+  const [points, exhibits, rows, overrides, names] = await Promise.all([
     prisma.studioMuzeyPoint.findMany(),
     prisma.studioMuzeyExhibit.findMany(),
     prisma.studioMuzeyTaken.findMany({ orderBy: { id: 'asc' } }),
     prisma.studioMuzeyOverride.findMany(),
+    actor === 'danya' ? danyaNames() : Promise.resolve([] as string[]),
   ]);
   const taken: MuzeyTaken[] = rows.map((t) => ({
     pointId: t.pointId, title: t.title, exhibitIds: t.exhibitIds, karusel: t.karusel, zahod: t.zahod, itemId: t.itemId,
     createdAt: localDate(t.createdAt),
   }));
-  return { points: applyOverrides(points as MuzeyPoint[], overrides), exhibits: exhibits as MuzeyExhibit[], taken };
+  const shown = applyOverrides(points as MuzeyPoint[], overrides);
+  if (actor !== 'danya') return { points: shown, exhibits: exhibits as MuzeyExhibit[], taken };
+  return {
+    points: shown.map((p) => ({
+      ...p, title: titleForDanya(p.title, names), ...(p.originalTitle ? { originalTitle: titleForDanya(p.originalTitle, names) } : {}),
+    })),
+    exhibits: (exhibits as MuzeyExhibit[]).map((e) => exhibitForDanya(e, names)),
+    taken,
+  };
 }
 
 /** Numbers per linked Studio card: the snapshot we judge by (>= 48h after publishing). */
@@ -407,13 +421,13 @@ async function statsOfUses(taken: MuzeyTaken[]): Promise<Record<string, UseStats
 }
 
 export async function podborPoints(actor: Actor, limit = 10, onlyNew = false) {
-  const { points, exhibits, taken } = await loadMuzey();
+  const { points, exhibits, taken } = await loadMuzey(actor);
   return pickPoints(points, exhibits, taken, actor, Math.max(1, Math.min(limit, 50)), { onlyNew, stats: await statsOfUses(taken) });
 }
 
 /** A point with every quote the actor may see and its past uses (заход → карусель, numbers when linked). */
 export async function getMuzeyPoint(actor: Actor, id: string) {
-  const { points, exhibits, taken } = await loadMuzey();
+  const { points, exhibits, taken } = await loadMuzey(actor);
   const p = points.find((x) => x.id === id);
   const byId = new Map(exhibits.map((e) => [e.id, e]));
   const quotes = p ? quotesFor(p, byId, actor) : [];
@@ -439,9 +453,13 @@ export async function useMuzeyPoint(actor: Actor, id: string, zahod: string, kar
     throw new StudioError('карточка не найдена: id из list_schedule');
   }
   const point = await getMuzeyPoint(actor, id);
-  const row = await prisma.studioMuzeyPoint.findUnique({ where: { id }, select: { exhibitIds: true } });
+  // Store the real formula (Danya's view of it is redacted); it goes to pokazano.json.
+  const [row, override] = await Promise.all([
+    prisma.studioMuzeyPoint.findUnique({ where: { id }, select: { exhibitIds: true, title: true } }),
+    prisma.studioMuzeyOverride.findUnique({ where: { pointId: id }, select: { title: true } }),
+  ]);
   const created = await prisma.studioMuzeyTaken.create({
-    data: { pointId: id, title: point.title, exhibitIds: row?.exhibitIds ?? [], karusel: slug, zahod: hook, itemId: itemId || null, actor },
+    data: { pointId: id, title: override?.title ?? row?.title ?? point.title, exhibitIds: row?.exhibitIds ?? [], karusel: slug, zahod: hook, itemId: itemId || null, actor },
   });
   if (actor === 'danya') await notifyAdmin(takeNotice(point.title, slug, hook), { disableLinkPreview: true });
   return { ok: true, useId: created.id, id, title: point.title, zahod: hook, karusel: slug, usedBefore: point.used };
