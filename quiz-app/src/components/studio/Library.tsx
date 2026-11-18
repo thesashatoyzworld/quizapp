@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FLAG_LABEL, LIB_BASES, LIB_BASE_LABEL, filterLibrary, type LibBase, type LibraryEntry } from '@/lib/studio/library';
 import Sheet from './Sheet';
+import Md from './Md';
 import s from './studio.module.css';
 
 interface Filters {
@@ -188,25 +189,6 @@ function LibCard({ entry, onOpen }: { entry: LibraryEntry; onOpen: () => void })
 }
 
 // ─── drawer ───
-
-/** Tiny markdown: **bold**, «> » quotes, «- » bullets, tables as rows. No HTML injection. */
-function Md({ text }: { text: string }) {
-  const inline = (t: string) => t.split(/(\*\*[^*]+\*\*)/g).map((p, i) => (p.startsWith('**') && p.endsWith('**') ? <strong key={i}>{p.slice(2, -2)}</strong> : p));
-  return (
-    <div className={s.md}>
-      {text.split('\n').map((line, i) => {
-        if (!line.trim()) return <div key={i} className={s.mdGap} />;
-        if (/^\|[-| ]+\|$/.test(line.trim())) return null;
-        if (line.startsWith('|')) return <div key={i} className={s.mdRow}>{line.split('|').slice(1, -1).map((c, j) => <span key={j}>{inline(c.trim())}</span>)}</div>;
-        if (line.startsWith('> ')) return <blockquote key={i} className={s.mdQuote}>{inline(line.slice(2))}</blockquote>;
-        const bullet = line.match(/^(\s*)- (.*)$/);
-        if (bullet) return <div key={i} className={s.mdLi} style={{ paddingLeft: 12 + bullet[1].length * 6 }}>{inline(bullet[2])}</div>;
-        if (line.startsWith('### ')) return <h4 key={i} className={s.mdH}>{line.slice(4)}</h4>;
-        return <p key={i} className={s.mdP}>{inline(line)}</p>;
-      })}
-    </div>
-  );
-}
 
 function LibDrawer({ entry, base, isSasha, save, onClose, onCreated }: {
   entry: LibraryEntry | null; base?: LibBase; isSasha: boolean;

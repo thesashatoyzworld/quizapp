@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import Studio from '@/components/studio/Studio';
 import s from '@/components/studio/studio.module.css';
-import { currentActor, loadBoard } from '@/lib/studio/store';
+import { currentActor, libraryOpenToDanya, loadBoard } from '@/lib/studio/store';
 import { localDate } from '@/lib/studio/view';
+import { mcpUrlFor } from '@/lib/studio/mcp-url';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Студия', robots: { index: false, follow: false } };
@@ -23,7 +24,7 @@ export default async function StudioPage() {
     <main className={s.page}>
       <h1 className={s.h1}>СТУДИЯ</h1>
       <p className={s.sub}>рилсы и карусели Саши: что выходит когда, у кого сейчас, как сработало</p>
-      <Studio board={board} actor={actor} today={localDate()} />
+      <Studio board={board} actor={actor} today={localDate()} mcpUrl={await mcpUrlFor(actor)} libraryOpen={actor === 'sasha' || (await libraryOpenToDanya())} />
     </main>
   );
 }

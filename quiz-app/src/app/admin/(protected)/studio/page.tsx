@@ -2,6 +2,7 @@ import Studio from '@/components/studio/Studio';
 import s from '@/components/studio/studio.module.css';
 import { loadBoard } from '@/lib/studio/store';
 import { localDate } from '@/lib/studio/view';
+import { mcpUrlFor } from '@/lib/studio/mcp-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,7 @@ export default async function StudioAdminPage() {
     <div>
       <h1 className={s.h1}>СТУДИЯ</h1>
       <p className={s.sub}>рилсы и карусели: что выходит когда, у кого сейчас, как сработало. Даня видит это же на /studio</p>
-      <Studio board={board} actor="sasha" today={localDate()} />
+      <Studio board={board} actor="sasha" today={localDate()} mcpUrl={await mcpUrlFor('sasha')} libraryOpen />
     </div>
   );
 }

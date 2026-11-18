@@ -4,7 +4,7 @@
 // Schedule (week or month, plan or published), item card, stats by copy
 // group, «Что работает».
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useState, useSyncExternalStore, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ACTOR_LABEL, KIND_LABEL, MODE_LABEL, STAGES, STAGE_LABEL, STAGE_OWNER, addDays, addMonths, aggregateVariants,
@@ -14,8 +14,19 @@ import {
 import s from './studio.module.css';
 import Sheet from './Sheet';
 import Library from './Library';
+import Guide from './Guide';
 
-type Tab = 'schedule' | 'stats' | 'rules' | 'library';
+type Tab = 'schedule' | 'stats' | 'rules' | 'library' | 'guide';
+
+const GUIDE_SEEN = 'studio-guide-seen';
+const noopSubscribe = () => () => {};
+function readGuideSeen(): boolean {
+  try {
+    return !!localStorage.getItem(GUIDE_SEEN);
+  } catch {
+    return true; // storage blocked: do not force the guide every time
+  }
+}
 type View = 'week' | 'month';
 
 const DOW = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -47,9 +58,21 @@ async function call(op: string, payload: Record<string, unknown>) {
   return data;
 }
 
-export default function Studio({ board, actor, today }: { board: Board; actor: Actor; today: string }) {
+export default function Studio({ board, actor, today, mcpUrl, libraryOpen }: {
+  board: Board; actor: Actor; today: string; mcpUrl: string | null; libraryOpen: boolean;
+}) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('schedule');
+  // Danya's first visit opens the guide; leaving it counts as «seen» (per browser).
+  // The server renders as if seen, so there is no hydration mismatch.
+  const guideSeen = useSyncExternalStore(noopSubscribe, readGuideSeen, () => true);
+  const [chosen, setChosen] = useState<Tab | null>(null);
+  const tab: Tab = chosen ?? (actor === 'danya' && !guideSeen ? 'guide' : 'schedule');
+  const setTab = (next: Tab) => {
+    if (tab === 'guide' && next !== 'guide') {
+      try { localStorage.setItem(GUIDE_SEEN, '1'); } catch { /* storage blocked */ }
+    }
+    setChosen(next);
+  };
   const [view, setView] = useState<View>('week');
   const [mode, setMode] = useState<Mode>('plan');
   const [anchor, setAnchor] = useState(today); // any day inside the shown week or month
@@ -90,7 +113,7 @@ export default function Studio({ board, actor, today }: { board: Board; actor: A
   return (
     <div className={s.root}>
       <div className={s.tabs} role="tablist">
-        {([['schedule', 'Расписание'], ['stats', 'Статистика'], ['rules', 'Что работает'], ['library', 'Библиотека']] as [Tab, string][]).map(([key, label]) => (
+        {([['schedule', 'Расписание'], ['stats', 'Статистика'], ['rules', 'Что работает'], ['library', 'Библиотека'], ['guide', 'Как пользоваться']] as [Tab, string][]).map(([key, label]) => (
           <button key={key} role="tab" aria-selected={tab === key} className={s.tab} onClick={() => setTab(key)}>
             {label}
           </button>
@@ -125,6 +148,7 @@ export default function Studio({ board, actor, today }: { board: Board; actor: A
       {tab === 'stats' && <Stats board={board} onOpen={setOpenId} />}
       {tab === 'rules' && <Rules rules={board.rules} isSasha={isSasha} run={run} />}
       {tab === 'library' && <Library isSasha={isSasha} />}
+      {tab === 'guide' && <Guide mcpUrl={mcpUrl} libraryOpen={libraryOpen} onDone={() => setTab('schedule')} />}
 
       {copies && !open && <CopiesSheet items={copies} onOpen={setOpenId} onClose={() => setCopies(null)} />}
       {open && (
