@@ -1579,3 +1579,76 @@ model StudioSetting {
 
   @@map("studio_settings")
 }
+
+// ─── «Студия»: музей идей (sync from gsd-brand clients/sasha/muzey) ───
+
+model StudioMuzeyPoint {
+  id         String   @id // S0084 | G-<hash of exhibit ids>
+  kind       String // hot | smysl
+  title      String
+  why        String   @default("")
+  ves        Int      @default(0)
+  bol        Int      @default(0)
+  sozvonov   Int      @default(0)
+  posledniy  String?
+  rank       Int      @default(0)
+  exhibitIds String[] @default([]) @map("exhibit_ids")
+  syncedAt   DateTime @default(now()) @map("synced_at")
+
+  @@map("studio_muzey_points")
+}
+
+model StudioMuzeyExhibit {
+  id        String  @id // E0001
+  tip       String?
+  sut       String  @default("")
+  doslovno  String  @default("")
+  kto       String?
+  taym      String?
+  tsifra    String?
+  pokazyvat String?
+  istochnik String?
+  data      String?
+  smysl     String?
+
+  @@map("studio_muzey_exhibits")
+}
+
+model StudioMuzeyTaken {
+  id           Int      @id @default(autoincrement())
+  pointId      String?  @map("point_id")
+  title        String
+  exhibitIds   String[] @default([]) @map("exhibit_ids")
+  karusel      String
+  actor        String // sasha | danya | repo
+  createdAt    DateTime @default(now()) @map("created_at")
+  syncedToRepo Boolean  @default(false) @map("synced_to_repo")
+
+  @@map("studio_muzey_taken")
+}
+
+// ─── «Студия»: «Как пишем карусели» ───
+
+model StudioGuideSection {
+  slug      String   @id
+  title     String
+  body      String   @default("")
+  sort      Int      @default(0)
+  updatedBy String   @default("seed") @map("updated_by")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("studio_guide_sections")
+}
+
+model StudioGuideVersion {
+  id        Int      @id @default(autoincrement())
+  slug      String
+  title     String
+  body      String
+  actor     String
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([slug])
+  @@map("studio_guide_versions")
+}
