@@ -45,7 +45,7 @@ function buildServer(actor: Actor) {
   const server = new McpServer({ name: 'studio', version: '1.0.0' });
 
   server.registerTool('get_onboarding', {
-    description: 'Как работать в Студии Саши: цикл карточки, копии, как судим статистику, правила, библиотека, какой инструмент для чего. Прочитай один раз в начале работы.',
+    description: 'Как работать в Студии Саши: цикл карточки, копии, как судим статистику, правила, библиотека, как собирать карусели из музея идей, какой инструмент для чего. Прочитай один раз в начале работы.',
     inputSchema: {},
   }, safe(async () => ({ markdown: guideMarkdown({ libraryOpen: actor === 'sasha' || (await libraryOpenToDanya()) }) })));
 
