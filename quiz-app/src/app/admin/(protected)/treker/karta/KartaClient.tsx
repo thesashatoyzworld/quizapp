@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TaskView } from '@/lib/tracker/data';
 import {
   LIST_START,
@@ -70,8 +70,15 @@ export default function KartaClient({ map, tasks, score }: { map: MapView; tasks
         </Link>
       </div>
 
-      <header className={styles.score}>
+      {/* Сначала только круг на весь экран, остальное ниже по скроллу. */}
+      <section className={styles.hero}>
         <ScoreRing total={score.total} fresh={weekNow} plan={plan} />
+        <a href="#schet" className={styles.heroDown} aria-label="Ниже: график и ходы">
+          ↓
+        </a>
+      </section>
+
+      <header className={styles.score} id="schet">
         <div className={styles.scoreText}>
           <div className={styles.kicker}>Лист ожидания «360»</div>
           <div className={styles.scoreSub}>
@@ -156,6 +163,21 @@ function ScoreRing({ total, fresh, plan }: { total: number; fresh: number; plan:
   const filled = Math.min(N, total);
   const [lit, setLit] = useState(0);
   const [done, setDone] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+
+  // Досчитал: свежие дольки и свечение дышат, ~2,4 с на вдох. JS, а не CSS, из-за reduced motion.
+  useEffect(() => {
+    if (!done) return;
+    let raf = 0;
+    const t0 = performance.now();
+    const loop = (t: number) => {
+      const p = (1 - Math.cos(((t - t0) / 2400) * 2 * Math.PI)) / 2;
+      box.current?.style.setProperty('--p', p.toFixed(3));
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [done]);
 
   useEffect(() => {
     if (filled === 0) return setDone(true);
@@ -197,7 +219,8 @@ function ScoreRing({ total, fresh, plan }: { total: number; fresh: number; plan:
   const planDeg = (Math.min(plan, N) / N) * 360;
 
   return (
-    <div className={`${styles.ring} ${done ? styles.ringDone : ''}`}>
+    <div ref={box} className={`${styles.ring} ${done ? styles.ringDone : ''}`}>
+      <div className={styles.halo} aria-hidden />
       <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${total} из ${N} в листе ожидания`}>
         <defs>
           <filter id="karta-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -234,6 +257,7 @@ function ScoreRing({ total, fresh, plan }: { total: number; fresh: number; plan:
       <div className={styles.ringCenter}>
         <span className={styles.ringNum}>{lit}</span>
         <span className={styles.ringOf}>из {N}</span>
+        <span className={styles.ringLabel}>в листе ожидания «360»</span>
       </div>
     </div>
   );
