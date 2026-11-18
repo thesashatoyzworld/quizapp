@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hotId, isUsed, mapExhibit, mapMuzey, parsePokazano, pickPoints, takeNotice, visibleTo, type MuzeyExhibit } from './muzey';
+import { applyOverrides, hideNotice, hotId, isUsed, mapExhibit, mapMuzey, parsePokazano, pickPoints, takeNotice, visibleTo, type MuzeyExhibit } from './muzey';
 
 function ex(id: string, p: Partial<MuzeyExhibit> = {}): Record<string, unknown> {
   return { id, sut: 's', doslovno: `цитата ${id}`, kto: 'Саша', taym: '00:01:00', tsifra: null, pokazyvat: 'да', istochnik: 'Созвон', data: '2026-11-01', src_sha: 'x', portret: 'p', ...p };
@@ -77,4 +77,18 @@ test('pokazano parse and notice escaping', () => {
     { mysl: 'a', eksponaty: ['E1'], karusel: 'k', data: '2026-11-18' },
   ]);
   assert.equal(takeNotice('a <b> & c', 'slug'), 'Даня взял поинт из музея: a &lt;b&gt; &amp; c → slug');
+});
+
+test('overrides: hidden points leave podbor, a new title is shown, the original is kept', () => {
+  const { points, exhibits } = mapMuzey(input);
+  const edited = applyOverrides(points, [
+    { pointId: points[0].id, hidden: true, reason: 'мимо', title: null },
+    { pointId: 'S1', hidden: false, reason: null, title: 'Новая формулировка' },
+  ]);
+  const left = pickPoints(edited, exhibits, [], 'danya');
+  assert.deepEqual(left.map((p) => p.id), ['S1']);
+  assert.equal(left[0].title, 'Новая формулировка');
+  assert.equal(edited[1].originalTitle, 'Повторяет');
+  assert.equal(edited[0].hideReason, 'мимо');
+  assert.equal(hideNotice('a & b', true, '<x>'), 'Даня убрал поинт из музея как «мимо»: a &amp; b\nПричина: &lt;x&gt;');
 });

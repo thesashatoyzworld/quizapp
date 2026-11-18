@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { actorForKey, keyFromRequest } from '@/lib/studio/keys';
 import {
   StudioError, addComment, attachPost, getItem, getLibraryEntry, getMuzeyPoint, libraryOpenToDanya, listItems, listLibrary, listRules, loadBoard,
-  listGuide, podborPoints, saveGuideSection, saveLibraryEntry, searchLibrary, takeMuzeyPoint, updateItem,
+  editMuzeyPointTitle, hideMuzeyPoint, listGuide, podborPoints, saveGuideSection, saveLibraryEntry, searchLibrary, takeMuzeyPoint, updateItem,
 } from '@/lib/studio/store';
 import { LIB_BASES, type LibBase } from '@/lib/studio/library';
 import { guideMarkdown } from '@/lib/studio/guide';
@@ -176,6 +176,21 @@ function buildServer(actor: Actor) {
     description: 'Отметить поинт как взятый в карусель, чтобы его не взяли второй раз ни Саша, ни Даня. Вызывать только после того, как Саша сказал «да» на карточку. karusel = короткое название карусели латиницей через дефис (например nedelya-2026-11-29-huk). После этого поинт пропадает из podbor_points.',
     inputSchema: { id: z.string(), karusel: z.string().min(1).max(120) },
   }, safe(async ({ id, karusel }: { id: string; karusel: string }) => takeMuzeyPoint(actor, id, karusel)));
+
+  server.registerTool('hide_point', {
+    description: 'Пометить поинт из музея как «мимо» (не про нас, банально, не подходит для каруселей): он пропадёт из podbor_points у всех. reason обязательно: коротко, почему мимо. Вернуть: unhide_point. Делать только когда человек прямо попросил.',
+    inputSchema: { id: z.string(), reason: z.string().min(1).max(500) },
+  }, safe(async ({ id, reason }: { id: string; reason: string }) => hideMuzeyPoint(actor, id, true, reason)));
+
+  server.registerTool('unhide_point', {
+    description: 'Вернуть в podbor_points поинт, который раньше пометили «мимо» через hide_point.',
+    inputSchema: { id: z.string() },
+  }, safe(async ({ id }: { id: string }) => hideMuzeyPoint(actor, id, false)));
+
+  server.registerTool('edit_point_title', {
+    description: 'Переписать формулировку поинта из музея (как он показывается в podbor_points и get_point). Исходная формулировка музея сохраняется (originalTitle). Пустой title = вернуть исходную. note = зачем поменял. Делать только когда человек прямо попросил.',
+    inputSchema: { id: z.string(), title: z.string().max(1000), note: z.string().max(500).optional() },
+  }, safe(async ({ id, title, note }: { id: string; title: string; note?: string }) => editMuzeyPointTitle(actor, id, title, note)));
 
   return server;
 }

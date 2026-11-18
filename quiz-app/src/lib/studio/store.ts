@@ -12,7 +12,8 @@ import {
   type Actor, type Board, type CommentView, type ItemView, type Kind, type RuleView, type Snapshot, type Stage,
 } from './view';
 import {
-  isUsed, mapMuzey, parsePokazano, pickPoints, quotesFor, takeNotice, takenKey, usedSet, type MuzeyExhibit, type MuzeyPoint,
+  applyOverrides, hideNotice, isUsed, mapMuzey, parsePokazano, pickPoints, quotesFor, takeNotice, takenKey, titleNotice, usedSet,
+  type MuzeyExhibit, type MuzeyPoint,
 } from './muzey';
 import { GUIDE_AUTHOR, checkGuideEdit, guideEditNotice, type GuideSectionView, type GuideVersionView } from './carousel-guide';
 import { notifyAdmin } from '@/lib/telegram';
@@ -361,19 +362,28 @@ export async function syncMuzey(input: { goryachee?: unknown; smysly?: unknown; 
   if (imported.length) await prisma.studioMuzeyTaken.createMany({ data: imported });
 
   const pending = await prisma.studioMuzeyTaken.findMany({ where: { syncedToRepo: false }, orderBy: { id: 'asc' } });
+  const byId = new Map(points.map((p) => [p.id, p]));
+  const hidden = (await prisma.studioMuzeyOverride.findMany({ where: { hidden: true }, orderBy: { updatedAt: 'asc' } }))
+    .filter((o) => byId.has(o.pointId));
   return {
     points: points.length, exhibits: exhibits.length, imported: imported.length, confirmed: confirmed.length,
     taken: pending.map((t) => ({ mysl: t.title, eksponaty: t.exhibitIds, karusel: t.karusel, data: localDate(t.createdAt), actor: t.actor })),
+    // The full current list: sync-studio.py rewrites skryto.json with it, so «unhide» reaches the repo too.
+    hidden: hidden.map((o) => ({
+      id: o.pointId, mysl: byId.get(o.pointId)!.title, eksponaty: byId.get(o.pointId)!.exhibitIds, prichina: o.reason,
+      kto: o.updatedBy, data: localDate(o.updatedAt),
+    })),
   };
 }
 
 async function loadMuzey() {
-  const [points, exhibits, taken] = await Promise.all([
+  const [points, exhibits, taken, overrides] = await Promise.all([
     prisma.studioMuzeyPoint.findMany(),
     prisma.studioMuzeyExhibit.findMany(),
     prisma.studioMuzeyTaken.findMany({ select: { exhibitIds: true } }),
+    prisma.studioMuzeyOverride.findMany(),
   ]);
-  return { points: points as MuzeyPoint[], exhibits: exhibits as MuzeyExhibit[], taken };
+  return { points: applyOverrides(points as MuzeyPoint[], overrides), exhibits: exhibits as MuzeyExhibit[], taken };
 }
 
 export async function podborPoints(actor: Actor, limit = 10) {
@@ -389,7 +399,10 @@ export async function getMuzeyPoint(actor: Actor, id: string) {
   const quotes = p ? quotesFor(p, byId, actor) : [];
   if (!p || !quotes.length) throw new StudioError('поинт не найден');
   const sut = quotes.map((q) => ({ exhibit: q.exhibit, sut: byId.get(q.exhibit)?.sut ?? '' }));
-  return { id: p.id, hot: p.kind === 'hot', title: p.title, why: p.why, taken: isUsed(p.exhibitIds, usedSet(taken)), quotes, sut };
+  return {
+    id: p.id, hot: p.kind === 'hot', title: p.title, ...(p.originalTitle ? { originalTitle: p.originalTitle } : {}),
+    why: p.why, taken: isUsed(p.exhibitIds, usedSet(taken)), hidden: !!p.hidden, hideReason: p.hideReason ?? null, quotes, sut,
+  };
 }
 
 /** Mark a point as used in a carousel; it leaves podbor for everyone. Danya's takes reach Sasha in Telegram. */
@@ -451,4 +464,40 @@ export async function restoreGuideVersion(actor: Actor, versionId: number) {
   if (!v) throw new StudioError('версия не найдена');
   const when = localDate(v.createdAt).split('-').reverse().join('.');
   return saveGuideSection(actor, v.slug, { title: v.title, body: v.body, note: `вернул версию от ${when} (${GUIDE_AUTHOR[v.actor] ?? v.actor})` }, true);
+}
+
+/** «Мимо»: the point leaves podbor_points for everyone; hidden = false brings it back. Logged; Danya's reach Sasha. */
+export async function hideMuzeyPoint(actor: Actor, id: string, hidden: boolean, reason?: string) {
+  const point = await getMuzeyPoint(actor, id);
+  const why = String(reason ?? '').trim().slice(0, 500) || null;
+  if (hidden && !why) throw new StudioError('напиши причину, почему мимо');
+  await prisma.$transaction([
+    prisma.studioMuzeyOverride.upsert({
+      where: { pointId: id },
+      create: { pointId: id, hidden, reason: hidden ? why : null, updatedBy: actor },
+      update: { hidden, reason: hidden ? why : null, updatedBy: actor, updatedAt: new Date() },
+    }),
+    prisma.studioMuzeyLog.create({ data: { pointId: id, action: hidden ? 'hide' : 'unhide', note: why, actor } }),
+  ]);
+  if (actor === 'danya') await notifyAdmin(hideNotice(point.title, hidden, why), { disableLinkPreview: true });
+  return { ok: true, id, hidden };
+}
+
+/** Show another formula for a point; the museum's own stays in originalTitle. Empty title = back to the original. */
+export async function editMuzeyPointTitle(actor: Actor, id: string, title: string | null | undefined, note?: string) {
+  const point = await getMuzeyPoint(actor, id);
+  const next = String(title ?? '').trim().slice(0, 1000) || null;
+  const why = String(note ?? '').trim().slice(0, 500) || null;
+  const before = point.title;
+  await prisma.$transaction([
+    prisma.studioMuzeyOverride.upsert({
+      where: { pointId: id },
+      create: { pointId: id, title: next, updatedBy: actor },
+      update: { title: next, updatedBy: actor, updatedAt: new Date() },
+    }),
+    prisma.studioMuzeyLog.create({ data: { pointId: id, action: next ? 'title' : 'title-revert', value: next, note: why, actor } }),
+  ]);
+  const after = next ?? point.originalTitle ?? before;
+  if (actor === 'danya') await notifyAdmin(titleNotice(before, after, why), { disableLinkPreview: true });
+  return { ok: true, id, title: after, original: point.originalTitle ?? before };
 }

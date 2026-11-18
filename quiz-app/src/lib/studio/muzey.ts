@@ -31,6 +31,30 @@ export interface MuzeyPoint {
   posledniy: string | null;
   rank: number;
   exhibitIds: string[];
+  /** Set by applyOverrides: marked «мимо», and the formula before someone retitled it. */
+  hidden?: boolean;
+  hideReason?: string | null;
+  originalTitle?: string;
+}
+
+/** A Studio edit to a point (studio_muzey_overrides): survives the daily sync. */
+export interface MuzeyOverride {
+  pointId: string;
+  hidden: boolean;
+  reason: string | null;
+  title: string | null;
+}
+
+export function applyOverrides(points: MuzeyPoint[], overrides: MuzeyOverride[]): MuzeyPoint[] {
+  const by = new Map(overrides.map((o) => [o.pointId, o]));
+  return points.map((p) => {
+    const o = by.get(p.id);
+    if (!o) return p;
+    return {
+      ...p, title: o.title ?? p.title, hidden: o.hidden, hideReason: o.hidden ? o.reason : null,
+      ...(o.title ? { originalTitle: p.title } : {}),
+    };
+  });
 }
 
 export interface MuzeyTaken {
@@ -165,7 +189,7 @@ export function pickPoints(
   const order = [...points].sort((a, b) => Number(b.kind === 'hot') - Number(a.kind === 'hot') || a.rank - b.rank);
   for (const p of order) {
     if (out.length >= limit) break;
-    if (isUsed(p.exhibitIds, used)) continue;
+    if (p.hidden || isUsed(p.exhibitIds, used)) continue;
     const quotes = quotesFor(p, byId, actor, 260).slice(0, 3);
     if (!quotes.length) continue;
     out.push({ id: p.id, hot: p.kind === 'hot', title: p.title, why: p.why, quotes });
@@ -187,4 +211,13 @@ const escapeHtml = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 
 export function takeNotice(title: string, karusel: string): string {
   return `Даня взял поинт из музея: ${escapeHtml(title)} → ${escapeHtml(karusel)}`;
+}
+
+export function hideNotice(title: string, hidden: boolean, reason: string | null): string {
+  return `Даня ${hidden ? 'убрал поинт из музея как «мимо»' : 'вернул поинт в музей'}: ${escapeHtml(title)}`
+    + (reason ? `\nПричина: ${escapeHtml(reason)}` : '');
+}
+
+export function titleNotice(before: string, after: string, note: string | null): string {
+  return `Даня переписал поинт в музее:\nбыло: ${escapeHtml(before)}\nстало: ${escapeHtml(after)}` + (note ? `\nЗаметка: ${escapeHtml(note)}` : '');
 }
