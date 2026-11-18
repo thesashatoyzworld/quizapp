@@ -15,8 +15,9 @@ import s from './studio.module.css';
 import Sheet from './Sheet';
 import Library from './Library';
 import Guide from './Guide';
+import CarouselGuide from './CarouselGuide';
 
-type Tab = 'schedule' | 'stats' | 'rules' | 'library' | 'guide';
+type Tab = 'schedule' | 'stats' | 'rules' | 'library' | 'carousels' | 'guide';
 
 const GUIDE_SEEN = 'studio-guide-seen';
 const noopSubscribe = () => () => {};
@@ -113,7 +114,7 @@ export default function Studio({ board, actor, today, mcpUrl, libraryOpen }: {
   return (
     <div className={s.root}>
       <div className={s.tabs} role="tablist">
-        {([['schedule', 'Расписание'], ['stats', 'Статистика'], ['rules', 'Что работает'], ['library', 'Библиотека'], ['guide', 'Как пользоваться']] as [Tab, string][]).map(([key, label]) => (
+        {([['schedule', 'Расписание'], ['stats', 'Статистика'], ['rules', 'Что работает'], ['library', 'Библиотека'], ['carousels', 'Карусели'], ['guide', 'Как пользоваться']] as [Tab, string][]).map(([key, label]) => (
           <button key={key} role="tab" aria-selected={tab === key} className={s.tab} onClick={() => setTab(key)}>
             {label}
           </button>
@@ -148,6 +149,7 @@ export default function Studio({ board, actor, today, mcpUrl, libraryOpen }: {
       {tab === 'stats' && <Stats board={board} onOpen={setOpenId} />}
       {tab === 'rules' && <Rules rules={board.rules} isSasha={isSasha} run={run} />}
       {tab === 'library' && <Library isSasha={isSasha} />}
+      {tab === 'carousels' && <CarouselGuide />}
       {tab === 'guide' && <Guide mcpUrl={mcpUrl} libraryOpen={libraryOpen} onDone={() => setTab('schedule')} />}
 
       {copies && !open && <CopiesSheet items={copies} onOpen={setOpenId} onClose={() => setCopies(null)} />}
