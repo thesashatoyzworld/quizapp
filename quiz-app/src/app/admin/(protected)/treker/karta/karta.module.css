@@ -532,3 +532,195 @@
     animation: none;
   }
 }
+
+/* ---------- счёт: лист ожидания ---------- */
+
+.score {
+  margin-bottom: 36px;
+}
+
+.scoreLine {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.scoreNum {
+  font-family: var(--font-display);
+  font-size: 3.4rem;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreOf {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.scoreBar {
+  position: relative;
+  height: 10px;
+  margin: 14px 0 12px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.scoreFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--success));
+}
+
+/* Где должен быть счёт сегодня, если идти ровно. */
+.scorePlan {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text-secondary);
+  border-radius: 1px;
+}
+
+.scoreSub {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.scoreWhy {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-top: 8px;
+}
+
+.ahead {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.behind {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* ---------- ходы ---------- */
+
+.moves {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.move {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
+  border-radius: 14px;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.move:hover {
+  border-color: rgba(0, 240, 255, 0.3);
+}
+
+.moveBody,
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.moveTitle {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.moveWhy,
+.rowWhy {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.rowWhy {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.chip {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+
+.row .chip {
+  margin: 0 0 0 auto;
+  flex-shrink: 0;
+}
+
+.chipPeople {
+  background: rgba(0, 240, 255, 0.12);
+  color: var(--neon-cyan);
+}
+
+.chipMoney {
+  background: rgba(57, 255, 136, 0.1);
+  color: var(--success);
+}
+
+@media (max-width: 640px) {
+  .row .chip {
+    display: none;
+  }
+}
+
+.always {
+  margin-top: 18px;
+}
+
+.alwaysHead {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.weekGot,
+.weekGotLow {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.weekGot {
+  color: var(--success);
+}
+
+.weekGotLow {
+  color: var(--text-secondary);
+}
+
+.rowLater {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.h2Count {
+  color: var(--success);
+}
+
+.weekClosed {
+  color: var(--success);
+  font-size: 0.95rem;
+  margin: 0 0 14px;
+}

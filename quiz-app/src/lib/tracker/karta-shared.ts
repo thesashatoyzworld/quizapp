@@ -87,3 +87,23 @@ export function milestoneOfWeek(ms: Milestone[], monday: string): Milestone | un
     ms.find((m) => m.from >= monday && m.from <= sunday)
   );
 }
+
+/** Счёт карты: живые записи в лист ожидания. */
+export type Score = {
+  /** Сколько человек в листе (по одному на контакт). */
+  total: number;
+  /** Записи по неделям: понедельник → сколько. */
+  byWeek: Record<string, number>;
+};
+
+/** Цель листа: 90 записей ≈ 30 оплат, если платит каждый третий (Саша 18.11). */
+export const LIST_TARGET = 90;
+/** С этой недели лист открыт; от неё считается график. */
+export const LIST_START = '2026-11-16';
+
+/** Сколько должно быть в листе к дате, если идти ровно от старта к запуску. */
+export function planBy(day: string, deadline: string): number {
+  const all = daysBetween(LIST_START, deadline);
+  const gone = Math.min(all, Math.max(0, daysBetween(LIST_START, day) + 1));
+  return Math.round((LIST_TARGET * gone) / all);
+}

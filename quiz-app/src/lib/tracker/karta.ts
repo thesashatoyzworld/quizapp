@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { MAX_LEVEL, type MapStage, type MapView, type Milestone } from './karta-shared';
+import { MAX_LEVEL, type MapStage, type MapView, type Milestone, type Score } from './karta-shared';
 
 function toView(row: Awaited<ReturnType<typeof prisma.trackerMap.findFirst>>): MapView | null {
   if (!row) return null;
@@ -40,4 +40,25 @@ export async function runMapAction(a: MapAction): Promise<MapView | null> {
     }
   }
   return getMap();
+}
+
+/** Живой счёт: лист ожидания «360» из анкеты (dwy_leads kind='360'), один человек = один контакт. */
+export async function getScore(): Promise<Score> {
+  const rows = await prisma.$queryRaw<{ wk: string; n: bigint }[]>`
+    SELECT to_char(date_trunc('week', first_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Almaty'), 'YYYY-MM-DD') AS wk,
+           count(*) AS n
+    FROM (
+      SELECT min(created_at) AS first_at
+      FROM dwy_leads
+      WHERE kind = '360'
+      GROUP BY coalesce(nullif(telegram_id, ''), nullif(lower(username), ''), nullif(phone, ''), id::text)
+    ) people
+    GROUP BY 1`;
+  const byWeek: Record<string, number> = {};
+  let total = 0;
+  for (const r of rows) {
+    byWeek[r.wk] = Number(r.n);
+    total += Number(r.n);
+  }
+  return { total, byWeek };
 }
