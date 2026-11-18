@@ -41,8 +41,27 @@ function safe<A>(fn: (args: A) => Promise<unknown>) {
   };
 }
 
+const CAROUSEL_FLOW = [
+  'Собери карусель Саши. Начни с get_carousel_guide: прочитай гайд целиком и иди строго по нему, не по памяти.',
+  'Порядок: podbor_points (поинт из музея идей, get_point для цитат) → карточка (сохрани её комментарием к карточке карусели через add_comment) → use_point (поинт + заход + карусель) → слайды → подсушка → само-чек → готовый текст отдай Саше комментарием через add_comment. Его правки вноси буквально. После публикации attach_post.',
+].join('\n');
+
+/** Server-level instructions: clients inject them, so Danya's AI gets the flow without a local skill. */
+const INSTRUCTIONS = 'Студия Саши: контент Instagram. Когда просят карусель, поинт или заход: сначала вызови get_carousel_guide целиком и иди строго по нему; поинты бери через podbor_points; связку поинт + заход фиксируй use_point; готовый текст отдай Саше комментарием через add_comment. Как пользоваться Студией в целом: get_onboarding.';
+
 function buildServer(actor: Actor) {
-  const server = new McpServer({ name: 'studio', version: '1.0.0' });
+  const server = new McpServer({ name: 'studio', version: '1.0.0' }, { instructions: INSTRUCTIONS });
+
+  server.registerPrompt('karusel', {
+    title: 'Карусель Саши',
+    description: 'Собрать карусель Саши по гайду: гайд → поинт из музея → карточка → use_point → слайды → подсушка → текст Саше.',
+    argsSchema: { tema: z.string().optional() },
+  }, ({ tema }: { tema?: string }) => ({
+    messages: [{
+      role: 'user' as const,
+      content: { type: 'text' as const, text: `${CAROUSEL_FLOW}${tema?.trim() ? `\n\nТема или заход: ${tema.trim()}` : ''}` },
+    }],
+  }));
 
   server.registerTool('get_onboarding', {
     description: 'Как работать в Студии Саши: цикл карточки, копии, как судим статистику, правила, библиотека, как собирать карусели из музея идей, какой инструмент для чего. Прочитай один раз в начале работы.',
@@ -153,7 +172,7 @@ function buildServer(actor: Actor) {
   }));
 
   server.registerTool('get_carousel_guide', {
-    description: '«Как пишем карусели»: порядок работы, карточка, железные правила, скелет, голос Саши, подсушка, само-чек, пруфы и образцы (залетевшие карусели Саши, эталон голоса и ритма, строки не копировать). Прочитай ЦЕЛИКОМ перед тем, как писать любую карточку или слайды, и иди строго по нему, а не по памяти. Без slug вернёт все разделы; со slug один раздел.',
+    description: '«Как пишем карусели»: порядок работы, карточка, железные правила, скелет, голос Саши, подсушка, само-чек, пруфы и образцы (залетевшие карусели Саши, эталон голоса и ритма, строки не копировать). ОБЯЗАТЕЛЬНО вызвать и прочитать ЦЕЛИКОМ до того, как писать любую карточку или любой слайд, и идти строго по нему, а не по памяти. Без slug вернёт все разделы; со slug один раздел.',
     inputSchema: { slug: z.string().optional() },
   }, safe(async ({ slug }: { slug?: string }) => ({ markdown: guideToMarkdown(await listGuide(slug?.trim() || undefined)) })));
 
