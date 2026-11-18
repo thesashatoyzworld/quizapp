@@ -1,0 +1,456 @@
+/* Блок-схема. Тема админки: тёмный фон, циановый акцент. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 48px);
+  min-height: 520px;
+  gap: 10px;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.select {
+  background: var(--bg-secondary);
+  color: var(--text-primary, #e8eef5);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 0.85rem;
+  max-width: 260px;
+}
+
+.btn,
+.btnGhost,
+.add {
+  font: inherit;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  padding: 7px 11px;
+  cursor: pointer;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  background: rgba(0, 240, 255, 0.12);
+  color: var(--neon-cyan);
+  white-space: nowrap;
+}
+
+.btnGhost {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.add {
+  background: transparent;
+  color: var(--text-primary, #e8eef5);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.add:hover,
+.btnGhost:hover {
+  border-color: rgba(0, 240, 255, 0.5);
+}
+
+.sep {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 4px;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.a_step { color: #cfd8e3; }
+.a_decision { color: #ffb347; }
+.a_input { color: #00f0ff; }
+.a_goal { color: #39ff88; }
+.a_note { color: #ffe066; }
+
+.add.a_decision { border-color: rgba(255, 179, 71, 0.45); }
+.add.a_input { border-color: rgba(0, 240, 255, 0.45); }
+.add.a_goal { border-color: rgba(57, 255, 136, 0.45); }
+.add.a_note { border-color: rgba(255, 224, 102, 0.45); }
+
+.status {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.s_error,
+.s_conflict { color: var(--danger, #ff2a6d); }
+.s_saving,
+.s_dirty { color: #ffb347; }
+
+.conflict {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 42, 109, 0.12);
+  border: 1px solid rgba(255, 42, 109, 0.4);
+  color: var(--text-primary, #e8eef5);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.canvas {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0b0f17;
+}
+
+.canvas :global(.react-flow) {
+  --xy-background-color: #0b0f17;
+  --xy-edge-stroke: #7f8ea3;
+  --xy-edge-stroke-selected: #00f0ff;
+  --xy-edge-label-background-color: #0b0f17;
+  --xy-edge-label-color: #cfd8e3;
+}
+
+.canvas :global(.react-flow__edge-textbg) {
+  fill: #0b0f17;
+}
+
+.canvas :global(.react-flow__edge-text) {
+  font-size: 12px;
+  fill: #cfd8e3;
+}
+
+.minimap {
+  background: #0f1520 !important;
+}
+
+/* узлы */
+
+.node {
+  width: 100%;
+  height: 100%;
+  min-width: 140px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(207, 216, 227, 0.45);
+  background: #141b27;
+  color: #e8eef5;
+  font-size: 13px;
+  line-height: 1.35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.k_decision {
+  border-color: #ffb347;
+  border-style: dashed;
+  background: rgba(255, 179, 71, 0.08);
+}
+
+.k_input {
+  border-color: #00f0ff;
+  background: rgba(0, 240, 255, 0.07);
+}
+
+.k_goal {
+  border-color: #39ff88;
+  background: rgba(57, 255, 136, 0.1);
+  font-weight: 600;
+  box-shadow: 0 0 18px rgba(57, 255, 136, 0.18);
+}
+
+.k_note {
+  border-color: transparent;
+  background: #fff3b0;
+  color: #3d3300;
+  border-radius: 4px;
+  text-align: left;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.nodeText {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 320px;
+}
+
+.nodeInput {
+  width: 100%;
+  min-width: 160px;
+  min-height: 48px;
+  resize: none;
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+  border: 1px solid rgba(0, 240, 255, 0.5);
+  border-radius: 6px;
+  padding: 6px;
+  font: inherit;
+  text-align: inherit;
+  outline: none;
+}
+
+.handle {
+  width: 9px !important;
+  height: 9px !important;
+  background: #00f0ff !important;
+  border: 2px solid #0b0f17 !important;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.node:hover .handle,
+:global(.react-flow__node.selected) .handle {
+  opacity: 1;
+}
+
+.resizeLine {
+  border-color: rgba(0, 240, 255, 0.5) !important;
+}
+
+.resizeHandle {
+  width: 8px !important;
+  height: 8px !important;
+  background: #00f0ff !important;
+  border: none !important;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.empty {
+  color: var(--text-muted);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* проход по шагам */
+
+.canvas {
+  position: relative;
+}
+
+.walkCurrent > div {
+  box-shadow: 0 0 0 2px #00f0ff, 0 0 28px rgba(0, 240, 255, 0.45);
+  transform: scale(1.04);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.walkPast {
+  opacity: 0.45;
+}
+
+.walkSide {
+  opacity: 0.85;
+}
+
+.row {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+}
+
+.row .canvas {
+  flex: 1;
+  min-width: 0;
+}
+
+.walkPanel {
+  width: 340px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  max-height: 100%;
+  overflow: auto;
+  background: rgba(13, 18, 28, 0.96);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 14px;
+  padding: 16px 18px;
+  z-index: 10;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.walkStep {
+  font-family: var(--font-display);
+  color: var(--neon-cyan);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.walkTitle {
+  font-size: 1.15rem;
+  line-height: 1.35;
+  color: #f2f6fa;
+  white-space: pre-wrap;
+  margin-bottom: 10px;
+}
+
+.walkInputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.walkChip {
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: #bdf8ff;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.walkActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.walkGo {
+  font: inherit;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  padding: 9px 13px;
+  cursor: pointer;
+  border: 1px solid rgba(0, 240, 255, 0.5);
+  background: rgba(0, 240, 255, 0.14);
+  color: #e8fdff;
+  text-align: left;
+}
+
+.walkGo:hover {
+  background: rgba(0, 240, 255, 0.24);
+}
+
+.walkGo b {
+  color: var(--neon-cyan);
+}
+
+@media (max-width: 900px) {
+  .row { flex-direction: column; }
+  .walkPanel { width: auto; align-self: stretch; }
+}
+
+/* блок со схемой внутри */
+
+.linked {
+  box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.25), 4px 4px 0 -1px #0b0f17, 4px 4px 0 0 rgba(0, 240, 255, 0.45);
+}
+
+.linkBadge {
+  position: absolute;
+  top: -11px;
+  right: 8px;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 240, 255, 0.6);
+  background: #0b0f17;
+  color: #00f0ff;
+  cursor: pointer;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.linkBadge:hover {
+  background: rgba(0, 240, 255, 0.18);
+}
+
+.node {
+  position: relative;
+}
+
+.selectSmall {
+  background: var(--bg-secondary);
+  color: var(--text-primary, #e8eef5);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 0.78rem;
+  max-width: 200px;
+}
+
+.trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--text-primary, #e8eef5);
+}
+
+.trailLink {
+  font: inherit;
+  background: none;
+  border: none;
+  color: var(--neon-cyan);
+  cursor: pointer;
+  padding: 0;
+}
+
+.trailLink:hover {
+  text-decoration: underline;
+}
+
+.trailSep {
+  color: var(--text-muted);
+  margin: 0 6px;
+}
+
+.walkEnter {
+  font: inherit;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  padding: 9px 13px;
+  cursor: pointer;
+  border: 1px solid rgba(57, 255, 136, 0.55);
+  background: rgba(57, 255, 136, 0.12);
+  color: #b9ffd6;
+  text-align: left;
+}
+
+.walkChipLink {
+  font: inherit;
+  font-size: inherit;
+  background: rgba(0, 240, 255, 0.12);
+  cursor: pointer;
+  text-align: left;
+}
+
+.walkChipLink:hover {
+  background: rgba(0, 240, 255, 0.25);
+}

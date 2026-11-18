@@ -1,0 +1,7 @@
+{
+  "name": "uniq-server",
+  "private": true,
+  "description": "Video uniqualizer API for the thesashatoyz.com cabinet (runs on the VPS, not on Vercel)",
+  "scripts": { "start": "node server.js", "test": "node --test test/*.test.js" },
+  "engines": { "node": ">=22" }
+}

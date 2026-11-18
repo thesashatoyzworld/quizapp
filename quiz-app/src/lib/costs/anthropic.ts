@@ -15,19 +15,24 @@
 import { prisma } from '@/lib/prisma';
 import { notifyAdmin } from '@/lib/telegram';
 
-/** Доллары за миллион токенов. Кэш: чтение 0.1×, запись 1.25× от входа. */
-const PRICES: Record<string, { input: number; output: number }> = {
+/**
+ * Доллары за миллион токенов. Кэш: чтение 0.1× (или своя цена cacheRead), запись 1.25× от входа.
+ * Порядок важен: ищем по префиксу, поэтому opus-5-5 стоит раньше opus-5.
+ */
+const PRICES: Record<string, { input: number; output: number; cacheRead?: number }> = {
+  'claude-opus-5-5': { input: 4, output: 20, cacheRead: 0.2 },
   'claude-opus-5': { input: 5, output: 25 },
   'claude-opus-4-8': { input: 5, output: 25 },
   'claude-sonnet-5-5': { input: 2, output: 10 },
   'claude-sonnet-5': { input: 2, output: 10 },
+  'claude-haiku-5-5': { input: 0.1, output: 0.5 },
   'claude-haiku-4-5': { input: 1, output: 5 },
 };
 
 const MTOK = 1_000_000;
 
 /** Кто сжёг. Подписи для кабинета лежат в view.ts. */
-export type CostConsumer = 'sales' | 'kb' | 'roadmap' | 'zoom' | 'group' | 'other';
+export type CostConsumer = 'sales' | 'kb' | 'roadmap' | 'zoom' | 'group' | 'optimizator' | 'optimizator_ladder' | 'other';
 
 /** Шаг лестницы порогов за день, в долларах. */
 const ALERT_STEP_USD = Number(process.env.COSTS_ALERT_USD || 5);
@@ -125,7 +130,7 @@ export async function recordAnthropicUsage(
     const cost = {
       input: (usage.input_tokens / MTOK) * price.input,
       output: (usage.output_tokens / MTOK) * price.output,
-      cacheRead: (cacheRead / MTOK) * price.input * 0.1,
+      cacheRead: (cacheRead / MTOK) * (price.cacheRead ?? price.input * 0.1),
       cacheWrite: (cacheWrite / MTOK) * price.input * 1.25,
     };
     const total = cost.input + cost.output + cost.cacheRead + cost.cacheWrite;

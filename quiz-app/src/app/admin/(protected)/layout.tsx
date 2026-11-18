@@ -7,6 +7,8 @@ import styles from './admin-shell.module.css';
 // Пользователи, Оплаты, Рассылки, all leftovers of the archived quiz bot.
 const NAV_LINKS = [
   { href: '/admin/shtab', label: 'Штаб' },
+  { href: '/admin/treker', label: 'Трекер' },
+  { href: '/admin/skhema', label: 'Схемы' },
   { href: '/admin/idei', label: 'Идеи' },
   { href: '/admin/roadmaps', label: 'Карты клиентов' },
   { href: '/admin/reels', label: 'Ролики' },
@@ -20,6 +22,7 @@ const NAV_LINKS = [
   { href: '/admin/ssylki', label: 'Ссылки для оплаты' },
   { href: '/admin/revenue', label: 'Выручка' },
   { href: '/admin/rashody', label: 'Расходы' },
+  { href: '/admin/byudzhet', label: 'Бюджет' },
   { href: '/admin/instagram', label: 'Instagram' },
 ];
 

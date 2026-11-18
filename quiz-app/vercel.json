@@ -27,6 +27,14 @@
     {
       "path": "/api/cron-studio-ig",
       "schedule": "10 3 * * *"
+    },
+    {
+      "path": "/api/cron-cryptopay",
+      "schedule": "15 6 * * *"
+    },
+    {
+      "path": "/api/cron-paypal",
+      "schedule": "25 6 * * *"
     }
   ]
 }

@@ -23,6 +23,8 @@ export interface RoomMaterial {
   note?: string;
   /** материал доступен только с этого тарифа продукта и выше; ниже — показан под замком */
   minTier?: number;
+  /** чей тариф сравнивать с minTier, если не роль раздела (напр. 'uroven' в бесплатных «Инструментах») */
+  tierRole?: string;
   /** подпись под замком, если тариф ниже minTier (что и на каком тарифе доступно) */
   lockedNote?: string;
   /** заголовок-разделитель, рисуется ПЕРЕД этим материалом (группировка внутри раздела) */
@@ -66,6 +68,11 @@ export interface Section {
    * (rooms-эндпоинт отдаёт hasForum). После открытия — все.
    */
   forum?: boolean;
+  /**
+   * Инструменты (уникализатор): пока бета, раздел видит только Саша и тестеры
+   * (rooms-эндпоинт отдаёт hasUniq). После UNIQ_OPEN=1 — все.
+   */
+  uniq?: boolean;
 }
 
 export const SECTIONS: Section[] = [
@@ -116,11 +123,9 @@ export const SECTIONS: Section[] = [
     key: 'free',
     role: null,
     title: 'Бесплатные материалы',
-    subtitle: 'Статьи, подкасты, разборы — открыто всем',
+    subtitle: 'Статьи и разборы — открыто всем',
     materials: [
       { kind: 'article', title: 'Статьи', url: 'https://thesashatoyz.com/blog', note: 'Лонгриды и разборы.' },
-      { kind: 'podcast', title: 'Подкаст «По чесноку»', url: 'https://thesashatoyz.com/podcast', note: 'Все выпуски.' },
-      { kind: 'link', title: '5000 вирусных хуков', url: '/huki', note: 'Шаблоны первой фразы с примером и психологией, 37 категорий. Внутри инструкция и промпт: как подогнать хуки под себя в нейронке.' },
     ],
   },
   {
@@ -134,22 +139,38 @@ export const SECTIONS: Section[] = [
     landingUrl: 'https://thesashatoyz.com/potok-sprosa',
     materials: [
       { kind: 'link', title: 'Метод: где брать заходы', url: '/potok', note: 'Методичка и правила для нейронки. Программа сама листает ленту и приносит то, что уже собрало реакцию в твоей теме.' },
-      { kind: 'link', title: '5000 вирусных хуков', url: '/huki', note: 'Шаблоны первой фразы с примером и психологией, 37 категорий. Внутри инструкция и промпт: как подогнать хуки под себя в нейронке.' },
     ],
   },
   {
     key: 'uroven',
     role: 'uroven',
     title: 'Новый уровень контента',
-    subtitle: '6 уровней навыка · доступ с 7 августа',
+    subtitle: '6 уровней навыка',
     landingUrl: 'https://thesashatoyz.com/uroven',
     materials: [
       { kind: 'recording', title: 'Формула вирусного контента', url: '/formula', note: 'Полный видеокурс по контенту — 25 уроков.', subhead: 'Предобучение · доступно сразу' },
       { kind: 'recording', title: 'Продающий Контент 3.0', url: 'https://kabinet.thesashatoyz.com/w/prodayushchiy-kontent-3', note: 'Мастеркласс + методичка: карта смыслов и 4 способа упаковки.' },
       { kind: 'recording', title: 'Видеоуроки по 6 уровням', url: '/kurs', note: 'Запись каждого урока плюс тот же разбор текстом, с картинками и интерактивами.', subhead: 'Основной курс' },
       { kind: 'link', title: 'Промпты', url: '/prompty', note: 'Семь инструментов к урокам: копируешь в нейронку и отвечаешь голосовыми. Работать лучше в Claude.' },
+      { kind: 'link', title: 'Оптимизатор рилсов', url: '/optimizator', note: 'Вставляешь текст рилса до съёмки: есть ли спрос на тему, досмотрят ли и сохранят, 3 главные правки и пример текста. Разбор можно переслать ссылкой.', minTier: 1 },
       { kind: 'link', title: 'Поток спроса', url: '/potok', note: 'Как находить заходы, которые уже сработали, и наливать внутрь свой смысл. Методичка и правила для нейронки, нужен компьютер.' },
       { kind: 'recording', title: 'Библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Все прошлые воркшопы и мини-курсы.', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.', subhead: 'Полная библиотека' },
+    ],
+  },
+  {
+    // Уникализатор: из одного ролика несколько разных версий для пробных
+    // рилсов. Видео обрабатывает отдельный сервер (uniq.thesashatoyz.com).
+    key: 'uniq',
+    // Free for channel subscribers: tier 2-3 unlimited (5 versions), others 1 video a week
+    // × 2 versions, +1 a week per credited friend (up to 5). Open to all after UNIQ_OPEN=1.
+    role: null,
+    uniq: true,
+    title: 'Инструменты',
+    subtitle: 'Программы, которые делают работу за тебя',
+    landingUrl: 'https://thesashatoyz.com/uroven',
+    materials: [
+      { kind: 'link', title: 'Уникализатор', url: '/uniq', note: 'Загружаешь ролик, получаешь несколько разных версий. Скачиваешь и выкладываешь пробными.' },
+      { kind: 'link', title: 'Оптимизатор рилсов', url: '/optimizator', note: 'Вставляешь текст рилса до съёмки: есть ли спрос на тему, досмотрят ли и сохранят, 3 главные правки и пример текста. Разбор можно переслать ссылкой.', minTier: 1, tierRole: 'uroven', lockedNote: 'Разбор сценария рилса до съёмки. Открыт ученикам курса «Новый уровень контента».' },
     ],
   },
   {
@@ -180,29 +201,6 @@ export const SECTIONS: Section[] = [
     landingUrl: 'https://thesashatoyz.com/uroven',
     materials: [
       { kind: 'live', title: 'Записи созвонов', url: '/sozvony', note: 'Видео встреч и конспекты по таймкодам: что разбирали и что делать дальше.', minTier: 2, lockedNote: 'Доступно на тарифах 2 и 3.' },
-    ],
-  },
-  {
-    key: 'sync',
-    role: 'sync',
-    title: 'Синхронизация',
-    subtitle: 'Личное сопровождение',
-    landingUrl: '', // TODO Саша: лендинг продукта Синхронизация
-    materials: [
-      { kind: 'recording', title: 'Библиотека воркшопов', url: 'https://kabinet.thesashatoyz.com/w', note: 'Все воркшопы и мини-курсы — доступны полностью.' },
-      { kind: 'live', title: 'Созвоны', url: '', note: 'Регулярные личные встречи.' },
-      { kind: 'chat', title: 'Личный чат', url: '', note: 'Связь между встречами.' },
-    ],
-  },
-  {
-    key: 'group',
-    role: 'group',
-    title: 'Группа',
-    subtitle: 'Групповая работа',
-    landingUrl: '', // TODO Саша: лендинг продукта Группа
-    materials: [
-      { kind: 'live', title: 'Групповые созвоны', url: '', note: 'Еженедельные встречи группы.' },
-      { kind: 'chat', title: 'Чат группы', url: '', note: 'Рабочий чат участников.' },
     ],
   },
 ];

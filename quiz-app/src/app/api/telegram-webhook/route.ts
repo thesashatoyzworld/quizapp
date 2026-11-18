@@ -10,12 +10,15 @@ import { notifyAdmin, sendBotMessage, editAdminMarkup, type NotifyRef } from '@/
 import { leadKeyboard, parseLeadCallback } from '@/lib/lead-keyboard';
 import { STATUS_LABEL, type LeadStatus } from '@/content/lead-status';
 import { prisma } from '@/lib/prisma';
+import { parseRefParam, rememberReferral } from '@/lib/uniq/referral';
 import { catchForumReply } from '@/lib/forum';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
 import { canBuy, isOnSale, isPersonalKey, WAITLIST_ANKETA_ASK, WAITLIST_OFFER, waitlistLink } from '@/lib/sales';
 import { grantAccess, bindAccessToTelegram } from '@/lib/access';
 import { getDeal, formatPrice, formatDays } from '@/lib/deals';
+import { createInvoice as cpCreateInvoice, sweepPaid as cpSweepPaid } from '@/lib/cryptopay';
+import { createSubscription as ppCreateSubscription, sweepPaypal as ppSweep, PP_PLANS } from '@/lib/paypal';
 import { handleKbQuestion } from '@/lib/kb/ask';
 import { catchClientReply, isQuestion } from '@/lib/client-bot-reply';
 import { handleSalesQuestion } from '@/lib/sales/ask';
@@ -528,7 +531,7 @@ export async function POST(request: NextRequest) {
         const tier = data.slice('waitlist_'.length);
         const chatId = cb.message.chat.id;
 
-        if (!['t1', 't2', 't3'].includes(tier)) {
+        if (!['t1', 't2', 't3', '360'].includes(tier)) {
           await answerCallbackQuery(cb.id);
           return NextResponse.json({ ok: true });
         }
@@ -754,6 +757,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Uniq bug watcher (runs on Sasha's Mac): «Выкатить» / «Отклонить» under a proposed fix.
+      // The tap is only recorded here; the watcher polls events and does the merge + deploy itself.
+      if ((data.startsWith('uqfix_ok:') || data.startsWith('uqfix_no:')) && cb.message) {
+        if (!isAdminChat(cb.message.chat.id)) {
+          await answerCallbackQuery(cb.id);
+          return NextResponse.json({ ok: true });
+        }
+        const ok = data.startsWith('uqfix_ok:');
+        const fixId = data.slice(data.indexOf(':') + 1);
+        await prisma.event.create({
+          data: { type: 'uniq_fix_decision', source: 'uniq', telegramId: BigInt(cb.message.chat.id), metadata: { id: fixId, ok } },
+        });
+        await answerCallbackQuery(cb.id, ok ? 'Выкатываю…' : 'Отклонено');
+        const base = ((cb.message as { text?: string }).text || '')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        await editMessageText(cb.message.chat.id, cb.message.message_id,
+          `${base}\n\n${ok ? '⏳ Выкатываю, напишу, когда будет готово (до 10 минут).' : '✖️ Отклонено, PR закрою.'}`);
+        return NextResponse.json({ ok: true });
+      }
+
       // Unknown callback — just ack
       await answerCallbackQuery(cb.id);
       return NextResponse.json({ ok: true });
@@ -796,6 +819,33 @@ export async function POST(request: NextRequest) {
       const reply = arg ? await adminWelcome(arg) : 'кому: /welcome @username [t2|t3]';
       // Без parse_mode: подчёркивание в юзернейме Markdown принимает за курсив.
       await sendBotMessage(chatId, reply, undefined, null);
+      return NextResponse.json({ ok: true });
+    }
+
+    // /metki — сколько записей в лист ожидания 360 пришло с каждой метки.
+    // Пост в канале ссылается на thesashatoyz.com/360?from=tg_<пост>, метка доходит до анкеты.
+    if (
+      update.message?.text?.trim().split(/[\s@]/)[0] === '/metki' &&
+      String(update.message.chat.id) === (process.env.ADMIN_CHAT_ID || '').trim()
+    ) {
+      const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+      const [all, week] = await Promise.all([
+        prisma.dwyLead.groupBy({ by: ['source'], where: { kind: '360' }, _count: { _all: true } }),
+        prisma.dwyLead.groupBy({ by: ['source'], where: { kind: '360', createdAt: { gte: weekAgo } }, _count: { _all: true } }),
+      ]);
+      const weekBy = new Map(week.map((r) => [r.source || 'direct', r._count._all]));
+      const rows = all
+        .map((r) => ({ src: r.source || 'direct', n: r._count._all }))
+        .sort((x, y) => y.n - x.n);
+      const total = rows.reduce((t, r) => t + r.n, 0);
+      const reply = rows.length
+        ? [
+            `Лист ожидания 360: ${total}`,
+            '',
+            ...rows.map((r) => `${r.src} — ${r.n}${weekBy.get(r.src) ? ` (за 7 дней ${weekBy.get(r.src)})` : ''}`),
+          ].join('\n')
+        : 'В листе ожидания 360 пока никого';
+      await sendBotMessage(update.message.chat.id, reply, undefined, null);
       return NextResponse.json({ ok: true });
     }
 
@@ -950,10 +1000,25 @@ export async function POST(request: NextRequest) {
           chatId: m.chat.id,
           telegramId: tgId,
           text: m.text,
+          from: [m.from?.first_name, m.from?.username ? `@${m.from.username}` : ''].filter(Boolean).join(' ') || undefined,
         });
         if (kb.handled) return NextResponse.json({ ok: true });
       }
       if (caught) return NextResponse.json({ ok: true });
+    }
+
+    // /menu: Telegram suggests it, people press it. Without a handler the bot stayed silent.
+    if (update.message?.text?.trim() === '/menu') {
+      await sendBotMessage(
+        update.message.chat.id,
+        'Что открыть?',
+        { inline_keyboard: [
+          [{ text: 'Уникализатор', web_app: { url: 'https://world.thesashatoyz.com/uniq' } }],
+          [{ text: 'Кабинет', web_app: { url: 'https://world.thesashatoyz.com' } }],
+        ] },
+        null,
+      );
+      return NextResponse.json({ ok: true });
     }
 
     // Handle /start command (with or without parameters)
@@ -1150,6 +1215,40 @@ export async function POST(request: NextRequest) {
           await sendMessage(chatId, `что-то пошло не так с активацией. напиши сюда — открою доступ вручную.`);
         }
 
+        return NextResponse.json({ ok: true });
+      }
+
+      // Уникализатор: /start uniq или /start uniq_<id пригласившего> (реферальная ссылка).
+      // Запоминаем, кто привёл; засчитывается друг позже, когда сделает первый ролик (/api/cabinet/uniq/first).
+      if (startParam === 'uniq' || startParam.startsWith('uniq_')) {
+        await prisma.user.upsert({
+          where: { telegramId: BigInt(chatId) },
+          create: { telegramId: BigInt(chatId), username: username || null, firstName: update.message.from?.first_name || null },
+          update: {},
+        });
+        const referrerId = parseRefParam(startParam);
+        // Where people come from: uniq_tg / uniq_mail / uniq_ig ... (a number after uniq_ is a referral).
+        const src = referrerId ? 'ref' : (startParam.slice(5) || 'direct').slice(0, 32);
+        await prisma.event.create({
+          data: { type: 'uniq_start', source: 'uniq', telegramId: BigInt(chatId), metadata: { src } },
+        }).catch((e) => console.error('[uniq] start source save failed:', e));
+        let fromWho = '';
+        if (referrerId) {
+          try {
+            if (await rememberReferral(chatId, referrerId)) {
+              const ref = await prisma.user.findUnique({ where: { telegramId: BigInt(referrerId) }, select: { firstName: true, username: true } });
+              fromWho = ref?.firstName || (ref?.username ? `@${ref.username}` : '');
+            }
+          } catch (err) {
+            console.error('[uniq] referral save failed:', err);
+          }
+        }
+        await sendBotMessage(
+          chatId,
+          `${firstName}, привет!${fromWho ? ` Тебя позвал ${fromWho}.` : ''}\n\nЭто мой бесплатный уникализатор: загружаешь ролик, получаешь несколько разных версий и выкладываешь их пробными рилсами. Так один удачный ролик получает ещё несколько попыток дойти до новых людей.\n\nОткрывай по кнопке ниже.`,
+          { inline_keyboard: [[{ text: 'Открыть уникализатор', web_app: { url: 'https://world.thesashatoyz.com/uniq' } }]] },
+          null, // plain text: names may contain <, & or _
+        );
         return NextResponse.json({ ok: true });
       }
 
@@ -1414,6 +1513,91 @@ export async function POST(request: NextRequest) {
       // t.me/testtoyzbot?start=deal_<id> — многоразовая, одна на позицию прайса.
       // Показываем ровно то, о чём договорились, и уводим на оплату с ?u=<tgId>,
       // чтобы вебхук открыл доступ прямо на этот телеграм.
+      // Крипта: t.me/testtoyzbot?start=cp_<dealId> — счёт Crypto Pay на позицию
+      // прайса, привязанный к этому телеграму. Доступ откроется сам после оплаты.
+      if (startParam.startsWith('cp_')) {
+        const dealId = startParam.slice('cp_'.length);
+        const deal = await getDeal(dealId);
+        const inv = deal && deal.status === 'active'
+          ? await cpCreateInvoice(dealId, chatId).catch((e) => { console.error('[cryptopay] invoice', e); return null; })
+          : null;
+        if (!deal || !inv) {
+          await sendMessage(chatId, `${firstName}, счёт не открылся, напиши мне, разберёмся.`);
+          return NextResponse.json({ ok: true });
+        }
+        await sendMessage(
+          chatId,
+          `${firstName}, держи оплату криптой ⚡
+
+<b>${deal.title}</b>
+${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}
+USDT, TON или BTC по курсу @CryptoBot. После оплаты доступ откроется сам.`,
+          { inline_keyboard: [[{ text: `Оплатить криптой ${formatPrice(deal.price)}`, url: inv.bot_invoice_url }]] },
+        );
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'uroven_crypto',
+          metadata: { product: 'uroven', deal: deal.id, tier: deal.tier, price: deal.price, days: deal.days, invoice: inv.invoice_id, startParam },
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      // Кнопка после оплаты в CryptoBot: проверяем оплаченные счета этого
+      // человека и выдаём доступ, если вебхук ещё не успел.
+      if (startParam === 'cpok') {
+        await cpSweepPaid(chatId).catch((e) => console.error('[cryptopay] sweep on button', e));
+        await sendMessage(
+          chatId,
+          `${firstName}, если оплата прошла, доступ уже открыт 👇 Если кабинет пустой, подожди минуту и нажми ещё раз или напиши мне.`,
+          { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      // PayPal: t.me/testtoyzbot?start=pp_month / pp_year — подписка с
+      // автосписанием, привязанная к этому телеграму.
+      if (startParam === 'pp_month' || startParam === 'pp_year') {
+        const plan = startParam === 'pp_month' ? 'month' : 'year';
+        const cfg = PP_PLANS[plan];
+        const sub = await ppCreateSubscription(plan, chatId).catch((e) => { console.error('[paypal] subscription', e); return null; });
+        if (!sub) {
+          await sendMessage(chatId, `${firstName}, оплата PayPal не открылась, напиши мне, разберёмся.`);
+          return NextResponse.json({ ok: true });
+        }
+        await sendMessage(
+          chatId,
+          `${firstName}, держи оплату через PayPal ⚡
+
+<b>Личный бренд на 360, ${cfg.label}</b>
+$${cfg.usd.toLocaleString('en-US')} в ${plan === 'month' ? 'месяц' : 'год'}, PayPal будет списывать сам. Отменить можно в любой момент в PayPal.
+После оплаты доступ откроется сам.`,
+          { inline_keyboard: [[{ text: `Оплатить PayPal $${cfg.usd.toLocaleString('en-US')}`, url: sub.approveUrl }]] },
+        );
+        await trackEvent({
+          event_type: 'bot_start',
+          user_id: chatId,
+          username: username || undefined,
+          first_name: fullName || undefined,
+          utm_source: 'uroven_paypal',
+          metadata: { product: 'uroven', plan, sub: sub.id, usd: cfg.usd, startParam },
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      // Возврат из PayPal после подтверждения подписки.
+      if (startParam === 'ppok') {
+        await ppSweep(chatId).catch((e) => console.error('[paypal] sweep on return', e));
+        await sendMessage(
+          chatId,
+          `${firstName}, если оплата прошла, доступ уже открыт 👇 Если кабинет пустой, подожди минуту и нажми ещё раз или напиши мне.`,
+          { inline_keyboard: [[{ text: '🚪 Открыть кабинет', web_app: { url: 'https://world.thesashatoyz.com/dostup' } }]] },
+        );
+        return NextResponse.json({ ok: true });
+      }
+
       if (startParam.startsWith('deal_')) {
         const dealId = startParam.slice('deal_'.length);
         const deal = await getDeal(dealId);
@@ -1455,7 +1639,7 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
       // спрашиваем телефон и инстаграм. Сами тут ничего не записываем.
       if (startParam.startsWith('waitlist_')) {
         const tier = startParam.slice('waitlist_'.length).split('_')[0];
-        if (['t1', 't2', 't3'].includes(tier)) {
+        if (['t1', 't2', 't3', '360'].includes(tier)) {
           await sendMessage(chatId, `${firstName}, ${WAITLIST_ANKETA_ASK}`, anketaButton(tier));
           await trackEvent({
             event_type: 'bot_start',

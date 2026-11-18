@@ -1444,6 +1444,45 @@ model ShtabFile {
   @@map("shtab_file")
 }
 
+// Оптимизатор рилсов (/optimizator): счётчик разборов за месяц и сохранённые
+// разборы. Таблицы заводит scripts/optimizator-create-tables.mjs, не db push.
+model OptimizatorUsage {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @map("telegram_id")
+  /// YYYY-MM
+  month      String
+  count      Int      @default(0)
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  @@unique([telegramId, month])
+  @@map("optimizator_usage")
+}
+
+model OptimizatorRun {
+  id           String   @id @default(uuid())
+  telegramId   BigInt   @map("telegram_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  /// conversion | virality
+  goal         String
+  /// v4 only: draft | filmed. v5 runs (goal and format detected from the text) write NULL.
+  stage        String?  @default("draft")
+  niche        String?
+  audience     String?
+  script       String
+  result       Json?
+  /// v5: { window_days, searched, coverage_posts, items (with urls), links } from findDemand
+  demand       Json?
+  model        String
+  inputTokens  Int?     @map("input_tokens")
+  outputTokens Int?     @map("output_tokens")
+  durationMs   Int?     @map("duration_ms")
+  /// ok | error
+  status       String
+
+  @@index([telegramId, createdAt(sort: Desc)])
+  @@map("optimizator_runs")
+}
+
 // ─── «Студия»: контент Instagram Саши и Дани (рилсы и карусели) ───
 // Таблицы создаёт scripts/studio-create-tables.mjs, не prisma db push.
 
@@ -1676,4 +1715,111 @@ model StudioMuzeyLog {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("studio_muzey_log")
+}
+
+/// Уникализатор: кто кого привёл. Друг засчитывается (creditedAt), когда сделал первый ролик
+/// и подписан на канал; за каждого засчитанного пригласивший получает бонусный ролик.
+model UniqReferral {
+  friendId   BigInt    @id @map("friend_id")
+  referrerId BigInt    @map("referrer_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  creditedAt DateTime? @map("credited_at")
+
+  @@index([referrerId])
+  @@map("uniq_referrals")
+}
+
+// Трекер задач Саши в админке (/admin/treker). Задача = круг, который заряжается
+// по мере выполнения шагов. quest = разовая, routine = повторяется каждый день,
+// неделю или месяц: отметки шагов живут в периоде и сами сбрасываются в новом.
+model TrackerTask {
+  id         String    @id
+  /** quest | routine */
+  kind       String
+  title      String
+  note       String?
+  /** Для routine: day | week | month. Для quest null. */
+  period     String?
+  /** Задача-родитель: круг родителя заряжается от детей («Жизнь мечты» → «Финансы» → …). */
+  parentId   String?   @map("parent_id")
+  /** Метки задачи («контент», «клиенты», «360»), фильтр на главной трекера. */
+  tags       String[]  @default([])
+  /** Карта запуска: колонка пути клиента (ключ из tracker_map.stages), null = не на карте. */
+  mapStage   String?   @map("map_stage")
+  /** Карта запуска: true = «потом», под линией запуска. */
+  mapLater   Boolean   @default(false) @map("map_later")
+  /** Карта запуска: понедельник недели, на которую задача стоит («2026-11-16»). */
+  mapWeek    String?   @map("map_week")
+  position   Int       @default(0)
+  archivedAt DateTime? @map("archived_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  steps  TrackerStep[]
+  checks TrackerCheck[]
+
+  @@index([kind, position])
+  @@map("tracker_task")
+}
+
+/// Карта запуска в трекере (/admin/treker/karta): колонки пути клиента, вехи и
+/// уровень, до которого Саша открыл карту. Одна строка на запуск.
+model TrackerMap {
+  id         String   @id
+  title      String
+  /** Задача-цель в трекере («30 человек в 360»). */
+  goalTaskId String?  @map("goal_task_id")
+  /** День запуска, «2027-01-19». */
+  deadline   String
+  /** [{ key, title, hint }] слева направо. */
+  stages     Json
+  /** [{ from, to?, label, kind: 'launch' | 'pause' | 'mark' }] */
+  milestones Json
+  /** Открытый уровень 1..4. */
+  level      Int      @default(1)
+  /** Сколько карточек было сделано, когда открылся текущий уровень. */
+  levelBase  Int      @default(0) @map("level_base")
+  /** Подсказки новых уровней, которые Саша уже видел. */
+  hintsSeen  String[] @default([]) @map("hints_seen")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("tracker_map")
+}
+
+model TrackerStep {
+  id        String   @id
+  taskId    String   @map("task_id")
+  title     String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task TrackerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, position])
+  @@map("tracker_step")
+}
+
+/** Отметка «шаг сделан» в периоде. Квест: periodKey = 'once'. Задача без шагов: stepId = ''. */
+model TrackerCheck {
+  taskId    String   @map("task_id")
+  stepId    String   @map("step_id")
+  periodKey String   @map("period_key")
+  doneAt    DateTime @default(now()) @map("done_at")
+
+  task TrackerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, stepId, periodKey])
+  @@map("tracker_check")
+}
+
+/** Редактируемая блок-схема в админке (/admin/skhema). data = { nodes, edges } React Flow. version растёт на каждое сохранение. */
+model AdminBoard {
+  slug      String   @id
+  title     String
+  data      Json     @default("{}")
+  version   Int      @default(1)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("admin_board")
 }

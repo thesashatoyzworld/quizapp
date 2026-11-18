@@ -2,9 +2,10 @@
 //
 // The server pipeline (agent-hub zoom-drainer) listens to a group call and posts
 // what Sasha told each client: one log entry and a few task changes per person.
-// Here the proposal is stored, Sasha gets one bot message with "apply" and "view",
-// and only his tap changes the roadmaps. Every client is applied in its own
-// transaction: one broken roadmap does not block the rest.
+// Here the proposal is stored and applied at once (since 10.11.2026, before that
+// it waited for Sasha's tap); Sasha gets one bot message with what changed.
+// Every client is applied in its own transaction: one broken roadmap does not
+// block the rest.
 
 import { prisma } from '@/lib/prisma';
 import { getAdminChatId } from '@/lib/notion';
@@ -338,13 +339,23 @@ export async function saveAndNotify(payload: ProposalPayload): Promise<{ id: str
   const admin = await getAdminChatId();
   if (!admin) return { id: row.id, created: !existing, notified: false };
 
-  const names = await clientNames(stored.perClient.map((c) => c.slug));
-  const sent = await sendBotMessage(
-    Number(admin),
-    proposalMessage(stored, names),
-    proposalKeyboard(row.id, stored.perClient.length > 0 && row.status === 'pending'),
-    'HTML',
-  );
+  // Sasha 10.11.2026: apply right away, no tap. He gets what went into the
+  // roadmaps; a failed or partial run keeps the retry button.
+  let text: string;
+  let keyboard: object;
+  const applied = stored.perClient.length > 0 && row.status === 'pending' ? await applyProposal(row.id) : null;
+  if (applied?.claimed) {
+    const unmatched = stored.unmatched.length
+      ? `\n\nБез карты: ${stored.unmatched.map((u) => esc(u.heardName)).join(', ')}`
+      : '';
+    text = `${applied.text}${unmatched}`.slice(0, 4000);
+    keyboard = retryKeyboard(row.id, applied.status ?? 'failed');
+  } else {
+    const names = await clientNames(stored.perClient.map((c) => c.slug));
+    text = proposalMessage(stored, names);
+    keyboard = proposalKeyboard(row.id, stored.perClient.length > 0 && row.status === 'pending');
+  }
+  const sent = await sendBotMessage(Number(admin), text, keyboard, 'HTML');
   if (sent.ok && sent.messageId) {
     await prisma.roadmapCallProposal.update({
       where: { id: row.id },

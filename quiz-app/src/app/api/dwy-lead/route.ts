@@ -5,7 +5,8 @@ import {
   buildDwyMessage, normalizeTelegramUsername, normalizePhone,
   normalizeInstagram, type DwyLeadInput, type DwyPrior,
 } from '@/lib/dwy-message';
-import { isDwyKind } from '@/content/dwy';
+import { CONSENT_VERSION, DWY_MODES, isDwyKind } from '@/content/dwy';
+import { trackEvent } from '@/lib/notion';
 import { notifyAdminDetailed } from '@/lib/telegram';
 import { leadKeyboard } from '@/lib/lead-keyboard';
 import { matchFormFilled } from '@/lib/ig-leads';
@@ -43,7 +44,7 @@ function followersOf(raw: unknown): number | null {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { answers, source, kind: rawKind } = body ?? {};
+    const { answers, source, kind: rawKind, consent } = body ?? {};
 
     // Неизвестный режим не роняем в 400: анкета всё равно ценна, просто
     // считаем её менторством — как было до листов ожидания.
@@ -73,11 +74,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'bad contact' }, { status: 400 });
     }
 
+    // Modes with consent checkboxes must not store contacts without the consent.
+    if (DWY_MODES[kind].consent && consent?.pd !== true) {
+      return NextResponse.json({ error: 'consent required' }, { status: 400 });
+    }
+
     // Уровень проверяем, только если он вообще пришёл: в листе ожидания
     // его могли не трогать.
+    // The form keeps an untouched level as 0 and used to send it as-is;
+    // treat 0 as "not answered" so short waitlist forms are not rejected.
     const rawLevel = cap(answers.level);
     let level: number | null = null;
-    if (rawLevel) {
+    if (rawLevel && rawLevel !== '0') {
       const n = Number(rawLevel);
       if (!Number.isInteger(n) || n < 1 || n > 6) {
         return NextResponse.json({ error: 'bad level' }, { status: 400 });
@@ -147,6 +155,24 @@ export async function POST(req: NextRequest) {
         source: lead.source,
       },
     });
+
+    // Proof of consent: the burden of proving it is on the operator.
+    if (DWY_MODES[kind].consent) {
+      after(async () => {
+        await trackEvent({
+          event_type: 'dwy_consent',
+          utm_source: lead.source ?? undefined,
+          metadata: {
+            lead_id: saved.id,
+            kind,
+            pd: true,
+            ads: consent?.ads === true,
+            version: CONSENT_VERSION,
+            at: new Date().toISOString(),
+          },
+        });
+      });
+    }
 
     // Человек мог прийти из инстаграмной воронки — там ему сразу проставится
     // «анкета, не писать», чтобы ассистент не пошёл писать тому, кто уже
