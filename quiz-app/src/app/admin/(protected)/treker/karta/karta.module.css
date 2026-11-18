@@ -536,52 +536,92 @@
 /* ---------- счёт: лист ожидания ---------- */
 
 .score {
-  margin-bottom: 36px;
-}
-
-.scoreLine {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 40px;
 }
 
-.scoreNum {
+@media (max-width: 640px) {
+  .score {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+}
+
+.scoreText {
+  min-width: 0;
+}
+
+.scoreMuted {
+  color: var(--text-muted);
+}
+
+.freshNum {
+  color: var(--success);
+}
+
+.ring {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  flex-shrink: 0;
+}
+
+.ring svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.sliceOff {
+  fill: rgba(255, 255, 255, 0.07);
+}
+
+.sliceOld {
+  fill: var(--neon-cyan);
+}
+
+.sliceFresh {
+  fill: var(--success);
+}
+
+.planTick {
+  stroke: var(--text-primary);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.ringCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.ringNum {
   font-family: var(--font-display);
-  font-size: 3.4rem;
+  font-size: 3.6rem;
   line-height: 1;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
-.scoreOf {
-  font-size: 1.1rem;
+.ringOf {
+  margin-top: 6px;
+  font-size: 0.95rem;
   color: var(--text-muted);
 }
 
-.scoreBar {
-  position: relative;
-  height: 10px;
-  margin: 14px 0 12px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.scoreFill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 5px;
-  background: linear-gradient(90deg, var(--neon-cyan), var(--success));
-}
-
-/* Где должен быть счёт сегодня, если идти ровно. */
-.scorePlan {
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--text-secondary);
-  border-radius: 1px;
+/* Досчитал: число один раз мягко вспыхивает. */
+.ringDone .ringNum {
+  text-shadow: 0 0 18px rgba(0, 255, 136, 0.55);
+  transition: text-shadow 0.6s;
 }
 
 .scoreSub {

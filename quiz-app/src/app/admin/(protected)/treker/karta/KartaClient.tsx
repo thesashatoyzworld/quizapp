@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { TaskView } from '@/lib/tracker/data';
 import {
   LIST_START,
@@ -71,28 +71,25 @@ export default function KartaClient({ map, tasks, score }: { map: MapView; tasks
       </div>
 
       <header className={styles.score}>
-        <div className={styles.kicker}>Лист ожидания «360»</div>
-        <div className={styles.scoreLine}>
-          <span className={styles.scoreNum}>{score.total}</span>
-          <span className={styles.scoreOf}>из {LIST_TARGET}</span>
+        <ScoreRing total={score.total} fresh={weekNow} plan={plan} />
+        <div className={styles.scoreText}>
+          <div className={styles.kicker}>Лист ожидания «360»</div>
+          <div className={styles.scoreSub}>
+            <span className={diff >= 0 ? styles.ahead : styles.behind}>
+              {diff >= 0 ? `впереди графика на ${diff}` : `отстаёшь от графика на ${-diff}`}
+            </span>
+            <span className={styles.scoreMuted}> · по графику сегодня {plan}</span>
+          </div>
+          <div className={styles.scoreSub}>
+            на этой неделе <b className={styles.freshNum}>+{weekNow}</b>, нужно ~{perWeek} в неделю
+          </div>
+          <div className={styles.scoreSub}>
+            {daysLeft > 0
+              ? `до открытия набора ${daysLeft} ${plural(daysLeft, 'день', 'дня', 'дней')}, ${shortDate(map.deadline)}`
+              : 'набор открыт'}
+          </div>
+          <div className={styles.scoreWhy}>90 в листе ≈ 30 оплат, если платит каждый третий</div>
         </div>
-        <div className={styles.scoreBar} aria-hidden>
-          <span className={styles.scoreFill} style={{ width: `${Math.min(100, (score.total / LIST_TARGET) * 100)}%` }} />
-          <span className={styles.scorePlan} style={{ left: `${Math.min(100, (plan / LIST_TARGET) * 100)}%` }} />
-        </div>
-        <div className={styles.scoreSub}>
-          <span className={diff >= 0 ? styles.ahead : styles.behind}>
-            {diff >= 0 ? `впереди графика на ${diff}` : `отстаёшь от графика на ${-diff}`}
-          </span>
-          {' · '}по графику сегодня {plan}
-        </div>
-        <div className={styles.scoreSub}>
-          на этой неделе +{weekNow}, нужно ~{perWeek} в неделю ·{' '}
-          {daysLeft > 0
-            ? `до открытия набора ${daysLeft} ${plural(daysLeft, 'день', 'дня', 'дней')}, ${shortDate(map.deadline)}`
-            : 'набор открыт'}
-        </div>
-        <div className={styles.scoreWhy}>90 в листе ≈ 30 оплат, если платит каждый третий</div>
       </header>
 
       <section className={styles.section}>
@@ -144,6 +141,100 @@ export default function KartaClient({ map, tasks, score }: { map: MapView; tasks
       <Weeks map={map} weeks={weeks} thisWeek={thisWeek} score={score} perWeek={perWeek} moves={moves} stageOf={stageOf} />
 
       {later.length > 0 && <Later cards={later} />}
+    </div>
+  );
+}
+
+/**
+ * Круг из 90 долек, одна долька = один человек в листе. При открытии дольки
+ * загораются по одной, число в центре считает вместе с ними. Записавшиеся
+ * на этой неделе зелёные, раньше бирюзовые; белая риска = где должен быть счёт по графику.
+ * Анимация на JS, а не CSS: у Саши в браузере reduced motion, CSS-переходы он не видит.
+ */
+function ScoreRing({ total, fresh, plan }: { total: number; fresh: number; plan: number }) {
+  const N = LIST_TARGET;
+  const filled = Math.min(N, total);
+  const [lit, setLit] = useState(0);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (filled === 0) return setDone(true);
+    const dur = Math.min(2600, 500 + filled * 90);
+    let raf = 0;
+    let t0 = 0;
+    const tick = (t: number) => {
+      if (!t0) t0 = t;
+      const k = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - k, 3);
+      setLit(Math.round(e * filled));
+      if (k < 1) raf = requestAnimationFrame(tick);
+      else setDone(true);
+    };
+    const start = setTimeout(() => (raf = requestAnimationFrame(tick)), 250);
+    return () => {
+      clearTimeout(start);
+      cancelAnimationFrame(raf);
+    };
+  }, [filled]);
+
+  const size = 220;
+  const c = size / 2;
+  const rOut = 100;
+  const rIn = 76;
+  const step = 360 / N;
+  const gap = 1.1;
+  const freshFrom = filled - Math.min(fresh, filled);
+
+  const pt = (r: number, deg: number) => {
+    const a = ((deg - 90) * Math.PI) / 180;
+    return `${(c + r * Math.cos(a)).toFixed(2)} ${(c + r * Math.sin(a)).toFixed(2)}`;
+  };
+  const slice = (i: number) => {
+    const a0 = i * step + gap / 2;
+    const a1 = (i + 1) * step - gap / 2;
+    return `M ${pt(rOut, a0)} A ${rOut} ${rOut} 0 0 1 ${pt(rOut, a1)} L ${pt(rIn, a1)} A ${rIn} ${rIn} 0 0 0 ${pt(rIn, a0)} Z`;
+  };
+  const planDeg = (Math.min(plan, N) / N) * 360;
+
+  return (
+    <div className={`${styles.ring} ${done ? styles.ringDone : ''}`}>
+      <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${total} из ${N} в листе ожидания`}>
+        <defs>
+          <filter id="karta-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge>
+              <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        {Array.from({ length: N }, (_, i) => {
+          const on = i < lit;
+          const head = on && i === lit - 1 && !done;
+          return (
+            <path
+              key={i}
+              d={slice(i)}
+              className={on ? (i >= freshFrom ? styles.sliceFresh : styles.sliceOld) : styles.sliceOff}
+              filter={on ? 'url(#karta-glow)' : undefined}
+              style={head ? { transform: 'scale(1.04)', transformOrigin: 'center' } : undefined}
+            />
+          );
+        })}
+        {plan > 0 && plan < N && (
+          <line
+            x1={pt(rOut + 4, planDeg).split(' ')[0]}
+            y1={pt(rOut + 4, planDeg).split(' ')[1]}
+            x2={pt(rIn - 4, planDeg).split(' ')[0]}
+            y2={pt(rIn - 4, planDeg).split(' ')[1]}
+            className={styles.planTick}
+          />
+        )}
+      </svg>
+      <div className={styles.ringCenter}>
+        <span className={styles.ringNum}>{lit}</span>
+        <span className={styles.ringOf}>из {N}</span>
+      </div>
     </div>
   );
 }
