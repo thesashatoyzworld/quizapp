@@ -167,6 +167,192 @@ export default function KartaClient({ map, tasks, score }: { map: MapView; tasks
 }
 
 /**
+ * Задник: сфера из точечных нитей, расходящихся из центра (референс Саши, Pinterest 18.11).
+ * 90 длинных нитей = 90 мест в листе: у записавшихся на конце горит точка
+ * (эта неделя зелёная, раньше бирюзовая), остальные ждут тусклыми. Вокруг тонкие нити для объёма.
+ * Canvas + rAF: медленно вращается в 3D, нити шевелятся, при входе прорастают из центра.
+ */
+function StrandSphere({ total, fresh }: { total: number; fresh: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const cv = ref.current;
+    const ctx = cv?.getContext('2d');
+    if (!cv || !ctx) return;
+    const N = LIST_TARGET;
+    const filled = Math.min(N, total);
+    const freshFrom = filled - Math.min(fresh, filled);
+    const FILL = Math.min(2400, 700 + filled * 90);
+    const DELAY = 450;
+
+    // Детерминированный рандом: сфера одна и та же при каждом открытии.
+    let seed = 360;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+
+    type Strand = {
+      d: [number, number, number];
+      u: [number, number, number];
+      v: [number, number, number];
+      len: number;
+      freq: number;
+      amp: number;
+      ph: number;
+      speed: number;
+      person: number; // -1 = просто нить
+      dots: number;
+    };
+    const strands: Strand[] = [];
+    const make = (person: number) => {
+      // равномерно по сфере
+      const z = rnd() * 2 - 1;
+      const a = rnd() * Math.PI * 2;
+      const s = Math.sqrt(1 - z * z);
+      const d: [number, number, number] = [s * Math.cos(a), s * Math.sin(a), z];
+      // два перпендикуляра для завитков
+      const t: [number, number, number] = Math.abs(d[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+      const u: [number, number, number] = [
+        d[1] * t[2] - d[2] * t[1],
+        d[2] * t[0] - d[0] * t[2],
+        d[0] * t[1] - d[1] * t[0],
+      ];
+      const ul = Math.hypot(...u);
+      u[0] /= ul;
+      u[1] /= ul;
+      u[2] /= ul;
+      const v: [number, number, number] = [
+        d[1] * u[2] - d[2] * u[1],
+        d[2] * u[0] - d[0] * u[2],
+        d[0] * u[1] - d[1] * u[0],
+      ];
+      const len = person >= 0 ? 0.88 + rnd() * 0.12 : 0.25 + rnd() * 0.7;
+      strands.push({
+        d,
+        u,
+        v,
+        len,
+        freq: 3 + rnd() * 7,
+        amp: 0.05 + rnd() * 0.1,
+        ph: rnd() * Math.PI * 2,
+        speed: 0.25 + rnd() * 0.5,
+        person,
+        dots: Math.round(len * (person >= 0 ? 95 : 62)),
+      });
+    };
+    for (let i = 0; i < N; i++) make(i);
+    for (let i = 0; i < 330; i++) make(-1);
+
+    let W = 0;
+    let H = 0;
+    let dpr = 1;
+    const resize = () => {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = cv.clientWidth;
+      H = cv.clientHeight;
+      cv.width = Math.round(W * dpr);
+      cv.height = Math.round(H * dpr);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(cv);
+
+    let raf = 0;
+    let t0 = 0;
+    const frame = (now: number) => {
+      if (!t0) t0 = now;
+      const e = now - t0;
+      const ts = e / 1000;
+      const grow = 1 - Math.pow(1 - Math.min(1, e / 1800), 3);
+      const k = Math.min(1, Math.max(0, (e - DELAY) / FILL));
+      const lit = Math.round((1 - Math.pow(1 - k, 4)) * filled);
+      const breath = k < 1 ? 0.6 : (1 - Math.cos(((e - DELAY - FILL) / 2600) * 2 * Math.PI)) / 2;
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+      const cx = W / 2;
+      const cy = H / 2;
+      const R = Math.min(W, H) * 0.46;
+      const ay = ts * 0.06;
+      const ax = 0.35 + Math.sin(ts * 0.05) * 0.12;
+      const cyA = Math.cos(ay);
+      const syA = Math.sin(ay);
+      const cxA = Math.cos(ax);
+      const sxA = Math.sin(ax);
+      const F = 3.2;
+
+      const project = (x: number, y: number, z: number) => {
+        const x1 = x * cyA + z * syA;
+        const z1 = -x * syA + z * cyA;
+        const y2 = y * cxA - z1 * sxA;
+        const z2 = y * sxA + z1 * cxA;
+        const p = F / (F + z2);
+        return [cx + x1 * R * p, cy + y2 * R * p, z2, p] as const;
+      };
+
+      for (const s of strands) {
+        const n = Math.max(1, Math.floor(s.dots * grow));
+        const sway = ts * s.speed + s.ph;
+        const isP = s.person >= 0;
+        for (let j = 1; j <= n; j++) {
+          const r = (j / s.dots) * s.len;
+          const w = Math.sin(r * s.freq + sway) * s.amp * r * 1.6;
+          const w2 = Math.cos(r * s.freq * 0.7 + sway * 1.3) * s.amp * r * 1.2;
+          const x = s.d[0] * r + s.u[0] * w + s.v[0] * w2;
+          const y = s.d[1] * r + s.u[1] * w + s.v[1] * w2;
+          const z = s.d[2] * r + s.u[2] * w + s.v[2] * w2;
+          const [px, py, pz] = project(x, y, z);
+          // центр приглушён, чтобы читалось число; задние точки темнее
+          const fadeIn = 0.12 + 0.88 * Math.min(1, Math.max(0, (r - 0.12) / 0.32));
+          const depth = 0.45 + 0.55 * (1 - (pz + 1) / 2);
+          const a = (isP ? 0.5 : 0.3) * fadeIn * depth;
+          if (a < 0.01) continue;
+          ctx.fillStyle = `rgba(190,255,235,${a.toFixed(3)})`;
+          const sz = isP ? 1.4 : 1.1;
+          ctx.fillRect(px - sz / 2, py - sz / 2, sz, sz);
+        }
+        // узел на конце нити
+        if (grow > 0.98) {
+          const r = s.len;
+          const w = Math.sin(r * s.freq + sway) * s.amp * r * 1.6;
+          const w2 = Math.cos(r * s.freq * 0.7 + sway * 1.3) * s.amp * r * 1.2;
+          const [px, py, pz] = project(
+            s.d[0] * r + s.u[0] * w + s.v[0] * w2,
+            s.d[1] * r + s.u[1] * w + s.v[1] * w2,
+            s.d[2] * r + s.u[2] * w + s.v[2] * w2,
+          );
+          const depth = 0.4 + 0.6 * (1 - (pz + 1) / 2);
+          if (isP && s.person < lit) {
+            const col = s.person >= freshFrom ? '0,255,136' : '0,240,255';
+            const g = 7 + 5 * breath;
+            const grad = ctx.createRadialGradient(px, py, 0, px, py, g);
+            grad.addColorStop(0, `rgba(${col},${(0.9 * depth).toFixed(3)})`);
+            grad.addColorStop(1, `rgba(${col},0)`);
+            ctx.fillStyle = grad;
+            ctx.fillRect(px - g, py - g, g * 2, g * 2);
+            ctx.fillStyle = `rgba(240,255,248,${depth.toFixed(3)})`;
+            ctx.fillRect(px - 1.4, py - 1.4, 2.8, 2.8);
+          } else if (isP) {
+            ctx.fillStyle = `rgba(255,255,255,${(0.28 * depth).toFixed(3)})`;
+            ctx.fillRect(px - 1.1, py - 1.1, 2.2, 2.2);
+          } else {
+            ctx.fillStyle = `rgba(220,255,245,${(0.22 * depth).toFixed(3)})`;
+            ctx.fillRect(px - 0.8, py - 0.8, 1.6, 1.6);
+          }
+        }
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [total, fresh]);
+
+  return <canvas ref={ref} className={styles.sphere} aria-hidden />;
+}
+
+/**
  * Первый экран карты: реактор цели. Дуга заполняется до числа людей в листе,
  * по внешнему кольцу 90 рисок, одна риска = один человек, загораются по одной.
  * На конце дуги точка «сейчас» пускает волны, свечение дышит, по дорожке ходит блик.
@@ -271,6 +457,7 @@ function GoalReactor({
   return (
     <div ref={root} className={styles.reactor}>
       <div className={styles.reactorStage}>
+        <StrandSphere total={total} fresh={fresh} />
         <svg
           viewBox={`0 0 ${S} ${S}`}
           className={styles.reactorSvg}
