@@ -11,6 +11,10 @@ import {
   KINDS, STAGES, localDate, shortcodeOf,
   type Actor, type Board, type CommentView, type ItemView, type Kind, type RuleView, type Snapshot, type Stage,
 } from './view';
+import {
+  isUsed, mapMuzey, parsePokazano, pickPoints, quotesFor, takeNotice, takenKey, usedSet, type MuzeyExhibit, type MuzeyPoint,
+} from './muzey';
+import { notifyAdmin } from '@/lib/telegram';
 
 /** Admin session acts as Sasha; otherwise the studio_session cookie. */
 export async function currentActor(): Promise<Actor | null> {
@@ -322,4 +326,81 @@ export async function saveLibraryEntry(actor: Actor, data: Record<string, unknow
     data: { ...(fields as { title: string }), id: newId, base, code, sort: 5_000, flags: (fields.flags as string[]) ?? [] },
   });
   return newId;
+}
+
+// ─── «Музей идей» ───
+
+/** Replace points and exhibits with the repo's files; import pokazano.json; return takes the repo lacks. */
+export async function syncMuzey(input: { goryachee?: unknown; smysly?: unknown; eksponaty?: unknown; pokazano?: unknown }) {
+  const { points, exhibits } = mapMuzey(input);
+  if (!points.length || !exhibits.length) throw new StudioError('пустой музей: нет поинтов или экспонатов');
+  const syncedAt = new Date();
+  await prisma.$transaction([
+    prisma.studioMuzeyPoint.deleteMany({}),
+    prisma.studioMuzeyPoint.createMany({ data: points.map((p) => ({ ...p, syncedAt })) }),
+    prisma.studioMuzeyExhibit.deleteMany({}),
+    prisma.studioMuzeyExhibit.createMany({ data: exhibits }),
+  ]);
+
+  const repo = parsePokazano(input.pokazano);
+  const taken = await prisma.studioMuzeyTaken.findMany();
+  const known = new Map(taken.map((t) => [takenKey(t), t]));
+  const confirmed: number[] = [];
+  const imported: { title: string; exhibitIds: string[]; karusel: string; actor: string; syncedToRepo: boolean }[] = [];
+  const seen = new Set<string>();
+  for (const p of repo) {
+    const key = takenKey({ karusel: p.karusel, title: p.mysl });
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const row = known.get(key);
+    if (row && !row.syncedToRepo) confirmed.push(row.id);
+    if (!row) imported.push({ title: p.mysl, exhibitIds: p.eksponaty, karusel: p.karusel, actor: 'repo', syncedToRepo: true });
+  }
+  if (confirmed.length) await prisma.studioMuzeyTaken.updateMany({ where: { id: { in: confirmed } }, data: { syncedToRepo: true } });
+  if (imported.length) await prisma.studioMuzeyTaken.createMany({ data: imported });
+
+  const pending = await prisma.studioMuzeyTaken.findMany({ where: { syncedToRepo: false }, orderBy: { id: 'asc' } });
+  return {
+    points: points.length, exhibits: exhibits.length, imported: imported.length, confirmed: confirmed.length,
+    taken: pending.map((t) => ({ mysl: t.title, eksponaty: t.exhibitIds, karusel: t.karusel, data: localDate(t.createdAt), actor: t.actor })),
+  };
+}
+
+async function loadMuzey() {
+  const [points, exhibits, taken] = await Promise.all([
+    prisma.studioMuzeyPoint.findMany(),
+    prisma.studioMuzeyExhibit.findMany(),
+    prisma.studioMuzeyTaken.findMany({ select: { exhibitIds: true } }),
+  ]);
+  return { points: points as MuzeyPoint[], exhibits: exhibits as MuzeyExhibit[], taken };
+}
+
+export async function podborPoints(actor: Actor, limit = 10) {
+  const { points, exhibits, taken } = await loadMuzey();
+  return pickPoints(points, exhibits, taken, actor, Math.max(1, Math.min(limit, 50)));
+}
+
+/** A point with every quote the actor may see, and whether it is already taken. */
+export async function getMuzeyPoint(actor: Actor, id: string) {
+  const { points, exhibits, taken } = await loadMuzey();
+  const p = points.find((x) => x.id === id);
+  const byId = new Map(exhibits.map((e) => [e.id, e]));
+  const quotes = p ? quotesFor(p, byId, actor) : [];
+  if (!p || !quotes.length) throw new StudioError('поинт не найден');
+  const sut = quotes.map((q) => ({ exhibit: q.exhibit, sut: byId.get(q.exhibit)?.sut ?? '' }));
+  return { id: p.id, hot: p.kind === 'hot', title: p.title, why: p.why, taken: isUsed(p.exhibitIds, usedSet(taken)), quotes, sut };
+}
+
+/** Mark a point as used in a carousel; it leaves podbor for everyone. Danya's takes reach Sasha in Telegram. */
+export async function takeMuzeyPoint(actor: Actor, id: string, karusel: string) {
+  const slug = String(karusel ?? '').trim();
+  if (!slug) throw new StudioError('нужно название карусели');
+  const point = await getMuzeyPoint(actor, id);
+  if (point.taken) throw new StudioError('этот поинт уже взят в карусель, выбери другой');
+  const row = await prisma.studioMuzeyPoint.findUnique({ where: { id }, select: { exhibitIds: true } });
+  const created = await prisma.studioMuzeyTaken.create({
+    data: { pointId: id, title: point.title, exhibitIds: row?.exhibitIds ?? [], karusel: slug, actor },
+  });
+  if (actor === 'danya') await notifyAdmin(takeNotice(point.title, slug), { disableLinkPreview: true });
+  return { ok: true, takenId: created.id, id, title: point.title, karusel: slug };
 }

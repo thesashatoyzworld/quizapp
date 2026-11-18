@@ -9,8 +9,8 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { z } from 'zod';
 import { actorForKey, keyFromRequest } from '@/lib/studio/keys';
 import {
-  StudioError, addComment, attachPost, getItem, getLibraryEntry, libraryOpenToDanya, listItems, listLibrary, listRules, loadBoard, saveLibraryEntry,
-  searchLibrary, updateItem,
+  StudioError, addComment, attachPost, getItem, getLibraryEntry, getMuzeyPoint, libraryOpenToDanya, listItems, listLibrary, listRules, loadBoard,
+  podborPoints, saveLibraryEntry, searchLibrary, takeMuzeyPoint, updateItem,
 } from '@/lib/studio/store';
 import { LIB_BASES, type LibBase } from '@/lib/studio/library';
 import { guideMarkdown } from '@/lib/studio/guide';
@@ -150,6 +150,21 @@ function buildServer(actor: Actor) {
     if (actor !== 'sasha') throw new StudioError('править библиотеку может только Саша');
     return { ok: true, id: await saveLibraryEntry(actor, args, 'sasha-mcp') };
   }));
+
+  server.registerTool('podbor_points', {
+    description: 'Музей идей Саши: свежие поинты для карточек каруселей из его созвонов. Сначала «горячее» (hot: мысль, к которой Саша возвращался на разных созвонах за 2 недели), потом мысли, которые он повторяет чаще всего. У каждого поинта id, мысль, почему он сейчас, и 2-3 дословные цитаты Саши с созвоном, датой и таймкодом. Уже взятые в карусели не показываются. Поинт для карточки бери отсюда, а не из головы. Цитата = опора для слайдов, источник в карточке пиши как [созвон дата таймкод].',
+    inputSchema: { limit: z.number().int().min(1).max(50).optional() },
+  }, safe(async ({ limit }: { limit?: number }) => ({ points: await podborPoints(actor, limit ?? 10) })));
+
+  server.registerTool('get_point', {
+    description: 'Поинт из музея целиком по id из podbor_points: все цитаты Саши, которые можно использовать, и суть каждой. taken: true значит поинт уже взят в карусель.',
+    inputSchema: { id: z.string() },
+  }, safe(async ({ id }: { id: string }) => getMuzeyPoint(actor, id)));
+
+  server.registerTool('take_point', {
+    description: 'Отметить поинт как взятый в карусель, чтобы его не взяли второй раз ни Саша, ни Даня. Вызывать только после того, как Саша сказал «да» на карточку. karusel = короткое название карусели латиницей через дефис (например nedelya-2026-11-29-huk). После этого поинт пропадает из podbor_points.',
+    inputSchema: { id: z.string(), karusel: z.string().min(1).max(120) },
+  }, safe(async ({ id, karusel }: { id: string; karusel: string }) => takeMuzeyPoint(actor, id, karusel)));
 
   return server;
 }
