@@ -8,12 +8,12 @@ import { cookies } from 'next/headers';
 import { STUDIO_COOKIE, verifyStudioSession } from './keys';
 import { LIB_BASES, danyaContext, filterLibrary, forDanya, type LibBase, type LibFilter, type LibraryEntry } from './library';
 import {
-  KINDS, STAGES, localDate, shortcodeOf,
+  KINDS, STAGES, localDate, pickSnapshot, shortcodeOf,
   type Actor, type Board, type CommentView, type ItemView, type Kind, type RuleView, type Snapshot, type Stage,
 } from './view';
 import {
-  applyOverrides, hideNotice, isUsed, mapMuzey, parsePokazano, pickPoints, quotesFor, takeNotice, takenKey, titleNotice, usedSet,
-  type MuzeyExhibit, type MuzeyPoint,
+  applyOverrides, hideNotice, mapMuzey, parsePokazano, pickPoints, quotesFor, takeNotice, takenKey, titleNotice, usesOf,
+  type MuzeyExhibit, type MuzeyPoint, type MuzeyTaken, type UseStats,
 } from './muzey';
 import { GUIDE_AUTHOR, checkGuideEdit, guideEditNotice, type GuideSectionView, type GuideVersionView } from './carousel-guide';
 import { notifyAdmin } from '@/lib/telegram';
@@ -348,7 +348,7 @@ export async function syncMuzey(input: { goryachee?: unknown; smysly?: unknown; 
   const taken = await prisma.studioMuzeyTaken.findMany();
   const known = new Map(taken.map((t) => [takenKey(t), t]));
   const confirmed: number[] = [];
-  const imported: { title: string; exhibitIds: string[]; karusel: string; actor: string; syncedToRepo: boolean }[] = [];
+  const imported: { title: string; exhibitIds: string[]; karusel: string; zahod: string | null; actor: string; syncedToRepo: boolean }[] = [];
   const seen = new Set<string>();
   for (const p of repo) {
     const key = takenKey({ karusel: p.karusel, title: p.mysl });
@@ -356,7 +356,7 @@ export async function syncMuzey(input: { goryachee?: unknown; smysly?: unknown; 
     seen.add(key);
     const row = known.get(key);
     if (row && !row.syncedToRepo) confirmed.push(row.id);
-    if (!row) imported.push({ title: p.mysl, exhibitIds: p.eksponaty, karusel: p.karusel, actor: 'repo', syncedToRepo: true });
+    if (!row) imported.push({ title: p.mysl, exhibitIds: p.eksponaty, karusel: p.karusel, zahod: p.zahod ?? null, actor: 'repo', syncedToRepo: true });
   }
   if (confirmed.length) await prisma.studioMuzeyTaken.updateMany({ where: { id: { in: confirmed } }, data: { syncedToRepo: true } });
   if (imported.length) await prisma.studioMuzeyTaken.createMany({ data: imported });
@@ -367,7 +367,9 @@ export async function syncMuzey(input: { goryachee?: unknown; smysly?: unknown; 
     .filter((o) => byId.has(o.pointId));
   return {
     points: points.length, exhibits: exhibits.length, imported: imported.length, confirmed: confirmed.length,
-    taken: pending.map((t) => ({ mysl: t.title, eksponaty: t.exhibitIds, karusel: t.karusel, data: localDate(t.createdAt), actor: t.actor })),
+    taken: pending.map((t) => ({
+      mysl: t.title, eksponaty: t.exhibitIds, karusel: t.karusel, zahod: t.zahod, data: localDate(t.createdAt), actor: t.actor,
+    })),
     // The full current list: sync-studio.py rewrites skryto.json with it, so «unhide» reaches the repo too.
     hidden: hidden.map((o) => ({
       id: o.pointId, mysl: byId.get(o.pointId)!.title, eksponaty: byId.get(o.pointId)!.exhibitIds, prichina: o.reason,
@@ -377,21 +379,39 @@ export async function syncMuzey(input: { goryachee?: unknown; smysly?: unknown; 
 }
 
 async function loadMuzey() {
-  const [points, exhibits, taken, overrides] = await Promise.all([
+  const [points, exhibits, rows, overrides] = await Promise.all([
     prisma.studioMuzeyPoint.findMany(),
     prisma.studioMuzeyExhibit.findMany(),
-    prisma.studioMuzeyTaken.findMany({ select: { exhibitIds: true } }),
+    prisma.studioMuzeyTaken.findMany({ orderBy: { id: 'asc' } }),
     prisma.studioMuzeyOverride.findMany(),
   ]);
+  const taken: MuzeyTaken[] = rows.map((t) => ({
+    pointId: t.pointId, title: t.title, exhibitIds: t.exhibitIds, karusel: t.karusel, zahod: t.zahod, itemId: t.itemId,
+    createdAt: localDate(t.createdAt),
+  }));
   return { points: applyOverrides(points as MuzeyPoint[], overrides), exhibits: exhibits as MuzeyExhibit[], taken };
 }
 
-export async function podborPoints(actor: Actor, limit = 10) {
-  const { points, exhibits, taken } = await loadMuzey();
-  return pickPoints(points, exhibits, taken, actor, Math.max(1, Math.min(limit, 50)));
+/** Numbers per linked Studio card: the snapshot we judge by (>= 48h after publishing). */
+async function statsOfUses(taken: MuzeyTaken[]): Promise<Record<string, UseStats>> {
+  const ids = [...new Set(taken.map((t) => t.itemId).filter((x): x is string => !!x))];
+  if (!ids.length) return {};
+  const items = await prisma.studioItem.findMany({ where: { id: { in: ids } }, select: { id: true, shortcode: true } });
+  const stats = await statsFor(items.map((i) => i.shortcode).filter((c): c is string => !!c));
+  const out: Record<string, UseStats> = {};
+  for (const i of items) {
+    const snap = i.shortcode ? pickSnapshot(stats[i.shortcode]) : null;
+    if (snap) out[i.id] = { views: snap.views, saved: snap.saved, shares: snap.shares, follows: snap.follows, comments: snap.comments };
+  }
+  return out;
 }
 
-/** A point with every quote the actor may see, and whether it is already taken. */
+export async function podborPoints(actor: Actor, limit = 10, onlyNew = false) {
+  const { points, exhibits, taken } = await loadMuzey();
+  return pickPoints(points, exhibits, taken, actor, Math.max(1, Math.min(limit, 50)), { onlyNew, stats: await statsOfUses(taken) });
+}
+
+/** A point with every quote the actor may see and its past uses (заход → карусель, numbers when linked). */
 export async function getMuzeyPoint(actor: Actor, id: string) {
   const { points, exhibits, taken } = await loadMuzey();
   const p = points.find((x) => x.id === id);
@@ -399,24 +419,32 @@ export async function getMuzeyPoint(actor: Actor, id: string) {
   const quotes = p ? quotesFor(p, byId, actor) : [];
   if (!p || !quotes.length) throw new StudioError('поинт не найден');
   const sut = quotes.map((q) => ({ exhibit: q.exhibit, sut: byId.get(q.exhibit)?.sut ?? '' }));
+  const uses = usesOf(p, taken, await statsOfUses(taken));
   return {
     id: p.id, hot: p.kind === 'hot', title: p.title, ...(p.originalTitle ? { originalTitle: p.originalTitle } : {}),
-    why: p.why, taken: isUsed(p.exhibitIds, usedSet(taken)), hidden: !!p.hidden, hideReason: p.hideReason ?? null, quotes, sut,
+    why: p.why, hidden: !!p.hidden, hideReason: p.hideReason ?? null, used: uses.length, uses, quotes, sut,
   };
 }
 
-/** Mark a point as used in a carousel; it leaves podbor for everyone. Danya's takes reach Sasha in Telegram. */
-export async function takeMuzeyPoint(actor: Actor, id: string, karusel: string) {
+/**
+ * Record a use: point + заход in a carousel. The point stays in podbor (a working
+ * point or hook is reused on purpose). Danya's uses reach Sasha in Telegram.
+ */
+export async function useMuzeyPoint(actor: Actor, id: string, zahod: string, karusel: string, itemId?: string) {
   const slug = String(karusel ?? '').trim();
+  const hook = String(zahod ?? '').trim();
   if (!slug) throw new StudioError('нужно название карусели');
+  if (!hook) throw new StudioError('нужен заход');
+  if (itemId && !(await prisma.studioItem.findUnique({ where: { id: itemId }, select: { id: true } }))) {
+    throw new StudioError('карточка не найдена: id из list_schedule');
+  }
   const point = await getMuzeyPoint(actor, id);
-  if (point.taken) throw new StudioError('этот поинт уже взят в карусель, выбери другой');
   const row = await prisma.studioMuzeyPoint.findUnique({ where: { id }, select: { exhibitIds: true } });
   const created = await prisma.studioMuzeyTaken.create({
-    data: { pointId: id, title: point.title, exhibitIds: row?.exhibitIds ?? [], karusel: slug, actor },
+    data: { pointId: id, title: point.title, exhibitIds: row?.exhibitIds ?? [], karusel: slug, zahod: hook, itemId: itemId || null, actor },
   });
-  if (actor === 'danya') await notifyAdmin(takeNotice(point.title, slug), { disableLinkPreview: true });
-  return { ok: true, takenId: created.id, id, title: point.title, karusel: slug };
+  if (actor === 'danya') await notifyAdmin(takeNotice(point.title, slug, hook), { disableLinkPreview: true });
+  return { ok: true, useId: created.id, id, title: point.title, zahod: hook, karusel: slug, usedBefore: point.used };
 }
 
 // ─── «Как пишем карусели» ───

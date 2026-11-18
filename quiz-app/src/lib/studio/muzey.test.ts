@@ -63,20 +63,31 @@ test('pickPoints: hot first, quotes with a number first, hidden quotes dropped',
   assert.deepEqual(sasha[1].quotes.map((q) => q.exhibit).sort(), ['E1', 'E4']);
 });
 
-test('a point is used when more than half of its exhibits are taken', () => {
+test('used points stay in podbor with their заход → карусель pairs; onlyNew filters them', () => {
   assert.equal(isUsed(['E1', 'E2'], new Set(['E1'])), false);
   assert.equal(isUsed(['E1', 'E2', 'E3'], new Set(['E1', 'E2'])), true);
   assert.equal(isUsed([], new Set(['E1'])), false);
   const { points, exhibits } = mapMuzey(input);
-  const left = pickPoints(points, exhibits, [{ exhibitIds: ['E2', 'E3'] }], 'danya');
-  assert.deepEqual(left.map((p) => p.id), ['S1']);
+  const taken = [
+    { pointId: null, title: 'x', exhibitIds: ['E2', 'E3'], karusel: 'k1' }, // repo row, matched by exhibits
+    { pointId: 'S1', title: 'Повторяет', exhibitIds: [], karusel: 'k2', zahod: 'хук', createdAt: '2026-11-18', itemId: 'i1' },
+    { pointId: 'S1', title: 'Повторяет', exhibitIds: [], karusel: 'k3', zahod: 'хук' },
+  ];
+  const stats = { i1: { views: 1000, saved: 50, shares: 10, follows: 3, comments: 2 } };
+  const all = pickPoints(points, exhibits, taken, 'danya', 10, { stats });
+  assert.deepEqual(all.map((p) => p.id), [points[0].id, 'S1']); // hot still first, not demoted
+  assert.equal(all[0].used, 1);
+  assert.equal(all[1].used, 2);
+  assert.deepEqual(all[1].uses[0], { zahod: 'хук', karusel: 'k2', date: '2026-11-18', itemId: 'i1', stats: stats.i1 });
+  assert.deepEqual(pickPoints(points, exhibits, taken, 'danya', 10, { onlyNew: true }), []);
 });
 
 test('pokazano parse and notice escaping', () => {
-  assert.deepEqual(parsePokazano([{ mysl: 'a', eksponaty: ['E1'], karusel: 'k', data: '2026-11-18' }, { mysl: '' }]), [
-    { mysl: 'a', eksponaty: ['E1'], karusel: 'k', data: '2026-11-18' },
+  assert.deepEqual(parsePokazano([{ mysl: 'a', eksponaty: ['E1'], karusel: 'k', data: '2026-11-18', zahod: 'z' }, { mysl: '' }]), [
+    { mysl: 'a', eksponaty: ['E1'], karusel: 'k', data: '2026-11-18', zahod: 'z' },
   ]);
   assert.equal(takeNotice('a <b> & c', 'slug'), 'Даня взял поинт из музея: a &lt;b&gt; &amp; c → slug');
+  assert.equal(takeNotice('a', 'slug', 'хук'), 'Даня взял поинт из музея: a → slug\nЗаход: хук');
 });
 
 test('overrides: hidden points leave podbor, a new title is shown, the original is kept', () => {

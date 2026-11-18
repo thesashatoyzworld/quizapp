@@ -1620,6 +1620,8 @@ model StudioMuzeyTaken {
   title        String
   exhibitIds   String[] @default([]) @map("exhibit_ids")
   karusel      String
+  zahod        String?
+  itemId       String?  @map("item_id") // studio_items.id, for the numbers
   actor        String // sasha | danya | repo
   createdAt    DateTime @default(now()) @map("created_at")
   syncedToRepo Boolean  @default(false) @map("synced_to_repo")

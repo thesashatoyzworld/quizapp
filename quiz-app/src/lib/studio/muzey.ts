@@ -1,7 +1,8 @@
 // Museum of ideas in the Studio: points for carousel cards from Sasha's calls.
 // Mirrors scripts/muzey/podbor.py in gsd-brand: hot ideas first, then meanings
-// Sasha repeats (ves >= 2); a point is used when more than half of its exhibits
-// are already in some carousel. Pure: no database (crypto only for hot ids).
+// Sasha repeats (ves >= 2). A point is used many times: the unit that works is
+// point + заход (hook), so uses are listed with the point, never hide it. Only
+// «мимо» (hide_point) takes a point out. Pure: no database (crypto only for hot ids).
 
 import { createHash } from 'crypto';
 import type { Actor } from './view';
@@ -57,11 +58,32 @@ export function applyOverrides(points: MuzeyPoint[], overrides: MuzeyOverride[])
   });
 }
 
+/** One use of a point in a carousel (studio_muzey_taken). Rows from pokazano.json have no pointId. */
 export interface MuzeyTaken {
   pointId: string | null;
   title: string;
   exhibitIds: string[];
   karusel: string;
+  zahod?: string | null;
+  createdAt?: string; // YYYY-MM-DD
+  itemId?: string | null;
+}
+
+/** Numbers of the linked Studio card (snapshot >= 48h after publishing). */
+export interface UseStats {
+  views: number | null;
+  saved: number | null;
+  shares: number | null;
+  follows: number | null;
+  comments: number | null;
+}
+
+export interface PointUse {
+  zahod: string | null;
+  karusel: string;
+  date: string | null;
+  itemId: string | null;
+  stats: UseStats | null;
 }
 
 /** One entry of pokazano.json (the repo's list of points used in carousels). */
@@ -70,6 +92,7 @@ export interface PokazanoEntry {
   eksponaty: string[];
   karusel: string;
   data: string;
+  zahod?: string | null;
 }
 
 type Raw = Record<string, unknown>;
@@ -177,22 +200,36 @@ export interface PointView {
   title: string;
   why: string;
   quotes: Quote[];
+  used: number;
+  uses: PointUse[];
 }
 
-/** Fresh points for cards: not taken, with at least one quote the actor may see. Hot first. */
+/** Uses of this point: rows with its id, and repo rows (no id) that share most of its exhibits. */
+export function usesOf(p: Pick<MuzeyPoint, 'id' | 'exhibitIds'>, taken: MuzeyTaken[], stats: Record<string, UseStats> = {}): PointUse[] {
+  return taken
+    .filter((t) => (t.pointId ? t.pointId === p.id : isUsed(p.exhibitIds, new Set(t.exhibitIds))))
+    .map((t) => ({
+      zahod: t.zahod ?? null, karusel: t.karusel, date: t.createdAt ?? null, itemId: t.itemId ?? null,
+      stats: t.itemId ? stats[t.itemId] ?? null : null,
+    }));
+}
+
+/** Points for cards, hot first; used points stay with their past заход → карусель pairs. */
 export function pickPoints(
-  points: MuzeyPoint[], exhibits: MuzeyExhibit[], taken: Pick<MuzeyTaken, 'exhibitIds'>[], actor: Actor, limit = 10,
+  points: MuzeyPoint[], exhibits: MuzeyExhibit[], taken: MuzeyTaken[], actor: Actor, limit = 10,
+  opts: { onlyNew?: boolean; stats?: Record<string, UseStats> } = {},
 ): PointView[] {
   const byId = new Map(exhibits.map((e) => [e.id, e]));
-  const used = usedSet(taken);
   const out: PointView[] = [];
   const order = [...points].sort((a, b) => Number(b.kind === 'hot') - Number(a.kind === 'hot') || a.rank - b.rank);
   for (const p of order) {
     if (out.length >= limit) break;
-    if (p.hidden || isUsed(p.exhibitIds, used)) continue;
+    if (p.hidden) continue;
+    const uses = usesOf(p, taken, opts.stats);
+    if (opts.onlyNew && uses.length) continue;
     const quotes = quotesFor(p, byId, actor, 260).slice(0, 3);
     if (!quotes.length) continue;
-    out.push({ id: p.id, hot: p.kind === 'hot', title: p.title, why: p.why, quotes });
+    out.push({ id: p.id, hot: p.kind === 'hot', title: p.title, why: p.why, quotes, used: uses.length, uses });
   }
   return out;
 }
@@ -203,14 +240,17 @@ export const takenKey = (t: { karusel: string; title: string }) => `${t.karusel}
 export function parsePokazano(v: unknown): PokazanoEntry[] {
   return (Array.isArray(v) ? v : [])
     .filter((p): p is Raw => !!p && typeof p === 'object')
-    .map((p) => ({ mysl: String(p.mysl ?? ''), eksponaty: ids(p.eksponaty), karusel: String(p.karusel ?? ''), data: String(p.data ?? '') }))
+    .map((p) => ({
+      mysl: String(p.mysl ?? ''), eksponaty: ids(p.eksponaty), karusel: String(p.karusel ?? ''), data: String(p.data ?? ''),
+      zahod: str(p.zahod),
+    }))
     .filter((p) => p.mysl && p.karusel);
 }
 
 const escapeHtml = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export function takeNotice(title: string, karusel: string): string {
-  return `Даня взял поинт из музея: ${escapeHtml(title)} → ${escapeHtml(karusel)}`;
+export function takeNotice(title: string, karusel: string, zahod?: string | null): string {
+  return `Даня взял поинт из музея: ${escapeHtml(title)} → ${escapeHtml(karusel)}` + (zahod ? `\nЗаход: ${escapeHtml(zahod)}` : '');
 }
 
 export function hideNotice(title: string, hidden: boolean, reason: string | null): string {

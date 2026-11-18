@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { actorForKey, keyFromRequest } from '@/lib/studio/keys';
 import {
   StudioError, addComment, attachPost, getItem, getLibraryEntry, getMuzeyPoint, libraryOpenToDanya, listItems, listLibrary, listRules, loadBoard,
-  editMuzeyPointTitle, hideMuzeyPoint, listGuide, podborPoints, saveGuideSection, saveLibraryEntry, searchLibrary, takeMuzeyPoint, updateItem,
+  editMuzeyPointTitle, hideMuzeyPoint, listGuide, podborPoints, saveGuideSection, saveLibraryEntry, searchLibrary, useMuzeyPoint, updateItem,
 } from '@/lib/studio/store';
 import { LIB_BASES, type LibBase } from '@/lib/studio/library';
 import { guideMarkdown } from '@/lib/studio/guide';
@@ -163,22 +163,22 @@ function buildServer(actor: Actor) {
   }, safe(async ({ slug, body, note, title }: { slug: string; body: string; note?: string; title?: string }) => saveGuideSection(actor, slug, { body, note, title })));
 
   server.registerTool('podbor_points', {
-    description: 'Музей идей Саши: свежие поинты для карточек каруселей из его созвонов. Сначала «горячее» (hot: мысль, к которой Саша возвращался на разных созвонах за 2 недели), потом мысли, которые он повторяет чаще всего. У каждого поинта id, мысль, почему он сейчас, и 2-3 дословные цитаты Саши с созвоном, датой и таймкодом. Уже взятые в карусели не показываются. Поинт для карточки бери отсюда, а не из головы. Цитата = опора для слайдов, источник в карточке пиши как [созвон дата таймкод].',
-    inputSchema: { limit: z.number().int().min(1).max(50).optional() },
-  }, safe(async ({ limit }: { limit?: number }) => ({ points: await podborPoints(actor, limit ?? 10) })));
+    description: 'Музей идей Саши: поинты для карточек каруселей из его созвонов. Сначала «горячее» (hot: мысль, к которой Саша возвращался на разных созвонах за 2 недели), потом мысли, которые он повторяет чаще всего. У каждого id, мысль, почему он сейчас, 2-3 дословные цитаты Саши (созвон, дата, таймкод) и used: сколько раз уже использован, uses: пары «заход → карусель» с цифрами, если карусель вышла. Работает пара поинт + заход: брать уже использованный поинт с новым или проверенным заходом нормально, смотри по цифрам, какие пары сработали. tolko_novye: true = только ещё не использованные. Поинт для карточки бери отсюда, а не из головы. Источник в карточке пиши как [созвон дата таймкод].',
+    inputSchema: { limit: z.number().int().min(1).max(50).optional(), tolko_novye: z.boolean().optional() },
+  }, safe(async ({ limit, tolko_novye }: { limit?: number; tolko_novye?: boolean }) => ({ points: await podborPoints(actor, limit ?? 10, !!tolko_novye) })));
 
   server.registerTool('get_point', {
-    description: 'Поинт из музея целиком по id из podbor_points: все цитаты Саши, которые можно использовать, и суть каждой. taken: true значит поинт уже взят в карусель.',
+    description: 'Поинт из музея целиком по id из podbor_points: все цитаты Саши, которые можно использовать, суть каждой и все прошлые использования (заход → карусель, цифры).',
     inputSchema: { id: z.string() },
   }, safe(async ({ id }: { id: string }) => getMuzeyPoint(actor, id)));
 
-  server.registerTool('take_point', {
-    description: 'Отметить поинт как взятый в карусель, чтобы его не взяли второй раз ни Саша, ни Даня. Вызывать только после того, как Саша сказал «да» на карточку. karusel = короткое название карусели латиницей через дефис (например nedelya-2026-11-29-huk). После этого поинт пропадает из podbor_points.',
-    inputSchema: { id: z.string(), karusel: z.string().min(1).max(120) },
-  }, safe(async ({ id, karusel }: { id: string; karusel: string }) => takeMuzeyPoint(actor, id, karusel)));
+  server.registerTool('use_point', {
+    description: 'Записать использование поинта: поинт + заход в карусели. Вызывать после того, как Саша сказал «да» на карточку. zahod = текст захода (заголовка), karusel = короткое название карусели латиницей через дефис (например nedelya-2026-11-29-huk), item_id = id карточки карусели из list_schedule, если она есть (по ней подтянутся цифры). Поинт из подбора не пропадает, у него растёт счётчик использований.',
+    inputSchema: { id: z.string(), zahod: z.string().min(1).max(500), karusel: z.string().min(1).max(120), item_id: z.string().optional() },
+  }, safe(async ({ id, zahod, karusel, item_id }: { id: string; zahod: string; karusel: string; item_id?: string }) => useMuzeyPoint(actor, id, zahod, karusel, item_id)));
 
   server.registerTool('hide_point', {
-    description: 'Пометить поинт из музея как «мимо» (не про нас, банально, не подходит для каруселей): он пропадёт из podbor_points у всех. reason обязательно: коротко, почему мимо. Вернуть: unhide_point. Делать только когда человек прямо попросил.',
+    description: 'Пометить поинт из музея как «мимо» (не про нас, банально, не подходит для каруселей): он пропадёт из podbor_points у всех. Это единственный способ убрать поинт: использованные поинты остаются. reason обязательно: коротко, почему мимо. Вернуть: unhide_point. Делать только когда человек прямо попросил.',
     inputSchema: { id: z.string(), reason: z.string().min(1).max(500) },
   }, safe(async ({ id, reason }: { id: string; reason: string }) => hideMuzeyPoint(actor, id, true, reason)));
 

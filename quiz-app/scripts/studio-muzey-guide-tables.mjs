@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS studio_muzey_exhibits (
   smysl      TEXT
 );
 
--- Points taken into a carousel. actor = sasha | danya | repo (imported from pokazano.json).
+-- Uses of a point in a carousel (a point stays in podbor after use). actor = sasha | danya | repo (imported from pokazano.json).
 -- synced_to_repo turns true once the server's pokazano.json has the same entry.
 CREATE TABLE IF NOT EXISTS studio_muzey_taken (
   id              SERIAL PRIMARY KEY,
@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS studio_muzey_taken (
   created_at      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   synced_to_repo  BOOLEAN NOT NULL DEFAULT false
 );
+-- A point is used many times: the unit is point + заход (hook). item_id links the Studio card for its numbers.
+ALTER TABLE studio_muzey_taken ADD COLUMN IF NOT EXISTS zahod TEXT;
+ALTER TABLE studio_muzey_taken ADD COLUMN IF NOT EXISTS item_id TEXT;
 
 -- Edits to points by Sasha or Danya, keyed by point id (S0084 or the stable hot id),
 -- so they survive the daily sync. title = shown instead of the original formula (NULL = original).
