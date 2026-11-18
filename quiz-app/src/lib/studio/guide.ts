@@ -148,6 +148,7 @@ export function guideMarkdown(opts: { libraryOpen: boolean }): string {
     '- Какие правки сработали: get_variant_stats. Правила: list_rules.',
     '- Позиции, пруфы, проблемы: search_library, потом get_library_entry. Оговорки в записи соблюдать.',
     '- Карусели: get_carousel_guide (прочитать целиком до любой карточки и слайдов) → podbor_points → get_point → карточка → показать Саше и ждать «да» (add_comment к карточке, этап через set_stage) → take_point → слайды → подсушка → правки Саши. Править гайд: update_guide, только когда человек прямо попросил.',
+    '- Музей: поинт мимо = hide_point (причина обязательна), вернуть unhide_point; переписать формулировку = edit_point_title (пустой title вернёт исходную). Только по прямой просьбе.',
   ].join('\n'));
   return `# Студия: как пользоваться\n\n${parts.join('\n\n')}\n`;
 }
