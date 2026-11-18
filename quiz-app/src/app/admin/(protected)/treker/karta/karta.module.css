@@ -743,7 +743,7 @@
 
 .reactorStage {
   position: relative;
-  width: min(92vw, calc(100svh - 300px), 640px);
+  width: min(92vw, calc(100svh - 380px), 600px);
   min-width: 260px;
   aspect-ratio: 1;
   container-type: inline-size;
@@ -792,8 +792,8 @@
 }
 
 .rPlan {
-  stroke: rgba(255, 255, 255, 0.55);
-  stroke-width: 1.5;
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2.5;
   stroke-linecap: round;
 }
 
@@ -987,4 +987,45 @@
   z-index: 1;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+}
+
+/* Темп: опережение или отставание от графика, главное после числа. */
+.rPace {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 8px 16px 8px 12px;
+  white-space: nowrap;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.rPaceUp {
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.35);
+  box-shadow: 0 0 calc(10px + 18px * var(--p)) rgba(0, 255, 136, calc(0.12 + 0.18 * var(--p)));
+}
+
+.rPaceDown {
+  color: var(--danger);
+  background: rgba(255, 42, 109, 0.1);
+  border: 1px solid rgba(255, 42, 109, 0.4);
+}
+
+.rPaceArrow {
+  font-size: 0.7rem;
+}
+
+.rPacePlan {
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 0.8rem;
 }

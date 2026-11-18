@@ -583,6 +583,13 @@ function GoalReactor({
       </div>
 
       <div className={styles.reactorCaption}>
+        <div className={`${styles.rPace} ${total >= plan ? styles.rPaceUp : styles.rPaceDown}`}>
+          <span className={styles.rPaceArrow} aria-hidden>
+            {total >= plan ? '▲' : '▼'}
+          </span>
+          {total >= plan ? `+${total - plan} к графику` : `−${plan - total} к графику`}
+          <span className={styles.rPacePlan}>по плану сегодня {plan}</span>
+        </div>
         <div className={styles.rGoal}>в листе ожидания «360»</div>
         <div className={styles.rMeta}>
           открытие {shortDate(deadline)}
