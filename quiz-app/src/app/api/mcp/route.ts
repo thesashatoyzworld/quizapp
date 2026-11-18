@@ -10,10 +10,11 @@ import { z } from 'zod';
 import { actorForKey, keyFromRequest } from '@/lib/studio/keys';
 import {
   StudioError, addComment, attachPost, getItem, getLibraryEntry, getMuzeyPoint, libraryOpenToDanya, listItems, listLibrary, listRules, loadBoard,
-  podborPoints, saveLibraryEntry, searchLibrary, takeMuzeyPoint, updateItem,
+  listGuide, podborPoints, saveGuideSection, saveLibraryEntry, searchLibrary, takeMuzeyPoint, updateItem,
 } from '@/lib/studio/store';
 import { LIB_BASES, type LibBase } from '@/lib/studio/library';
 import { guideMarkdown } from '@/lib/studio/guide';
+import { guideToMarkdown } from '@/lib/studio/carousel-guide';
 import {
   STAGES, STAGE_LABEL, addDays, aggregateVariants, fmt, localDate, weekStart, type Actor, type Kind, type Stage,
 } from '@/lib/studio/view';
@@ -150,6 +151,16 @@ function buildServer(actor: Actor) {
     if (actor !== 'sasha') throw new StudioError('править библиотеку может только Саша');
     return { ok: true, id: await saveLibraryEntry(actor, args, 'sasha-mcp') };
   }));
+
+  server.registerTool('get_carousel_guide', {
+    description: '«Как пишем карусели»: порядок работы, карточка, железные правила, скелет, голос Саши, подсушка, само-чек, пруфы. Прочитай ЦЕЛИКОМ перед тем, как писать любую карточку или слайды, и иди строго по нему, а не по памяти. Без slug вернёт все разделы; со slug один раздел.',
+    inputSchema: { slug: z.string().optional() },
+  }, safe(async ({ slug }: { slug?: string }) => ({ markdown: guideToMarkdown(await listGuide(slug?.trim() || undefined)) })));
+
+  server.registerTool('update_guide', {
+    description: 'Поправить раздел «Как пишем карусели» (slug из get_carousel_guide). body = весь новый текст раздела в markdown, не кусок: он заменит старый. note = коротко, что и почему поменял. Старая версия сохраняется в истории, Саша может вернуть. Править только когда человек прямо попросил.',
+    inputSchema: { slug: z.string(), body: z.string().min(1).max(50000), note: z.string().max(500).optional(), title: z.string().max(200).optional() },
+  }, safe(async ({ slug, body, note, title }: { slug: string; body: string; note?: string; title?: string }) => saveGuideSection(actor, slug, { body, note, title })));
 
   server.registerTool('podbor_points', {
     description: 'Музей идей Саши: свежие поинты для карточек каруселей из его созвонов. Сначала «горячее» (hot: мысль, к которой Саша возвращался на разных созвонах за 2 недели), потом мысли, которые он повторяет чаще всего. У каждого поинта id, мысль, почему он сейчас, и 2-3 дословные цитаты Саши с созвоном, датой и таймкодом. Уже взятые в карусели не показываются. Поинт для карточки бери отсюда, а не из головы. Цитата = опора для слайдов, источник в карточке пиши как [созвон дата таймкод].',

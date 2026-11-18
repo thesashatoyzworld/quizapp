@@ -14,6 +14,7 @@ import {
 import {
   isUsed, mapMuzey, parsePokazano, pickPoints, quotesFor, takeNotice, takenKey, usedSet, type MuzeyExhibit, type MuzeyPoint,
 } from './muzey';
+import { GUIDE_AUTHOR, checkGuideEdit, guideEditNotice, type GuideSectionView, type GuideVersionView } from './carousel-guide';
 import { notifyAdmin } from '@/lib/telegram';
 
 /** Admin session acts as Sasha; otherwise the studio_session cookie. */
@@ -403,4 +404,51 @@ export async function takeMuzeyPoint(actor: Actor, id: string, karusel: string) 
   });
   if (actor === 'danya') await notifyAdmin(takeNotice(point.title, slug), { disableLinkPreview: true });
   return { ok: true, takenId: created.id, id, title: point.title, karusel: slug };
+}
+
+// ─── «Как пишем карусели» ───
+
+type GuideRow = Awaited<ReturnType<typeof prisma.studioGuideSection.findMany>>[number];
+const guideView = (r: GuideRow): GuideSectionView => ({
+  slug: r.slug, title: r.title, body: r.body, sort: r.sort, updatedBy: r.updatedBy, updatedAt: r.updatedAt.toISOString(),
+});
+
+export async function listGuide(slug?: string): Promise<GuideSectionView[]> {
+  const rows = await prisma.studioGuideSection.findMany({ where: slug ? { slug } : undefined, orderBy: [{ sort: 'asc' }, { slug: 'asc' }] });
+  if (slug && !rows.length) {
+    const all = await prisma.studioGuideSection.findMany({ select: { slug: true }, orderBy: { sort: 'asc' } });
+    throw new StudioError(`нет раздела ${slug}; есть: ${all.map((r) => r.slug).join(', ')}`);
+  }
+  return rows.map(guideView);
+}
+
+export async function guideHistory(slug: string): Promise<GuideVersionView[]> {
+  const rows = await prisma.studioGuideVersion.findMany({ where: { slug }, orderBy: { id: 'desc' }, take: 100 });
+  return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+}
+
+/** Save a section as a new version. Danya's edits reach Sasha in Telegram. */
+export async function saveGuideSection(
+  actor: Actor, slug: string, input: { title?: unknown; body?: unknown; note?: unknown }, restored = false,
+): Promise<{ ok: true; changed: boolean; versionId?: number }> {
+  const edit = checkGuideEdit(input);
+  if (typeof edit === 'string') throw new StudioError(edit);
+  const row = await prisma.studioGuideSection.findUnique({ where: { slug } });
+  if (!row) await listGuide(slug); // throws with the list of sections
+  const title = edit.title ?? row!.title;
+  if (title === row!.title && edit.body === row!.body) return { ok: true, changed: false };
+  const [, version] = await prisma.$transaction([
+    prisma.studioGuideSection.update({ where: { slug }, data: { title, body: edit.body, updatedBy: actor, updatedAt: new Date() } }),
+    prisma.studioGuideVersion.create({ data: { slug, title, body: edit.body, actor, note: edit.note } }),
+  ]);
+  if (actor === 'danya') await notifyAdmin(guideEditNotice(title, edit.note, restored), { disableLinkPreview: true });
+  return { ok: true, changed: true, versionId: version.id };
+}
+
+/** Rollback = the old version saved again as the newest one; history keeps everything. */
+export async function restoreGuideVersion(actor: Actor, versionId: number) {
+  const v = await prisma.studioGuideVersion.findUnique({ where: { id: versionId } });
+  if (!v) throw new StudioError('версия не найдена');
+  const when = localDate(v.createdAt).split('-').reverse().join('.');
+  return saveGuideSection(actor, v.slug, { title: v.title, body: v.body, note: `вернул версию от ${when} (${GUIDE_AUTHOR[v.actor] ?? v.actor})` }, true);
 }
