@@ -1,0 +1,190 @@
+// Museum of ideas in the Studio: points for carousel cards from Sasha's calls.
+// Mirrors scripts/muzey/podbor.py in gsd-brand: hot ideas first, then meanings
+// Sasha repeats (ves >= 2); a point is used when more than half of its exhibits
+// are already in some carousel. Pure: no database (crypto only for hot ids).
+
+import { createHash } from 'crypto';
+import type { Actor } from './view';
+
+export interface MuzeyExhibit {
+  id: string;
+  tip: string | null;
+  sut: string;
+  doslovno: string;
+  kto: string | null;
+  taym: string | null;
+  tsifra: string | null;
+  pokazyvat: string | null;
+  istochnik: string | null;
+  data: string | null;
+  smysl: string | null;
+}
+
+export interface MuzeyPoint {
+  id: string;
+  kind: 'hot' | 'smysl';
+  title: string;
+  why: string;
+  ves: number;
+  bol: number;
+  sozvonov: number;
+  posledniy: string | null;
+  rank: number;
+  exhibitIds: string[];
+}
+
+export interface MuzeyTaken {
+  pointId: string | null;
+  title: string;
+  exhibitIds: string[];
+  karusel: string;
+}
+
+/** One entry of pokazano.json (the repo's list of points used in carousels). */
+export interface PokazanoEntry {
+  mysl: string;
+  eksponaty: string[];
+  karusel: string;
+  data: string;
+}
+
+type Raw = Record<string, unknown>;
+const str = (v: unknown): string | null => (v === null || v === undefined || v === '' ? null : String(v));
+const num = (v: unknown): number => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const ids = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
+
+/** Hot ideas have no id in goryachee.json (G1 is just the index): derive one from their exhibits. */
+export function hotId(exhibitIds: string[]): string {
+  return `G-${createHash('sha1').update([...exhibitIds].sort().join(',')).digest('hex').slice(0, 8)}`;
+}
+
+/** The extractor sometimes writes «tsifra» with Cyrillic letters inside: take any of them. */
+function tsifraOf(e: Raw): string | null {
+  if (e.tsifra !== undefined) return str(e.tsifra);
+  const key = Object.keys(e).find((k) => /^ts.{4}$/i.test(k) && k !== 'tsifra');
+  return key ? str(e[key]) : null;
+}
+
+export function mapExhibit(e: Raw): MuzeyExhibit {
+  return {
+    id: String(e.id), tip: str(e.tip), sut: str(e.sut) ?? '', doslovno: str(e.doslovno) ?? '', kto: str(e.kto),
+    taym: str(e.taym), tsifra: tsifraOf(e), pokazyvat: str(e.pokazyvat), istochnik: str(e.istochnik), data: str(e.data),
+    smysl: str(e.smysl),
+  };
+}
+
+/** Files of clients/sasha/muzey → rows. Hot first (file order), then meanings with ves >= 2 (file order). */
+export function mapMuzey(input: { goryachee?: unknown; smysly?: unknown; eksponaty?: unknown }): {
+  points: MuzeyPoint[]; exhibits: MuzeyExhibit[];
+} {
+  const hot = (Array.isArray(input.goryachee) ? input.goryachee : []) as Raw[];
+  const smysly = (Array.isArray(input.smysly) ? input.smysly : []) as Raw[];
+  const points: MuzeyPoint[] = [];
+  const seen = new Set<string>();
+  hot.forEach((g, i) => {
+    const exhibitIds = ids(g.eksponaty);
+    const id = hotId(exhibitIds);
+    if (!exhibitIds.length || seen.has(id)) return;
+    seen.add(id);
+    points.push({
+      id, kind: 'hot', title: String(g.mysl ?? ''), exhibitIds, rank: i, ves: 0, bol: 0,
+      sozvonov: num(g.sozvonov), posledniy: str(g.posledniy),
+      why: `горячее: ${num(g.sozvonov)} созвонов за 2 недели, за 3 дня ${num(g.sozvonov_3dnya)}${g.novaya ? ', новая мысль' : ''}`,
+    });
+  });
+  smysly.forEach((m, i) => {
+    if (num(m.ves) < 2 || !m.id || seen.has(String(m.id))) return;
+    seen.add(String(m.id));
+    points.push({
+      id: String(m.id), kind: 'smysl', title: String(m.formula ?? ''), exhibitIds: ids(m.eksponaty), rank: 1000 + i,
+      ves: num(m.ves), bol: num(m.bol), sozvonov: 0, posledniy: str(m.posledniy),
+      why: `повторил в ${num(m.ves)} источниках${num(m.bol) ? `, боль у ${num(m.bol)}` : ''}`,
+    });
+  });
+  const exhibits = (Array.isArray(input.eksponaty) ? input.eksponaty : [])
+    .filter((e): e is Raw => !!e && typeof e === 'object' && !!(e as Raw).id)
+    .map(mapExhibit);
+  return { points, exhibits };
+}
+
+/**
+ * Only Sasha's own words are quoted. Danya gets exhibits marked «да» only:
+ * «с согласия» is a client's data, «нет» is never shown. Sasha sees all but «нет».
+ */
+export function visibleTo(e: MuzeyExhibit, actor: Actor): boolean {
+  if (!(e.kto ?? '').includes('Саша')) return false;
+  return actor === 'danya' ? e.pokazyvat === 'да' : e.pokazyvat !== 'нет';
+}
+
+export function usedSet(taken: Pick<MuzeyTaken, 'exhibitIds'>[]): Set<string> {
+  return new Set(taken.flatMap((t) => t.exhibitIds));
+}
+
+export function isUsed(exhibitIds: string[], used: Set<string>): boolean {
+  return exhibitIds.length > 0 && exhibitIds.filter((i) => used.has(i)).length * 2 > exhibitIds.length;
+}
+
+export interface Quote {
+  exhibit: string;
+  quote: string;
+  source: string | null;
+  date: string | null;
+  timecode: string | null;
+  number: string | null;
+}
+
+/** Visible exhibits of a point as quotes: with a number first, then the latest. */
+export function quotesFor(p: MuzeyPoint, byId: Map<string, MuzeyExhibit>, actor: Actor, maxLen = 0): Quote[] {
+  const es = p.exhibitIds.map((i) => byId.get(i)).filter((e): e is MuzeyExhibit => !!e && visibleTo(e, actor));
+  es.sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''));
+  es.sort((a, b) => Number(a.tsifra === null) - Number(b.tsifra === null));
+  return es.map((e) => {
+    const q = e.doslovno.replace(/\s+/g, ' ').trim();
+    return {
+      exhibit: e.id, quote: maxLen && q.length > maxLen ? `${q.slice(0, maxLen)}…` : q,
+      source: e.istochnik, date: e.data, timecode: e.taym, number: e.tsifra,
+    };
+  });
+}
+
+export interface PointView {
+  id: string;
+  hot: boolean;
+  title: string;
+  why: string;
+  quotes: Quote[];
+}
+
+/** Fresh points for cards: not taken, with at least one quote the actor may see. Hot first. */
+export function pickPoints(
+  points: MuzeyPoint[], exhibits: MuzeyExhibit[], taken: Pick<MuzeyTaken, 'exhibitIds'>[], actor: Actor, limit = 10,
+): PointView[] {
+  const byId = new Map(exhibits.map((e) => [e.id, e]));
+  const used = usedSet(taken);
+  const out: PointView[] = [];
+  const order = [...points].sort((a, b) => Number(b.kind === 'hot') - Number(a.kind === 'hot') || a.rank - b.rank);
+  for (const p of order) {
+    if (out.length >= limit) break;
+    if (isUsed(p.exhibitIds, used)) continue;
+    const quotes = quotesFor(p, byId, actor, 260).slice(0, 3);
+    if (!quotes.length) continue;
+    out.push({ id: p.id, hot: p.kind === 'hot', title: p.title, why: p.why, quotes });
+  }
+  return out;
+}
+
+/** Repo entries the DB does not know yet (same carousel + same thought = same entry). */
+export const takenKey = (t: { karusel: string; title: string }) => `${t.karusel}\u0000${t.title}`;
+
+export function parsePokazano(v: unknown): PokazanoEntry[] {
+  return (Array.isArray(v) ? v : [])
+    .filter((p): p is Raw => !!p && typeof p === 'object')
+    .map((p) => ({ mysl: String(p.mysl ?? ''), eksponaty: ids(p.eksponaty), karusel: String(p.karusel ?? ''), data: String(p.data ?? '') }))
+    .filter((p) => p.mysl && p.karusel);
+}
+
+const escapeHtml = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+export function takeNotice(title: string, karusel: string): string {
+  return `Даня взял поинт из музея: ${escapeHtml(title)} → ${escapeHtml(karusel)}`;
+}
