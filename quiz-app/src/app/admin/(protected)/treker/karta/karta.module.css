@@ -1807,3 +1807,13 @@
     font-size: 0.8rem;
   }
 }
+
+.putChain li {
+  scroll-margin-top: 72px;
+}
+
+@media (max-width: 640px) {
+  .putChain li.putOpen::after {
+    display: none;
+  }
+}
