@@ -109,7 +109,7 @@ export default function PutClient({
         от «увидел» до результата · <span className={styles.putPrep}>подготовить до открытия {prepAll}</span>
       </div>
 
-      <ol className={styles.putChain}>
+      <ol className={`${styles.putChain} ${openKey ? styles.putFocus : ''}`}>
         {steps.map((s, i) => {
           const isOpen = openKey === s.key;
           return (
