@@ -1046,6 +1046,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .rPath:hover {
@@ -1330,4 +1331,248 @@
 
 .putSection {
   scroll-margin-top: 70px;
+}
+
+/* ---------- путь клиента: отдельный экран, шаг и ветка открываются сами по себе ---------- */
+
+.put {
+  max-width: 720px;
+  margin: 0 auto;
+  padding-bottom: 64px;
+}
+
+.putView {
+  animation: putIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes putIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.putCrumbs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.putCrumbs a,
+.putCrumbs button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--text-secondary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.putCrumbs a:hover,
+.putCrumbs button:hover {
+  color: var(--neon-cyan);
+}
+
+.putTitle {
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 6vw, 2.4rem);
+  line-height: 1.15;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.putStat {
+  margin: 10px 0 28px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.putPrep {
+  color: #d6ff5c;
+  white-space: nowrap;
+}
+
+.putOk {
+  color: #00ff88;
+}
+
+/* Цепочка шагов. */
+.putChain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.putChain li {
+  --f: 0;
+  position: relative;
+  padding-bottom: 14px;
+  animation: putIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+.putChain li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 54px;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(0, 240, 255, 0.45), rgba(0, 240, 255, 0.05));
+}
+
+.putNode {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.putNode:hover .putNodeTitle {
+  color: var(--neon-cyan);
+}
+
+.putNode .pNum {
+  flex-shrink: 0;
+}
+
+.putNodeBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.putNodeTitle {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  transition: color 0.2s;
+}
+
+.putNodeMeta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.putChevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+/* Шаг. */
+.putStepHead {
+  --f: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.putStepHead .pNum {
+  flex-shrink: 0;
+}
+
+.putStepHead .pDoes {
+  margin: 4px 0 0;
+}
+
+.putBranches {
+  list-style: none;
+  margin: 0 0 32px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.putBranches li {
+  animation: putIn 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+
+.putBranches .pPoint {
+  padding: 15px 16px;
+  font-size: 0.95rem;
+}
+
+.putNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.putNav .pNext {
+  margin-left: auto;
+}
+
+/* Ветка. */
+.putKicker {
+  --c: rgba(255, 255, 255, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c);
+}
+
+.putKicker[data-state='done'] {
+  --c: #00ff88;
+}
+.putKicker[data-state='now'] {
+  --c: #00f0ff;
+}
+.putKicker[data-state='week'] {
+  --c: #d6ff5c;
+}
+.putKicker[data-state='none'] {
+  --c: #ff4d6d;
+}
+.putKicker[data-state='later'] {
+  color: var(--text-muted);
+}
+
+.putEmpty {
+  margin-top: 24px;
+  color: var(--text-secondary);
+}
+
+.putTasks {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.putTask {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.putTask:hover {
+  border-color: rgba(0, 240, 255, 0.35);
 }

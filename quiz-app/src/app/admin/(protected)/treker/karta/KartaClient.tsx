@@ -15,7 +15,6 @@ import {
   todayLocal,
   weeksUntil,
   type MapView,
-  type PathStep,
   type Score,
 } from '@/lib/tracker/karta-shared';
 import Ring from '../Ring';
@@ -63,7 +62,7 @@ export default function KartaClient({ map, tasks, score }: { map: MapView; tasks
 
   const stageOf = (key: string) => map.stages.find((s) => s.key === key);
   const [opened, setOpened] = useState(false);
-  const openDetails = (target: 'schet' | 'put' = 'schet') => {
+  const openDetails = (target = 'schet') => {
     setOpened(true);
     requestAnimationFrame(() =>
       document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
@@ -85,7 +84,6 @@ export default function KartaClient({ map, tasks, score }: { map: MapView; tasks
         plan={plan}
         deadline={map.deadline}
         onOpen={() => openDetails('schet')}
-        onPath={() => openDetails('put')}
       />
 
       {opened && (
@@ -156,8 +154,6 @@ export default function KartaClient({ map, tasks, score }: { map: MapView; tasks
               </div>
             )}
           </section>
-
-          {map.path.length > 0 && <ClientPath path={map.path} cards={cards} thisWeek={thisWeek} />}
 
           <Weeks
             map={map}
@@ -374,14 +370,12 @@ function GoalReactor({
   plan,
   deadline,
   onOpen,
-  onPath,
 }: {
   total: number;
   fresh: number;
   plan: number;
   deadline: string;
   onOpen: () => void;
-  onPath: () => void;
 }) {
   const N = LIST_TARGET;
   const filled = Math.min(N, total);
@@ -615,9 +609,9 @@ function GoalReactor({
           →
         </span>
       </button>
-      <button type="button" className={styles.rPath} onClick={onPath}>
+      <Link href="/admin/treker/karta/put" className={styles.rPath}>
         путь клиента
-      </button>
+      </Link>
     </div>
   );
 }
@@ -770,171 +764,6 @@ function Later({ cards }: { cards: Card[] }) {
             </li>
           ))}
         </ul>
-      )}
-    </section>
-  );
-}
-
-type PointState = 'done' | 'now' | 'week' | 'later' | 'none';
-
-/** Состояние точки пути по её задачам: готово, в работе к неделе, после запуска или задачи нет. */
-function pointState(
-  p: PathStep['points'][number],
-  tasks: Card[],
-  thisWeek: string,
-): { state: PointState; label: string } {
-  const left = tasks.filter((c) => !isDone(c));
-  if (!tasks.length) return p.ready ? { state: 'done', label: 'готово' } : { state: 'none', label: 'задачи нет' };
-  if (!left.length) return { state: 'done', label: 'готово' };
-  const active = left.filter((c) => !c.map.later);
-  if (!active.length) return { state: 'later', label: 'после запуска' };
-  const weeks = active
-    .map((c) => c.map.week)
-    .filter((w): w is string => !!w)
-    .sort();
-  if (!weeks.length || weeks[0] <= thisWeek) return { state: 'now', label: 'в работе' };
-  return { state: 'week', label: `к ${shortDate(weeks[0])}` };
-}
-
-const PATH_KEY = 'karta-put-shown';
-
-/**
- * Путь клиента: шаги человека от «увидел» до результата. Открываются по одному кнопкой «дальше»,
- * в каждом точки, которые человек встречает, и что к ним готово.
- */
-function ClientPath({ path, cards, thisWeek }: { path: PathStep[]; cards: Card[]; thisWeek: string }) {
-  const [shown, setShown] = useState(1);
-  const [fresh, setFresh] = useState<number | null>(null);
-  const [openPoint, setOpenPoint] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      const n = Number(localStorage.getItem(PATH_KEY));
-      if (n >= 1) setShown(Math.min(path.length, n));
-    } catch {}
-  }, [path.length]);
-
-  const show = (n: number) => {
-    setShown(n);
-    setFresh(n - 1);
-    try {
-      localStorage.setItem(PATH_KEY, String(n));
-    } catch {}
-    requestAnimationFrame(() =>
-      document.getElementById(`put-${n - 1}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
-    );
-  };
-
-  const steps = path.map((s) => {
-    const points = s.points.map((p) => {
-      const tasks = cards.filter((c) => c.map.point === p.key);
-      return { ...p, tasks, ...pointState(p, tasks, thisWeek) };
-    });
-    const done = points.filter((p) => p.state === 'done').length;
-    const prep = points.filter((p) => p.state === 'now' || p.state === 'week' || p.state === 'none').length;
-    return { ...s, points, done, prep };
-  });
-  const prepAll = steps.reduce((n, s) => n + s.prep, 0);
-  const next = steps[shown];
-
-  return (
-    <section id="put" className={`${styles.section} ${styles.putSection}`}>
-      <h2 className={styles.h2}>
-        Путь клиента
-        <span className={styles.h2Count}>
-          {' '}
-          · шаг {shown} из {steps.length}
-        </span>
-      </h2>
-
-      <ol className={styles.path}>
-        {steps.slice(0, shown).map((s, i) => (
-          <li
-            key={s.key}
-            id={`put-${i}`}
-            className={`${styles.pStep} ${i === fresh ? styles.pStepNew : ''}`}
-            style={{ '--f': s.points.length ? s.done / s.points.length : 0 } as React.CSSProperties}
-          >
-            <div className={styles.pRail}>
-              <span className={styles.pNum}>{i + 1}</span>
-            </div>
-            <div className={styles.pBody}>
-              <div className={styles.pHead}>
-                <span className={styles.pTitle}>{s.title}</span>
-                <span className={styles.pCount}>
-                  готово {s.done} из {s.points.length}
-                </span>
-              </div>
-              <div className={styles.pDoes}>человек {s.does}</div>
-              <ul className={styles.pPoints}>
-                {s.points.map((p) => {
-                  const isOpen = openPoint === p.key;
-                  return (
-                    <li key={p.key}>
-                      <button
-                        type="button"
-                        className={styles.pPoint}
-                        data-state={p.state}
-                        aria-expanded={isOpen}
-                        disabled={!p.tasks.length}
-                        onClick={() => setOpenPoint(isOpen ? null : p.key)}
-                      >
-                        <span className={styles.pDot} aria-hidden />
-                        <span className={styles.pPointTitle}>{p.title}</span>
-                        <span className={styles.pState}>{p.label}</span>
-                      </button>
-                      {isOpen && (
-                        <ul className={styles.pTasks}>
-                          {p.tasks.map((c) => (
-                            <li key={c.id}>
-                              <Link href={open(c.id)} className={`${styles.row} ${isDone(c) ? styles.rowDone : ''}`}>
-                                <Ring progress={c.progress} size={20} stroke={3} />
-                                <span className={styles.rowBody}>
-                                  <span>{c.title}</span>
-                                  <span className={styles.rowWhy}>
-                                    {isDone(c)
-                                      ? 'сделано'
-                                      : c.map.later
-                                        ? 'после запуска'
-                                        : c.map.week
-                                          ? `неделя ${shortDate(c.map.week)}`
-                                          : 'каждую неделю'}
-                                  </span>
-                                </span>
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              {s.prep > 0 && (
-                <div className={styles.pPrep}>
-                  подготовить до открытия: {s.prep} {plural(s.prep, 'точку', 'точки', 'точек')}
-                </div>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
-
-      {next ? (
-        <button type="button" className={styles.pNext} onClick={() => show(shown + 1)}>
-          <span className={styles.pNextKicker}>дальше</span>
-          <span>{next.title}</span>
-          <span className={styles.rOpenArrow} aria-hidden>
-            →
-          </span>
-        </button>
-      ) : (
-        <div className={styles.pEnd}>
-          Весь путь открыт · подготовить до открытия: {prepAll} {plural(prepAll, 'точку', 'точки', 'точек')}
-          <button type="button" className={styles.linkBtn} onClick={() => show(1)}>
-            свернуть путь
-          </button>
-        </div>
       )}
     </section>
   );
