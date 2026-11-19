@@ -122,7 +122,9 @@
 .section {
   margin-bottom: 40px;
   border-radius: 16px;
-  transition: box-shadow 0.6s, background 0.6s;
+  transition:
+    box-shadow 0.6s,
+    background 0.6s;
 }
 
 .h2 {
@@ -151,7 +153,9 @@
   margin-left: -16px;
   margin-right: -16px;
   background: rgba(0, 240, 255, 0.04);
-  box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.35), 0 0 32px rgba(0, 240, 255, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(0, 240, 255, 0.35),
+    0 0 32px rgba(0, 240, 255, 0.12);
   animation: freshIn 0.9s ease-out;
 }
 
@@ -195,7 +199,9 @@
   border-radius: 14px;
   color: inherit;
   text-decoration: none;
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
 }
 
 .nowCard:hover {
@@ -562,8 +568,6 @@
   color: var(--success);
 }
 
-
-
 .scoreSub {
   color: var(--text-secondary);
   font-size: 0.9rem;
@@ -705,7 +709,6 @@
   margin: 0 0 14px;
 }
 
-
 /* ---------- первый экран: реактор цели ---------- */
 
 .reactor {
@@ -738,8 +741,6 @@
   mask-image: radial-gradient(closest-side at 50% 44%, #000 30%, transparent 100%);
   pointer-events: none;
 }
-
-
 
 .reactorStage {
   position: relative;
@@ -1028,4 +1029,299 @@
   color: var(--text-muted);
   font-weight: 400;
   font-size: 0.8rem;
+}
+
+/* ---------- путь клиента: шаги открываются по одному ---------- */
+
+.rPath {
+  position: relative;
+  z-index: 1;
+  margin-top: 14px;
+  background: none;
+  border: 0;
+  padding: 6px 10px;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.rPath:hover {
+  color: var(--neon-cyan);
+}
+
+.reactor > .rPath {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.path {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pStep {
+  --f: 0;
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 14px;
+}
+
+.pStepNew {
+  animation: pIn 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.pStepNew .pNum {
+  animation: pPing 1.6s ease-out 0.2s both;
+}
+
+@keyframes pIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+@keyframes pPing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 18px rgba(0, 240, 255, 0);
+  }
+}
+
+/* Рейка: номер шага в кольце готовности, линия к следующему шагу. */
+.pRail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.pRail::after {
+  content: '';
+  position: absolute;
+  top: 52px;
+  bottom: -6px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(0, 240, 255, 0.5), rgba(0, 240, 255, 0.04));
+}
+
+.pNum {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  background:
+    radial-gradient(circle, var(--bg-primary, #050508) 0 19px, transparent 20px),
+    conic-gradient(#00ff88 calc(var(--f) * 360deg), rgba(255, 255, 255, 0.1) 0);
+  box-shadow: 0 0 24px -6px rgba(0, 255, 136, calc(0.2 + var(--f) * 0.5));
+}
+
+.pBody {
+  min-width: 0;
+  padding: 4px 0 30px;
+}
+
+.pHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pTitle {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.pCount {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.pDoes {
+  margin: 4px 0 14px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.pPoints {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.pPoint {
+  --c: rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.pPoint:hover:not(:disabled),
+.pPoint[aria-expanded='true'] {
+  border-color: color-mix(in srgb, var(--c) 45%, transparent);
+}
+
+.pPoint:disabled {
+  cursor: default;
+}
+
+.pPoint[data-state='done'] {
+  --c: #00ff88;
+}
+.pPoint[data-state='now'] {
+  --c: #00f0ff;
+}
+.pPoint[data-state='week'] {
+  --c: #d6ff5c;
+}
+.pPoint[data-state='none'] {
+  --c: #ff4d6d;
+}
+.pPoint[data-state='later'] {
+  color: var(--text-muted);
+}
+
+.pDot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 10px var(--c);
+}
+
+.pPoint[data-state='later'] .pDot {
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow: none;
+}
+
+.pPointTitle {
+  flex: 1;
+  min-width: 0;
+}
+
+.pState {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--c);
+  white-space: nowrap;
+}
+
+.pPoint[data-state='later'] .pState {
+  color: var(--text-muted);
+}
+
+.pTasks {
+  list-style: none;
+  margin: 6px 0 4px 20px;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.pPrep {
+  margin-top: 12px;
+  font-size: 0.78rem;
+  color: #d6ff5c;
+}
+
+.pNext {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 66px;
+  padding: 12px 18px 12px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  background: linear-gradient(180deg, rgba(0, 240, 255, 0.1), rgba(0, 240, 255, 0.02));
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 10px 36px -14px rgba(0, 240, 255, 0.5);
+  transition:
+    transform 0.2s,
+    border-color 0.2s;
+}
+
+.pNext:hover {
+  border-color: rgba(0, 240, 255, 0.7);
+}
+
+.pNext:active {
+  transform: scale(0.97);
+}
+
+.pNextKicker {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.pEnd {
+  margin-left: 66px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .pStep {
+    grid-template-columns: 40px 1fr;
+    gap: 10px;
+  }
+  .pNum {
+    width: 38px;
+    height: 38px;
+    font-size: 0.95rem;
+    background:
+      radial-gradient(circle, var(--bg-primary, #050508) 0 15px, transparent 16px),
+      conic-gradient(#00ff88 calc(var(--f) * 360deg), rgba(255, 255, 255, 0.1) 0);
+  }
+  .pRail::after {
+    top: 44px;
+  }
+  .pNext,
+  .pEnd {
+    margin-left: 50px;
+  }
+  .pPoint {
+    padding: 10px 12px;
+    font-size: 0.86rem;
+  }
 }

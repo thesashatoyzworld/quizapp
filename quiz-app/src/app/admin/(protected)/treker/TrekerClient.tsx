@@ -1240,7 +1240,7 @@ function OnMap({
       {
         ...task,
         map: next.stage
-          ? { stage: next.stage, later: !!next.later, week: next.week ?? null, move: next.move ?? m?.move ?? null }
+          ? { stage: next.stage, later: !!next.later, week: next.week ?? null, move: next.move ?? m?.move ?? null, point: m?.point ?? null }
           : null,
       },
     );

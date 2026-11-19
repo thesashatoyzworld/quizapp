@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { MAX_LEVEL, type MapStage, type MapView, type Milestone, type Score } from './karta-shared';
+import { MAX_LEVEL, type MapStage, type MapView, type Milestone, type PathStep, type Score } from './karta-shared';
 
 function toView(row: Awaited<ReturnType<typeof prisma.trackerMap.findFirst>>): MapView | null {
   if (!row) return null;
@@ -10,6 +10,7 @@ function toView(row: Awaited<ReturnType<typeof prisma.trackerMap.findFirst>>): M
     deadline: row.deadline,
     stages: (row.stages as MapStage[]) ?? [],
     milestones: (row.milestones as Milestone[]) ?? [],
+    path: (row.path as PathStep[] | null) ?? [],
     level: Math.min(MAX_LEVEL, Math.max(1, row.level)),
     levelBase: row.levelBase,
     hintsSeen: row.hintsSeen ?? [],
