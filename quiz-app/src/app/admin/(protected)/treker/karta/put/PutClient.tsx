@@ -120,7 +120,10 @@ export default function PutClient({
               style={{ '--f': s.items.length ? s.done / s.items.length : 0, '--i': i } as React.CSSProperties}
             >
               <button type="button" className={styles.putNode} aria-expanded={isOpen} onClick={() => toggle(s.key)}>
-                <span className={styles.pNum}>{i + 1}</span>
+                <span className={`${styles.pNum} ${styles.pNumIcon}`}>
+                  <StepIcon k={s.key} fallback={i + 1} />
+                  <span className={styles.pNumBadge}>{i + 1}</span>
+                </span>
                 <span className={styles.putNodeBody}>
                   <span className={styles.putNodeTitle}>{s.title}</span>
                   <span className={styles.putNodeMeta}>
@@ -152,6 +155,80 @@ export default function PutClient({
         })}
       </ol>
     </div>
+  );
+}
+
+/** Иконки шагов пути: линия 1.7, скругления, как в остальном кабинете. */
+const ICONS: Record<string, React.ReactNode> = {
+  // Увидел: глаз.
+  uvidel: (
+    <>
+      <path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  // Записался в лист: лист с галочкой.
+  zapisalsya: (
+    <>
+      <rect x="5" y="3.5" width="14" height="17" rx="2.5" />
+      <path d="M9 3.5V5h6V3.5M8.5 12.5l2.3 2.3 4.7-4.8" />
+    </>
+  ),
+  // Ждёт открытия: песочные часы.
+  zhdet: (
+    <>
+      <path d="M6.5 3.5h11M6.5 20.5h11" />
+      <path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5" />
+    </>
+  ),
+  // Оплатил: карта.
+  oplatil: (
+    <>
+      <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
+      <path d="M3 10h18M7 14.5h4" />
+    </>
+  ),
+  // Вошёл: ключ.
+  voshel: (
+    <>
+      <circle cx="8" cy="12" r="4" />
+      <path d="M12 12h9M18 12v3M15.5 12v2" />
+    </>
+  ),
+  // Первый месяц: маршрутная карта.
+  rabotaet: (
+    <>
+      <path d="M9 4.5 3.5 6.5v13l5.5-2 6 2 5.5-2v-13l-5.5 2-6-2Z" />
+      <path d="M9 4.5v13M15 6.5v13" />
+    </>
+  ),
+  // Результат: график вверх.
+  rezultat: (
+    <>
+      <path d="M3.5 19.5h17" />
+      <path d="m4.5 15 5-5 3.5 3.5 6.5-7" />
+      <path d="M15 6.5h4.5V11" />
+    </>
+  ),
+};
+
+function StepIcon({ k, fallback }: { k: string; fallback: number }) {
+  const icon = ICONS[k];
+  if (!icon) return <>{fallback}</>;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {icon}
+    </svg>
   );
 }
 
