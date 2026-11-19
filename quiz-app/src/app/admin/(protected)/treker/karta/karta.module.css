@@ -1817,3 +1817,30 @@
     display: none;
   }
 }
+
+/* Иконка шага в кольце готовности, номер маленьким значком сбоку. */
+.pNumIcon {
+  position: relative;
+  color: var(--text-primary);
+}
+
+.putOpen .pNumIcon {
+  color: var(--neon-cyan);
+}
+
+.pNumBadge {
+  position: absolute;
+  right: -4px;
+  bottom: -2px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--bg-primary, #0a0612);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  line-height: 15px;
+  text-align: center;
+}
