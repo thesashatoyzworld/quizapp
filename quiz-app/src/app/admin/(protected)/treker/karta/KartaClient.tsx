@@ -838,7 +838,7 @@ function ClientPath({ path, cards, thisWeek }: { path: PathStep[]; cards: Card[]
   const next = steps[shown];
 
   return (
-    <section id="put" className={styles.section}>
+    <section id="put" className={`${styles.section} ${styles.putSection}`}>
       <h2 className={styles.h2}>
         Путь клиента
         <span className={styles.h2Count}>

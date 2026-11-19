@@ -1059,6 +1059,7 @@
 }
 
 .path {
+  max-width: 760px;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1066,6 +1067,7 @@
 
 .pStep {
   --f: 0;
+  scroll-margin-top: 90px;
   display: grid;
   grid-template-columns: 52px 1fr;
   gap: 14px;
@@ -1324,4 +1326,8 @@
     padding: 10px 12px;
     font-size: 0.86rem;
   }
+}
+
+.putSection {
+  scroll-margin-top: 70px;
 }
