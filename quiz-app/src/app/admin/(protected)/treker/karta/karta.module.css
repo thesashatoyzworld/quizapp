@@ -1576,3 +1576,244 @@
 .putTask:hover {
   border-color: rgba(0, 240, 255, 0.35);
 }
+
+/* ---------- путь: шаг раскрывается на месте, маршруты по одному ---------- */
+
+.putOpen .putNodeTitle {
+  color: var(--neon-cyan);
+}
+
+.putInside {
+  margin: 10px 0 18px 62px;
+  animation: putIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.putInside > .pDoes {
+  margin: 0 0 16px;
+}
+
+.putTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.putTab {
+  --c: rgba(255, 255, 255, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    color 0.2s,
+    background 0.2s;
+}
+
+.putTab[data-state='done'] {
+  --c: #00ff88;
+}
+.putTab[data-state='now'] {
+  --c: #00f0ff;
+}
+.putTab[data-state='week'] {
+  --c: #d6ff5c;
+}
+.putTab[data-state='none'] {
+  --c: #ff4d6d;
+}
+
+.putTab .pDot {
+  width: 7px;
+  height: 7px;
+}
+
+.putTab[data-state='later'] .pDot {
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+}
+
+.putTab[aria-selected='true'] {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--c) 60%, transparent);
+  background: color-mix(in srgb, var(--c) 10%, var(--bg-secondary));
+}
+
+.putTabN {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(0, 255, 136, 0.16);
+  color: #00ff88;
+  font-size: 0.72rem;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Маршрут: блоки сверху вниз, между ними стрелка. */
+.lane {
+  max-width: 440px;
+}
+
+.laneItem {
+  animation: putIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.laneArrow {
+  position: relative;
+  height: 34px;
+}
+
+.laneArrow::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  bottom: 10px;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(0, 240, 255, 0.55);
+}
+
+.laneArrow::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-top: 9px solid rgba(0, 240, 255, 0.75);
+  border-bottom: 0;
+}
+
+.laneBlock {
+  --c: rgba(255, 255, 255, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--c) 55%, transparent);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.laneBlock:disabled {
+  cursor: default;
+}
+
+.laneBlock[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--c) 8%, var(--bg-secondary));
+}
+
+.laneBlock[data-state='done'] {
+  --c: #00ff88;
+}
+.laneBlock[data-state='now'] {
+  --c: #00f0ff;
+}
+.laneBlock[data-state='week'] {
+  --c: #d6ff5c;
+}
+.laneBlock[data-state='none'] {
+  --c: #ff4d6d;
+}
+.laneBlock[data-state='later'] {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.laneBlock .pState {
+  color: var(--c);
+}
+
+.laneBlock[data-state='later'] .pState {
+  color: var(--text-muted);
+}
+
+.laneHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.laneHead b {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.laneSub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.laneEnd {
+  --c: #00ff88;
+  background: linear-gradient(180deg, rgba(0, 255, 136, 0.14), rgba(0, 255, 136, 0.04));
+  box-shadow: 0 10px 36px -16px rgba(0, 255, 136, 0.6);
+  cursor: default;
+}
+
+.laneCame {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: #00ff88;
+  white-space: nowrap;
+}
+
+.laneGap {
+  border-style: dashed;
+  cursor: default;
+}
+
+.lane .putTasks {
+  margin: 8px 0 0;
+}
+
+.laneNav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.laneNav .pNext {
+  margin-left: 0;
+}
+
+@media (max-width: 640px) {
+  .putInside {
+    margin-left: 0;
+  }
+  .putTab {
+    padding: 7px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+.putChain li {
+  scroll-margin-top: 72px;
+}
+
+@media (max-width: 640px) {
+  .putChain li.putOpen::after {
+    display: none;
+  }
+}
