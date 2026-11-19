@@ -72,7 +72,11 @@ const PATH = [
     [
       ['forum', 'Ответ на форуме каждый день', ['9c575ed2']],
       ['karta', 'Маршрутная карта по его горлышку', ['eefc09f9', 'd280a2bd']],
-      ['prilozheniya', 'Приложения в кабинете', ['cc6d071c', '9943f7a4', '8a7b3977', '29b7c60b', '185e64aa', 'cd96e804']],
+      [
+        'prilozheniya',
+        'Приложения в кабинете',
+        ['cc6d071c', '9943f7a4', '8a7b3977', '29b7c60b', '185e64aa', 'cd96e804'],
+      ],
       ['sozvony', 'Созвоны раз в месяц', ['b58d6175']],
       ['uroki', 'Уроки под новую методологию', ['63a35890']],
     ],
@@ -140,17 +144,27 @@ const ROUTES = {
     {
       key: 'r-shapka',
       title: 'Шапка профиля',
+      from: ['shapka'],
       nodes: [
         ['sp-profil', 'Заходит в профиль', '«помогаю создавать пиздатые личные бренды»', [], { ready: true }],
-        ['sp-link', 'Жмёт ссылку в шапке', 'ведёт на /potok-sprosa, не на 360', [], { ready: true }],
+        ['sp-link', 'Видит ссылки в шапке', 'первая на /potok-sprosa', [], { ready: true }],
+        ['sp-360', 'Жмёт вторую ссылку: лист 360', '/360?from=shapka', ['8f406bf1']],
+        ['sp-anketa', 'Анкета листа ожидания', 'метка shapka', [], { ready: true }],
       ],
     },
     {
       key: 'r-sajt',
       title: 'Страницы сайта',
+      from: ['site-'],
       nodes: [
         ['sj-stranica', 'Читает главную, кейсы, блог, подкаст', 'про 360 там ни одной ссылки', [], { ready: true }],
-        ['sj-knopki', 'Жмёт кнопку на странице', 'ведут в анкету наставничества, /work и /uroven', [], { ready: true }],
+        [
+          'sj-360',
+          'Видит блок «Личный бренд на 360»',
+          'своя метка у страницы: site-home, site-cases, site-blog',
+          ['1fea572a'],
+        ],
+        ['sj-anketa', 'Анкета листа ожидания', 'по метке видно, какая страница привела', [], { ready: true }],
       ],
     },
     {
@@ -219,6 +233,28 @@ await c.query('BEGIN');
 try {
   await c.query('ALTER TABLE tracker_task ADD COLUMN IF NOT EXISTS map_point text');
   await c.query('ALTER TABLE tracker_map ADD COLUMN IF NOT EXISTS path jsonb');
+
+  // Задачи, которые родились из маршрутов (Саша 19.11): создаются один раз.
+  const NEW_TASKS = [
+    [
+      '8f406bf1-682f-42c1-a98a-a5f2b44e0950',
+      'Вторая ссылка в шапке инсты: лист 360 (/360?from=shapka)',
+      'кто зашёл в профиль, попадает в лист',
+    ],
+    [
+      '1fea572a-e9f4-45a7-95e6-76750934df79',
+      'Блок «Личный бренд на 360» на главной, в кейсах и блоге со своей меткой',
+      'читатели сайта попадают в лист',
+    ],
+  ];
+  for (const [id, title, move] of NEW_TASKS) {
+    await c.query(
+      `INSERT INTO tracker_task (id, kind, title, parent_id, tags, position, map_stage, map_later, map_week, map_move)
+       VALUES ($1, 'quest', $2, '14c62a7b-387d-4131-8b73-4f0e4b16720a', '{360}', 300, 'lyudi', false, '2026-11-16', $3)
+       ON CONFLICT (id) DO NOTHING`,
+      [id, title, move],
+    );
+  }
 
   const ids = (await c.query('SELECT id FROM tracker_task WHERE map_stage IS NOT NULL')).rows.map((r) => r.id);
   const full = (prefix) => {
