@@ -4,7 +4,11 @@ export type MapStage = { key: string; title: string; hint?: string };
 /** Точка пути: что человек встречает на шаге. ready = уже работает без задачи. */
 export type PathPoint = { key: string; title: string; ready?: boolean };
 /** Шаг пути клиента глазами человека. */
-export type PathStep = { key: string; title: string; does: string; points: PathPoint[] };
+/** Узел маршрута: что делает человек. point = берёт задачи другого узла. */
+export type PathNode = { key: string; title: string; sub?: string; ready?: boolean; point?: string };
+/** Маршрут внутри шага: один источник от начала до листа. from = метки анкеты для счёта «пришло». */
+export type PathRoute = { key: string; title: string; from?: string[]; nodes: PathNode[] };
+export type PathStep = { key: string; title: string; does: string; points: PathPoint[]; routes?: PathRoute[] };
 export type Milestone = { from: string; to?: string; label: string; kind: 'launch' | 'pause' | 'mark' };
 
 export type MapView = {

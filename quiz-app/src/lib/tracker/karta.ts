@@ -63,3 +63,20 @@ export async function getScore(): Promise<Score> {
   }
   return { total, byWeek };
 }
+
+/** Откуда пришли люди в лист «360»: метка анкеты (?from=) первой записи человека → сколько. */
+export async function getSources(): Promise<Record<string, number>> {
+  const rows = await prisma.$queryRaw<{ source: string | null; n: bigint }[]>`
+    SELECT source, count(*) AS n
+    FROM (
+      SELECT DISTINCT ON (coalesce(nullif(telegram_id, ''), nullif(lower(username), ''), nullif(phone, ''), id::text))
+             source
+      FROM dwy_leads
+      WHERE kind = '360'
+      ORDER BY coalesce(nullif(telegram_id, ''), nullif(lower(username), ''), nullif(phone, ''), id::text), created_at
+    ) people
+    GROUP BY 1`;
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.source ?? 'direct'] = Number(r.n);
+  return out;
+}

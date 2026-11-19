@@ -91,6 +91,84 @@ const PATH = [
   ],
 ];
 
+// Маршруты внутри шага: каждый источник своей веткой, как в схеме промо группы Маши.
+// Узел: [ключ, что делает человек, подпись, [префиксы задач], флаги]. Флаги: ready = работает без задачи,
+// point = берёт задачи другого узла (одна задача на два маршрута). from = метки анкеты, по ним счёт «пришло».
+const ROUTES = {
+  uvidel: [
+    {
+      key: 'r-tg',
+      title: 'ТГ-канал',
+      from: ['tg_', 'kanal'],
+      nodes: [
+        ['tg-post', 'Видит пост в канале', 'отложенные посты держат канал, пока ты с братом', ['4aee4394']],
+        ['tg-link', 'Жмёт ссылку в посте', 'у поста своя метка tg_дата', [], { ready: true }],
+        ['tg-anketa', 'Анкета листа ожидания', '«набор пока закрыт, первые 30 мест по 10 000»', [], { ready: true }],
+      ],
+    },
+    {
+      key: 'r-konverter',
+      title: 'Карусель-конвертер',
+      from: ['site360'],
+      nodes: [
+        [
+          'kv-karusel',
+          'Видит карусель-конвертер',
+          '«30 мест, 10 заняты… напиши в комментах 360»',
+          ['5441ce1a', 'dc06cd00'],
+        ],
+        ['kv-slovo', 'Пишет «360» в комменты или директ', 'ChatPlace ловит слово', [], { ready: true }],
+        [
+          'kv-otvet',
+          'ChatPlace присылает ответ',
+          '«набор пока закрыт: запишись в лист» + кнопка на /360',
+          ['c39e8ce8'],
+        ],
+        ['kv-stranica', 'Страница /360 с видео', 'кнопки «Записаться в лист ожидания»', ['4e3bf748', '140eee14']],
+        ['kv-anketa', 'Анкета листа ожидания', 'метка site360', [], { ready: true }],
+      ],
+    },
+    {
+      key: 'r-karuseli',
+      title: 'Карусели недели',
+      nodes: [['kr-karusel', 'Видит карусель недели', 'Даня собирает по ТЗ, 7 штук', ['8b79eeac', '8b54c850']]],
+    },
+    {
+      key: 'r-stories',
+      title: 'Сторис',
+      from: ['stories'],
+      nodes: [
+        ['st-story', 'Видит сторис', '', []],
+        ['st-link', 'Жмёт ссылку на лист', 'метка stories', ['6a2bd147']],
+        ['st-anketa', 'Анкета листа ожидания', '', [], { ready: true }],
+      ],
+    },
+    {
+      key: 'r-youtube',
+      title: 'YouTube',
+      from: ['youtube'],
+      nodes: [
+        ['yt-video', 'Смотрит ролик', '', []],
+        ['yt-link', 'Ссылка на лист в описании', '', [], { point: 'st-link' }],
+        ['yt-anketa', 'Анкета листа ожидания', '', [], { ready: true }],
+      ],
+    },
+    {
+      key: 'r-svoi',
+      title: 'Свои т2 и т3',
+      nodes: [
+        ['sv-konec', 'У человека заканчивается т2 или т3', '', [], { ready: true }],
+        ['sv-razgovor', 'Саша пишет лично', '', ['a4b12df7']],
+      ],
+    },
+    {
+      key: 'r-shorts',
+      title: 'Shorts и TikTok',
+      nodes: [['sh-video', 'Видит короткое видео', '', ['1bd651f6']]],
+    },
+  ],
+};
+
 const c = new pg.Client({
   connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -112,14 +190,30 @@ try {
     key,
     title,
     does,
-    points: points.map(([k, t, , ready]) => (ready ? { key: k, title: t, ready: true } : { key: k, title: t })),
+    points: ROUTES[key]
+      ? []
+      : points.map(([k, t, , ready]) => (ready ? { key: k, title: t, ready: true } : { key: k, title: t })),
+    ...(ROUTES[key]
+      ? {
+          routes: ROUTES[key].map((r) => ({
+            key: r.key,
+            title: r.title,
+            ...(r.from ? { from: r.from } : {}),
+            nodes: r.nodes.map(([k, t, sub, , f = {}]) => ({ key: k, title: t, ...(sub ? { sub } : {}), ...f })),
+          })),
+        }
+      : {}),
   }));
   await c.query("UPDATE tracker_map SET path = $1 WHERE id = '360'", [JSON.stringify(path)]);
 
   await c.query('UPDATE tracker_task SET map_point = NULL WHERE map_point IS NOT NULL');
   let linked = 0;
-  for (const [, , , points] of PATH) {
-    for (const [k, , tasks] of points) {
+  const links = [
+    ...PATH.filter(([key]) => !ROUTES[key]).flatMap(([, , , points]) => points.map(([k, , tasks]) => [k, tasks])),
+    ...Object.values(ROUTES).flatMap((rs) => rs.flatMap((r) => r.nodes.map(([k, , , tasks]) => [k, tasks]))),
+  ];
+  {
+    for (const [k, tasks] of links) {
       for (const p of tasks) {
         await c.query('UPDATE tracker_task SET map_point = $2 WHERE id = $1', [full(p), k]);
         linked++;
