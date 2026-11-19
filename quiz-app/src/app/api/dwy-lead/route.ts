@@ -8,6 +8,7 @@ import {
 import { CONSENT_VERSION, DWY_MODES, isDwyKind } from '@/content/dwy';
 import { trackEvent } from '@/lib/notion';
 import { notifyAdminDetailed } from '@/lib/telegram';
+import { waitlistBotUrl } from '@/lib/waitlist-bot';
 import { leadKeyboard } from '@/lib/lead-keyboard';
 import { matchFormFilled } from '@/lib/ig-leads';
 
@@ -131,10 +132,21 @@ export async function POST(req: NextRequest) {
       return null;
     });
 
+    // Человек мог уже бывать в боте: тогда по нику знаем его Телеграм, и бот сможет
+    // написать ему сам. Ошибка поиска не мешает приёму лида.
+    const known = lead.username
+      ? await prisma.user
+          .findFirst({
+            where: { username: { equals: lead.username, mode: 'insensitive' } },
+            select: { telegramId: true },
+          })
+          .catch(() => null)
+      : null;
+
     // Лид пишем первым. Он не должен теряться, что бы ни случилось с Telegram.
     const saved = await prisma.dwyLead.create({
       data: {
-        telegramId: null,
+        telegramId: known ? String(known.telegramId) : null,
         username: lead.username,
         firstName: lead.name,
         who: lead.who,
@@ -214,7 +226,11 @@ export async function POST(req: NextRequest) {
 
     // Номер анкеты отдаём клиенту: он уходит в текст сообщения, которым
     // человек начинает переписку, и по нему бот находит, кто пришёл.
-    return NextResponse.json({ ok: true, id: saved.id });
+    return NextResponse.json({
+      ok: true,
+      id: saved.id,
+      ...(DWY_MODES[kind].botConfirm ? { bot: waitlistBotUrl(saved.id) } : {}),
+    });
   } catch (e) {
     console.error('[dwy-lead] handler error', e);
     return NextResponse.json({ error: 'internal error' }, { status: 500 });
