@@ -341,6 +341,14 @@ function DwyInner() {
       // сами. Разговор всё равно начинать ему: бот постучаться первым не
       // может. Экран «спасибо» при этом отрисовывается: если переход не
       // сработал (Instagram WebView такое умеет), на нём осталась кнопка.
+      // Лист ожидания: открываем бота, он подтвердит запись и запомнит Телеграм.
+      if (mode.botConfirm && typeof data?.bot === 'string') {
+        setHandoffUrl(data.bot);
+        setSent(true);
+        setTimeout(() => window.location.assign(data.bot), 250);
+        return;
+      }
+
       if (mode.handoff) {
         const text = `привет) анкета на менторство - ${name.trim()}${id ? `, #${id}` : ''}`;
         const url = `https://t.me/${mode.handoff.account}?text=${encodeURIComponent(text)}`;
@@ -371,10 +379,10 @@ function DwyInner() {
           {mode.thanks.map((line, i) => (
             <p key={i} className={i === 0 ? 'dwy-done-h' : 'dwy-done-p'}>{line}</p>
           ))}
-          {mode.handoff && handoffUrl && (
+          {(mode.handoff ?? mode.botConfirm) && handoffUrl && (
             <div className="dwy-handoff">
-              <p className="dwy-handoff-note">{mode.handoff.note}</p>
-              <a className="dwy-handoff-btn" href={handoffUrl}>{mode.handoff.button}</a>
+              <p className="dwy-handoff-note">{(mode.handoff ?? mode.botConfirm)!.note}</p>
+              <a className="dwy-handoff-btn" href={handoffUrl}>{(mode.handoff ?? mode.botConfirm)!.button}</a>
             </div>
           )}
         </section>

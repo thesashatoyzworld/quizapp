@@ -10,6 +10,7 @@ import { notifyAdmin, sendBotMessage, editAdminMarkup, type NotifyRef } from '@/
 import { leadKeyboard, parseLeadCallback } from '@/lib/lead-keyboard';
 import { STATUS_LABEL, type LeadStatus } from '@/content/lead-status';
 import { prisma } from '@/lib/prisma';
+import { parseWaitlistStart, WAITLIST_CONFIRM_TEXT } from '@/lib/waitlist-bot';
 import { parseRefParam, rememberReferral } from '@/lib/uniq/referral';
 import { catchForumReply } from '@/lib/forum';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
@@ -1634,6 +1635,32 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
       // uroven_kanal → тариф по умолчанию + тот же источник. Так видно, какой канал
       // привёл покупателя (utm_source = uroven_<метка>).
       // Открываем компактный checkout в мини-аппе; оплата привязывается к Telegram.
+      // Лист ожидания после анкеты: /start wl_<номер>_<подпись>. Привязываем Телеграм
+      // к записи, чтобы об открытии набора бот написал сам, и подтверждаем запись.
+      if (startParam.startsWith('wl_')) {
+        const leadId = parseWaitlistStart(startParam);
+        const lead = leadId
+          ? await prisma.dwyLead.findUnique({ where: { id: leadId }, select: { id: true, kind: true, username: true } })
+          : null;
+        if (lead) {
+          const tgId = update.message.from?.id || chatId;
+          await prisma.dwyLead.update({
+            where: { id: lead.id },
+            data: { telegramId: String(tgId), ...(!lead.username && username ? { username } : {}) },
+          });
+          await sendMessage(chatId, WAITLIST_CONFIRM_TEXT[lead.kind ?? ''] ?? 'анкета принята ✅ напишу сюда, когда открою набор');
+          await trackEvent({
+            event_type: 'waitlist_bot_confirm',
+            user_id: chatId,
+            username: username || undefined,
+            first_name: fullName || undefined,
+            utm_source: 'waitlist_bot',
+            metadata: { lead_id: lead.id, kind: lead.kind },
+          });
+          return NextResponse.json({ ok: true });
+        }
+      }
+
       // Старая ссылка записи с сайта: t.me/testtoyzbot?start=waitlist_t2.
       // Её могли разослать, поэтому не молчим — уводим на анкету, там же
       // спрашиваем телефон и инстаграм. Сами тут ничего не записываем.
