@@ -128,7 +128,7 @@ export default function PutClient({
                   <span className={styles.putNodeTitle}>{s.title}</span>
                   <span className={styles.putNodeMeta}>
                     {s.routes.length
-                      ? `${s.routes.length} ${s.routes.length < 5 ? 'маршрута' : 'маршрутов'}`
+                      ? `${s.routes.length} ${s.routes.length === 1 ? 'маршрут' : s.routes.length < 5 ? 'маршрута' : 'маршрутов'}`
                       : `${s.items.length} ${s.items.length === 1 ? 'ветка' : s.items.length < 5 ? 'ветки' : 'веток'}`}
                     {s.prep > 0 ? (
                       <span className={styles.putPrep}> · подготовить {s.prep}</span>
