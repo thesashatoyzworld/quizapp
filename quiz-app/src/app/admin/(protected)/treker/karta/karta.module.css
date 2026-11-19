@@ -1407,7 +1407,7 @@
   padding: 0;
 }
 
-.putChain li {
+.putChain > li {
   --f: 0;
   position: relative;
   padding-bottom: 14px;
@@ -1415,7 +1415,7 @@
   animation-delay: calc(var(--i, 0) * 60ms);
 }
 
-.putChain li:not(:last-child)::after {
+.putChain > li:not(:last-child)::after {
   content: '';
   position: absolute;
   left: 23px;
@@ -1808,12 +1808,12 @@
   }
 }
 
-.putChain li {
+.putChain > li {
   scroll-margin-top: 72px;
 }
 
 @media (max-width: 640px) {
-  .putChain li.putOpen::after {
+  .putChain > li.putOpen::after {
     display: none;
   }
 }
@@ -1843,4 +1843,20 @@
   font-size: 0.62rem;
   line-height: 15px;
   text-align: center;
+}
+
+/* Открыт один шаг: остальные уходят в тень, чтобы не отвлекали. */
+.putChain > li {
+  transition:
+    opacity 0.35s,
+    filter 0.35s;
+}
+
+.putFocus > li:not(.putOpen) {
+  opacity: 0.22;
+  filter: saturate(0.3);
+}
+
+.putFocus > li:not(.putOpen):hover {
+  opacity: 0.6;
 }
