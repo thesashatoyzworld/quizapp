@@ -1752,6 +1752,8 @@ model TrackerTask {
   mapWeek    String?   @map("map_week")
   /** Карта запуска: что это дело даёт счёту, одной фразой. */
   mapMove    String?   @map("map_move")
+  /** Точка пути клиента на карте (ключ из TrackerMap.path). */
+  mapPoint   String?   @map("map_point")
   position   Int       @default(0)
   archivedAt DateTime? @map("archived_at")
   createdAt  DateTime  @default(now()) @map("created_at")
@@ -1777,6 +1779,8 @@ model TrackerMap {
   stages     Json
   /** [{ from, to?, label, kind: 'launch' | 'pause' | 'mark' }] */
   milestones Json
+  /** Путь клиента: [{ key, title, does, points: [{ key, title, ready? }] }]. */
+  path       Json?
   /** Открытый уровень 1..4. */
   level      Int      @default(1)
   /** Сколько карточек было сделано, когда открылся текущий уровень. */

@@ -1,6 +1,10 @@
 /** Карта запуска: типы и расчёты, общие для сервера и экрана. Без prisma. */
 
 export type MapStage = { key: string; title: string; hint?: string };
+/** Точка пути: что человек встречает на шаге. ready = уже работает без задачи. */
+export type PathPoint = { key: string; title: string; ready?: boolean };
+/** Шаг пути клиента глазами человека. */
+export type PathStep = { key: string; title: string; does: string; points: PathPoint[] };
 export type Milestone = { from: string; to?: string; label: string; kind: 'launch' | 'pause' | 'mark' };
 
 export type MapView = {
@@ -10,6 +14,7 @@ export type MapView = {
   deadline: string;
   stages: MapStage[];
   milestones: Milestone[];
+  path: PathStep[];
   level: number;
   levelBase: number;
   hintsSeen: string[];
@@ -21,7 +26,11 @@ export const UNLOCK_AFTER = 3;
 
 export const LEVELS: { n: number; name: string; hint: string }[] = [
   { n: 1, name: 'Сегодня', hint: 'Только цель и три дела этой недели. Остальное подождёт.' },
-  { n: 2, name: 'Время', hint: 'Полоска до запуска: каждая неделя со своими делами. Нажми на неделю, чтобы её открыть.' },
+  {
+    n: 2,
+    name: 'Время',
+    hint: 'Полоска до запуска: каждая неделя со своими делами. Нажми на неделю, чтобы её открыть.',
+  },
   { n: 3, name: 'Путь клиента', hint: 'Всё, что нужно к запуску, по шагам человека: от «увидел» до результата.' },
   { n: 4, name: 'Всё', hint: 'Под линией то, что сделаем после запуска. Сейчас на это не смотрим.' },
 ];
