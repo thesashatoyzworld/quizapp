@@ -225,6 +225,56 @@ export interface SavedRun {
   baza?: BazaBlock | null;
   /** Owner only: public read-only link to this run. */
   shareUrl?: string;
+  /** «Начало из залётов» (20.11.2026), built on request after the analysis. */
+  nachala?: Nachala | null;
+  /** Owner only: confirmed stats of the published reel, from the student's screenshots. */
+  stats?: StatsEntry[];
+}
+
+export type PromiseKept = 'full' | 'partial' | 'no' | 'none' | 'unknown';
+export interface PromiseCheck { delivered: PromiseKept; promise: string; gap: string }
+
+export interface NachalaPick {
+  plaque: string;
+  speech: string;
+  promise: string;
+  /** The script line where the promise is kept. */
+  keptIn: string;
+  check: PromiseCheck;
+  /** The first adaptation promised more than the reel gives and was narrowed. */
+  narrowed: boolean;
+  src: { code: string; author: string; ratio: number; likes: number | null; first: string; plaque: string | null; url: string; famName: string; famX: number; confirmed: boolean };
+}
+
+export interface Nachala {
+  payoff: { type: string; payoff: string; quote: string; notGiven: string };
+  orig: { plaque: string; speech: string; check: PromiseCheck };
+  picks: NachalaPick[];
+  topic: string | null;
+  ms: number;
+  /** Too few bank openings on the topic. */
+  empty?: boolean;
+}
+
+export const METRIC_KEYS = ['views', 'reach', 'likes', 'comments', 'shares', 'saves', 'reposts', 'follows', 'skip_rate', 'avg_watch_s',
+  'watch_total_s', 'duration_s', 'nonfollowers_pct', 'published'] as const;
+export type MetricKey = (typeof METRIC_KEYS)[number];
+export type ReelMetrics = Partial<Record<Exclude<MetricKey, 'published'>, number>> & { published?: string };
+
+export const METRIC_NAME: Record<MetricKey, string> = {
+  views: 'Просмотры', reach: 'Охват', likes: 'Лайки', comments: 'Комментарии', shares: 'Отправки', saves: 'Сохранения',
+  reposts: 'Репосты', follows: 'Подписки', skip_rate: 'Доля пропусков, %', avg_watch_s: 'Среднее время просмотра, с',
+  watch_total_s: 'Общее время просмотра, с', duration_s: 'Длина ролика, с', nonfollowers_pct: 'Не подписчики, %', published: 'Дата публикации',
+};
+
+export interface StatsEntry {
+  id: string;
+  createdAt: string;
+  /** Which opening the student used: 'own' | 'orig' | 'bank:<code>' | free text. */
+  opening: string | null;
+  reelUrl: string | null;
+  metrics: ReelMetrics;
+  images: string[];
 }
 
 /** Instagram username from "@nick", "nick" or a profile link; null when it does not look like one. */

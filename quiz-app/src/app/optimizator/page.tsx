@@ -4,6 +4,7 @@ import { Fragment, Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import { trackSection } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
+import { BLOCKS_CSS, NachalaBlock, StatsBlock } from './blocks';
 import {
   DEMAND_STATUS, FORMAT_NAME, REASON_ANSWER, SCRIPT_MAX, SCRIPT_MIN, SHARE_KIND, firstLine, ladderVerdict, sourceUrl,
   type BazaBlock, type DemandLink, type Ladder, type ViewerReason, type ViewerReasons, type HistoryItem, type SavedRun, type StudentAnalysis,
@@ -472,7 +473,7 @@ function Details({ a }: { a: StudentAnalysis }) {
   );
 }
 
-function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; shared?: boolean }) {
+function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => void; shared?: boolean; headers?: () => Record<string, string> }) {
   const a: StudentAnalysis = run.result;
   if (!a.input_ok) {
     return (
@@ -535,6 +536,10 @@ function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; sha
         </section>
       )}
 
+      {run.id && (!shared || run.nachala) && (
+        <NachalaBlock runId={run.id} initial={run.nachala} headers={headers || (() => ({}))} readOnly={shared} />
+      )}
+
       {run.baza && <BazaExamples b={run.baza} />}
 
       {a.warnings.length > 0 && (
@@ -565,6 +570,8 @@ function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; sha
       </details>
 
       <Details a={a} />
+
+      {!shared && run.id && <StatsBlock runId={run.id} initial={run.stats} nachala={run.nachala} headers={headers || (() => ({}))} />}
 
       {onNew && <button type="button" className="op-ghost op-again" onClick={onNew}>Разобрать другой сценарий</button>}
       {shared && <p className="op-p op-muted op-made">Разбор сделан в Оптимизаторе рилсов SASHA TOYZ по методике Каллавея.</p>}
@@ -873,7 +880,7 @@ function OptimizatorInner() {
           {busySince && <Waiting startedAt={busySince} />}
 
           <div ref={resultRef} className="op-anchor">
-            {run && <Result run={run} onNew={startNew} />}
+            {run && <Result run={run} onNew={startNew} headers={authHeaders} />}
           </div>
 
           <Feedback initData={initData.current} runId={run?.id || null} />
@@ -896,6 +903,7 @@ function OptimizatorInner() {
         </>
       )}
 
+      <style>{BLOCKS_CSS}</style>
       <style>{`
         html, body {
           background: oklch(0.97 0.006 75) !important;
