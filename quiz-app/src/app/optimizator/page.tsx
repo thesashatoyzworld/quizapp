@@ -4,9 +4,10 @@ import { Fragment, Suspense, useEffect, useRef, useState } from 'react';
 import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import { trackSection } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
+import { BLOCKS_CSS, NachalaBlock, StatsBlock } from './blocks';
 import {
   DEMAND_STATUS, FORMAT_NAME, REASON_ANSWER, SCRIPT_MAX, SCRIPT_MIN, SHARE_KIND, firstLine, ladderVerdict, sourceUrl,
-  type BazaBlock, type DemandLink, type Ladder, type ViewerReason, type ViewerReasons, type HistoryItem, type SavedRun, type StudentAnalysis,
+  type DemandLink, type Ladder, type ViewerReason, type HistoryItem, type SavedRun, type Shans, type StudentAnalysis,
 } from '@/lib/optimizator/view';
 
 // Раздел «Оптимизатор рилсов»: ученик вставляет только текст ролика, сервер ищет
@@ -259,85 +260,6 @@ function LadderBlock({ l }: { l: Ladder }) {
   );
 }
 
-const REASONS: { key: keyof ViewerReasons; title: string }[] = [
-  { key: 'stop', title: 'Остановятся?' },
-  { key: 'finish', title: 'Досмотрят?' },
-  { key: 'save_share', title: 'Сохранят или перешлют?' },
-];
-
-function ReasonsBlock({ r }: { r: ViewerReasons }) {
-  return (
-    <section className="op-card">
-      <h2 className="op-h2">Причины у зрителя</h2>
-      <div className="op-reasons">
-        {REASONS.map(({ key, title }) => {
-          const v: ViewerReason | undefined = r[key];
-          if (!v) return null;
-          const tone = v.answer === 'yes' ? 'op-good' : v.answer === 'partly' ? 'op-mid' : 'op-low';
-          const kind = key === 'save_share' && v.kind ? SHARE_KIND[v.kind] : '';
-          return (
-            <div className="op-reason" key={key}>
-              <div className="op-crit-head">
-                <span className="op-crit-name">{title}</span>
-                <span className={`op-reason-ans ${tone}`}>
-                  {kind && v.answer !== 'no' ? kind : `причина: ${REASON_ANSWER[v.answer] || v.answer}`}
-                  <b>{v.score}<small>/10</small></b>
-                </span>
-              </div>
-              <div className="op-bar"><i className={tone} style={{ width: `${v.score * 10}%` }} /></div>
-              <p className="op-p">{v.reason}</p>
-              {v.fix && <p className="op-p op-reason-fix">{v.fix}</p>}
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-const BAZA_HEAD: Record<BazaBlock['need'], { title: string; note: string }> = {
-  share: {
-    title: 'Как это делают залёты: их пересылают',
-    note: 'Ролики других авторов на твою тему, которые набрали в 3+ раза больше обычного. Смотри, что в них хочется отправить своему человеку: это главное отличие залётов от провалов.',
-  },
-  finish: {
-    title: 'Как это делают залёты: их досматривают',
-    note: 'Ролики других авторов на твою тему, которые набрали в 3+ раза больше обычного. Главный момент у них в конце, и по дороге нет провисаний.',
-  },
-  all: {
-    title: 'Залёты по твоей теме',
-    note: 'Ролики других авторов, которые набрали в 3+ раза больше обычного: их пересылают, досматривают, главный момент в конце.',
-  },
-};
-
-/** Hits of other authors on the topic that do well what the script lacks (reels base). */
-function BazaExamples({ b }: { b: BazaBlock }) {
-  if (!b.items.length) return null;
-  const head = BAZA_HEAD[b.need] || BAZA_HEAD.all;
-  return (
-    <section className="op-card">
-      <h2 className="op-h2">{head.title}</h2>
-      <p className="op-p op-muted">{head.note}</p>
-      <ul className="op-links">
-        {b.items.map((x) => (
-          <li key={x.url}>
-            <a href={x.url} target="_blank" rel="noopener noreferrer">
-              <span className="op-link-top">
-                <b>@{x.author}</b>
-                <span className="op-ratio">{fmtRatio(x.ratio)}</span>
-                <span className="op-link-kind">рилс ↗</span>
-              </span>
-              <span className="op-link-text op-link-line">«{x.line}»</span>
-              <span className="op-link-text">
-                {b.need !== 'finish' && x.who ? `Перешлют: ${x.who}. ` : ''}{x.why || x.idea}
-              </span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 
 function Details({ a }: { a: StudentAnalysis }) {
   const g = a.hook_gate;
@@ -472,8 +394,108 @@ function Details({ a }: { a: StudentAnalysis }) {
   );
 }
 
-function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; shared?: boolean }) {
+const STEP_PARTS: Record<'stop' | 'save_share' | 'finish', string[]> = {
+  stop: ['начало'],
+  save_share: ['переслать', 'сохранить'],
+  finish: ['середина', 'конец', 'подача', 'длина', 'формат'],
+};
+
+function fmtOr(or: number) {
+  return '×' + String(Math.round(or * 100) / 100).replace('.', ',');
+}
+
+/** «Шанс на залёт»: the number first, then the verdict. Fetches the score for runs saved before it existed. */
+function ShansHero({ run, verdict, headers, shared }: { run: SavedRun; verdict: string; headers?: () => Record<string, string>; shared?: boolean }) {
+  const [s, setS] = useState<Shans | null>(run.shans ?? null);
+  const [state, setState] = useState<'idle' | 'busy' | 'error'>('idle');
+  // Mounted with key={run.id}, so this runs once per run.
+  useEffect(() => {
+    if (run.shans || shared || !run.id) return;
+    let stop = false;
+    fetch('/api/cabinet/optimizator/shans', {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'content-type': 'application/json', ...(headers ? headers() : {}) },
+      body: JSON.stringify({ id: run.id }),
+    }).then((r) => r.json()).then((d) => {
+      if (stop) return;
+      if (d.shans) { setS(d.shans); setState('idle'); } else setState('error');
+    }).catch(() => { if (!stop) setState('error'); });
+    return () => { stop = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run.id]);
+  const tone = s ? (s.band >= 3 ? 'op-good' : s.band === 2 ? 'op-mid' : 'op-low') : '';
+  return (
+    <section className="op-card op-hero op-shans">
+      <div className="op-eyebrow">Шанс на залёт</div>
+      {s ? (
+        <>
+          <div className="op-shans-top">
+            <span className={`op-shans-n ${tone}`}>{Math.round(s.hitShare * 100)}%</span>
+            <span className="op-shans-l">{s.bandName}<span>в среднем по базе 50%</span></span>
+          </div>
+          <div className="op-shans-scale" aria-hidden="true">
+            {[0, 1, 2, 3, 4].map((b) => <i key={b} className={b === s.band ? tone : ''} />)}
+          </div>
+          <p className="op-shans-note">Столько залётов среди роликов базы с теми же приёмами. Сильнее {s.pct}% роликов.</p>
+        </>
+      ) : state === 'error' ? (
+        <p className="op-p op-muted">Шанс не посчитался. Обнови страницу через минуту.</p>
+      ) : shared ? null : (
+        <p className="op-p op-muted"><span className="op-spinner op-spinner-sm" /> Считаю шанс по базе залётов…</p>
+      )}
+      <p className="op-verdict">{verdict}</p>
+    </section>
+  );
+}
+
+function ShansChips({ s, parts }: { s: Shans | null | undefined; parts: string[] }) {
+  if (!s) return null;
+  const plus = s.plus.filter((x) => parts.includes(x.part));
+  const minus = s.minus.filter((x) => parts.includes(x.part));
+  if (!plus.length && !minus.length) return null;
+  return (
+    <div className="op-shans-chips">
+      {plus.map((x) => <span key={x.name} className="op-chk op-chk-ok">{x.name} {fmtOr(x.or)}</span>)}
+      {minus.map((x) => <span key={x.name} className="op-chk op-chk-no">{x.name} {fmtOr(x.or)}</span>)}
+    </div>
+  );
+}
+
+function ReasonCard({ title, v, isShare }: { title: string; v: ViewerReason | undefined; isShare?: boolean }) {
+  if (!v) return null;
+  const tone = v.answer === 'yes' ? 'op-good' : v.answer === 'partly' ? 'op-mid' : 'op-low';
+  const kind = isShare && v.kind ? SHARE_KIND[v.kind] : '';
+  return (
+    <div className="op-reason">
+      <div className="op-crit-head">
+        <span className="op-crit-name">{title}</span>
+        <span className={`op-reason-ans ${tone}`}>
+          {kind && v.answer !== 'no' ? kind : REASON_ANSWER[v.answer] || v.answer}
+          <b>{v.score}<small>/10</small></b>
+        </span>
+      </div>
+      <div className="op-bar"><i className={tone} style={{ width: `${v.score * 10}%` }} /></div>
+      <p className="op-p">{v.reason}</p>
+      {v.fix && <p className="op-p op-reason-fix">{v.fix}</p>}
+    </div>
+  );
+}
+
+/** Inside Telegram a plain link replaces the Mini App with Instagram; openLink keeps the run open behind it. */
+function openOutside(e: React.MouseEvent) {
+  const a = (e.target as HTMLElement).closest('a[target="_blank"]') as HTMLAnchorElement | null;
+  const tg = (window as unknown as { Telegram?: { WebApp?: { openLink?: (u: string) => void; initData?: string } } }).Telegram?.WebApp;
+  if (!a || !tg?.openLink || !tg.initData) return;
+  e.preventDefault();
+  tg.openLink(a.href);
+}
+
+function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => void; shared?: boolean; headers?: () => Record<string, string> }) {
   const a: StudentAnalysis = run.result;
+  // Mounted with key={run.id}: a new run starts at step 1.
+  const [step, setStep] = useState(0);
+  const [nach, setNach] = useState(run.nachala);
+  const finalText = nach?.v === 2 && nach.best && !nach.best.keep && nach.text ? nach.text : run.result.rewrite?.script ?? '';
   if (!a.input_ok) {
     return (
       <section className="op-card op-result">
@@ -486,88 +508,140 @@ function Result({ run, onNew, shared }: { run: SavedRun; onNew?: () => void; sha
   // Runs saved before v5 for an already filmed reel: the rewrite there is an editing plan.
   const oldPlan = !a.v5 && (run.stage === 'filmed' || a.stage === 'filmed');
   const format = a.format && a.format.type !== 'unknown' ? FORMAT_NAME[a.format.type] || a.format.type : null;
-  const why = a.detected_goal?.evidence;
+  const r = a.viewer_reasons;
+  const hdr = headers || (() => ({}));
+
+  const steps: { key: string; title: string; body: React.ReactNode }[] = [
+    {
+      key: 'stop', title: 'Начало',
+      body: (
+        <>
+          {run.id && (!shared || run.nachala) ? (
+            <NachalaBlock runId={run.id} initial={nach} headers={hdr} readOnly={shared} stop={r?.stop} onReady={setNach} />
+          ) : (
+            <section className="op-card"><ReasonCard title="Остановятся?" v={r?.stop} /></section>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'share', title: 'Пересылки',
+      body: (
+        <>
+          <section className="op-card">
+            <ReasonCard title="Сохранят или перешлют?" v={r?.save_share} isShare />
+            <ShansChips s={run.shans} parts={STEP_PARTS.save_share} />
+          </section>
+        </>
+      ),
+    },
+    {
+      key: 'finish', title: 'Досмотр',
+      body: (
+        <>
+          <section className="op-card">
+            <ReasonCard title="Досмотрят?" v={r?.finish} />
+            <ShansChips s={run.shans} parts={STEP_PARTS.finish} />
+          </section>
+        </>
+      ),
+    },
+    {
+      key: 'text', title: 'Текст',
+      body: (
+        <section className="op-card op-rewrite">
+          <h2 className="op-h2">{oldPlan ? 'Монтажный план' : 'Текст со всеми правками'}</h2>
+          {a.top_fixes.length > 0 && (
+            <ol className="op-fix op-fix-sm">
+              {a.top_fixes.slice(0, 3).map((f, i) => <li key={i}><p className="op-p">{f.text}</p></li>)}
+            </ol>
+          )}
+          {a.rewrite.placeholders.length > 0 && (
+            <p className="op-p op-muted">Жёлтым отмечено то, что знаешь только ты: впиши свой пример, цифру или лид-магнит.</p>
+          )}
+          {finalText !== a.rewrite.script && <p className="op-p op-muted">Начало уже заменено на то, что предложено на шаге «Начало».</p>}
+          <pre className="op-script"><WithPlaceholders text={finalText} fill={a.rewrite.placeholders} /></pre>
+          <p className="op-p op-muted">Это пример, а не замена: своими словами будет живее.</p>
+          <div className="op-row">
+            <CopyButton text={finalText} label={oldPlan ? 'Скопировать план' : 'Скопировать текст'} primary />
+          </div>
+        </section>
+      ),
+    },
+  ];
+  if (!shared && run.id) {
+    steps.push({
+      key: 'stats', title: 'Скрины',
+      body: <StatsBlock runId={run.id} initial={run.stats} nachala={nach} headers={hdr} stop={r?.stop} />,
+    });
+  }
+  // Screen 0 is the chance and the verdict; then one step per screen (Sasha 21.11: «каждый экран отдельно, а не листанием вниз»).
+  const screens = [{ key: 'shans', title: 'Итог' }, ...steps.map(({ key, title }) => ({ key, title }))];
+  const cur = Math.min(step, screens.length - 1);
+  const last = cur === screens.length - 1;
+  const go = (i: number) => {
+    setStep(i);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'auto' }), 0);
+  };
+
   return (
-    <div className="op-result">
-      <div className="op-meta">
-        <div className="op-eyebrow">Разбор · {fmtDate(run.createdAt)}</div>
-        <p className="op-meta-line">
-          Цель: <b>{a.goal === 'conversion' ? 'заявки' : 'охват'}</b>
-          {format && <> · Формат: <b>{format}</b></>}
-        </p>
-        {why && <p className="op-meta-why">{why}</p>}
+    <div className="op-result op-screens" onClick={openOutside}>
+      <div className="op-screen-top">
+        {onNew && <button type="button" className="op-back op-back-btn" onClick={onNew}>‹ Все разборы</button>}
+        <div className="op-dots" aria-label={`Шаг ${cur + 1} из ${screens.length}`}>
+          {screens.map((s, i) => (
+            <button key={s.key} type="button" className={i === cur ? 'op-dot op-dot-on' : i < cur ? 'op-dot op-dot-done' : 'op-dot'}
+              onClick={() => go(i)} aria-label={s.title} />
+          ))}
+        </div>
+        <div className="op-screen-title">{cur + 1}/{screens.length} · {screens[cur].title}</div>
       </div>
 
-      {!shared && run.shareUrl && <ShareRun url={run.shareUrl} />}
-
-      {shared && (
-        <details className="op-card op-details">
-          <summary>Сценарий<span>текст, который разбирали</span></summary>
-          <div className="op-sect"><pre className="op-script">{run.script}</pre></div>
-        </details>
-      )}
-
-      {run.ladder ? <LadderBlock l={run.ladder} /> : shared ? null : (
-        <section className="op-card op-ladder-none">
-          <p className="op-p op-muted">
-            Сравнения с твоими прошлыми роликами нет: не указан ник, аккаунт закрыт или в нём меньше 4 рилсов с речью.
-          </p>
-        </section>
-      )}
-
-      <section className={run.ladder ? 'op-card op-summary' : 'op-card op-summary op-hero'}>
-        <p className="op-verdict">{a.verdict}</p>
-      </section>
-
-      {a.viewer_reasons && <ReasonsBlock r={a.viewer_reasons} />}
-
-      {a.top_fixes.length > 0 && (
-        <section className="op-card">
-          <h2 className="op-h2">Что поправить</h2>
-          <ol className="op-fix">
-            {a.top_fixes.slice(0, 3).map((f, i) => (
-              <li key={i}>
-                <p className="op-p">{f.text}</p>
-                {f.example && <blockquote className="op-quote op-quote-ex">{f.example}</blockquote>}
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      {run.baza && <BazaExamples b={run.baza} />}
-
-      {a.warnings.length > 0 && (
-        <section className="op-card op-warn">
-          <h2 className="op-h2">Обрати внимание</h2>
-          <ul className="op-list">{a.warnings.map((s, i) => <li key={i}>{s}</li>)}</ul>
-        </section>
-      )}
-
-      {a.v5 && a.demand && <DemandBlock demand={a.demand} links={run.demandLinks || []} />}
-
-      <details className="op-card op-details op-rewrite">
-        <summary>
-          {oldPlan ? 'Монтажный план' : 'Пример, как это может звучать'}
-          <span>{oldPlan ? 'план монтажа под снятый ролик' : 'не замена твоему тексту: своими словами будет живее'}</span>
-        </summary>
-        <div className="op-sect">
-          {a.rewrite.placeholders.length > 0 && (
-            <p className="op-p op-muted">
-              Жёлтым отмечено то, что знаешь только ты: впиши свой пример, цифру или лид-магнит.
+      <div className="op-step" key={screens[cur].key}>
+        {cur === 0 ? (
+          <>
+            <ShansHero key={run.id} run={run} verdict={a.verdict} headers={headers} shared={shared} />
+            <p className="op-meta-line op-meta-small">
+              Цель: <b>{a.goal === 'conversion' ? 'заявки' : 'охват'}</b>
+              {format && <> · Формат: <b>{format}</b></>}
             </p>
-          )}
-          <pre className="op-script"><WithPlaceholders text={a.rewrite.script} fill={a.rewrite.placeholders} /></pre>
-          <div className="op-row">
-            <CopyButton text={a.rewrite.script} label={oldPlan ? 'Скопировать план' : 'Скопировать пример'} />
-          </div>
-        </div>
-      </details>
+          </>
+        ) : steps[cur - 1].body}
+      </div>
 
-      <Details a={a} />
+      <div className="op-step-nav">
+        {cur > 0 && <button type="button" className="op-ghost op-step-back" onClick={() => go(cur - 1)}>‹</button>}
+        {!last && (
+          <button type="button" className="op-run op-step-next" onClick={() => go(cur + 1)}>
+            Дальше: {screens[cur + 1].title.toLowerCase()} ›
+          </button>
+        )}
+      </div>
 
-      {onNew && <button type="button" className="op-ghost op-again" onClick={onNew}>Разобрать другой сценарий</button>}
-      {shared && <p className="op-p op-muted op-made">Разбор сделан в Оптимизаторе рилсов SASHA TOYZ по методике Каллавея.</p>}
+      {last && (
+        <>
+          <details className="op-card op-details">
+            <summary>Подробный разбор<span>спрос на тему, предупреждения, балл, критерии, ещё хуки</span></summary>
+            <div className="op-sect op-more">
+              {shared && (
+                <section className="op-card"><h2 className="op-h2">Сценарий</h2><pre className="op-script">{run.script}</pre></section>
+              )}
+              {run.ladder && <LadderBlock l={run.ladder} />}
+              {a.warnings.length > 0 && (
+                <section className="op-card op-warn">
+                  <h2 className="op-h2">Обрати внимание</h2>
+                  <ul className="op-list">{a.warnings.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                </section>
+              )}
+              {a.v5 && a.demand && <DemandBlock demand={a.demand} links={run.demandLinks || []} />}
+              <Details a={a} />
+            </div>
+          </details>
+          {!shared && run.shareUrl && <ShareRun url={run.shareUrl} />}
+          {onNew && <button type="button" className="op-ghost op-again" onClick={onNew}>Разобрать другой сценарий</button>}
+          {shared && <p className="op-p op-muted op-made">Разбор сделан в Оптимизаторе рилсов SASHA TOYZ по методике Каллавея.</p>}
+        </>
+      )}
     </div>
   );
 }
@@ -792,7 +866,7 @@ function OptimizatorInner() {
         </header>
       )}
 
-      {state === 'shared' && run && <Result run={run} shared />}
+      {state === 'shared' && run && <Result key={run.id} run={run} shared />}
       {state === 'shared_bad' && (
         <div className="op-card"><p className="op-p">Разбор по этой ссылке не открылся. Попроси прислать ссылку ещё раз.</p></div>
       )}
@@ -825,6 +899,7 @@ function OptimizatorInner() {
 
       {state === 'ok' && (
         <>
+          {!run && (
           <section className="op-card op-form">
             <div className="op-form-head">
               <label className="op-label" htmlFor="op-script">Текст ролика</label>
@@ -869,20 +944,21 @@ function OptimizatorInner() {
             </button>
             {error && <div className="op-error" role="alert">{error}</div>}
           </section>
+          )}
 
           {busySince && <Waiting startedAt={busySince} />}
 
           <div ref={resultRef} className="op-anchor">
-            {run && <Result run={run} onNew={startNew} />}
+            {run && <Result key={run.id} run={run} onNew={startNew} headers={authHeaders} />}
           </div>
 
-          <Feedback initData={initData.current} runId={run?.id || null} />
+          {run && <Feedback initData={initData.current} runId={run.id || null} />}
 
-          {items.length > 0 && (
+          {!run && items.length > 0 && (
             <section className="op-history">
               <div className="op-label">Прошлые разборы</div>
               {items.map((h) => (
-                <button type="button" key={h.id} className={run?.id === h.id ? 'op-hist op-hist-on' : 'op-hist'}
+                <button type="button" key={h.id} className="op-hist"
                   onClick={() => loadRun(h.id)}>
                   <span className={`op-hist-score ${h.score !== null ? scoreTone100(h.score) : ''}`}>{h.score ?? '·'}</span>
                   <span className="op-hist-body">
@@ -896,6 +972,7 @@ function OptimizatorInner() {
         </>
       )}
 
+      <style>{BLOCKS_CSS}</style>
       <style>{`
         html, body {
           background: oklch(0.97 0.006 75) !important;
@@ -1004,6 +1081,42 @@ function OptimizatorInner() {
         .op-progress i { display: block; height: 100%; background: var(--op-accent); border-radius: 99px; transition: width .5s linear; }
 
         .op-anchor { scroll-margin-top: 12px; }
+        .op-shans-top { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+        .op-shans-n { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 60px; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+        .op-shans-n.op-good { color: var(--op-good); } .op-shans-n.op-mid { color: var(--op-mid); } .op-shans-n.op-low { color: var(--op-low); }
+        .op-shans-l { display: flex; flex-direction: column; gap: 3px; font-weight: 800; font-size: 16px; line-height: 1.25; }
+        .op-shans-l span { font-weight: 600; font-size: 12.5px; color: var(--op-muted); }
+        .op-shans-scale { display: flex; gap: 5px; margin-top: 12px; }
+        .op-shans-scale i { flex: 1 1 0; height: 7px; border-radius: 99px; background: var(--op-line); }
+        .op-shans-scale i.op-good { background: var(--op-good); } .op-shans-scale i.op-mid { background: var(--op-mid); } .op-shans-scale i.op-low { background: var(--op-low); }
+        .op-shans-note { margin: 8px 0 0; font-size: 12px; line-height: 1.4; color: var(--op-muted); }
+        .op-shans .op-verdict { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--op-line); }
+        .op-shans-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+        .op-spinner-sm { width: 14px; height: 14px; border-width: 2px; margin: 0 6px -2px 0; }
+        .op-stepper { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin: 4px 0 12px; }
+        .op-stepper::-webkit-scrollbar { display: none; }
+        .op-st { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; border: 1px solid var(--op-line); background: var(--op-surface); color: var(--op-muted); font-family: inherit; font-weight: 700; font-size: 11px; letter-spacing: -0.03em; padding: 8px 0 7px; border-radius: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 52px; }
+        @media (max-width: 380px) { .op-st { font-size: 10px; letter-spacing: -0.04em; } }
+        .op-st b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--op-bg); font-size: 11.5px; font-weight: 800; }
+        .op-st-on { border-color: var(--op-accent); color: var(--op-text); }
+        .op-st-on b { background: var(--op-accent); color: oklch(1 0 0); }
+        .op-st-done b { background: var(--op-good-soft); color: var(--op-good); }
+        .op-step { animation: op-in .3s ease-out both; }
+        .op-screen-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+        .op-back-btn { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; margin: 0; }
+        .op-dots { display: flex; gap: 5px; flex: 1 1 100%; order: 3; }
+        .op-dot { flex: 1 1 0; height: 6px; border-radius: 99px; border: none; padding: 0; cursor: pointer; background: var(--op-line); }
+        .op-dot-done { background: var(--op-good); } .op-dot-on { background: var(--op-accent); }
+        .op-screen-title { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--op-muted); }
+        .op-meta-small { font-size: 13px; color: var(--op-muted); padding: 0 4px; margin: 0 0 12px; }
+        .op-step-nav .op-step-back { font-size: 18px; padding: 11px 18px; }
+        .op-step-nav { display: flex; gap: 8px; margin: 4px 0 14px; }
+        .op-step-nav .op-step-back { width: auto; flex: 0 0 auto; margin: 0; padding: 13px 16px; }
+        .op-step-nav .op-step-next { margin: 0; flex: 1 1 auto; }
+        .op-fix-sm li { padding: 7px 0 7px 28px; }
+        .op-fix-sm li::before { font-size: 16px; }
+        .op-more { display: grid; gap: 0; }
+        .op-more > .op-card, .op-more > details { margin-bottom: 10px; }
         .op-result { animation: op-in .45s ease-out both; }
         @keyframes op-in { from { opacity: 0; transform: translateY(8px); } }
         .op-hero { border-color: var(--op-text); }
