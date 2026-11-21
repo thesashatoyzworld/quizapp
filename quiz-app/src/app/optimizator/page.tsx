@@ -7,7 +7,7 @@ import OpenInBrowser from '@/components/OpenInBrowser';
 import { BLOCKS_CSS, NachalaBlock, StatsBlock } from './blocks';
 import {
   DEMAND_STATUS, FORMAT_NAME, REASON_ANSWER, SCRIPT_MAX, SCRIPT_MIN, SHARE_KIND, firstLine, ladderVerdict, sourceUrl,
-  type BazaBlock, type DemandLink, type Ladder, type ViewerReason, type ViewerReasons, type HistoryItem, type SavedRun, type Shans, type StudentAnalysis,
+  type BazaBlock, type DemandLink, type Ladder, type ViewerReason, type HistoryItem, type SavedRun, type Shans, type StudentAnalysis,
 } from '@/lib/optimizator/view';
 
 // Раздел «Оптимизатор рилсов»: ученик вставляет только текст ролика, сервер ищет
@@ -529,7 +529,6 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
   const a: StudentAnalysis = run.result;
   // Mounted with key={run.id}: a new run starts at step 1.
   const [step, setStep] = useState(0);
-  const stepsRef = useRef<HTMLDivElement>(null);
   if (!a.input_ok) {
     return (
       <section className="op-card op-result">
@@ -544,7 +543,12 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
   const format = a.format && a.format.type !== 'unknown' ? FORMAT_NAME[a.format.type] || a.format.type : null;
   const r = a.viewer_reasons;
   const hdr = headers || (() => ({}));
-  const bazaFor = (need: 'share' | 'finish') => run.baza && (run.baza.need === need || (need === 'share' && run.baza.need === 'all')) ? <BazaExamples b={run.baza} /> : null;
+  const bazaFor = (need: 'share' | 'finish') => run.baza && run.baza.items.length && (run.baza.need === need || (need === 'share' && run.baza.need === 'all')) ? (
+    <details className="op-card op-details">
+      <summary>Как это делают залёты<span>{run.baza.items.length} ролика других авторов по твоей теме</span></summary>
+      <div className="op-sect op-more"><BazaExamples b={run.baza} /></div>
+    </details>
+  ) : null;
 
   const steps: { key: string; title: string; body: React.ReactNode }[] = [
     {
@@ -611,69 +615,76 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
       body: <StatsBlock runId={run.id} initial={run.stats} nachala={run.nachala} headers={hdr} stop={r?.stop} />,
     });
   }
-  const cur = Math.min(step, steps.length - 1);
+  // Screen 0 is the chance and the verdict; then one step per screen (Sasha 21.11: «каждый экран отдельно, а не листанием вниз»).
+  const screens = [{ key: 'shans', title: 'Итог' }, ...steps.map(({ key, title }) => ({ key, title }))];
+  const cur = Math.min(step, screens.length - 1);
+  const last = cur === screens.length - 1;
   const go = (i: number) => {
     setStep(i);
-    setTimeout(() => stepsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'auto' }), 0);
   };
 
   return (
-    <div className="op-result">
-      <div className="op-meta">
-        <div className="op-eyebrow">Разбор · {fmtDate(run.createdAt)}</div>
-        <p className="op-meta-line">
-          Цель: <b>{a.goal === 'conversion' ? 'заявки' : 'охват'}</b>
-          {format && <> · Формат: <b>{format}</b></>}
-        </p>
-      </div>
-
-      {shared && (
-        <details className="op-card op-details">
-          <summary>Сценарий<span>текст, который разбирали</span></summary>
-          <div className="op-sect"><pre className="op-script">{run.script}</pre></div>
-        </details>
-      )}
-
-      <ShansHero key={run.id} run={run} verdict={a.verdict} headers={headers} shared={shared} />
-
-      <div ref={stepsRef} className="op-anchor">
-        <nav className="op-stepper" aria-label="Шаги разбора">
-          {steps.map((s, i) => (
-            <button key={s.key} type="button" className={i === cur ? 'op-st op-st-on' : i < cur ? 'op-st op-st-done' : 'op-st'}
-              onClick={() => go(i)} aria-current={i === cur ? 'step' : undefined}>
-              <b>{i + 1}</b>{s.title}
-            </button>
+    <div className="op-result op-screens">
+      <div className="op-screen-top">
+        {onNew && <button type="button" className="op-back op-back-btn" onClick={onNew}>‹ Все разборы</button>}
+        <div className="op-dots" aria-label={`Шаг ${cur + 1} из ${screens.length}`}>
+          {screens.map((s, i) => (
+            <button key={s.key} type="button" className={i === cur ? 'op-dot op-dot-on' : i < cur ? 'op-dot op-dot-done' : 'op-dot'}
+              onClick={() => go(i)} aria-label={s.title} />
           ))}
-        </nav>
-        <div className="op-step" key={steps[cur].key}>{steps[cur].body}</div>
-        <div className="op-step-nav">
-          {cur > 0 && <button type="button" className="op-ghost op-step-back" onClick={() => go(cur - 1)}>‹ Назад</button>}
-          {cur < steps.length - 1 && (
-            <button type="button" className="op-run op-step-next" onClick={() => go(cur + 1)}>
-              Дальше: {steps[cur + 1].title.toLowerCase()} ›
-            </button>
-          )}
         </div>
+        <div className="op-screen-title">{cur + 1}/{screens.length} · {screens[cur].title}</div>
       </div>
 
-      <details className="op-card op-details">
-        <summary>Подробный разбор<span>спрос на тему, предупреждения, балл, критерии, ещё хуки</span></summary>
-        <div className="op-sect op-more">
-          {run.ladder && <LadderBlock l={run.ladder} />}
-          {a.warnings.length > 0 && (
-            <section className="op-card op-warn">
-              <h2 className="op-h2">Обрати внимание</h2>
-              <ul className="op-list">{a.warnings.map((s, i) => <li key={i}>{s}</li>)}</ul>
-            </section>
-          )}
-          {a.v5 && a.demand && <DemandBlock demand={a.demand} links={run.demandLinks || []} />}
-          <Details a={a} />
-        </div>
-      </details>
+      <div className="op-step" key={screens[cur].key}>
+        {cur === 0 ? (
+          <>
+            <ShansHero key={run.id} run={run} verdict={a.verdict} headers={headers} shared={shared} />
+            <p className="op-meta-line op-meta-small">
+              Цель: <b>{a.goal === 'conversion' ? 'заявки' : 'охват'}</b>
+              {format && <> · Формат: <b>{format}</b></>}
+            </p>
+            {shared && (
+              <details className="op-card op-details">
+                <summary>Сценарий<span>текст, который разбирали</span></summary>
+                <div className="op-sect"><pre className="op-script">{run.script}</pre></div>
+              </details>
+            )}
+          </>
+        ) : steps[cur - 1].body}
+      </div>
 
-      {!shared && run.shareUrl && <ShareRun url={run.shareUrl} />}
-      {onNew && <button type="button" className="op-ghost op-again" onClick={onNew}>Разобрать другой сценарий</button>}
-      {shared && <p className="op-p op-muted op-made">Разбор сделан в Оптимизаторе рилсов SASHA TOYZ по методике Каллавея.</p>}
+      <div className="op-step-nav">
+        {cur > 0 && <button type="button" className="op-ghost op-step-back" onClick={() => go(cur - 1)}>‹</button>}
+        {!last && (
+          <button type="button" className="op-run op-step-next" onClick={() => go(cur + 1)}>
+            Дальше: {screens[cur + 1].title.toLowerCase()} ›
+          </button>
+        )}
+      </div>
+
+      {last && (
+        <>
+          <details className="op-card op-details">
+            <summary>Подробный разбор<span>спрос на тему, предупреждения, балл, критерии, ещё хуки</span></summary>
+            <div className="op-sect op-more">
+              {run.ladder && <LadderBlock l={run.ladder} />}
+              {a.warnings.length > 0 && (
+                <section className="op-card op-warn">
+                  <h2 className="op-h2">Обрати внимание</h2>
+                  <ul className="op-list">{a.warnings.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                </section>
+              )}
+              {a.v5 && a.demand && <DemandBlock demand={a.demand} links={run.demandLinks || []} />}
+              <Details a={a} />
+            </div>
+          </details>
+          {!shared && run.shareUrl && <ShareRun url={run.shareUrl} />}
+          {onNew && <button type="button" className="op-ghost op-again" onClick={onNew}>Разобрать другой сценарий</button>}
+          {shared && <p className="op-p op-muted op-made">Разбор сделан в Оптимизаторе рилсов SASHA TOYZ по методике Каллавея.</p>}
+        </>
+      )}
     </div>
   );
 }
@@ -931,6 +942,7 @@ function OptimizatorInner() {
 
       {state === 'ok' && (
         <>
+          {!run && (
           <section className="op-card op-form">
             <div className="op-form-head">
               <label className="op-label" htmlFor="op-script">Текст ролика</label>
@@ -975,6 +987,7 @@ function OptimizatorInner() {
             </button>
             {error && <div className="op-error" role="alert">{error}</div>}
           </section>
+          )}
 
           {busySince && <Waiting startedAt={busySince} />}
 
@@ -982,13 +995,13 @@ function OptimizatorInner() {
             {run && <Result key={run.id} run={run} onNew={startNew} headers={authHeaders} />}
           </div>
 
-          <Feedback initData={initData.current} runId={run?.id || null} />
+          {run && <Feedback initData={initData.current} runId={run.id || null} />}
 
-          {items.length > 0 && (
+          {!run && items.length > 0 && (
             <section className="op-history">
               <div className="op-label">Прошлые разборы</div>
               {items.map((h) => (
-                <button type="button" key={h.id} className={run?.id === h.id ? 'op-hist op-hist-on' : 'op-hist'}
+                <button type="button" key={h.id} className="op-hist"
                   onClick={() => loadRun(h.id)}>
                   <span className={`op-hist-score ${h.score !== null ? scoreTone100(h.score) : ''}`}>{h.score ?? '·'}</span>
                   <span className="op-hist-body">
@@ -1132,6 +1145,14 @@ function OptimizatorInner() {
         .op-st-on b { background: var(--op-accent); color: oklch(1 0 0); }
         .op-st-done b { background: var(--op-good-soft); color: var(--op-good); }
         .op-step { animation: op-in .3s ease-out both; }
+        .op-screen-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+        .op-back-btn { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; margin: 0; }
+        .op-dots { display: flex; gap: 5px; flex: 1 1 100%; order: 3; }
+        .op-dot { flex: 1 1 0; height: 6px; border-radius: 99px; border: none; padding: 0; cursor: pointer; background: var(--op-line); }
+        .op-dot-done { background: var(--op-good); } .op-dot-on { background: var(--op-accent); }
+        .op-screen-title { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--op-muted); }
+        .op-meta-small { font-size: 13px; color: var(--op-muted); padding: 0 4px; margin: 0 0 12px; }
+        .op-step-nav .op-step-back { font-size: 18px; padding: 11px 18px; }
         .op-step-nav { display: flex; gap: 8px; margin: 4px 0 14px; }
         .op-step-nav .op-step-back { width: auto; flex: 0 0 auto; margin: 0; padding: 13px 16px; }
         .op-step-nav .op-step-next { margin: 0; flex: 1 1 auto; }
