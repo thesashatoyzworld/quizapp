@@ -29,16 +29,11 @@ export function bestOpening(n: Nachala, stop?: ViewerReason): { keep: true } | {
   return { keep: false, i: rank[0].i };
 }
 
-function copyText(t: string) {
-  try { void navigator.clipboard.writeText(t); } catch { /* noop */ }
-}
-
 export function NachalaBlock({ runId, initial, headers, readOnly, stop }: { runId: string; initial: Nachala | null | undefined; headers: Headers; readOnly?: boolean; stop?: ViewerReason }) {
   const [n, setN] = useState<Nachala | null>(initial ?? null);
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState('');
   const [now, setNow] = useState(0);
-  const [copied, setCopied] = useState(false);
   const started = useRef(false);
   useEffect(() => {
     if (busy === null) return;
@@ -101,7 +96,6 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop }: { runI
   }
   const p = n.picks[b.i];
   const full = p.check.delivered === 'full';
-  const line = (p.plaque ? `[Текст на экране: ${p.plaque}]\n` : '') + p.speech;
   return (
     <section className="op-card opn-best">
       <div className="opn-verdict">Бери это начало</div>
@@ -111,11 +105,6 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop }: { runI
         {full ? ' Ролик выполняет это обещание.' : ''}
       </p>
       {!full && p.check.gap && <p className="op-p opn-small opn-gap">Чтобы начало сработало, добавь в ролик: {p.check.gap}</p>}
-      <div className="op-row">
-        <button type="button" className="op-copy op-copy-primary" onClick={() => { copyText(line); setCopied(true); setTimeout(() => setCopied(false), 1600); }}>
-          {copied ? 'Скопировано' : 'Скопировать начало'}
-        </button>
-      </div>
       <details className="opn-was">
         <summary>Твоё было</summary>
         <Opening plaque={n.orig.plaque} speech={n.orig.speech} />
