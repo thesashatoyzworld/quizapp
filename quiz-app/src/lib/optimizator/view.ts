@@ -247,6 +247,11 @@ export interface NachalaPick {
   narrowed: boolean;
   /** v2: the adaptation still has its family's construction. */
   fits?: boolean;
+  /** v5 (21.11): share of the donor's opening words kept (stem match, plaque + first 15 words); the base copies carry the donor's
+   * result from 0.30 up (x2.12), below it about nothing (x1.0-1.2). */
+  overlap?: number;
+  /** v5: the reel does not pay off what this opening opens (copy of a hit with the expectation unpaid x0.85): what is missing. */
+  bodyGap?: string;
   src: { code: string; author: string; ratio: number; likes: number | null; first: string; plaque: string | null; url: string; famName: string; famX: number; confirmed: boolean };
 }
 

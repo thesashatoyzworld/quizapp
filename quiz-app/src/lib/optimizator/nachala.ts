@@ -151,6 +151,20 @@ async function pool(topic: string | null, format: string | null, excludeAuthor?:
   return out;
 }
 
+/** Stems of the opening words (first 5 letters, words of 3+ letters), plaque + first 15 words of speech. */
+function stems(plaque: string | null, speech: string): string[] {
+  const s = `${plaque || ''} ${speech.split(/\s+/).slice(0, 15).join(' ')}`.toLowerCase();
+  return (s.match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length > 2).map((w) => w.slice(0, 5));
+}
+/** Share of the donor's opening words kept in the new one. Base (copies/COPIES-REPORT.txt, 21.11): a copy of a hit keeping
+ * 0.30+ of the donor's words x2.12 within author (0.45+ x2.46), below 0.30 x1.0-1.2: closeness carries the donor's result. */
+export function donorOverlap(donor: { plaque: string | null; speech: string }, mine: { plaque: string; speech: string }): number {
+  const d = stems(donor.plaque, donor.speech);
+  const m = new Set(stems(mine.plaque, mine.speech));
+  return d.length ? d.filter((w) => m.has(w)).length / d.length : 0;
+}
+const MIN_OVERLAP = 0.3;
+
 type Payoff = { type?: string; payoff?: string; quote?: string; not_given?: string };
 type Raw = { code?: string; plaque?: string; speech?: string; promise?: string; kept_in?: string };
 
@@ -173,16 +187,17 @@ export async function buildNachala(script: string, formatType: FormatType | unde
     `плашка: ${b.plaque || '(нет)'}\nречь: ${b.speech30}\nзритель ждал и получил: ${b.promise || ''}${b.expect_type ? ` (${b.expect_type}${b.explicit === false ? ', из сцены, не словами' : ''})` : ''}`).join('\n');
   const prompt = `Ниже сценарий рилса, что он реально даёт зрителю, и ${P.length} начал чужих залётов. У каждого начала указано, чего зритель ждал после него, и в том ролике он это получил.
 Правило из базы 4825 рилсов: если ролик отдаёт то, чего зритель ждёт после начала, он залетает в 2 раза чаще; если начало ничего не открывает, в 3 раза реже. Ожидание может быть названо словами («три причины») или возникать из сцены, конфликта, странной фразы («чем кончится?»), работает одинаково. Поэтому начало должно создавать ожидание ровно того, что сценарий даёт.
+Второе правило из базы: начало, перенесённое близко к тексту залёта, переносит его результат (копия, где осталась треть слов образца и больше, залетает в 2 раза чаще). Перенос по смыслу своими словами не даёт ничего. Поэтому начало переносится почти дословно.
 
 ЧТО СЦЕНАРИЙ ДАЁТ: ${payoff.payoff} (тип: ${payoff.type}; где: «${payoff.quote}»)
 ЧЕГО СЦЕНАРИЙ НЕ ДАЁТ: ${payoff.notGiven || '—'}
 
 1) Выбери 3 начала из РАЗНЫХ семейств, у которых тип ожидания совпадает с тем, что даёт сценарий (ждали способ, и сценарий даёт способ; ждали развязку, и сценарий рассказывает историю до конца). Сценка и история могут начинаться прямо со сцены, без слов о том, что будет. При прочих равных бери семейства с пометкой «подтверждено». Семейство бери только если смысл конструкции есть в сценарии: «тяжёлый факт биографии» = потеря, провал, беда автора, а не его успех; «сейчас все обсуждают» = в сценарии есть конкретная вещь, которую все видели; «запрет» = сценарий правда говорит не делать привычного.
-2) Перенеси начало-образец: сохрани его скелет предложения (порядок частей, длину, тип первой фразы: утверждение, запрет, вопрос, реплика), замени только содержание на тему сценария. Должно быть видно, что это то же начало с другой темой.
+2) Перенеси начало-образец почти дословно: оставь его слова, порядок, длину и плашку. Меняй только те слова, которые обязаны поменяться под тему сценария (предмет, ниша, цифра, имя, профессия), и только на то, что есть в сценарии. Минимум половина слов образца должна остаться теми же. Не перефразируй и не улучшай.
 3) Ожидание = отдача сценария, не больше. Не создавай ожидания того, что в «чего не даёт». Новых фактов, цифр, имён, оценок не выдумывай (нельзя «никто не говорит», «самый ленивый», «я наконец понял», если этого нет в сценарии).
-4) Без анонсов: нельзя «объясню», «расскажу», «покажу», «разберём», «скажу», «вот что», «вот почему», «и что делать», «что вместо», «давайте разберёмся». Начало само по себе цепляет утверждением, запретом, сценой или вопросом, а не сообщает, о чём будет ролик.
-5) Голос автора: бери его слова и интонацию из сценария. Если автор ругается, злится, говорит разговорно (мат, «короче», «блин»), начало тоже так звучит; не делай его вежливее и глаже.
-6) Тему и формат не меняй. Плашка 2-6 слов, первая фраза до 15 слов; в диалоге первая фраза это реплика персонажа.
+4) Не добавляй слов и анонсов, которых нет в образце («объясню», «расскажу», «покажу», «вот что»): если в образце их нет, их нет и в переносе.
+5) Голос: слова, которые ты подставляешь, бери из сценария автора, с его интонацией (мат, «короче» остаются).
+6) Тему и формат сценария не меняй. Длина как у образца; в диалоге первая фраза это реплика персонажа.
 Верни только JSON-массив из 3 объектов: [{"code": "код образца", "plaque": "...", "speech": "...", "promise": "чего зритель ждёт после этого начала", "kept_in": "дословная фраза сценария, где он это получает"}]
 
 СЦЕНАРИЙ:
@@ -193,29 +208,43 @@ ${cands}`;
   const raw = json<Raw[]>(await ask(OPUS, prompt, 'medium'), '[') ?? [];
   const byCode = new Map(P.map((b) => [b.code, b]));
   const body = bodyWithoutOpening(script);
-  const picks: NachalaPick[] = await Promise.all(raw.filter((r) => r.code && byCode.has(r.code) && r.speech).slice(0, 3).map(async (r) => {
+  const fitMsg = (src: Opening, p: { plaque: string; speech: string }, why: string) =>
+    `${why}\nОбразец (чужой залёт): плашка «${src.plaque || ''}», речь «${src.speech30.split(/\s+/).slice(0, 15).join(' ')}».\nСейчас: плашка «${p.plaque}», речь «${p.speech}».\n` +
+    'Перенеси образец почти дословно: оставь его слова и порядок, меняй только слова, которые обязаны поменяться под тему (предмет, ниша, цифра, имя), и только на то, что есть в сценарии. Минимум половина слов образца остаётся. Ничего не выдумывай.\n' +
+    'Верни только JSON-объект: {"plaque": "...", "speech": "...", "promise": "..."}\n\nСЦЕНАРИЙ:\n' + script;
+  const all: (NachalaPick | null)[] = await Promise.all(raw.filter((r) => r.code && byCode.has(r.code) && r.speech).slice(0, 3).map(async (r) => {
     const src = byCode.get(r.code!)!;
+    const donor = { plaque: src.plaque, speech: src.speech30 };
     let p = { plaque: r.plaque || '', speech: r.speech!, promise: r.promise || '', keptIn: r.kept_in || '' };
-    let c = await check(p.plaque, p.speech + '\n' + body);
     let narrowed = false;
+    // 1) closeness: a paraphrase does not carry the donor's result, so it gets one retry and is dropped if still far
+    if (donorOverlap(donor, p) < MIN_OVERLAP) {
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p, 'Начало ушло слишком далеко от образца: осталось мало его слов.'), 'medium'), '{');
+      if (fix?.speech) { p = { ...p, plaque: fix.plaque || '', speech: fix.speech, promise: fix.promise || p.promise }; narrowed = true; }
+    }
+    const overlap = donorOverlap(donor, p);
+    if (overlap < MIN_OVERLAP) return null;
+    // 2) the reel must pay off what the opening opens; one narrowing that keeps the donor's words, else a warning about the body
+    let c = await check(p.plaque, p.speech + '\n' + body);
+    let bodyGap: string | undefined;
     if (c.delivered !== 'full') {
-      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS,
-        `После этого начала зритель ждёт не того, что даёт сценарий. Проверка: «${c.gap}». Перепиши начало в той же конструкции так, ` +
-        `чтобы зритель ждал ровно того, что сценарий даёт: ${payoff.payoff}. Ничего не выдумывай. Сохрани слова и интонацию автора, без анонсов («объясню», «расскажу», «покажу», «вот что»). Плашка 2-6 слов, первая фраза до 15 слов: не пересказывай весь способ, только пообещай его.\nСейчас: плашка «${p.plaque}», речь «${p.speech}».\n` +
-        'Верни только JSON-объект: {"plaque": "...", "speech": "...", "promise": "..."}\n\nСЦЕНАРИЙ:\n' + script, 'medium'), '{');
-      if (fix?.speech) {
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
+        `После этого начала зритель ждёт не того, что даёт сценарий (${c.gap}). Сценарий даёт: ${payoff.payoff}. Поменяй в переносе только слова, из-за которых ожидание расходится со сценарием.`), 'medium'), '{');
+      if (fix?.speech && donorOverlap(donor, { plaque: fix.plaque || '', speech: fix.speech }) >= MIN_OVERLAP) {
         const c2 = await check(fix.plaque || '', fix.speech + '\n' + body);
-        p = { ...p, plaque: fix.plaque || '', speech: fix.speech, promise: fix.promise || p.promise };
-        c = c2;
-        narrowed = true;
+        if (c2.delivered === 'full' || c.delivered !== 'partial') {
+          p = { ...p, plaque: fix.plaque || '', speech: fix.speech, promise: fix.promise || p.promise }; c = c2; narrowed = true;
+        }
       }
+      if (c.delivered !== 'full') bodyGap = c.gap || 'ролик не отдаёт того, чего ждут после этого начала';
     }
     return {
-      ...p, check: c, narrowed,
+      ...p, check: c, narrowed, overlap: donorOverlap(donor, p), bodyGap,
       src: { code: src.code, author: src.author, ratio: src.ratio, likes: src.likes, first: src.first, plaque: src.plaque, url: src.url,
              famName: src.fam_name, famX: src.fam_or, confirmed: src.tier === 0 },
     };
   }));
+  const picks = all.filter((p): p is NachalaPick => !!p);
   picks.sort((a, b) => Number(b.check.delivered === 'full') - Number(a.check.delivered === 'full'));
 
   // 21.11: one answer instead of three. Family of the student's own opening and of each adapted pick
@@ -241,17 +270,16 @@ async function classify(items: { id: string; plaque: string; speech: string }[])
   return new Map(arr.filter((o) => o.id && o.fam && FAM_BY_ID.has(o.fam)).map((o) => [o.id!, o.fam!]));
 }
 
-/** Announcement words: the base gives an announced opening ↓ (O-REPORT), and the generator still slips into them. */
-const ANNOUNCE = /(объясн|расскаж|покаж|разбер[её]м|скажу|вот что|вот почему|вот как|что делать|что вместо|давайте разбер)/i;
-
 /** Keep the own opening when it is a strong construction the reel keeps, or it already stops the viewer and is kept;
  * else the best pick that still has its construction: promise kept, then family strength, then the source ratio. */
 function decide(orig: Nachala['orig'] & { fam: { x: number } }, picks: NachalaPick[], stop?: ViewerReason): NachalaBest {
   const d = orig.check.delivered;
   if (orig.fam.x >= STRONG_FAM && (d === 'full' || d === 'partial')) return { keep: true, why: 'strong' };
   if (d === 'full' && (!stop || stop.answer === 'yes' || stop.score >= 7)) return { keep: true, why: 'stops' };
-  const ok = picks.map((p, i) => ({ p, i })).filter(({ p }) => p.fits && p.check.delivered !== 'no' && !ANNOUNCE.test(p.plaque + ' ' + p.speech))
-    .sort((a, b) => Number(b.p.check.delivered === 'full') - Number(a.p.check.delivered === 'full') || b.p.src.famX - a.p.src.famX || b.p.src.ratio - a.p.src.ratio);
+  // v5 (21.11): a close copy of a hit whose expectation the reel pays off (x1.50 on the base); the family fit and the announce filter
+  // are gone: a near-verbatim copy keeps the donor's own words, announcements included, and that is what carries the result.
+  const ok = picks.map((p, i) => ({ p, i })).filter(({ p }) => (p.overlap ?? 0) >= MIN_OVERLAP && p.check.delivered === 'full')
+    .sort((a, b) => (b.p.overlap ?? 0) - (a.p.overlap ?? 0) || b.p.src.ratio - a.p.src.ratio);
   if (!ok.length) return { keep: true, why: 'none' };
   return { keep: false, i: ok[0].i };
 }
