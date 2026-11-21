@@ -1,5 +1,6 @@
 // Fills optimizator_openings from the reels base (reels-optimizer/prompts/kallaway/baza): openings of hits
-// (likes >= 3x the author's median) whose own promise the reel delivered in full (promise.jsonl), from opening
+// (likes >= 3x the author's median) whose expectation the reel paid off in full (expect.jsonl, 21.11: x2.03 within author,
+// a scene's «how will it end» counts as much as stated words; replaced promise.jsonl x1.52), from opening
 // families not worse than average in the family rating (fam.jsonl + fam_rating.json, hits AND flops of the same
 // authors, 20.11.2026: no recognizable construction x0.59, confirmed families x1.5-3.4).
 // Also creates the tables for student stats screenshots. Additive, IF NOT EXISTS: the database is shared, no db push.
@@ -27,7 +28,7 @@ const rows = [];
 for (const b of lines('bank.jsonl')) {
   const f = fam.get(b.code);
   const t = tier(f);
-  if (t === null || b.delivered !== 'full') continue;
+  if (t === null || b.paid !== 'full') continue;
   const x = rate.get(f);
   rows.push({ ...b, fam: f, fam_name: x.name, fam_or: x.or, tier: t });
 }
@@ -41,6 +42,8 @@ await db.query(`
     speech30 TEXT NOT NULL, fam TEXT NOT NULL, fam_name TEXT NOT NULL, fam_or REAL NOT NULL, tier INT NOT NULL,
     topic TEXT, format TEXT, promise TEXT, url TEXT NOT NULL
   );
+  ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS expect_type TEXT;
+  ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS explicit BOOLEAN;
   CREATE INDEX IF NOT EXISTS optimizator_openings_topic_idx ON optimizator_openings (topic, format);
   CREATE TABLE IF NOT EXISTS optimizator_stats (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -63,12 +66,12 @@ await db.query(`
 `);
 for (const r of rows) {
   await db.query(
-    `INSERT INTO optimizator_openings (code, author, ratio, likes, plaque, first, speech30, fam, fam_name, fam_or, tier, topic, format, promise, url)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+    `INSERT INTO optimizator_openings (code, author, ratio, likes, plaque, first, speech30, fam, fam_name, fam_or, tier, topic, format, promise, url, expect_type, explicit)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
      ON CONFLICT (code) DO UPDATE SET author=$2, ratio=$3, likes=$4, plaque=$5, first=$6, speech30=$7, fam=$8, fam_name=$9,
-       fam_or=$10, tier=$11, topic=$12, format=$13, promise=$14, url=$15`,
+       fam_or=$10, tier=$11, topic=$12, format=$13, promise=$14, url=$15, expect_type=$16, explicit=$17`,
     [r.code, r.author, r.ratio, r.likes ?? null, r.plaque || null, r.first, r.speech30, r.fam, r.fam_name, r.fam_or, r.tier,
-     r.topic || null, r.format || null, r.promise || null, r.url],
+     r.topic || null, r.format || null, r.expect || null, r.url, r.expect_type || null, r.explicit ?? null],
   );
 }
 // Openings that left the bank (family re-rated, promise re-labelled) leave the table too.
