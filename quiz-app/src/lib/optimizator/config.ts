@@ -37,7 +37,8 @@ export function monthKey(d = new Date()): string {
  * prompts/kallaway/pairs/ladder.py): experts, own reels 0.81 within author, topic
  * anchors 0.78, against ~0.70 for the absolute score. Off switch for the whole block.
  */
-export const LADDER_ON = true;
+// 21.11: off. Since 09.11 own reels never arrived (HikerAPI balance, ElevenLabs empty): 31 runs with a nick, 0 comparisons.
+export const LADDER_ON = false;
 /**
  * Topic anchors (other experts' reels) are off: on 08.11 a weight-loss script got
  * anchors about airports, art events and blogging and "won 8 of 8", a false verdict.

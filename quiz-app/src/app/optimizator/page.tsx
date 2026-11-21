@@ -508,13 +508,7 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
         </details>
       )}
 
-      {run.ladder ? <LadderBlock l={run.ladder} /> : shared ? null : (
-        <section className="op-card op-ladder-none">
-          <p className="op-p op-muted">
-            Сравнения с твоими прошлыми роликами нет: не указан ник, аккаунт закрыт или в нём меньше 4 рилсов с речью.
-          </p>
-        </section>
-      )}
+      {run.ladder && <LadderBlock l={run.ladder} />}
 
       <section className={run.ladder ? 'op-card op-summary' : 'op-card op-summary op-hero'}>
         <p className="op-verdict">{a.verdict}</p>
