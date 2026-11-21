@@ -7,7 +7,7 @@ import OpenInBrowser from '@/components/OpenInBrowser';
 import { BLOCKS_CSS, NachalaBlock, StatsBlock } from './blocks';
 import {
   DEMAND_STATUS, FORMAT_NAME, REASON_ANSWER, SCRIPT_MAX, SCRIPT_MIN, SHARE_KIND, firstLine, ladderVerdict, sourceUrl,
-  type BazaBlock, type DemandLink, type Ladder, type ViewerReason, type HistoryItem, type SavedRun, type Shans, type StudentAnalysis,
+  type DemandLink, type Ladder, type ViewerReason, type HistoryItem, type SavedRun, type Shans, type StudentAnalysis,
 } from '@/lib/optimizator/view';
 
 // Раздел «Оптимизатор рилсов»: ученик вставляет только текст ролика, сервер ищет
@@ -261,50 +261,6 @@ function LadderBlock({ l }: { l: Ladder }) {
 }
 
 
-const BAZA_HEAD: Record<BazaBlock['need'], { title: string; note: string }> = {
-  share: {
-    title: 'Как это делают залёты: их пересылают',
-    note: 'Ролики других авторов на твою тему, которые набрали в 3+ раза больше обычного. Смотри, что в них хочется отправить своему человеку: это главное отличие залётов от провалов.',
-  },
-  finish: {
-    title: 'Как это делают залёты: их досматривают',
-    note: 'Ролики других авторов на твою тему, которые набрали в 3+ раза больше обычного. Главный момент у них в конце, и по дороге нет провисаний.',
-  },
-  all: {
-    title: 'Залёты по твоей теме',
-    note: 'Ролики других авторов, которые набрали в 3+ раза больше обычного: их пересылают, досматривают, главный момент в конце.',
-  },
-};
-
-/** Hits of other authors on the topic that do well what the script lacks (reels base). */
-function BazaExamples({ b }: { b: BazaBlock }) {
-  if (!b.items.length) return null;
-  const head = BAZA_HEAD[b.need] || BAZA_HEAD.all;
-  return (
-    <section className="op-card">
-      <h2 className="op-h2">{head.title}</h2>
-      <p className="op-p op-muted">{head.note}</p>
-      <ul className="op-links">
-        {b.items.map((x) => (
-          <li key={x.url}>
-            <a href={x.url} target="_blank" rel="noopener noreferrer">
-              <span className="op-link-top">
-                <b>@{x.author}</b>
-                <span className="op-ratio">{fmtRatio(x.ratio)}</span>
-                <span className="op-link-kind">рилс ↗</span>
-              </span>
-              <span className="op-link-text op-link-line">«{x.line}»</span>
-              <span className="op-link-text">
-                {b.need !== 'finish' && x.who ? `Перешлют: ${x.who}. ` : ''}{x.why || x.idea}
-              </span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 function Details({ a }: { a: StudentAnalysis }) {
   const g = a.hook_gate;
   const checks: [string, boolean][] = [
@@ -525,6 +481,15 @@ function ReasonCard({ title, v, isShare }: { title: string; v: ViewerReason | un
   );
 }
 
+/** Inside Telegram a plain link replaces the Mini App with Instagram; openLink keeps the run open behind it. */
+function openOutside(e: React.MouseEvent) {
+  const a = (e.target as HTMLElement).closest('a[target="_blank"]') as HTMLAnchorElement | null;
+  const tg = (window as unknown as { Telegram?: { WebApp?: { openLink?: (u: string) => void; initData?: string } } }).Telegram?.WebApp;
+  if (!a || !tg?.openLink || !tg.initData) return;
+  e.preventDefault();
+  tg.openLink(a.href);
+}
+
 function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => void; shared?: boolean; headers?: () => Record<string, string> }) {
   const a: StudentAnalysis = run.result;
   // Mounted with key={run.id}: a new run starts at step 1.
@@ -545,12 +510,6 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
   const format = a.format && a.format.type !== 'unknown' ? FORMAT_NAME[a.format.type] || a.format.type : null;
   const r = a.viewer_reasons;
   const hdr = headers || (() => ({}));
-  const bazaFor = (need: 'share' | 'finish') => run.baza && run.baza.items.length && (run.baza.need === need || (need === 'share' && run.baza.need === 'all')) ? (
-    <details className="op-card op-details">
-      <summary>Как это делают залёты<span>{run.baza.items.length} ролика других авторов по твоей теме</span></summary>
-      <div className="op-sect op-more"><BazaExamples b={run.baza} /></div>
-    </details>
-  ) : null;
 
   const steps: { key: string; title: string; body: React.ReactNode }[] = [
     {
@@ -573,7 +532,6 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
             <ReasonCard title="Сохранят или перешлют?" v={r?.save_share} isShare />
             <ShansChips s={run.shans} parts={STEP_PARTS.save_share} />
           </section>
-          {bazaFor('share')}
         </>
       ),
     },
@@ -585,7 +543,6 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
             <ReasonCard title="Досмотрят?" v={r?.finish} />
             <ShansChips s={run.shans} parts={STEP_PARTS.finish} />
           </section>
-          {bazaFor('finish')}
         </>
       ),
     },
@@ -628,7 +585,7 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
   };
 
   return (
-    <div className="op-result op-screens">
+    <div className="op-result op-screens" onClick={openOutside}>
       <div className="op-screen-top">
         {onNew && <button type="button" className="op-back op-back-btn" onClick={onNew}>‹ Все разборы</button>}
         <div className="op-dots" aria-label={`Шаг ${cur + 1} из ${screens.length}`}>
