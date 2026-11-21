@@ -17,7 +17,7 @@ async function main() {
       const r = todo[k++];
       try {
         const n = await buildNachala(r.script, undefined, { topic: r.topic, excludeAuthor: r.author });
-        done[r.code] = { payoff: n.payoff, orig: n.orig, best: n.best, empty: !!n.empty, ms: n.ms,
+        done[r.code] = { payoff: n.payoff, orig: n.orig, best: n.best, empty: !!n.empty, ms: n.ms, fallback: n.fallback,
           picks: n.picks.map((p) => ({ plaque: p.plaque, speech: p.speech, d: p.check.delivered, fits: p.fits, overlap: p.overlap, bodyGap: p.bodyGap, fam: p.src.famName, x: p.src.famX, src: p.src.code })) };
       } catch (e) { done[r.code] = { error: String((e as Error).message).slice(0, 200) }; }
       writeFileSync(outp, JSON.stringify(done, null, 1));

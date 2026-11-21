@@ -12,7 +12,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/prisma';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { topicOf } from './baza';
-import type { FormatType, Nachala, NachalaBest, NachalaPick, PromiseCheck, ViewerReason } from './view';
+import type { FormatType, Nachala, NachalaBest, NachalaFallback, NachalaPick, PromiseCheck, ViewerReason } from './view';
 import FAM_JSON from './data/fam-model.json';
 
 /** 40 families of openings from the base (baza/fam.py), odds within author; f00 = no recognizable construction (×0.59). */
@@ -202,7 +202,7 @@ export async function buildNachala(script: string, formatType: FormatType | unde
   ]);
   const orig = { ...openingOf(script), check: origCheck };
   const payoff = { type: pay.type || '', payoff: pay.payoff || '', quote: pay.quote || '', notGiven: pay.not_given || '' };
-  if (P.length < 3) return { v: 2, payoff, orig, picks: [], topic, ms: Date.now() - t0, empty: true, best: { keep: true, why: 'none' } };
+  if (P.length < 3) return { v: 2, payoff, orig, picks: [], topic, ms: Date.now() - t0, empty: true, best: { keep: true, why: 'none' }, fallback: await fallback(script, orig, payoff) };
 
   const cands = P.map((b) => `=== код ${b.code} (×${b.ratio.toFixed(1)}; семейство «${b.fam_name}» ×${b.fam_or.toFixed(1)}${b.tier === 0 ? ', подтверждено' : ''})\n` +
     `плашка: ${b.plaque || '(нет)'}\nречь: ${b.speech30}\nшаблон: ${b.tmpl || '—'}\nзритель ждал и получил: ${b.promise || ''}${b.expect_type ? ` (${b.expect_type}${b.explicit === false ? ', из сцены, не словами' : ''})` : ''}`).join('\n');
@@ -287,7 +287,58 @@ ${cands}`;
   const best = decide({ ...orig, fam: origFam }, picks, opts.stop);
   let text: string | undefined;
   if (!best.keep && opts.rewrite) text = await withOpening(opts.rewrite, picks[best.i]).catch(() => undefined);
-  return { v: 2, payoff, orig: { ...orig, fam: origFam }, picks, topic, ms: Date.now() - t0, best, text };
+  // v6: no donor fits → defects of the own opening, a repair, a confirmed form, as a set for trial reels
+  const fb = (best.keep && best.why === 'none') || process.env.OPT_FALLBACK_ALL ? await fallback(script, orig, payoff) : undefined;
+  return { v: 2, payoff, orig: { ...orig, fam: origFam }, picks, topic, ms: Date.now() - t0, best, text, fallback: fb };
+}
+
+/** Opening defects confirmed within author on the base (O-REPORT.txt, EXPECT-REPORT.txt, 20-21.11). */
+const DEFECTS: Record<string, { label: string; x: number }> = {
+  nothing: { label: 'начало ничего не открывает: зрителю нечего ждать', x: 0.33 },
+  unpaid: { label: 'ролик не отдаёт того, чего ждут после начала', x: 0.52 },
+  partial: { label: 'ролик отдаёт ожидание начала только частично', x: 0.65 },
+  midthought: { label: 'начало с середины мысли, без контекста', x: 0.58 },
+  term: { label: 'термин в первой фразе, непонятный новичку', x: 0.6 },
+  stream: { label: 'анонс эфира или встречи вместо зацепки', x: 0.14 },
+  buy: { label: 'призыв купить в начале', x: 0.1 },
+};
+/** Confirmed constructions (fam-model.json verdict ↑), astrology f25 aside: offered as a form when there is no donor. */
+const STRONG_FAMS = FAMS.filter((f) => f.id !== 'f25' && (f as Fam & { verdict?: string }).verdict?.startsWith('↑'));
+
+async function fallback(script: string, orig: Nachala['orig'], payoff: Nachala['payoff']): Promise<NachalaFallback> {
+  const defects: NachalaFallback['defects'] = [];
+  const d = orig.check.delivered;
+  if (d === 'none') defects.push({ id: 'nothing', ...DEFECTS.nothing, where: orig.check.promise || '' });
+  if (d === 'no') defects.push({ id: 'unpaid', ...DEFECTS.unpaid, where: orig.check.gap });
+  if (d === 'partial') defects.push({ id: 'partial', ...DEFECTS.partial, where: orig.check.gap });
+  const lab = json<{ midthought?: string; term?: string; stream?: string; buy?: string }>(await ask(SONNET,
+    'Ниже начало рилса (плашка + первые фразы) и сценарий. Отметь только то, что правда есть в начале, иначе пустая строка:\n' +
+    'midthought: начало с середины мысли, зритель не понимает, о чём речь (процитируй);\nterm: в первой фразе термин или жаргон, непонятный новичку (какой);\n' +
+    'stream: начало анонсирует эфир, встречу, вебинар вместо зацепки (процитируй);\nbuy: начало призывает купить, записаться, перейти по ссылке (процитируй).\n' +
+    'Верни только JSON-объект: {"midthought": "", "term": "", "stream": "", "buy": ""}\n\n' +
+    `НАЧАЛО: плашка: ${orig.plaque || '(нет)'} | речь: ${orig.speech}\n\nСЦЕНАРИЙ:\n${script}`, 'low'), '{') ?? {};
+  for (const id of ['midthought', 'term', 'stream', 'buy'] as const) if (lab[id]) defects.push({ id, ...DEFECTS[id], where: lab[id]! });
+  const forms = STRONG_FAMS.map((f) => `${f.id} «${f.name}» ×${f.or.toFixed(1)}: ${f.template}${f.examples[0] ? ` (пример: «${f.examples[0]}»)` : ''}`).join('\n');
+  const gen = json<{ repair?: { plaque?: string; speech?: string }; form?: { fam?: string; plaque?: string; speech?: string } }>(await ask(OPUS,
+    `Ниже сценарий рилса и его начало. Подходящего залёта-донора для этого ролика нет, поэтому нужны две версии начала для теста в пробных рилсах.\n` +
+    `ЧТО СЦЕНАРИЙ ДАЁТ ЗРИТЕЛЮ: ${payoff.payoff}\nДЕФЕКТЫ НАЧАЛА ПО БАЗЕ: ${defects.map((x) => `${x.label}${x.where ? ` («${x.where}»)` : ''}`).join('; ') || 'не найдены'}\n\n` +
+    '1) repair: минимальная починка начала словами автора: убери дефекты и сделай так, чтобы после начала зритель ждал ровно того, что даёт сценарий. Меняй как можно меньше, интонация и мат автора остаются.\n' +
+    '2) form: то же начало в одной из подтверждённых конструкций ниже, только если она естественно ложится на сценарий; если ни одна не ложится, верни form пустым. Слова бери из сценария.\n' +
+    'Ничего не выдумывай: никаких фактов, цифр, имён, событий, которых нет в сценарии.\n\nКОНСТРУКЦИИ:\n' + forms +
+    `\n\nНАЧАЛО СЕЙЧАС: плашка: ${orig.plaque || '(нет)'} | речь: ${orig.speech}\n\nСЦЕНАРИЙ:\n${script}\n\n` +
+    'Верни только JSON-объект: {"repair": {"plaque": "...", "speech": "..."}, "form": {"fam": "f07", "plaque": "...", "speech": "..."}}', 'medium'), '{') ?? {};
+  const body = bodyWithoutOpening(script);
+  const versions: NachalaFallback['versions'] = [{ kind: 'own', plaque: orig.plaque, speech: orig.speech, check: orig.check }];
+  for (const [kind, v] of [['repair', gen.repair], ['form', gen.form]] as const) {
+    if (!v?.speech) continue;
+    const q = { plaque: v.plaque || '', speech: v.speech };
+    if (await invented(script, q)) continue;
+    const c = await check(q.plaque, q.speech + '\n' + body);
+    if (c.delivered === 'no' || c.delivered === 'none') continue;
+    const f = kind === 'form' ? FAM_BY_ID.get((v as { fam?: string }).fam || '') : undefined;
+    versions.push({ kind, ...q, check: c, famName: f?.name, famX: f?.or });
+  }
+  return { defects, versions };
 }
 
 async function classify(items: { id: string; plaque: string; speech: string }[]): Promise<Map<string, string>> {

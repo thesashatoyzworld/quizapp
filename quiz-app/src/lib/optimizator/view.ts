@@ -255,6 +255,13 @@ export interface NachalaPick {
   src: { code: string; author: string; ratio: number; likes: number | null; first: string; plaque: string | null; url: string; famName: string; famX: number; confirmed: boolean };
 }
 
+/** v6 (21.11): no fitting donor. What the base says pulls this opening down, a minimal repair in the student's words, a version in a
+ * confirmed construction, all of it as a set for trial reels (the live audience picks, as in Sasha's re-uploads). */
+export interface NachalaFallback {
+  defects: { id: string; label: string; x: number; where: string }[];
+  versions: { kind: 'own' | 'repair' | 'form'; plaque: string; speech: string; famName?: string; famX?: number; check?: PromiseCheck }[];
+}
+
 /** v2: one answer. keep = the student's own opening stays (strong family / already stops / nothing better). */
 export type NachalaBest = { keep: true; why: 'strong' | 'stops' | 'none' } | { keep: false; i: number };
 
@@ -266,6 +273,8 @@ export interface Nachala {
   /** v2: the final text with the chosen opening in place (only when it is replaced). */
   text?: string;
   picks: NachalaPick[];
+  /** v6: set when no donor fits (best.why = 'none' or the pool is empty). */
+  fallback?: NachalaFallback;
   topic: string | null;
   ms: number;
   /** Too few bank openings on the topic. */
