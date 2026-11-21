@@ -30,7 +30,7 @@ const POOL = 60;
 type Opening = {
   code: string; author: string; ratio: number; likes: number | null; plaque: string | null; first: string; speech30: string;
   fam: string; fam_name: string; fam_or: number; tier: number; topic: string | null; format: string | null; promise: string | null; url: string;
-  expect_type: string | null; explicit: boolean | null;
+  expect_type: string | null; explicit: boolean | null; tmpl: string | null;
 };
 
 /** Base format labels (label.py) for the optimizer's format types. */
@@ -134,7 +134,10 @@ async function check(plaque: string, text: string): Promise<PromiseCheck> {
   return { delivered: d === 'full' || d === 'partial' || d === 'no' || d === 'none' ? d : 'unknown', promise: r?.expect || '', gap: r?.gap || '' };
 }
 
-async function pool(topic: string | null, format: string | null, excludeAuthor?: string): Promise<Opening[]> {
+/** A scripted dialogue («Голос 1: …», «Мама: …»): a dialogue donor turns a monologue into a skit, so it never goes to a monologue. */
+const isDialogue = (t: string) => /(голос\s*\d\s*:|^\s*[А-ЯЁ][а-яё]{1,12}\s*:)/im.test(t);
+
+async function pool(topic: string | null, format: string | null, excludeAuthor?: string, dialogue = true): Promise<Opening[]> {
   const rows = topic
     ? await prisma.$queryRaw<Opening[]>`
         SELECT * FROM optimizator_openings WHERE topic = ${topic}
@@ -146,6 +149,7 @@ async function pool(topic: string | null, format: string | null, excludeAuthor?:
   const out: Opening[] = [];
   for (const r of rows) {
     if (excludeAuthor && r.author === excludeAuthor) continue; // bench: the tested reel's author must not leak in
+    if (!dialogue && isDialogue(r.speech30)) continue;
     // at most 2 per author and 6 per family, so the pool covers many constructions
     if ((perAuthor.get(r.author) ?? 0) >= 2 || (perFam.get(r.fam) ?? 0) >= 6) continue;
     perAuthor.set(r.author, (perAuthor.get(r.author) ?? 0) + 1);
@@ -173,11 +177,13 @@ const MIN_OVERLAP = 0.3;
 /** Facts, numbers, names, events or claims in the opening that the script does not have (the bench labeler's wording); '' when clean. */
 async function invented(script: string, p: { plaque: string; speech: string }): Promise<string> {
   const out = await ask(SONNET, 'Ниже сценарий рилса и новое начало для него. Проверь: есть ли в начале факты, цифры, имена, события, оценки или утверждения, ' +
-    'которых НЕТ в сценарии (выдумано или взято откуда-то ещё). Перефразирование того, что есть в сценарии, выдумкой не считается.\n' +
-    'Верни только JSON-массив: [{"i": 0, "invented": true, "what": "что выдумано, коротко, или пусто"}]\n\nСЦЕНАРИЙ:\n' + script +
+    'которых НЕТ в сценарии (выдумано или взято откуда-то ещё). Перефразирование того, что есть в сценарии, выдумкой не считается. ' +
+    'И отдельно: звучит ли начало естественно по-русски и по смыслу, как живая речь автора (natural false, если фраза корявая, склеенная, бессмысленная или противоречит сценарию).\n' +
+    'Верни только JSON-массив: [{"i": 0, "invented": true, "what": "что выдумано, коротко, или пусто", "natural": true, "why": "если не естественно, почему"}]\n\nСЦЕНАРИЙ:\n' + script +
     `\n\nНАЧАЛА:\n0) плашка: ${p.plaque || '(нет)'} | речь: ${p.speech}`, 'low');
-  const r = json<{ invented?: boolean; what?: string }[]>(out, '[')?.[0];
-  return r?.invented ? (r.what || 'есть выдуманное') : '';
+  const r = json<{ invented?: boolean; what?: string; natural?: boolean; why?: string }[]>(out, '[')?.[0];
+  const bad = [r?.invented ? (r.what || 'есть выдуманное') : '', r?.natural === false ? `звучит неестественно: ${r.why || ''}` : ''].filter(Boolean);
+  return bad.join('; ');
 }
 
 type Payoff = { type?: string; payoff?: string; quote?: string; not_given?: string };
@@ -191,7 +197,7 @@ export async function buildNachala(script: string, formatType: FormatType | unde
   ]);
   const format = (formatType && FORMAT_OF[formatType]) || null;
   const [P, origCheck] = await Promise.all([
-    pool(topic, format, opts.excludeAuthor),
+    pool(topic, format, opts.excludeAuthor, isDialogue(script)),
     (() => { const o = openingOf(script); return check(o.plaque, script.replace(/\[Текст на экране[^\]]*\]/g, '')); })(),
   ]);
   const orig = { ...openingOf(script), check: origCheck };
@@ -199,7 +205,7 @@ export async function buildNachala(script: string, formatType: FormatType | unde
   if (P.length < 3) return { v: 2, payoff, orig, picks: [], topic, ms: Date.now() - t0, empty: true, best: { keep: true, why: 'none' } };
 
   const cands = P.map((b) => `=== код ${b.code} (×${b.ratio.toFixed(1)}; семейство «${b.fam_name}» ×${b.fam_or.toFixed(1)}${b.tier === 0 ? ', подтверждено' : ''})\n` +
-    `плашка: ${b.plaque || '(нет)'}\nречь: ${b.speech30}\nзритель ждал и получил: ${b.promise || ''}${b.expect_type ? ` (${b.expect_type}${b.explicit === false ? ', из сцены, не словами' : ''})` : ''}`).join('\n');
+    `плашка: ${b.plaque || '(нет)'}\nречь: ${b.speech30}\nшаблон: ${b.tmpl || '—'}\nзритель ждал и получил: ${b.promise || ''}${b.expect_type ? ` (${b.expect_type}${b.explicit === false ? ', из сцены, не словами' : ''})` : ''}`).join('\n');
   const prompt = `Ниже сценарий рилса, что он реально даёт зрителю, и ${P.length} начал чужих залётов. У каждого начала указано, чего зритель ждал после него, и в том ролике он это получил.
 Правило из базы 4825 рилсов: если ролик отдаёт то, чего зритель ждёт после начала, он залетает в 2 раза чаще; если начало ничего не открывает, в 3 раза реже. Ожидание может быть названо словами («три причины») или возникать из сцены, конфликта, странной фразы («чем кончится?»), работает одинаково. Поэтому начало должно создавать ожидание ровно того, что сценарий даёт.
 Второе правило из базы: начало, перенесённое близко к тексту залёта, переносит его результат (копия, где осталась треть слов образца и больше, залетает в 2 раза чаще). Перенос по смыслу своими словами не даёт ничего. Поэтому начало переносится почти дословно.
@@ -208,7 +214,7 @@ export async function buildNachala(script: string, formatType: FormatType | unde
 ЧЕГО СЦЕНАРИЙ НЕ ДАЁТ: ${payoff.notGiven || '—'}
 
 1) Выбери 3 начала из РАЗНЫХ семейств, у которых тип ожидания совпадает с тем, что даёт сценарий (ждали способ, и сценарий даёт способ; ждали развязку, и сценарий рассказывает историю до конца). Сценка и история могут начинаться прямо со сцены, без слов о том, что будет. При прочих равных бери семейства с пометкой «подтверждено». Семейство бери только если смысл конструкции есть в сценарии: «тяжёлый факт биографии» = потеря, провал, беда автора, а не его успех; «сейчас все обсуждают» = в сценарии есть конкретная вещь, которую все видели; «запрет» = сценарий правда говорит не делать привычного.
-2) Перенеси начало-образец почти дословно: оставь его слова, порядок, длину и плашку. Меняй только те слова, которые обязаны поменяться под тему сценария (предмет, ниша, цифра, имя, профессия), и только на то, что есть в сценарии. Минимум половина слов образца должна остаться теми же. Не перефразируй и не улучшай.
+2) Перенеси начало-образец почти дословно по его шаблону: заполни слоты шаблона [в скобках] словами из сценария, всё остальное оставь словами образца, в том же порядке, той же длины, с той же плашкой. Бери только те образцы, чей шаблон естественно ложится на первый ход сценария; если ради шаблона приходится выдумывать или фраза становится корявой, бери другой образец. Меняй только те слова, которые обязаны поменяться под тему сценария (предмет, ниша, цифра, имя, профессия), и только на то, что есть в сценарии. Минимум половина слов образца должна остаться теми же. Не перефразируй и не улучшай.
 3) Ожидание = отдача сценария, не больше. Не создавай ожидания того, что в «чего не даёт». Новых фактов, цифр, имён, оценок не выдумывай (нельзя «никто не говорит», «самый ленивый», «я наконец понял», если этого нет в сценарии).
 4) Не добавляй слов и анонсов, которых нет в образце («объясню», «расскажу», «покажу», «вот что»): если в образце их нет, их нет и в переносе.
 5) Голос: слова, которые ты подставляешь, бери из сценария автора, с его интонацией (мат, «короче» остаются).
@@ -243,7 +249,7 @@ ${cands}`;
     const inv = await invented(script, p);
     if (inv) {
       const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
-        `В переносе остались факты или утверждения, которых нет в сценарии: ${inv}. Замени их на то, что есть в сценарии, или убери. Остальные слова образца не трогай.`), 'medium'), '{');
+        `В переносе есть проблемы: ${inv}. Выдуманное замени на то, что есть в сценарии, или убери; корявое сделай живой речью автора. Остальные слова образца не трогай.`), 'medium'), '{');
       if (!fix?.speech) return null;
       const q = { plaque: fix.plaque || '', speech: fix.speech };
       if (donorOverlap(donor, q) < MIN_OVERLAP || await invented(script, q)) return null;

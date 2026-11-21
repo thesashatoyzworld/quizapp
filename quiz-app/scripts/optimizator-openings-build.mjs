@@ -28,7 +28,7 @@ const rows = [];
 for (const b of lines('bank.jsonl')) {
   const f = fam.get(b.code);
   const t = tier(f);
-  if (t === null || b.paid !== 'full') continue;
+  if (t === null || b.paid !== 'full' || b.tmpl_kind !== 'template') continue; // 21.11: only openings that become a template (copies x2.90 same topic)
   const x = rate.get(f);
   rows.push({ ...b, fam: f, fam_name: x.name, fam_or: x.or, tier: t });
 }
@@ -44,6 +44,7 @@ await db.query(`
   );
   ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS expect_type TEXT;
   ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS explicit BOOLEAN;
+  ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS tmpl TEXT;
   CREATE INDEX IF NOT EXISTS optimizator_openings_topic_idx ON optimizator_openings (topic, format);
   CREATE TABLE IF NOT EXISTS optimizator_stats (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -66,12 +67,12 @@ await db.query(`
 `);
 for (const r of rows) {
   await db.query(
-    `INSERT INTO optimizator_openings (code, author, ratio, likes, plaque, first, speech30, fam, fam_name, fam_or, tier, topic, format, promise, url, expect_type, explicit)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+    `INSERT INTO optimizator_openings (code, author, ratio, likes, plaque, first, speech30, fam, fam_name, fam_or, tier, topic, format, promise, url, expect_type, explicit, tmpl)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
      ON CONFLICT (code) DO UPDATE SET author=$2, ratio=$3, likes=$4, plaque=$5, first=$6, speech30=$7, fam=$8, fam_name=$9,
-       fam_or=$10, tier=$11, topic=$12, format=$13, promise=$14, url=$15, expect_type=$16, explicit=$17`,
+       fam_or=$10, tier=$11, topic=$12, format=$13, promise=$14, url=$15, expect_type=$16, explicit=$17, tmpl=$18`,
     [r.code, r.author, r.ratio, r.likes ?? null, r.plaque || null, r.first, r.speech30, r.fam, r.fam_name, r.fam_or, r.tier,
-     r.topic || null, r.format || null, r.expect || null, r.url, r.expect_type || null, r.explicit ?? null],
+     r.topic || null, r.format || null, r.expect || null, r.url, r.expect_type || null, r.explicit ?? null, r.tmpl || null],
   );
 }
 // Openings that left the bank (family re-rated, promise re-labelled) leave the table too.
