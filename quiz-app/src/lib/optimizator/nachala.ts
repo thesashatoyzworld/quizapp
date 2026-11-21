@@ -170,6 +170,16 @@ export function donorOverlap(donor: { plaque: string | null; speech: string }, m
 }
 const MIN_OVERLAP = 0.3;
 
+/** Facts, numbers, names, events or claims in the opening that the script does not have (the bench labeler's wording); '' when clean. */
+async function invented(script: string, p: { plaque: string; speech: string }): Promise<string> {
+  const out = await ask(SONNET, 'Ниже сценарий рилса и новое начало для него. Проверь: есть ли в начале факты, цифры, имена, события, оценки или утверждения, ' +
+    'которых НЕТ в сценарии (выдумано или взято откуда-то ещё). Перефразирование того, что есть в сценарии, выдумкой не считается.\n' +
+    'Верни только JSON-массив: [{"i": 0, "invented": true, "what": "что выдумано, коротко, или пусто"}]\n\nСЦЕНАРИЙ:\n' + script +
+    `\n\nНАЧАЛА:\n0) плашка: ${p.plaque || '(нет)'} | речь: ${p.speech}`, 'low');
+  const r = json<{ invented?: boolean; what?: string }[]>(out, '[')?.[0];
+  return r?.invented ? (r.what || 'есть выдуманное') : '';
+}
+
 type Payoff = { type?: string; payoff?: string; quote?: string; not_given?: string };
 type Raw = { code?: string; plaque?: string; speech?: string; promise?: string; kept_in?: string };
 
@@ -227,8 +237,18 @@ ${cands}`;
       const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p, 'Начало ушло слишком далеко от образца: осталось мало его слов.'), 'medium'), '{');
       if (fix?.speech) { p = { ...p, plaque: fix.plaque || '', speech: fix.speech, promise: fix.promise || p.promise }; narrowed = true; }
     }
-    const overlap = donorOverlap(donor, p);
-    if (overlap < MIN_OVERLAP) return null;
+    if (donorOverlap(donor, p) < MIN_OVERLAP) return null;
+    // 1b) a near-verbatim copy drags the donor's own facts along («осень 2026», «таких, как я, не любят»: 41% of v5 variants on the
+    // bench); claims absent from the script are swapped for the script's own or dropped, the donor's other words stay
+    const inv = await invented(script, p);
+    if (inv) {
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
+        `В переносе остались факты или утверждения, которых нет в сценарии: ${inv}. Замени их на то, что есть в сценарии, или убери. Остальные слова образца не трогай.`), 'medium'), '{');
+      if (!fix?.speech) return null;
+      const q = { plaque: fix.plaque || '', speech: fix.speech };
+      if (donorOverlap(donor, q) < MIN_OVERLAP || await invented(script, q)) return null;
+      p = { ...p, ...q, promise: fix.promise || p.promise }; narrowed = true;
+    }
     // 2) the reel must pay off what the opening opens; one narrowing that keeps the donor's words, else a warning about the body
     let c = await check(p.plaque, p.speech + '\n' + body);
     let bodyGap: string | undefined;
