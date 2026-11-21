@@ -4,19 +4,10 @@
 //  - «Начало из залётов»: openings of other authors' hits tied to what this reel gives (POST /api/cabinet/optimizator/nachala);
 //  - «Статистика ролика»: the student uploads screenshots of the published reel's insights, checks the numbers the model read,
 //    and marks which opening was used (POST/PUT /api/cabinet/optimizator/stats).
-import { useEffect, useState } from 'react';
-import { METRIC_NAME, type Nachala, type NachalaPick, type PromiseCheck, type ReelMetrics, type StatsEntry } from '@/lib/optimizator/view';
+import { useEffect, useRef, useState } from 'react';
+import { METRIC_NAME, type Nachala, type ReelMetrics, type StatsEntry, type ViewerReason } from '@/lib/optimizator/view';
 
 type Headers = () => Record<string, string>;
-
-const KEPT: Record<string, [string, string]> = {
-  full: ['ok', 'обещание выполняется'], partial: ['part', 'выполняется частично'], no: ['bad', 'не выполняется'],
-  none: ['part', 'начало ничего не обещает'], unknown: ['part', 'не проверено'],
-};
-function Kept({ c }: { c: PromiseCheck }) {
-  const [cls, t] = KEPT[c.delivered] || KEPT.unknown;
-  return <span className={`opn-badge opn-${cls}`}>{t}</span>;
-}
 
 function Opening({ plaque, speech }: { plaque: string; speech: string }) {
   return (
@@ -27,29 +18,28 @@ function Opening({ plaque, speech }: { plaque: string; speech: string }) {
   );
 }
 
-function Pick({ p }: { p: NachalaPick }) {
-  const full = p.check.delivered === 'full';
-  return (
-    <div className={full ? 'opn-pick' : 'opn-pick opn-weak'}>
-      <Kept c={p.check} />
-      <Opening plaque={p.plaque} speech={p.speech} />
-      <p className="op-p opn-small">Обещает: {p.promise}{p.keptIn ? <><br />Выполняется: «{p.keptIn}»</> : null}</p>
-      {!full && p.check.gap && <p className="op-p opn-small opn-gap">Чего не хватает в ролике: {p.check.gap}</p>}
-      <p className="op-p op-muted opn-small">
-        Образец: <a href={p.src.url} target="_blank" rel="noopener noreferrer">@{p.src.author}</a> ×{Math.round(p.src.ratio)} к своей медиане
-        <br />{p.src.famName} · ×{p.src.famX.toFixed(1)}{p.src.confirmed ? ' · подтверждено на базе' : ''}
-        <br /><i>«{p.src.first.length > 140 ? p.src.first.slice(0, 139) + '…' : p.src.first}»</i>
-      </p>
-    </div>
-  );
+/** One answer instead of three variants (Sasha 21.11: «предложили самое пиздатое начало… либо сказали, что заебись»).
+ * Keep the student's own opening when the reel keeps its promise and the viewer stops; else the best checked pick:
+ * promise kept first, then the strongest family on the base, then the source's ratio. */
+export function bestOpening(n: Nachala, stop?: ViewerReason): { keep: true } | { keep: false; i: number } {
+  const own = n.orig.check.delivered === 'full' && (!stop || stop.answer === 'yes' || stop.score >= 7);
+  if (own || !n.picks.length) return { keep: true };
+  const rank = n.picks.map((p, i) => ({ i, full: p.check.delivered === 'full' ? 1 : 0, x: p.src.famX, r: p.src.ratio }))
+    .sort((a, b) => b.full - a.full || b.x - a.x || b.r - a.r);
+  return { keep: false, i: rank[0].i };
 }
 
-export function NachalaBlock({ runId, initial, headers, readOnly }: { runId: string; initial: Nachala | null | undefined; headers: Headers; readOnly?: boolean }) {
+function copyText(t: string) {
+  try { void navigator.clipboard.writeText(t); } catch { /* noop */ }
+}
+
+export function NachalaBlock({ runId, initial, headers, readOnly, stop }: { runId: string; initial: Nachala | null | undefined; headers: Headers; readOnly?: boolean; stop?: ViewerReason }) {
   const [n, setN] = useState<Nachala | null>(initial ?? null);
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState('');
   const [now, setNow] = useState(0);
-  useEffect(() => { setN(initial ?? null); setErr(''); }, [runId, initial]);
+  const [copied, setCopied] = useState(false);
+  const started = useRef(false);
   useEffect(() => {
     if (busy === null) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -69,54 +59,71 @@ export function NachalaBlock({ runId, initial, headers, readOnly }: { runId: str
       setErr(e instanceof Error ? e.message : 'Не получилось подобрать начало.');
     } finally { setBusy(null); }
   }
+  // Starts by itself: the student should get an answer, not a button.
+  useEffect(() => {
+    if (n || readOnly || started.current) return;
+    started.current = true;
+    const t = setTimeout(() => { void go(); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId]);
+
   if (!n) {
     if (readOnly) return null;
     return (
       <section className="op-card">
-        <h2 className="op-h2">Начало из залётов</h2>
-        <p className="op-p">
-          Подберу 3 начала из роликов, которые уже залетели у других экспертов по твоей теме, и пересажу их на твой текст так,
-          чтобы начало обещало ровно то, что ролик даёт. По базе 4 481 рилса: когда ролик выполняет обещание начала, он залетает
-          в 1,5 раза чаще, когда не выполняет, в 2 раза реже.
-        </p>
-        {busy !== null ? (
-          <p className="op-p op-muted">Подбираю и проверяю каждое начало… {Math.max(0, Math.round((now - busy) / 1000))} с, обычно около 1,5 минуты</p>
+        <h2 className="op-h2">Начало</h2>
+        {err ? (
+          <>
+            <div className="op-error" role="alert">{err}</div>
+            <button type="button" className="op-copy op-copy-primary opn-retry" onClick={go}>Попробовать ещё раз</button>
+          </>
         ) : (
-          <button type="button" className="op-copy op-copy-primary" onClick={go}>Подобрать начало</button>
+          <p className="op-p op-muted">
+            <span className="op-spinner op-spinner-sm" /> Сверяю твоё начало с залётами по теме и подбираю лучшее… {busy !== null ? Math.max(0, Math.round((now - busy) / 1000)) : 0} с, обычно около минуты
+          </p>
         )}
-        {err && <div className="op-error" role="alert">{err}</div>}
       </section>
     );
   }
-  const anyFull = n.picks.some((p) => p.check.delivered === 'full');
+  const b = bestOpening(n, stop);
+  if (b.keep) {
+    return (
+      <section className="op-card opn-keep">
+        <div className="opn-verdict opn-verdict-ok">Начало сильное, не трогаем</div>
+        <Opening plaque={n.orig.plaque} speech={n.orig.speech} />
+        <p className="op-p opn-small">
+          {n.picks.length ? 'Ролик выполняет то, что обещает начало' : 'По твоей теме в базе мало залётов для сравнения'}
+          {stop ? `, остановятся: ${stop.score}/10.` : '.'}
+        </p>
+      </section>
+    );
+  }
+  const p = n.picks[b.i];
+  const full = p.check.delivered === 'full';
+  const line = (p.plaque ? `[Текст на экране: ${p.plaque}]\n` : '') + p.speech;
   return (
-    <section className="op-card">
-      <h2 className="op-h2">Начало из залётов</h2>
-      <div className="opn-pay">
-        <div className="op-label">Что ролик реально даёт зрителю</div>
-        <p className="op-p">{n.payoff.payoff}</p>
-        {n.payoff.notGiven && <p className="op-p opn-small opn-gap">Не даёт: {n.payoff.notGiven}</p>}
+    <section className="op-card opn-best">
+      <div className="opn-verdict">Бери это начало</div>
+      <Opening plaque={p.plaque} speech={p.speech} />
+      <p className="op-p opn-small">
+        Так начинаются залёты в твоей теме: «{p.src.famName}» залетает в {String(Math.round(p.src.famX * 10) / 10).replace('.', ',')} раза чаще.
+        {full ? ' Ролик выполняет это обещание.' : ''}
+      </p>
+      {!full && p.check.gap && <p className="op-p opn-small opn-gap">Чтобы начало сработало, добавь в ролик: {p.check.gap}</p>}
+      <div className="op-row">
+        <button type="button" className="op-copy op-copy-primary" onClick={() => { copyText(line); setCopied(true); setTimeout(() => setCopied(false), 1600); }}>
+          {copied ? 'Скопировано' : 'Скопировать начало'}
+        </button>
       </div>
-      <div className="opn-cur">
-        <div className="op-label">Твоё начало <Kept c={n.orig.check} /></div>
+      <details className="opn-was">
+        <summary>Твоё было</summary>
         <Opening plaque={n.orig.plaque} speech={n.orig.speech} />
         {n.orig.check.gap && <p className="op-p opn-small opn-gap">{n.orig.check.gap}</p>}
-      </div>
-      {n.empty || !n.picks.length ? (
-        <p className="op-p op-muted">В базе пока мало залётов по твоей теме, чтобы подобрать начало.</p>
-      ) : (
-        <>
-          {!anyFull && (
-            <p className="op-p opn-fix">
-              Ни одно проверенное начало не выполняется полностью: ролик сам недодаёт. Добавь в ролик то, чего не хватает, или сузь обещание начала.
-            </p>
-          )}
-          <div className="opn-picks">{n.picks.map((p, i) => <Pick key={i} p={p} />)}</div>
-          <p className="op-p op-muted opn-small">
-            Это варианты для проверки, а не замена: залей ролик с одним из них в пробные и загрузи статистику ниже, так будет видно, что сработало.
-          </p>
-        </>
-      )}
+        <p className="op-p op-muted opn-small">
+          Образец: <a href={p.src.url} target="_blank" rel="noopener noreferrer">@{p.src.author}</a>, ×{Math.round(p.src.ratio)} к его обычным роликам
+        </p>
+      </details>
     </section>
   );
 }
@@ -146,7 +153,8 @@ function openingLabel(v: string | null, n: Nachala | null | undefined): string {
   return v;
 }
 
-export function StatsBlock({ runId, initial, nachala, headers }: { runId: string; initial: StatsEntry[] | undefined; nachala: Nachala | null | undefined; headers: Headers }) {
+export function StatsBlock({ runId, initial, nachala, headers, stop }: { runId: string; initial: StatsEntry[] | undefined; nachala: Nachala | null | undefined; headers: Headers; stop?: ViewerReason }) {
+  const best = nachala ? bestOpening(nachala, stop) : null;
   const [list, setList] = useState<StatsEntry[]>(initial || []);
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -223,9 +231,9 @@ export function StatsBlock({ runId, initial, nachala, headers }: { runId: string
           <label className="op-label">С каким началом выложил</label>
           <div className="opn-radios">
             <label><input type="radio" name="opn-o" checked={opening === 'orig'} onChange={() => setOpening('orig')} /> своё начало из сценария</label>
-            {(nachala?.picks || []).map((p, i) => (
-              <label key={i}><input type="radio" name="opn-o" checked={opening === `bank:${i}`} onChange={() => setOpening(`bank:${i}`)} /> «{p.speech}»</label>
-            ))}
+            {best && !best.keep && nachala && (
+              <label><input type="radio" name="opn-o" checked={opening === `bank:${best.i}`} onChange={() => setOpening(`bank:${best.i}`)} /> предложенное: «{nachala.picks[best.i].speech}»</label>
+            )}
             <label><input type="radio" name="opn-o" checked={opening === 'own'} onChange={() => setOpening('own')} /> другое</label>
             {opening === 'own' && <input className="opn-input" placeholder="Первая фраза, с которой выложил" value={own} onChange={(e) => setOwn(e.target.value)} />}
           </div>
@@ -266,6 +274,17 @@ export const BLOCKS_CSS = `
   .opn-ok { background: oklch(0.93 0.05 150); color: oklch(0.42 0.11 150); }
   .opn-part { background: oklch(0.94 0.05 75); color: oklch(0.50 0.12 60); }
   .opn-bad { background: oklch(0.92 0.05 25); color: oklch(0.48 0.15 25); }
+  .opn-verdict { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 19px; letter-spacing: -0.015em; margin-bottom: 10px; color: oklch(0.60 0.19 52); }
+  .opn-verdict-ok { color: oklch(0.55 0.13 150); }
+  .opn-best .opn-open, .opn-keep .opn-open { background: oklch(0.95 0.04 150); border-radius: 12px; padding: 12px 14px; }
+  .opn-keep .opn-open { background: oklch(0.955 0.01 75); }
+  .opn-was { margin-top: 12px; border-top: 1px solid oklch(0.90 0.008 75); padding-top: 10px; }
+  .opn-was summary { cursor: pointer; font-size: 13px; font-weight: 700; color: oklch(0.46 0.012 55); list-style: none; }
+  .opn-was summary::-webkit-details-marker { display: none; }
+  .opn-was summary::before { content: '+ '; }
+  .opn-was[open] summary::before { content: '− '; }
+  .opn-was .opn-open { margin-top: 8px; background: oklch(0.955 0.01 75); border-radius: 10px; padding: 10px 12px; }
+  .opn-retry { margin-top: 10px; }
   .opn-pay, .opn-cur { border-radius: 12px; padding: 12px 14px; margin: 10px 0; background: oklch(0.955 0.01 75); }
   .opn-pay { background: oklch(0.95 0.02 250); }
   .opn-open { margin-top: 6px; }

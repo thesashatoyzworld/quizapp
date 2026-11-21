@@ -260,11 +260,6 @@ function LadderBlock({ l }: { l: Ladder }) {
   );
 }
 
-const REASONS: { key: keyof ViewerReasons; title: string }[] = [
-  { key: 'stop', title: 'Остановятся?' },
-  { key: 'finish', title: 'Досмотрят?' },
-  { key: 'save_share', title: 'Сохранят или перешлют?' },
-];
 
 const BAZA_HEAD: Record<BazaBlock['need'], { title: string; note: string }> = {
   share: {
@@ -556,12 +551,10 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
       key: 'stop', title: 'Начало',
       body: (
         <>
-          <section className="op-card">
-            <ReasonCard title="Остановятся?" v={r?.stop} />
-            <ShansChips s={run.shans} parts={STEP_PARTS.stop} />
-          </section>
-          {run.id && (!shared || run.nachala) && (
-            <NachalaBlock runId={run.id} initial={run.nachala} headers={hdr} readOnly={shared} />
+          {run.id && (!shared || run.nachala) ? (
+            <NachalaBlock runId={run.id} initial={run.nachala} headers={hdr} readOnly={shared} stop={r?.stop} />
+          ) : (
+            <section className="op-card"><ReasonCard title="Остановятся?" v={r?.stop} /></section>
           )}
         </>
       ),
@@ -615,7 +608,7 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
   if (!shared && run.id) {
     steps.push({
       key: 'stats', title: 'Скрины',
-      body: <StatsBlock runId={run.id} initial={run.stats} nachala={run.nachala} headers={hdr} />,
+      body: <StatsBlock runId={run.id} initial={run.stats} nachala={run.nachala} headers={hdr} stop={r?.stop} />,
     });
   }
   const cur = Math.min(step, steps.length - 1);
