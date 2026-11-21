@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@/generated/prisma/client';
 import { monthKey } from './config';
 import type { DemandEvidence } from './demand';
-import type { Analysis, BazaBlock, DemandLink, Goal, HistoryItem, Ladder, Nachala, SavedRun, Stage } from './view';
+import type { Analysis, BazaBlock, DemandLink, Goal, HistoryItem, Ladder, Nachala, SavedRun, Shans, Stage } from './view';
 import { statsForRun } from './stats';
 import { firstLine, toStudent } from './view';
 
@@ -121,10 +121,11 @@ type RunRow = NonNullable<Awaited<ReturnType<typeof prisma.optimizatorRun.findFi
 
 function toSavedRun(r: RunRow): SavedRun | null {
   if (!r.result) return null;
-  const { ladder, instagram: _ig, nachala, ...analysis } = r.result as unknown as Analysis & {
+  const { ladder, instagram: _ig, nachala, shans, ...analysis } = r.result as unknown as Analysis & {
     ladder?: Ladder & { usage?: unknown };
     instagram?: string;
     nachala?: Nachala;
+    shans?: Shans;
   };
   void _ig;
   return {
@@ -138,6 +139,7 @@ function toSavedRun(r: RunRow): SavedRun | null {
     ladder: ladder ? studentLadder(ladder) : null,
     baza: (r.demand as StoredDemand | null)?.baza ?? null,
     nachala: nachala ?? null,
+    shans: shans ?? null,
   };
 }
 

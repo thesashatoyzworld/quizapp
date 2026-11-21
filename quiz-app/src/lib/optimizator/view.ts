@@ -227,6 +227,8 @@ export interface SavedRun {
   shareUrl?: string;
   /** «Начало из залётов» (20.11.2026), built on request after the analysis. */
   nachala?: Nachala | null;
+  /** «Шанс на залёт» from the reels-base score; null until computed. */
+  shans?: Shans | null;
   /** Owner only: confirmed stats of the published reel, from the student's screenshots. */
   stats?: StatsEntry[];
 }
@@ -410,4 +412,20 @@ export function readinessFor(score: number): Analysis['readiness'] {
 export function sourceUrl(source: string | null | undefined): string | null {
   if (!source || !/^youtu\.be\/[A-Za-z0-9_-]{11}\?t=\d+$/.test(source)) return null;
   return `https://${source}`;
+}
+
+/** «Шанс на залёт»: techniques confirmed on the reels base (lib/optimizator/shans.ts). */
+export interface ShansItem { name: string; part: string; or: number }
+export interface Shans {
+  score: number;
+  /** 0..4: заметно ниже обычного … высокий шанс. */
+  band: number;
+  bandName: string;
+  /** Stronger than this share of the base reels, 1-99. */
+  pct: number;
+  /** Share of hits in this band on new authors (balanced hit/flop pairs, so 50% is the middle). */
+  hitShare: number;
+  plus: ShansItem[];
+  minus: ShansItem[];
+  votes: number;
 }
