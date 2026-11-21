@@ -27,7 +27,7 @@ const OPUS = 'claude-opus-5-5';
 const SONNET = 'claude-sonnet-5-5';
 const POOL = 60;
 
-type Opening = {
+export type Opening = {
   code: string; author: string; ratio: number; likes: number | null; plaque: string | null; first: string; speech30: string;
   fam: string; fam_name: string; fam_or: number; tier: number; topic: string | null; format: string | null; promise: string | null; url: string;
   expect_type: string | null; explicit: boolean | null; tmpl: string | null;
@@ -189,7 +189,7 @@ async function invented(script: string, p: { plaque: string; speech: string }): 
 type Payoff = { type?: string; payoff?: string; quote?: string; not_given?: string };
 type Raw = { code?: string; plaque?: string; speech?: string; promise?: string; kept_in?: string };
 
-export async function buildNachala(script: string, formatType: FormatType | undefined, opts: { stop?: ViewerReason; rewrite?: string; topic?: string | null; excludeAuthor?: string } = {}): Promise<Nachala> {
+export async function buildNachala(script: string, formatType: FormatType | undefined, opts: { stop?: ViewerReason; rewrite?: string; topic?: string | null; excludeAuthor?: string; pool?: Opening[] } = {}): Promise<Nachala> {
   const t0 = Date.now();
   const [pay, topic] = await Promise.all([
     ask(OPUS, PAY + script, 'medium').then((t) => json<Payoff>(t, '{') ?? {}),
@@ -197,7 +197,7 @@ export async function buildNachala(script: string, formatType: FormatType | unde
   ]);
   const format = (formatType && FORMAT_OF[formatType]) || null;
   const [P, origCheck] = await Promise.all([
-    pool(topic, format, opts.excludeAuthor, isDialogue(script)),
+    opts.pool ? Promise.resolve(opts.pool.filter((r) => isDialogue(script) || !isDialogue(r.speech30))) : pool(topic, format, opts.excludeAuthor, isDialogue(script)),
     (() => { const o = openingOf(script); return check(o.plaque, script.replace(/\[Текст на экране[^\]]*\]/g, '')); })(),
   ]);
   const orig = { ...openingOf(script), check: origCheck };
