@@ -55,15 +55,20 @@ async function askCli(model: string, prompt: string): Promise<string> {
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
   const cwd = mkdtempSync(join(tmpdir(), 'optcli-'));
+  // 21.11: dotenv puts ANTHROPIC_API_KEY into the env, and the CLI then bills the paid API instead of the subscription
+  // (it drained the API balance and the cabinet stopped). The bench must never inherit it.
+  const cliEnv = { ...process.env }; delete cliEnv.ANTHROPIC_API_KEY; delete cliEnv.ANTHROPIC_AUTH_TOKEN;
   for (let attempt = 0; attempt < 2; attempt++) {
     const out = await new Promise<string>((res) => {
-      const p = spawn(process.env.CLAUDE_BIN || 'claude', ['-p', '--tools', '', '--strict-mcp-config', '--setting-sources', '', '--no-session-persistence', '--model', model], { cwd });
-      let o = '';
+      const p = spawn(process.env.CLAUDE_BIN || 'claude', ['-p', '--tools', '', '--strict-mcp-config', '--setting-sources', '', '--no-session-persistence', '--model', model], { cwd, env: cliEnv });
+      let o = '', e = '';
       p.stdout.on('data', (d) => { o += d; });
-      p.on('close', () => res(o));
+      p.stderr.on('data', (d) => { e += d; });
+      p.on('close', (code) => { if (!o.trim()) console.error('askCli empty', model, code, e.slice(0, 300)); res(o); });
       p.on('error', () => res(''));
       p.stdin.end(prompt);
     });
+    if (process.env.OPT_CLI_DEBUG) console.error('askCli', model, JSON.stringify(out.slice(0, 200)));
     if (out.trim()) return out;
   }
   return '';
