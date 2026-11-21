@@ -245,12 +245,21 @@ export interface NachalaPick {
   check: PromiseCheck;
   /** The first adaptation promised more than the reel gives and was narrowed. */
   narrowed: boolean;
+  /** v2: the adaptation still has its family's construction. */
+  fits?: boolean;
   src: { code: string; author: string; ratio: number; likes: number | null; first: string; plaque: string | null; url: string; famName: string; famX: number; confirmed: boolean };
 }
 
+/** v2: one answer. keep = the student's own opening stays (strong family / already stops / nothing better). */
+export type NachalaBest = { keep: true; why: 'strong' | 'stops' | 'none' } | { keep: false; i: number };
+
 export interface Nachala {
+  v?: number;
   payoff: { type: string; payoff: string; quote: string; notGiven: string };
-  orig: { plaque: string; speech: string; check: PromiseCheck };
+  orig: { plaque: string; speech: string; check: PromiseCheck; fam?: { id: string; name: string; x: number } };
+  best?: NachalaBest;
+  /** v2: the final text with the chosen opening in place (only when it is replaced). */
+  text?: string;
   picks: NachalaPick[];
   topic: string | null;
   ms: number;

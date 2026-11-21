@@ -20,11 +20,12 @@ export async function POST(request: NextRequest) {
   const run = await prisma.optimizatorRun.findFirst({ where: { id, telegramId: BigInt(tg), status: 'ok' }, select: { script: true, result: true } });
   if (!run?.result) return NextResponse.json({ error: 'Разбор не найден.' }, { status: 404 });
   const res = run.result as unknown as Analysis & { nachala?: Nachala };
-  if (res.nachala) return NextResponse.json({ nachala: res.nachala });
+  // v2 (one answer + text with the opening); older cached picks are rebuilt once.
+  if (res.nachala?.v === 2) return NextResponse.json({ nachala: res.nachala });
   try {
-    const n = await buildNachala(run.script, res.format?.type);
+    const n = await buildNachala(run.script, res.format?.type, { stop: res.viewer_reasons?.stop, rewrite: res.rewrite?.script });
     if (n.picks.length || n.empty) await saveNachala(id, n);
-    console.log(`[optimizator/nachala] ${id}: ${n.picks.length} picks, full ${n.picks.filter((p) => p.check.delivered === 'full').length}, orig ${n.orig.check.delivered}, ${Math.round(n.ms / 1000)} s`);
+    console.log(`[optimizator/nachala] ${id}: ${n.picks.length} picks, fits ${n.picks.filter((p) => p.fits).length}, orig ${n.orig.check.delivered} ${n.orig.fam?.id}, best ${JSON.stringify(n.best)}, ${Math.round(n.ms / 1000)} s`);
     return NextResponse.json({ nachala: n });
   } catch (err) {
     console.error('[optimizator/nachala] failed', id, String((err as Error)?.message || err).slice(0, 300));

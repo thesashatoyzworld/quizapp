@@ -12,7 +12,15 @@ import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/prisma';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { topicOf } from './baza';
-import type { FormatType, Nachala, NachalaPick, PromiseCheck } from './view';
+import type { FormatType, Nachala, NachalaBest, NachalaPick, PromiseCheck, ViewerReason } from './view';
+import FAM_JSON from './data/fam-model.json';
+
+/** 40 families of openings from the base (baza/fam.py), odds within author; f00 = no recognizable construction (×0.59). */
+type Fam = { id: string; name: string; template: string; examples: string[]; or: number };
+const FAMS: Fam[] = [...(FAM_JSON as Fam[]), { id: 'f00', name: 'Без узнаваемой конструкции', template: 'ни одно семейство не подходит', examples: [], or: 0.59 }];
+const FAM_BY_ID = new Map(FAMS.map((f) => [f.id, f]));
+/** A family this strong on the base is worth keeping (the confirmed ↑ ones are ×1.46 and up). */
+const STRONG_FAM = 1.4;
 
 const anthropic = new Anthropic();
 const OPUS = 'claude-opus-5-5';
@@ -118,7 +126,7 @@ async function pool(topic: string | null, format: string | null): Promise<Openin
 type Payoff = { type?: string; payoff?: string; quote?: string; not_given?: string };
 type Raw = { code?: string; plaque?: string; speech?: string; promise?: string; kept_in?: string };
 
-export async function buildNachala(script: string, formatType: FormatType | undefined): Promise<Nachala> {
+export async function buildNachala(script: string, formatType: FormatType | undefined, opts: { stop?: ViewerReason; rewrite?: string } = {}): Promise<Nachala> {
   const t0 = Date.now();
   const [pay, topic] = await Promise.all([
     ask(OPUS, PAY + script, 'medium').then((t) => json<Payoff>(t, '{') ?? {}),
@@ -131,7 +139,7 @@ export async function buildNachala(script: string, formatType: FormatType | unde
   ]);
   const orig = { ...openingOf(script), check: origCheck };
   const payoff = { type: pay.type || '', payoff: pay.payoff || '', quote: pay.quote || '', notGiven: pay.not_given || '' };
-  if (P.length < 3) return { payoff, orig, picks: [], topic, ms: Date.now() - t0, empty: true };
+  if (P.length < 3) return { v: 2, payoff, orig, picks: [], topic, ms: Date.now() - t0, empty: true, best: { keep: true, why: 'none' } };
 
   const cands = P.map((b) => `=== код ${b.code} (×${b.ratio.toFixed(1)}; семейство «${b.fam_name}» ×${b.fam_or.toFixed(1)}${b.tier === 0 ? ', подтверждено' : ''})\n` +
     `плашка: ${b.plaque || '(нет)'}\nречь: ${b.speech30}\nобещало и выполнило: ${b.promise || ''}`).join('\n');
@@ -177,7 +185,50 @@ ${cands}`;
     };
   }));
   picks.sort((a, b) => Number(b.check.delivered === 'full') - Number(a.check.delivered === 'full'));
-  return { payoff, orig, picks, topic, ms: Date.now() - t0 };
+
+  // 21.11: one answer instead of three. Family of the student's own opening and of each adapted pick
+  // (an adaptation that lost its construction, «Три причины…» without a number, is not shown).
+  const fams = await classify([{ id: 'orig', ...orig }, ...picks.map((p, i) => ({ id: `p${i}`, plaque: p.plaque, speech: p.speech }))]);
+  const of = FAM_BY_ID.get(fams.get('orig') || 'f00') || FAM_BY_ID.get('f00')!;
+  const origFam = { id: of.id, name: of.name, x: of.or };
+  picks.forEach((p, i) => { p.fits = fams.get(`p${i}`) === byCode.get(p.src.code)?.fam; });
+  const best = decide({ ...orig, fam: origFam }, picks, opts.stop);
+  let text: string | undefined;
+  if (!best.keep && opts.rewrite) text = await withOpening(opts.rewrite, picks[best.i]).catch(() => undefined);
+  return { v: 2, payoff, orig: { ...orig, fam: origFam }, picks, topic, ms: Date.now() - t0, best, text };
+}
+
+async function classify(items: { id: string; plaque: string; speech: string }[]): Promise<Map<string, string>> {
+  const list = FAMS.map((f) => `${f.id} «${f.name}»: ${f.template}${f.examples[0] ? ` (пример: «${f.examples[0]}»)` : ''}`).join('\n');
+  const out = await ask(SONNET, 'Отнеси каждое начало рилса (плашка + первые фразы) к одному семейству конструкций из списка. ' +
+    'Смотри на форму, а не на тему: «Число + список» только если в начале есть число и перечисление, вопрос только если это вопрос и т.д. ' +
+    'Если конструкция не совпадает ни с одним семейством, ставь f00.\n\nСЕМЕЙСТВА:\n' + list +
+    '\n\nВерни только JSON-массив: [{"id": "...", "fam": "f01"}]\n\nНАЧАЛА:\n' +
+    items.map((x) => `=== ${x.id}\nплашка: ${x.plaque || '(нет)'}\nречь: ${x.speech}`).join('\n'), 'low');
+  const arr = json<{ id?: string; fam?: string }[]>(out, '[') ?? [];
+  return new Map(arr.filter((o) => o.id && o.fam && FAM_BY_ID.has(o.fam)).map((o) => [o.id!, o.fam!]));
+}
+
+/** Keep the own opening when it is a strong construction the reel keeps, or it already stops the viewer and is kept;
+ * else the best pick that still has its construction: promise kept, then family strength, then the source ratio. */
+function decide(orig: Nachala['orig'] & { fam: { x: number } }, picks: NachalaPick[], stop?: ViewerReason): NachalaBest {
+  const d = orig.check.delivered;
+  if (orig.fam.x >= STRONG_FAM && (d === 'full' || d === 'partial')) return { keep: true, why: 'strong' };
+  if (d === 'full' && (!stop || stop.answer === 'yes' || stop.score >= 7)) return { keep: true, why: 'stops' };
+  const ok = picks.map((p, i) => ({ p, i })).filter(({ p }) => p.fits && p.check.delivered !== 'no')
+    .sort((a, b) => Number(b.p.check.delivered === 'full') - Number(a.p.check.delivered === 'full') || b.p.src.famX - a.p.src.famX || b.p.src.ratio - a.p.src.ratio);
+  if (!ok.length) return { keep: true, why: 'none' };
+  return { keep: false, i: ok[0].i };
+}
+
+/** The final text with the chosen opening in place of the old one; nothing else changes. */
+async function withOpening(text: string, p: NachalaPick): Promise<string | undefined> {
+  const out = await ask(SONNET, 'Ниже текст рилса и новое начало. Поставь новое начало вместо старого: строку «[Текст на экране: …]» в начале замени на новую плашку, ' +
+    'первую фразу речи (или первые 1-2, если они про то же) замени на новую первую фразу. Если следующая фраза повторяет новое начало, убери повтор. ' +
+    'Остальной текст не меняй ни словом, переносы строк и пометки в квадратных скобках сохрани. Верни только итоговый текст, без пояснений.\n\n' +
+    `НОВОЕ НАЧАЛО:\nплашка: ${p.plaque || '(нет)'}\nпервая фраза: ${p.speech}\n\nТЕКСТ:\n${text}`, 'low');
+  const t = out.trim();
+  return t.length > text.length * 0.6 ? t : undefined;
 }
 
 /** Stored inside optimizator_runs.result as \`nachala\`, so the shared link shows it too. */

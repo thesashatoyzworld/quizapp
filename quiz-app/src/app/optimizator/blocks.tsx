@@ -21,7 +21,8 @@ function Opening({ plaque, speech }: { plaque: string; speech: string }) {
 /** One answer instead of three variants (Sasha 21.11: «предложили самое пиздатое начало… либо сказали, что заебись»).
  * Keep the student's own opening when the reel keeps its promise and the viewer stops; else the best checked pick:
  * promise kept first, then the strongest family on the base, then the source's ratio. */
-export function bestOpening(n: Nachala, stop?: ViewerReason): { keep: true } | { keep: false; i: number } {
+export function bestOpening(n: Nachala, stop?: ViewerReason): { keep: true; why?: string } | { keep: false; i: number } {
+  if (n.best) return n.best;
   const own = n.orig.check.delivered === 'full' && (!stop || stop.answer === 'yes' || stop.score >= 7);
   if (own || !n.picks.length) return { keep: true };
   const rank = n.picks.map((p, i) => ({ i, full: p.check.delivered === 'full' ? 1 : 0, x: p.src.famX, r: p.src.ratio }))
@@ -29,8 +30,9 @@ export function bestOpening(n: Nachala, stop?: ViewerReason): { keep: true } | {
   return { keep: false, i: rank[0].i };
 }
 
-export function NachalaBlock({ runId, initial, headers, readOnly, stop }: { runId: string; initial: Nachala | null | undefined; headers: Headers; readOnly?: boolean; stop?: ViewerReason }) {
-  const [n, setN] = useState<Nachala | null>(initial ?? null);
+export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady }: { runId: string; initial: Nachala | null | undefined; headers: Headers; readOnly?: boolean; stop?: ViewerReason; onReady?: (n: Nachala) => void }) {
+  // Picks saved before v2 (three variants, no single answer) are rebuilt once by the owner.
+  const [n, setN] = useState<Nachala | null>(initial && (initial.v === 2 || readOnly) ? initial : null);
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState('');
   const [now, setNow] = useState(0);
@@ -50,6 +52,7 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop }: { runI
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.nachala) throw new Error(data.error || 'Не получилось подобрать начало.');
       setN(data.nachala);
+      onReady?.(data.nachala);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Не получилось подобрать начало.');
     } finally { setBusy(null); }
@@ -85,12 +88,18 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop }: { runI
   if (b.keep) {
     return (
       <section className="op-card opn-keep">
-        <div className="opn-verdict opn-verdict-ok">Начало сильное, не трогаем</div>
+        <div className={'why' in b && b.why === 'none' ? 'opn-verdict' : 'opn-verdict opn-verdict-ok'}>
+          {'why' in b && b.why === 'none' ? 'Оставляем твоё начало' : 'Начало сильное, не трогаем'}
+        </div>
         <Opening plaque={n.orig.plaque} speech={n.orig.speech} />
         <p className="op-p opn-small">
-          {n.picks.length ? 'Ролик выполняет то, что обещает начало' : 'По твоей теме в базе мало залётов для сравнения'}
-          {stop ? `, остановятся: ${stop.score}/10.` : '.'}
+          {'why' in b && b.why === 'strong' && n.orig.fam
+            ? `Это «${n.orig.fam.name}»: в залётах такая конструкция встречается в ${String(Math.round(n.orig.fam.x * 10) / 10).replace('.', ',')} раза чаще, и ролик держит обещание.`
+            : 'why' in b && b.why === 'none'
+              ? 'Сильнее в залётах по твоей теме не нашлось.'
+              : 'Ролик выполняет то, что обещает начало, и зритель остановится.'}
         </p>
+        {'why' in b && b.why === 'none' && n.orig.check.gap && <p className="op-p opn-small opn-gap">Чтобы начало сработало, добавь в ролик: {n.orig.check.gap}</p>}
       </section>
     );
   }

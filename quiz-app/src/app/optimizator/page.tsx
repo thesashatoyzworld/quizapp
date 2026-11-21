@@ -529,6 +529,8 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
   const a: StudentAnalysis = run.result;
   // Mounted with key={run.id}: a new run starts at step 1.
   const [step, setStep] = useState(0);
+  const [nach, setNach] = useState(run.nachala);
+  const finalText = nach?.v === 2 && nach.best && !nach.best.keep && nach.text ? nach.text : run.result.rewrite?.script ?? '';
   if (!a.input_ok) {
     return (
       <section className="op-card op-result">
@@ -556,7 +558,7 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
       body: (
         <>
           {run.id && (!shared || run.nachala) ? (
-            <NachalaBlock runId={run.id} initial={run.nachala} headers={hdr} readOnly={shared} stop={r?.stop} />
+            <NachalaBlock runId={run.id} initial={nach} headers={hdr} readOnly={shared} stop={r?.stop} onReady={setNach} />
           ) : (
             <section className="op-card"><ReasonCard title="Остановятся?" v={r?.stop} /></section>
           )}
@@ -600,10 +602,11 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
           {a.rewrite.placeholders.length > 0 && (
             <p className="op-p op-muted">Жёлтым отмечено то, что знаешь только ты: впиши свой пример, цифру или лид-магнит.</p>
           )}
-          <pre className="op-script"><WithPlaceholders text={a.rewrite.script} fill={a.rewrite.placeholders} /></pre>
+          {finalText !== a.rewrite.script && <p className="op-p op-muted">Начало уже заменено на то, что предложено на шаге «Начало».</p>}
+          <pre className="op-script"><WithPlaceholders text={finalText} fill={a.rewrite.placeholders} /></pre>
           <p className="op-p op-muted">Это пример, а не замена: своими словами будет живее.</p>
           <div className="op-row">
-            <CopyButton text={a.rewrite.script} label={oldPlan ? 'Скопировать план' : 'Скопировать текст'} primary />
+            <CopyButton text={finalText} label={oldPlan ? 'Скопировать план' : 'Скопировать текст'} primary />
           </div>
         </section>
       ),
@@ -612,7 +615,7 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
   if (!shared && run.id) {
     steps.push({
       key: 'stats', title: 'Скрины',
-      body: <StatsBlock runId={run.id} initial={run.stats} nachala={run.nachala} headers={hdr} stop={r?.stop} />,
+      body: <StatsBlock runId={run.id} initial={run.stats} nachala={nach} headers={hdr} stop={r?.stop} />,
     });
   }
   // Screen 0 is the chance and the verdict; then one step per screen (Sasha 21.11: «каждый экран отдельно, а не листанием вниз»).
