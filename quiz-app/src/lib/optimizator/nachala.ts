@@ -63,15 +63,16 @@ export function openingOf(script: string): { plaque: string; speech: string } {
   return { plaque: pl ? pl[1].trim() : '', speech };
 }
 
-/** The script without its first speech line and plaque marks: the new opening replaces them in the check. */
+/** The speech without its first phrase (and a short second one) and plaque marks: the new opening replaces them in the check.
+ * 21.11: it used to drop the whole first line, and a transcript or a one-paragraph script is one line, so the check saw
+ * the new opening with no reel after it and failed it ("no"), which then triggered a narrowing into a vaguer opening. */
 function bodyWithoutOpening(script: string): string {
-  let dropped = false;
-  return script.split('\n').filter((l) => {
-    const s = l.trim();
-    if (s.startsWith('[Текст на экране')) return false;
-    if (!dropped && s && !s.startsWith('[') && !s.startsWith('**')) { dropped = true; return false; }
-    return true;
-  }).join('\n');
+  const speech = script.split('\n').map((l) => l.trim()).filter((s) => s && !s.startsWith('[') && !s.startsWith('**'))
+    .map((l) => l.replace(/^[0-9.]+-[0-9.]+\s*\|\s*/, '')).join(' ');
+  const sents = speech.split(/(?<=[.!?…])\s+/);
+  let drop = 1;
+  if (sents[0] && sents[0].split(/\s+/).length < 6 && sents.length > 2) drop = 2;
+  return sents.slice(drop).join(' ');
 }
 
 const PAY = `Ниже сценарий рилса. Определи, что зритель РЕАЛЬНО получает, если досмотрит: не тема, а конкретная отдача.
@@ -149,8 +150,13 @@ export async function buildNachala(script: string, formatType: FormatType | unde
 ЧТО СЦЕНАРИЙ ДАЁТ: ${payoff.payoff} (тип: ${payoff.type}; где: «${payoff.quote}»)
 ЧЕГО СЦЕНАРИЙ НЕ ДАЁТ: ${payoff.notGiven || '—'}
 
-1) Выбери 3 начала из РАЗНЫХ семейств, у которых тип обещания совпадает с тем, что даёт сценарий (обещали способ, и сценарий даёт способ; обещали историю, и сценарий рассказывает историю). При прочих равных бери семейства с пометкой «подтверждено».
-2) Адаптируй: та же конструкция, но обещание = отдача сценария, не больше. Не обещай того, что в «чего не даёт». Новых фактов, цифр, оценок и обещаний не выдумывай (нельзя «никто не говорит», «самый ленивый», «я наконец понял», если этого нет в сценарии). Тему и формат не меняй. Плашка 2-6 слов, первая фраза до 15 слов; в диалоге первая фраза это реплика персонажа.
+1) Выбери 3 начала из РАЗНЫХ семейств, у которых тип обещания совпадает с тем, что даёт сценарий (обещали способ, и сценарий даёт способ; обещали историю, и сценарий рассказывает историю). При прочих равных бери семейства с пометкой «подтверждено». Семейство бери только если смысл конструкции есть в сценарии: «тяжёлый факт биографии» = потеря, провал, беда автора, а не его успех; «сейчас все обсуждают» = в сценарии есть конкретная вещь, которую все видели; «запрет» = сценарий правда говорит не делать привычного.
+2) Перенеси начало-образец: сохрани его скелет предложения (порядок частей, длину, тип первой фразы: утверждение, запрет, вопрос, реплика), замени только содержание на тему сценария. Должно быть видно, что это то же начало с другой темой.
+3) Обещание = отдача сценария, не больше. Не обещай того, что в «чего не даёт». Новых фактов, цифр, имён, оценок не выдумывай (нельзя «никто не говорит», «самый ленивый», «я наконец понял», если этого нет в сценарии).
+4) Держи интригу: начало обещает ответ, но НЕ выдаёт его. Если отдача сценария «люди платят за уверенность», в начале нельзя слово «уверенность»; если развязка «снимает Макс», в начале нельзя «Макс».
+5) Без анонсов: нельзя «объясню», «расскажу», «покажу», «разберём», «скажу», «вот что», «вот почему», «и что делать», «что вместо», «давайте разберёмся». Начало само по себе цепляет утверждением, запретом, сценой или вопросом, а не сообщает, о чём будет ролик.
+6) Голос автора: бери его слова и интонацию из сценария. Если автор ругается, злится, говорит разговорно (мат, «короче», «блин»), начало тоже так звучит; не делай его вежливее и глаже.
+7) Тему и формат не меняй. Плашка 2-6 слов, первая фраза до 15 слов; в диалоге первая фраза это реплика персонажа.
 Верни только JSON-массив из 3 объектов: [{"code": "код образца", "plaque": "...", "speech": "...", "promise": "что начало обещает", "kept_in": "дословная фраза сценария, где обещание выполняется"}]
 
 СЦЕНАРИЙ:
@@ -169,7 +175,7 @@ ${cands}`;
     if (c.delivered !== 'full') {
       const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS,
         `Начало рилса обещает больше или другое, чем даёт сценарий. Проверка: «${c.gap}». Перепиши начало в той же конструкции так, ` +
-        `чтобы оно обещало ровно то, что сценарий даёт: ${payoff.payoff}. Ничего не выдумывай. Плашка 2-6 слов, первая фраза до 15 слов: не пересказывай весь способ, только пообещай его.\nСейчас: плашка «${p.plaque}», речь «${p.speech}».\n` +
+        `чтобы оно обещало ровно то, что сценарий даёт: ${payoff.payoff}. Ничего не выдумывай. Сохрани слова и интонацию автора, не выдавай ответ в начале, без анонсов («объясню», «расскажу», «покажу», «вот что»). Плашка 2-6 слов, первая фраза до 15 слов: не пересказывай весь способ, только пообещай его.\nСейчас: плашка «${p.plaque}», речь «${p.speech}».\n` +
         'Верни только JSON-объект: {"plaque": "...", "speech": "...", "promise": "..."}\n\nСЦЕНАРИЙ:\n' + script, 'medium'), '{');
       if (fix?.speech) {
         const c2 = await check(fix.plaque || '', fix.speech + '\n' + body);
@@ -209,13 +215,16 @@ async function classify(items: { id: string; plaque: string; speech: string }[])
   return new Map(arr.filter((o) => o.id && o.fam && FAM_BY_ID.has(o.fam)).map((o) => [o.id!, o.fam!]));
 }
 
+/** Announcement words: the base gives an announced opening ↓ (O-REPORT), and the generator still slips into them. */
+const ANNOUNCE = /(объясн|расскаж|покаж|разбер[её]м|скажу|вот что|вот почему|вот как|что делать|что вместо|давайте разбер)/i;
+
 /** Keep the own opening when it is a strong construction the reel keeps, or it already stops the viewer and is kept;
  * else the best pick that still has its construction: promise kept, then family strength, then the source ratio. */
 function decide(orig: Nachala['orig'] & { fam: { x: number } }, picks: NachalaPick[], stop?: ViewerReason): NachalaBest {
   const d = orig.check.delivered;
   if (orig.fam.x >= STRONG_FAM && (d === 'full' || d === 'partial')) return { keep: true, why: 'strong' };
   if (d === 'full' && (!stop || stop.answer === 'yes' || stop.score >= 7)) return { keep: true, why: 'stops' };
-  const ok = picks.map((p, i) => ({ p, i })).filter(({ p }) => p.fits && p.check.delivered !== 'no')
+  const ok = picks.map((p, i) => ({ p, i })).filter(({ p }) => p.fits && p.check.delivered !== 'no' && !ANNOUNCE.test(p.plaque + ' ' + p.speech))
     .sort((a, b) => Number(b.p.check.delivered === 'full') - Number(a.p.check.delivered === 'full') || b.p.src.famX - a.p.src.famX || b.p.src.ratio - a.p.src.ratio);
   if (!ok.length) return { keep: true, why: 'none' };
   return { keep: false, i: ok[0].i };

@@ -16,7 +16,7 @@ async function main() {
       const r = todo[k++];
       try {
         const n = await buildNachala(r.script, undefined, {});
-        done[r.code] = { views: r.views, skip: r.skip, orig: n.orig, best: n.best, picks: n.picks.map((p) => ({ plaque: p.plaque, speech: p.speech, d: p.check.delivered, fits: p.fits, fam: p.src.famName, x: p.src.famX })), topic: n.topic, empty: !!n.empty };
+        done[r.code] = { views: r.views, skip: r.skip, payoff: n.payoff, orig: n.orig, best: n.best, picks: n.picks.map((p) => ({ plaque: p.plaque, speech: p.speech, d: p.check.delivered, fits: p.fits, fam: p.src.famName, x: p.src.famX })), topic: n.topic, empty: !!n.empty };
       } catch (e) { done[r.code] = { error: String((e as Error).message).slice(0, 200), views: r.views }; }
       writeFileSync(outp, JSON.stringify(done, null, 1));
       console.log(Object.keys(done).length, '/', rows.length);
