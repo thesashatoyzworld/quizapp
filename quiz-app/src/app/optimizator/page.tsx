@@ -645,12 +645,6 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
               Цель: <b>{a.goal === 'conversion' ? 'заявки' : 'охват'}</b>
               {format && <> · Формат: <b>{format}</b></>}
             </p>
-            {shared && (
-              <details className="op-card op-details">
-                <summary>Сценарий<span>текст, который разбирали</span></summary>
-                <div className="op-sect"><pre className="op-script">{run.script}</pre></div>
-              </details>
-            )}
           </>
         ) : steps[cur - 1].body}
       </div>
@@ -669,6 +663,9 @@ function Result({ run, onNew, shared, headers }: { run: SavedRun; onNew?: () => 
           <details className="op-card op-details">
             <summary>Подробный разбор<span>спрос на тему, предупреждения, балл, критерии, ещё хуки</span></summary>
             <div className="op-sect op-more">
+              {shared && (
+                <section className="op-card"><h2 className="op-h2">Сценарий</h2><pre className="op-script">{run.script}</pre></section>
+              )}
               {run.ladder && <LadderBlock l={run.ladder} />}
               {a.warnings.length > 0 && (
                 <section className="op-card op-warn">
