@@ -40,11 +40,33 @@ const FORMAT_OF: Partial<Record<FormatType, string>> = {
 
 /** Opus/Sonnet 5.5 always think (adaptive); max_tokens leaves room for it. Effort low for the checks, medium elsewhere. */
 async function ask(model: string, prompt: string, effort: 'low' | 'medium'): Promise<string> {
+  if (process.env.OPT_VIA_CLI) return askCli(model, prompt);
   const msg = await anthropic.messages.create({
     model, max_tokens: 16_000, thinking: { type: 'adaptive' }, output_config: { effort }, messages: [{ role: 'user', content: prompt }],
   });
   await recordAnthropicUsage(model, msg.usage, 'optimizator');
   return msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
+}
+
+/** Bench runs (scripts/optimizator-nachala-bench.ts) go through the local claude CLI on the subscription, not the paid API. */
+async function askCli(model: string, prompt: string): Promise<string> {
+  const { spawn } = await import('node:child_process');
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const cwd = mkdtempSync(join(tmpdir(), 'optcli-'));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const out = await new Promise<string>((res) => {
+      const p = spawn(process.env.CLAUDE_BIN || 'claude', ['-p', '--tools', '', '--strict-mcp-config', '--setting-sources', '', '--no-session-persistence', '--model', model], { cwd });
+      let o = '';
+      p.stdout.on('data', (d) => { o += d; });
+      p.on('close', () => res(o));
+      p.on('error', () => res(''));
+      p.stdin.end(prompt);
+    });
+    if (out.trim()) return out;
+  }
+  return '';
 }
 
 function json<T>(text: string, open: '[' | '{'): T | null {
@@ -107,7 +129,7 @@ async function check(plaque: string, text: string): Promise<PromiseCheck> {
   return { delivered: d === 'full' || d === 'partial' || d === 'no' || d === 'none' ? d : 'unknown', promise: r?.expect || '', gap: r?.gap || '' };
 }
 
-async function pool(topic: string | null, format: string | null): Promise<Opening[]> {
+async function pool(topic: string | null, format: string | null, excludeAuthor?: string): Promise<Opening[]> {
   const rows = topic
     ? await prisma.$queryRaw<Opening[]>`
         SELECT * FROM optimizator_openings WHERE topic = ${topic}
@@ -117,7 +139,9 @@ async function pool(topic: string | null, format: string | null): Promise<Openin
   const perAuthor = new Map<string, number>();
   const perFam = new Map<string, number>();
   const out: Opening[] = [];
-  for (const r of rows) { // at most 2 per author and 6 per family, so the pool covers many constructions
+  for (const r of rows) {
+    if (excludeAuthor && r.author === excludeAuthor) continue; // bench: the tested reel's author must not leak in
+    // at most 2 per author and 6 per family, so the pool covers many constructions
     if ((perAuthor.get(r.author) ?? 0) >= 2 || (perFam.get(r.fam) ?? 0) >= 6) continue;
     perAuthor.set(r.author, (perAuthor.get(r.author) ?? 0) + 1);
     perFam.set(r.fam, (perFam.get(r.fam) ?? 0) + 1);
@@ -130,15 +154,15 @@ async function pool(topic: string | null, format: string | null): Promise<Openin
 type Payoff = { type?: string; payoff?: string; quote?: string; not_given?: string };
 type Raw = { code?: string; plaque?: string; speech?: string; promise?: string; kept_in?: string };
 
-export async function buildNachala(script: string, formatType: FormatType | undefined, opts: { stop?: ViewerReason; rewrite?: string } = {}): Promise<Nachala> {
+export async function buildNachala(script: string, formatType: FormatType | undefined, opts: { stop?: ViewerReason; rewrite?: string; topic?: string | null; excludeAuthor?: string } = {}): Promise<Nachala> {
   const t0 = Date.now();
   const [pay, topic] = await Promise.all([
     ask(OPUS, PAY + script, 'medium').then((t) => json<Payoff>(t, '{') ?? {}),
-    topicOf(script).catch(() => null),
+    opts.topic !== undefined ? Promise.resolve(opts.topic) : topicOf(script).catch(() => null),
   ]);
   const format = (formatType && FORMAT_OF[formatType]) || null;
   const [P, origCheck] = await Promise.all([
-    pool(topic, format),
+    pool(topic, format, opts.excludeAuthor),
     (() => { const o = openingOf(script); return check(o.plaque, script.replace(/\[Текст на экране[^\]]*\]/g, '')); })(),
   ]);
   const orig = { ...openingOf(script), check: origCheck };
