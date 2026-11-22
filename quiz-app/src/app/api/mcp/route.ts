@@ -225,4 +225,13 @@ async function handle(request: Request): Promise<Response> {
   return transport.handleRequest(request);
 }
 
-export { handle as GET, handle as POST, handle as DELETE };
+// Stateless server: no standalone SSE stream and no sessions. A GET used to open
+// an SSE stream that never closed, so every connected client held a function
+// until the 60 s timeout and reconnected: ~2500 timeouts a day, which used up
+// the Vercel CPU limit on 21.11.2026. The MCP spec lets a server answer 405 here;
+// clients then talk over POST only.
+function methodNotAllowed(): Response {
+  return new Response(null, { status: 405, headers: { allow: 'POST' } });
+}
+
+export { handle as POST, methodNotAllowed as GET, methodNotAllowed as DELETE };
