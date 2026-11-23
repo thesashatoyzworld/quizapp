@@ -236,11 +236,14 @@ async function deliverLeadMagnet(
   firstName: string,
   username: string,
   fullName: string,
+  src: string | null = null,
 ) {
   const lmText = `привет, ${firstName}\n\n${lm.intro}${lm.softPitch ? '\n\n' + lm.softPitch : ''}`;
+  // The post label rides into the guide URL too, so the site's guide tracking sees it.
+  const url = src ? `${lm.url}${lm.url.includes('?') ? '&' : '?'}from=${src}` : lm.url;
   const lmMarkup = {
     inline_keyboard: [
-      [{ text: lm.buttonText || '📖 Открыть гайд', web_app: { url: lm.url } }],
+      [{ text: lm.buttonText || '📖 Открыть гайд', web_app: { url } }],
     ],
   };
 
@@ -253,12 +256,13 @@ async function deliverLeadMagnet(
       username: username || undefined,
       first_name: fullName || undefined,
       utm_source: `leadmagnet_${slug}`,
-      metadata: { slug },
+      metadata: src ? { slug, src } : { slug },
     }),
     notifyAdmin(
       `🪝 <b>Лид-магнит выдан</b>\n\n` +
       `Материал: ${lm.title}\n` +
       `Slug: <code>${slug}</code>\n` +
+      (src ? `Откуда: <code>${src}</code>\n` : '') +
       `👤 ${fullName || '—'}\n` +
       `💬 ${username ? '@' + username : 'без username'}\n` +
       `🆔 <code>${chatId}</code>`
@@ -266,8 +270,21 @@ async function deliverLeadMagnet(
   ]);
 }
 
+// Deep link to a lead magnet, optionally with the post it came from: `perezaliv` or `perezaliv_tg_1790`.
+function parseLeadMagnetStart(startParam: string): { slug: string; src: string | null; lm: LeadMagnet } | null {
+  const exact = getLeadMagnet(startParam);
+  if (exact) return { slug: startParam, src: null, lm: exact };
+  const cut = startParam.indexOf('_');
+  if (cut < 1) return null;
+  const slug = startParam.slice(0, cut);
+  const lm = getLeadMagnet(slug);
+  if (!lm) return null;
+  const src = startParam.slice(cut + 1).toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
+  return { slug, src: src || null, lm };
+}
+
 // Ask a non-subscriber to join the channel before getting the magnet.
-async function sendSubscriptionGate(chatId: number, slug: string, lm: LeadMagnet, firstName: string) {
+async function sendSubscriptionGate(chatId: number, slug: string, lm: LeadMagnet, firstName: string, src: string | null = null) {
   const channel = lm.channelUsername.startsWith('@') ? lm.channelUsername : `@${lm.channelUsername}`;
   const gateText =
     lm.gateText?.replace('{name}', firstName) ||
@@ -276,7 +293,7 @@ async function sendSubscriptionGate(chatId: number, slug: string, lm: LeadMagnet
   const gateMarkup = {
     inline_keyboard: [
       [{ text: '📲 Подписаться на канал', url: `https://t.me/${channel.replace(/^@/, '')}` }],
-      [{ text: '✅ Я подписался', callback_data: `checksub:${slug}` }],
+      [{ text: '✅ Я подписался', callback_data: `checksub:${slug}${src ? ':' + src : ''}` }],
     ],
   };
 
@@ -669,7 +686,7 @@ export async function POST(request: NextRequest) {
 
       // Subscription gate re-check: "Я подписался"
       if (data.startsWith('checksub:') && cb.message) {
-        const slug = data.slice('checksub:'.length);
+        const [slug, src = null] = data.slice('checksub:'.length).split(':');
         const userId = cb.from.id;
         const chatId = cb.message.chat.id;
         const firstName = cb.from.first_name || 'друг';
@@ -693,9 +710,9 @@ export async function POST(request: NextRequest) {
             username: username || undefined,
             first_name: fullName || undefined,
             utm_source: `leadmagnet_${slug}`,
-            metadata: { slug, channel: lm.channelUsername },
+            metadata: src ? { slug, src, channel: lm.channelUsername } : { slug, channel: lm.channelUsername },
           });
-          await deliverLeadMagnet(chatId, slug, lm, firstName, username, fullName);
+          await deliverLeadMagnet(chatId, slug, lm, firstName, username, fullName, src);
         } else {
           await answerCallbackQuery(cb.id, 'Пока не вижу подписку — подпишись и нажми ещё раз');
         }
@@ -846,7 +863,33 @@ export async function POST(request: NextRequest) {
             ...rows.map((r) => `${r.src} — ${r.n}${weekBy.get(r.src) ? ` (за 7 дней ${weekBy.get(r.src)})` : ''}`),
           ].join('\n')
         : 'В листе ожидания 360 пока никого';
-      await sendBotMessage(update.message.chat.id, reply, undefined, null);
+
+      // Guides in the bot by post label: who pressed start (one person counted once) and who got the guide.
+      const lmEvents = await prisma.event.findMany({
+        where: { type: { in: ['leadmagnet_gated', 'leadmagnet_delivered'] }, utmSource: { startsWith: 'leadmagnet_' } },
+        select: { type: true, telegramId: true, utmSource: true, metadata: true },
+      });
+      const lmRows = new Map<string, { came: Set<string>; got: Set<string> }>();
+      for (const e of lmEvents) {
+        const src = (e.metadata as { src?: string } | null)?.src;
+        if (!src) continue;
+        const key = `${(e.utmSource || '').slice('leadmagnet_'.length)} · ${src}`;
+        const row = lmRows.get(key) || { came: new Set<string>(), got: new Set<string>() };
+        const who = String(e.telegramId ?? '');
+        row.came.add(who);
+        if (e.type === 'leadmagnet_delivered') row.got.add(who);
+        lmRows.set(key, row);
+      }
+      const lmReply = lmRows.size
+        ? [
+            '',
+            'Гайды в боте по меткам (перешли / получили):',
+            ...[...lmRows.entries()]
+              .sort((a, b) => b[1].came.size - a[1].came.size)
+              .map(([k, r]) => `${k} — ${r.came.size} / ${r.got.size}`),
+          ].join('\n')
+        : '';
+      await sendBotMessage(update.message.chat.id, reply + lmReply, undefined, null);
       return NextResponse.json({ ok: true });
     }
 
@@ -1313,28 +1356,30 @@ export async function POST(request: NextRequest) {
       }
 
       // Lead-magnet deep link (slug from content/leadmagnets.json)
-      if (startParam) {
-        const lm = getLeadMagnet(startParam);
-        if (lm) {
+      // A post label may follow the slug: perezaliv_tg_1790 → slug perezaliv, src tg_1790.
+      const lmHit = startParam ? parseLeadMagnetStart(startParam) : null;
+      if (lmHit) {
+        const { slug: lmSlug, src: lmSrc, lm } = lmHit;
+        {
           // Subscription gate: hold the magnet until the user joins the channel.
           // In a private chat the chat.id equals the user's telegram id.
           if (lm.requireSub) {
             const subscribed = await isChannelMember(lm.channelUsername, chatId);
             if (!subscribed) {
-              await sendSubscriptionGate(chatId, startParam, lm, firstName);
+              await sendSubscriptionGate(chatId, lmSlug, lm, firstName, lmSrc);
               await trackEvent({
                 event_type: 'leadmagnet_gated',
                 user_id: chatId,
                 username: username || undefined,
                 first_name: fullName || undefined,
-                utm_source: `leadmagnet_${startParam}`,
-                metadata: { slug: startParam },
+                utm_source: `leadmagnet_${lmSlug}`,
+                metadata: lmSrc ? { slug: lmSlug, src: lmSrc } : { slug: lmSlug },
               });
               return NextResponse.json({ ok: true });
             }
           }
 
-          await deliverLeadMagnet(chatId, startParam, lm, firstName, username, fullName);
+          await deliverLeadMagnet(chatId, lmSlug, lm, firstName, username, fullName, lmSrc);
           return NextResponse.json({ ok: true });
         }
       }
