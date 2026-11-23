@@ -11,6 +11,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const TOP = 1.037; // score cut of the top band (shans-model.json cuts[3])
 const ROUNDS = 3;
 const REWRITE_MODEL = 'claude-opus-5-5';
+const KEEP = process.env.TELO_KEEP === '1';
+const KEEP_RULE = KEEP ? "- Не удаляй то, что нужно автору для бизнеса и пользы: призыв в конце с кодовым словом или ссылкой, кейсы и результаты клиентов, конкретные цифры (цены, граммы, калории, суммы). Их можно сократить, переставить, переподать (кейс как короткая история человека, а не как довод «смотрите какие результаты»), но смысл и факт должны остаться." : ''; // keep CTA, client cases and concrete numbers (business needs)
 
 // plus techniques a rewrite may add without new facts (structure and phrasing, not events or numbers)
 const ADDABLE = new Set([
@@ -44,6 +46,7 @@ async function main() {
 - Голос автора: его слова, его обращение (ты/вы), его разговорный стиль. Меняй только нужные куски, остальное оставь дословно.
 - Первые две фразы (начало ролика) не трогай.
 - Не делай текст длиннее исходного больше чем на 15%.
+${KEEP_RULE}
 
 МЕШАЕТ (есть в тексте, убери или переделай так, чтобы признака не осталось): ${minus.length ? minus.join('; ') : 'нет'}
 УЖЕ ЕСТЬ (сохрани): ${plus.length ? plus.join('; ') : 'нет'}
