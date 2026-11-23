@@ -12,7 +12,8 @@ import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 
 export const DEMAND_MODEL = 'claude-haiku-5-5';
 export const DEMAND_WINDOW_DAYS = 90;
-const TOTAL_TIMEOUT_MS = 8_000;
+// the local CLI (OPT_VIA_CLI) starts a process per call: seconds, not hundreds of ms
+const TOTAL_TIMEOUT_MS = process.env.OPT_VIA_CLI ? 45_000 : 8_000;
 const MAX_ITEMS = 30;
 const MAX_PER_AUTHOR = 3;
 

@@ -27,7 +27,7 @@ export const TOPICS = [
 ] as const;
 
 const anthropic = llm(); // OPT_VIA_CLI: local subscription runs (llm.ts)
-const TOPIC_TIMEOUT_MS = 8_000;
+const TOPIC_TIMEOUT_MS = process.env.OPT_VIA_CLI ? 45_000 : 8_000; // local CLI runs are slower to start
 
 /** Script → one topic of TOPICS, or null. One Haiku call, usage under 'optimizator'. */
 export async function topicOf(script: string): Promise<string | null> {
