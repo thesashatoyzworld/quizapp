@@ -823,7 +823,7 @@ function OptimizatorInner() {
         window.history.replaceState(null, '', `/optimizator?run=${data.run.id}`);
         setItems((prev) => [{
           id: data.run.id, createdAt: data.run.createdAt, goal: data.run.goal,
-          score: data.run.result.overall_score,
+          score: data.run.result.overall_score, shans: data.run.shans?.hitShare ?? null,
           firstLine: firstLine(script),
         }, ...prev].slice(0, 10));
       }
@@ -960,7 +960,9 @@ function OptimizatorInner() {
               {items.map((h) => (
                 <button type="button" key={h.id} className="op-hist"
                   onClick={() => loadRun(h.id)}>
-                  <span className={`op-hist-score ${h.score !== null ? scoreTone100(h.score) : ''}`}>{h.score ?? '·'}</span>
+                  {h.shans !== null && h.shans !== undefined
+                    ? <span className={`op-hist-score ${h.shans >= 0.53 ? 'op-good' : h.shans >= 0.45 ? 'op-mid' : 'op-low'}`}>{Math.round(h.shans * 100)}%</span>
+                    : <span className={`op-hist-score ${h.score !== null ? scoreTone100(h.score) : ''}`}>{h.score ?? '·'}</span>}
                   <span className="op-hist-body">
                     <span className="op-hist-line">{h.firstLine || 'Без текста'}</span>
                     <span className="op-hist-meta">{fmtDate(h.createdAt)} · {h.goal === 'conversion' ? 'заявки' : 'охват'}</span>

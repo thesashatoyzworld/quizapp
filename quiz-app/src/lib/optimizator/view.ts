@@ -185,6 +185,8 @@ export interface HistoryItem {
   createdAt: string;
   goal: Goal;
   score: number | null;
+  /** 23.11: «шанс на залёт» of the run (share of hits in its band), the number the run page shows first. */
+  shans: number | null;
   firstLine: string;
 }
 

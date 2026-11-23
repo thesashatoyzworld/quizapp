@@ -89,12 +89,13 @@ export async function history(telegramId: number, take = 10): Promise<HistoryIte
     select: { id: true, createdAt: true, goal: true, script: true, result: true },
   });
   return rows.map((r) => {
-    const res = r.result as { overall_score?: number } | null;
+    const res = r.result as { overall_score?: number; shans?: { hitShare?: number } } | null;
     return {
       id: r.id,
       createdAt: r.createdAt.toISOString(),
       goal: r.goal as Goal,
       score: typeof res?.overall_score === 'number' ? res.overall_score : null,
+      shans: typeof res?.shans?.hitShare === 'number' ? res.shans.hitShare : null,
       firstLine: firstLine(r.script),
     };
   });
