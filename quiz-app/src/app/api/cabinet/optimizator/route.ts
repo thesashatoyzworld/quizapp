@@ -8,6 +8,7 @@ import { prisma } from '@/lib/prisma';
 import { bronOptOpen } from '@/lib/bron360';
 import { findDemand, scriptPhrases, type DemandEvidence } from '@/lib/optimizator/demand';
 import { runLadder } from '@/lib/optimizator/ladder';
+import { saveShans, scoreShans } from '@/lib/optimizator/shans';
 import { bazaFor, topicOf } from '@/lib/optimizator/baza';
 import {
   getRun, history, lastUsername, releaseSlot, reserveSlot, saveRun, studentLadder, usedThisMonth, type StoredDemand,
@@ -164,6 +165,8 @@ export async function POST(request: NextRequest) {
   phrases.catch(() => { /* findDemand and the ladder handle it */ });
   // Never throws; runs next to the analysis so the total time barely grows.
   const ladderP = LADDER_ON ? runLadder({ script, username: instagram, phrases }) : Promise.resolve(null);
+  // «Шанс на залёт» (3 Sonnet labellings on the base techniques), next to the analysis; never throws.
+  const shansP = scoreShans(script);
   // Topic for the base examples (one Haiku call), runs next to the analysis.
   const topicP = topicOf(script).catch((e) => { console.error('[optimizator/baza] topic', String(e?.message || e).slice(0, 200)); return null; });
 
@@ -211,6 +214,8 @@ export async function POST(request: NextRequest) {
     console.error('[optimizator] save failed:', err);
     runId = '';
   }
+  const shans = await shansP;
+  if (shans && runId) await saveShans(runId, shans).catch((e) => console.error('[optimizator] shans save failed:', e));
 
   return NextResponse.json({
     run: {
@@ -223,6 +228,7 @@ export async function POST(request: NextRequest) {
       demandLinks: demand.links,
       ladder: ladder ? studentLadder(ladder) : null,
       baza,
+      shans,
       shareUrl: runId ? shareUrl(runId) : undefined,
     },
     used: reserved,

@@ -6,12 +6,14 @@
 // Postgres full-text search. Server only. Never throws: on any error or timeout
 // the analysis goes on with `searched: false`.
 import Anthropic from '@anthropic-ai/sdk';
+import { llm } from './llm';
 import { prisma } from '@/lib/prisma';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 
 export const DEMAND_MODEL = 'claude-haiku-5-5';
 export const DEMAND_WINDOW_DAYS = 90;
-const TOTAL_TIMEOUT_MS = 8_000;
+// the local CLI (OPT_VIA_CLI) starts a process per call: seconds, not hundreds of ms
+const TOTAL_TIMEOUT_MS = process.env.OPT_VIA_CLI ? 45_000 : 8_000;
 const MAX_ITEMS = 30;
 const MAX_PER_AUTHOR = 3;
 
@@ -33,7 +35,7 @@ export type DemandEvidence = {
   items: DemandItem[];
 };
 
-const anthropic = new Anthropic();
+const anthropic = llm(); // OPT_VIA_CLI: local subscription runs (llm.ts)
 
 const PHRASES_PROMPT =
   'Тебе дают сценарий рилса. Составь 6-10 коротких поисковых фраз на русском (2-4 слова каждая), ' +

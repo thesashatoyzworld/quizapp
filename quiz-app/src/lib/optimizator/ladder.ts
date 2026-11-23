@@ -6,6 +6,7 @@
 // Server only. Never throws: any failure or a refusal returns null and the UI hides
 // the block.
 import Anthropic from '@anthropic-ai/sdk';
+import { llm } from './llm';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { SYSTEM_PROMPT } from './system';
 import { pickAnchors } from './anchors';
@@ -15,7 +16,7 @@ import {
 } from './config';
 import { firstSentence, type Ladder, type LadderKind, type LadderRef } from './view';
 
-const anthropic = new Anthropic();
+const anthropic = llm(); // OPT_VIA_CLI: local subscription runs (llm.ts)
 
 // Texts as in ladder.py (ASK + TAIL), do not reword: they are what was measured.
 const ASK: Record<LadderKind, string> = {

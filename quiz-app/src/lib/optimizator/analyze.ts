@@ -4,6 +4,7 @@
 // user = JSON {script, demand}, response = one JSON object, unknown keys stripped.
 // Goal and format are detected by the model from the text (prompt v5).
 import Anthropic from '@anthropic-ai/sdk';
+import { llm } from './llm';
 import { SYSTEM_PROMPT } from './system';
 import { OUTPUT_SCHEMA } from './output-schema';
 import { stripUnknown } from './strip';
@@ -11,7 +12,7 @@ import { MAX_TOKENS, MODEL } from './config';
 import type { Analysis } from './view';
 import type { DemandItem } from './demand';
 
-const anthropic = new Anthropic();
+const anthropic = llm(); // OPT_VIA_CLI: local subscription runs (llm.ts)
 
 /** Demand evidence as the model sees it: no Instagram urls (they stay on the server). */
 export interface DemandInput {

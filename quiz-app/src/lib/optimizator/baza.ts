@@ -10,6 +10,7 @@
 // off-topic examples misled students before (29.10 anchors).
 // Server only.
 import Anthropic from '@anthropic-ai/sdk';
+import { llm } from './llm';
 import { prisma } from '@/lib/prisma';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { DEMAND_MODEL, asScript } from './demand';
@@ -25,8 +26,8 @@ export const TOPICS = [
   'путешествия', 'образование_языки', 'творчество_музыка', 'юмор_развлечения', 'новости_общество', 'другое',
 ] as const;
 
-const anthropic = new Anthropic();
-const TOPIC_TIMEOUT_MS = 8_000;
+const anthropic = llm(); // OPT_VIA_CLI: local subscription runs (llm.ts)
+const TOPIC_TIMEOUT_MS = process.env.OPT_VIA_CLI ? 45_000 : 8_000; // local CLI runs are slower to start
 
 /** Script → one topic of TOPICS, or null. One Haiku call, usage under 'optimizator'. */
 export async function topicOf(script: string): Promise<string | null> {

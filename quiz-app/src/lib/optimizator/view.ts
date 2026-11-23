@@ -185,6 +185,8 @@ export interface HistoryItem {
   createdAt: string;
   goal: Goal;
   score: number | null;
+  /** 23.11: «шанс на залёт» of the run (share of hits in its band), the number the run page shows first. */
+  shans: number | null;
   firstLine: string;
 }
 
@@ -225,6 +227,112 @@ export interface SavedRun {
   baza?: BazaBlock | null;
   /** Owner only: public read-only link to this run. */
   shareUrl?: string;
+  /** «Начало из залётов» (20.11.2026), built on request after the analysis. */
+  nachala?: Nachala | null;
+  /** «Шанс на залёт» from the reels-base score; null until computed. */
+  shans?: Shans | null;
+  /** Owner only: confirmed stats of the published reel, from the student's screenshots. */
+  stats?: StatsEntry[];
+}
+
+export type PromiseKept = 'full' | 'partial' | 'no' | 'none' | 'unknown';
+export interface PromiseCheck { delivered: PromiseKept; promise: string; gap: string }
+
+export interface NachalaPick {
+  plaque: string;
+  speech: string;
+  promise: string;
+  /** The script line where the promise is kept. */
+  keptIn: string;
+  check: PromiseCheck;
+  /** The first adaptation promised more than the reel gives and was narrowed. */
+  narrowed: boolean;
+  /** v2: the adaptation still has its family's construction. */
+  fits?: boolean;
+  /** v5 (21.11): share of the donor's opening words kept (stem match, plaque + first 15 words); the base copies carry the donor's
+   * result from 0.30 up (x2.12), below it about nothing (x1.0-1.2). */
+  overlap?: number;
+  /** v5: the reel does not pay off what this opening opens (copy of a hit with the expectation unpaid x0.85): what is missing. */
+  bodyGap?: string;
+  /** 23.11 bundle: the script's own line that goes right after this opening, and what stands in between and should go (self-intro, lead-in). */
+  next?: string;
+  drop?: string;
+  /** 23.11: the script with this bundle applied and its «шанс на залёт» (same model as the run's own number). */
+  text?: string;
+  shans?: { hitShare: number; bandName: string; band: number };
+  /** 23.11 formula mode: the editor judge's verdict that ranked this variant. */
+  editor?: { usable?: boolean; better?: string; why?: string };
+  src: { code: string; author: string; ratio: number; likes: number | null; first: string; plaque: string | null; url: string; famName: string; famX: number; confirmed: boolean;
+    /** 23.11: the student's own hit; the donor's template, gate type in words with its base odds, blocks right after its hook. */
+    own?: boolean; tmpl?: string | null; gate?: string; gateX?: number; after?: string };
+}
+
+/** v6 (21.11): no fitting donor. What the base says pulls this opening down, a minimal repair in the student's words, a version in a
+ * confirmed construction, all of it as a set for trial reels (the live audience picks, as in Sasha's re-uploads). */
+export interface NachalaFallback {
+  defects: { id: string; label: string; x: number; where: string }[];
+  versions: { kind: 'own' | 'repair' | 'form'; plaque: string; speech: string; famName?: string; famX?: number; check?: PromiseCheck; text?: string; shans?: { hitShare: number; bandName: string; band: number } }[];
+}
+
+/** v2: one answer. keep = the student's own opening stays (strong family / already stops / nothing better). */
+export type NachalaBest = { keep: true; why: 'strong' | 'stops' | 'none' } | { keep: false; i: number };
+
+/** «Довести до верхней ступени»: the whole script with the best bundle and an edited body. */
+export interface Telo {
+  text: string;
+  /** what was changed, in plain words for the author */
+  changes: string[];
+  /** chance before the edit (the best bundle, or the script itself) and after (the lower of two scorings) */
+  before: number;
+  share: number;
+  top: boolean;
+  /** what still pulls it down */
+  minus: string[];
+  /** the opening the edit is built on: a bundle's speech, empty = the author's own */
+  base?: string;
+  note?: string;
+  ms: number;
+}
+
+export interface Nachala {
+  v?: number;
+  payoff: { type: string; payoff: string; quote: string; notGiven: string };
+  orig: { plaque: string; speech: string; check: PromiseCheck; fam?: { id: string; name: string; x: number } };
+  best?: NachalaBest;
+  /** v2: the final text with the chosen opening in place (only when it is replaced). */
+  text?: string;
+  picks: NachalaPick[];
+  /** v6: set when no donor fits (best.why = 'none' or the pool is empty). */
+  fallback?: NachalaFallback;
+  /** 23.11: the run's own «шанс на залёт» when the bundles were built, to show «было». */
+  origShare?: number;
+  /** v5 (23.11): the body edited up to the top band, on top of the best bundle (telo.ts). */
+  telo?: Telo | null;
+  topic: string | null;
+  ms: number;
+  /** Too few bank openings on the topic. */
+  empty?: boolean;
+}
+
+export const METRIC_KEYS = ['views', 'reach', 'likes', 'comments', 'shares', 'saves', 'reposts', 'follows', 'skip_rate', 'avg_watch_s',
+  'watch_total_s', 'duration_s', 'nonfollowers_pct', 'published'] as const;
+export type MetricKey = (typeof METRIC_KEYS)[number];
+export type ReelMetrics = Partial<Record<Exclude<MetricKey, 'published'>, number>> & { published?: string };
+
+export const METRIC_NAME: Record<MetricKey, string> = {
+  views: 'Просмотры', reach: 'Охват', likes: 'Лайки', comments: 'Комментарии', shares: 'Отправки', saves: 'Сохранения',
+  reposts: 'Репосты', follows: 'Подписки', skip_rate: 'Доля пропусков, %', avg_watch_s: 'Среднее время просмотра, с',
+  watch_total_s: 'Общее время просмотра, с', duration_s: 'Длина ролика, с', nonfollowers_pct: 'Не подписчики, %', published: 'Дата публикации',
+};
+
+export interface StatsEntry {
+  id: string;
+  createdAt: string;
+  /** Which opening the student used: 'own' | 'orig' | 'bank:<code>' | free text. */
+  opening: string | null;
+  reelUrl: string | null;
+  metrics: ReelMetrics;
+  images: string[];
 }
 
 /** Instagram username from "@nick", "nick" or a profile link; null when it does not look like one. */
@@ -360,4 +468,20 @@ export function readinessFor(score: number): Analysis['readiness'] {
 export function sourceUrl(source: string | null | undefined): string | null {
   if (!source || !/^youtu\.be\/[A-Za-z0-9_-]{11}\?t=\d+$/.test(source)) return null;
   return `https://${source}`;
+}
+
+/** «Шанс на залёт»: techniques confirmed on the reels base (lib/optimizator/shans.ts). */
+export interface ShansItem { name: string; part: string; or: number }
+export interface Shans {
+  score: number;
+  /** 0..4: заметно ниже обычного … высокий шанс. */
+  band: number;
+  bandName: string;
+  /** Stronger than this share of the base reels, 1-99. */
+  pct: number;
+  /** Share of hits in this band on new authors (balanced hit/flop pairs, so 50% is the middle). */
+  hitShare: number;
+  plus: ShansItem[];
+  minus: ShansItem[];
+  votes: number;
 }
