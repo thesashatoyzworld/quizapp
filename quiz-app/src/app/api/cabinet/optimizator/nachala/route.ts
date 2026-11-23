@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
   const run = await prisma.optimizatorRun.findFirst({ where: { id, telegramId: BigInt(tg), status: 'ok' }, select: { script: true, result: true } });
   if (!run?.result) return NextResponse.json({ error: 'Разбор не найден.' }, { status: 404 });
   const res = run.result as unknown as Res;
-  // v3 (23.11 bundles: formula + editor, what goes right after); older cached picks are rebuilt once.
-  if (res.nachala?.v === 3) return NextResponse.json({ nachala: res.nachala });
+  // v4 (23.11 bundles with the chance of each applied bundle); older cached picks are rebuilt once.
+  if (res.nachala?.v === 4) return NextResponse.json({ nachala: res.nachala });
   if (res.nachala_error) {
     await mark(id, 'nachala_error', null);
     return NextResponse.json({ error: 'Не получилось подобрать начало. Попробуй ещё раз через минуту.' }, { status: 502 });
@@ -50,6 +50,10 @@ export async function POST(request: NextRequest) {
       const ig = await prisma.$queryRaw<{ ig: string }[]>`SELECT ig FROM optimizator_ig WHERE telegram_id = ${BigInt(tg)} LIMIT 1`.catch(() => []);
       const ownAuthor = ig[0]?.ig || (await prisma.reelSpace.findUnique({ where: { telegramId: BigInt(tg) }, select: { igHandle: true } }).catch(() => null))?.igHandle || undefined;
       const n = await buildNachala(run.script, res.format?.type, { stop: res.viewer_reasons?.stop, rewrite: res.rewrite?.script, ownAuthor });
+      // «было»: the run's own chance, read now (it is scored in parallel with the bundles)
+      const now = await prisma.optimizatorRun.findUnique({ where: { id }, select: { result: true } }).catch(() => null);
+      const own = (now?.result as unknown as { shans?: { hitShare?: number } } | null)?.shans?.hitShare;
+      if (typeof own === 'number') n.origShare = own;
       await saveNachala(id, n);
       console.log(`[optimizator/nachala] ${id}: ${n.picks.length} picks, own ${ownAuthor || '-'}, fallback ${n.fallback?.versions.length ?? 0}, best ${JSON.stringify(n.best)}, ${Math.round(n.ms / 1000)} s`);
     } catch (err) {

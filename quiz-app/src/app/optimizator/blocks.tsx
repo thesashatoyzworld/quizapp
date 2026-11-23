@@ -32,7 +32,7 @@ export function bestOpening(n: Nachala, stop?: ViewerReason): { keep: true; why?
 
 export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady }: { runId: string; initial: Nachala | null | undefined; headers: Headers; readOnly?: boolean; stop?: ViewerReason; onReady?: (n: Nachala) => void }) {
   // Picks saved before v2 (three variants, no single answer) are rebuilt once by the owner.
-  const [n, setN] = useState<Nachala | null>(initial && (initial.v === 3 || readOnly) ? initial : null);
+  const [n, setN] = useState<Nachala | null>(initial && ((initial.v ?? 0) >= 3 || readOnly) ? initial : null);
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState('');
   const [now, setNow] = useState(0);
@@ -88,7 +88,7 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
           </>
         ) : (
           <p className="op-p op-muted">
-            <span className="op-spinner op-spinner-sm" /> Подбираю связки из залётов по твоей теме и проверяю каждую… {busy !== null ? Math.max(0, Math.round((now - busy) / 1000)) : 0} с, обычно 2-3 минуты
+            <span className="op-spinner op-spinner-sm" /> Подбираю связки из залётов по твоей теме и проверяю каждую… {busy !== null ? Math.max(0, Math.round((now - busy) / 1000)) : 0} с, обычно 3-4 минуты
           </p>
         )}
       </section>
@@ -110,11 +110,18 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
   return (
     <section className="op-card opn-bundles">
       <h2 className="op-h2">Начало: 3 связки из залётов</h2>
+      {(() => {
+        const top = bundles[0]?.share; const was = n.origShare;
+        if (top === undefined || was === undefined) return null;
+        return top > was
+          ? <div className="opn-verdict">Шанс на залёт: {pct(was)} → {pct(top)}</div>
+          : <div className="opn-verdict opn-verdict-ok">Шанс на залёт {pct(was)}: связки его не поднимают</div>;
+      })()}
       <p className="op-p op-muted opn-small">
         {b.keep
           ? 'Твоё начало рабочее. Если хочешь сильнее, вот готовые связки: сними одну из них пробным и сравни.'
           : 'Бери первую. Остальные две сними пробными, если хочешь сравнить.'}
-        {' '}Связка = начало по формуле чужого залёта + что сказать сразу после него.
+        {' '}Связка = начало по формуле чужого залёта + что сказать сразу после него. Шанс посчитан по всему сценарию с этой связкой.
       </p>
       <details className="opn-was">
         <summary>Твоё начало сейчас</summary>
@@ -126,11 +133,25 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
             <div className="opn-ptop">
               <span className="opn-num">{i + 1}</span>
               {x.badge && <span className={`opn-badge ${x.badgeOk ? 'opn-ok' : 'opn-part'}`}>{x.badge}</span>}
+              {x.share !== undefined && (
+                <span className={`opn-share ${n.origShare !== undefined && x.share > n.origShare ? 'opn-share-up' : ''}`}>
+                  шанс {pct(x.share)}{n.origShare !== undefined ? <span> (было {pct(n.origShare)})</span> : null}
+                </span>
+              )}
             </div>
             <Opening plaque={x.plaque} speech={x.speech} />
             {x.next && <p className="op-p opn-small"><b>Сразу после:</b> «{x.next}»</p>}
             {x.drop && <p className="op-p opn-small"><b>Убери или перенеси в конец:</b> «{clip(x.drop, 200)}»</p>}
             {x.gap && <p className="op-p opn-small opn-gap">Чтобы начало сработало, добавь в ролик: {x.gap}</p>}
+            {x.text && (
+              <details className="opn-src">
+                <summary>Сценарий с этой связкой</summary>
+                <div className="opn-small">
+                  <div className="opn-full">{x.text}</div>
+                  <button type="button" className="op-copy" onClick={() => { void navigator.clipboard?.writeText(x.text || ''); }}>Скопировать</button>
+                </div>
+              </details>
+            )}
             {x.src && (
               <details className="opn-src">
                 <summary>Откуда</summary>
@@ -156,13 +177,14 @@ const clip = (t: string, n: number) => (t.length > n ? t.slice(0, n).trimEnd() +
 
 type Bundle = {
   plaque: string; speech: string; next?: string; drop?: string; gap?: string; badge?: string; badgeOk?: boolean; key: string;
+  text?: string; share?: number;
   src?: { author: string; ratio: number; url: string; first: string; plaque: string | null; tmpl?: string | null };
 };
 
 /** Picks of the generator (ranked by the editor) topped up to 3 by the repaired own opening and a confirmed form. */
 export function bundlesOf(n: Nachala): Bundle[] {
   const out: Bundle[] = n.picks.slice(0, 3).map((p, i) => ({
-    key: `bank:${i}`, plaque: p.plaque, speech: p.speech, next: p.next, drop: p.drop,
+    key: `bank:${i}`, plaque: p.plaque, speech: p.speech, next: p.next, drop: p.drop, text: p.text, share: p.shans?.hitShare,
     gap: p.check.delivered !== 'full' ? p.check.gap || p.bodyGap : undefined,
     // the gate odds only when they say something (x1.2 and up); a neutral thesis gets no badge
     badge: p.src.own ? 'твой залёт' : p.src.gate && (p.src.gateX ?? 0) >= 1.2 ? `${p.src.gate} ×${fmt(p.src.gateX!)}` : undefined,
@@ -172,11 +194,14 @@ export function bundlesOf(n: Nachala): Bundle[] {
   for (const [j, v] of (n.fallback?.versions || []).entries()) {
     if (out.length >= 3) break;
     if (v.kind === 'own') continue;
-    out.push({ key: `fb:${j}`, plaque: v.plaque, speech: v.speech, gap: v.check && v.check.delivered !== 'full' ? v.check.gap : undefined,
+    out.push({ key: `fb:${j}`, plaque: v.plaque, speech: v.speech, text: v.text, share: v.shans?.hitShare, gap: v.check && v.check.delivered !== 'full' ? v.check.gap : undefined,
       badge: v.kind === 'repair' ? 'твоё, починенное' : v.famName ? `${v.famName}${v.famX ? ` ×${fmt(v.famX)}` : ''}` : 'подтверждённая форма', badgeOk: v.kind !== 'repair' });
   }
-  return out;
+  // highest «шанс на залёт» first (the same model as the run's own number)
+  return out.sort((a, b) => (b.share ?? -1) - (a.share ?? -1));
 }
+
+const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 /** Long side to 1600 px, JPEG: screenshots go to the vision model and the database. */
 async function compress(f: File): Promise<Blob> {
@@ -357,6 +382,10 @@ export const BLOCKS_CSS = `
   .opn-formula { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: oklch(0.955 0.005 75); border-radius: 6px; padding: 6px 8px; }
   .opn-bundles .opn-was { margin: 4px 0 2px; border-top: none; padding-top: 0; }
   .opn-bundles .opn-picks { grid-template-columns: 1fr !important; }
+  .opn-share { margin-left: auto; font-size: 13px; font-weight: 800; color: oklch(0.46 0.012 55); white-space: nowrap; }
+  .opn-share span { font-weight: 500; }
+  .opn-share-up { color: oklch(0.50 0.14 150); }
+  .opn-full { white-space: pre-wrap; background: oklch(0.975 0.004 75); border-radius: 8px; padding: 8px 10px; font-size: 14px; line-height: 1.5; }
   .opn-bundles .opn-pick { min-width: 0; }
   .opn-gap { color: oklch(0.50 0.12 50); }
   .opn-fix { background: oklch(0.96 0.03 70); border-radius: 10px; padding: 10px 12px; }

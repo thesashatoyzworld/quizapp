@@ -255,6 +255,9 @@ export interface NachalaPick {
   /** 23.11 bundle: the script's own line that goes right after this opening, and what stands in between and should go (self-intro, lead-in). */
   next?: string;
   drop?: string;
+  /** 23.11: the script with this bundle applied and its «шанс на залёт» (same model as the run's own number). */
+  text?: string;
+  shans?: { hitShare: number; bandName: string; band: number };
   /** 23.11 formula mode: the editor judge's verdict that ranked this variant. */
   editor?: { usable?: boolean; better?: string; why?: string };
   src: { code: string; author: string; ratio: number; likes: number | null; first: string; plaque: string | null; url: string; famName: string; famX: number; confirmed: boolean;
@@ -266,7 +269,7 @@ export interface NachalaPick {
  * confirmed construction, all of it as a set for trial reels (the live audience picks, as in Sasha's re-uploads). */
 export interface NachalaFallback {
   defects: { id: string; label: string; x: number; where: string }[];
-  versions: { kind: 'own' | 'repair' | 'form'; plaque: string; speech: string; famName?: string; famX?: number; check?: PromiseCheck }[];
+  versions: { kind: 'own' | 'repair' | 'form'; plaque: string; speech: string; famName?: string; famX?: number; check?: PromiseCheck; text?: string; shans?: { hitShare: number; bandName: string; band: number } }[];
 }
 
 /** v2: one answer. keep = the student's own opening stays (strong family / already stops / nothing better). */
@@ -282,6 +285,8 @@ export interface Nachala {
   picks: NachalaPick[];
   /** v6: set when no donor fits (best.why = 'none' or the pool is empty). */
   fallback?: NachalaFallback;
+  /** 23.11: the run's own «шанс на залёт» when the bundles were built, to show «было». */
+  origShare?: number;
   topic: string | null;
   ms: number;
   /** Too few bank openings on the topic. */

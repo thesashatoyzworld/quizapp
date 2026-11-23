@@ -12,6 +12,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/prisma';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import { topicOf } from './baza';
+import { scoreShans } from './shans';
 import type { FormatType, Nachala, NachalaBest, NachalaFallback, NachalaPick, PromiseCheck, ViewerReason } from './view';
 import FAM_JSON from './data/fam-model.json';
 
@@ -280,7 +281,7 @@ export async function buildNachala(script: string, formatType: FormatType | unde
   // an own hit with the same opening is this very reel re-uploaded or re-checked, not a donor (23.11: Artem's «дом за 1,4 млн»)
   for (let i = P.length - 1; i >= 0; i--) if (P[i].own && donorOverlap({ plaque: P[i].plaque, speech: P[i].speech30 }, orig) >= 0.6) P.splice(i, 1);
   const payoff = { type: pay.type || '', payoff: pay.payoff || '', quote: pay.quote || '', notGiven: pay.not_given || '' };
-  if (P.length < 3) return { v: 3, payoff, orig, picks: [], topic, ms: Date.now() - t0, empty: true, best: { keep: true, why: 'none' }, fallback: await fallback(script, orig, payoff) };
+  if (P.length < 3) return { v: 4, payoff, orig, picks: [], topic, ms: Date.now() - t0, empty: true, best: { keep: true, why: 'none' }, fallback: await fallback(script, orig, payoff) };
 
   const cands = P.map((b) => `=== код ${b.code}${b.own ? ' (СВОЙ ЗАЛЁТ АВТОРА СЦЕНАРИЯ' : ' ('}×${b.ratio.toFixed(1)}; семейство «${b.fam_name}» ×${b.fam_or.toFixed(1)}${b.tier === 0 && !b.own ? ', подтверждено' : ''}` +
     `${b.gate && GATE_RU[b.gate] ? `; заход «${GATE_RU[b.gate]}»${b.gate_x ? ` ×${b.gate_x.toFixed(2)}` : ''}` : ''})\n` +
@@ -430,7 +431,29 @@ ${cands}`;
   // v6: no donor fits → defects of the own opening, a repair, a confirmed form, as a set for trial reels
   // 23.11: fewer than 3 bundles are topped up on the screen by the repair and confirmed-form versions
   const fb = (best.keep && best.why === 'none') || picks.length < 3 || process.env.OPT_FALLBACK_ALL ? await fallback(script, orig, payoff) : undefined;
-  return { v: 3, payoff, orig: { ...orig, fam: origFam }, picks, topic, ms: Date.now() - t0, best, text, fallback: fb };
+  // 23.11 (Sasha: «вижу 37% — я такое не хочу снимать… на выходе не получаю цифру»): every bundle is applied to the script
+  // (new opening, the right line right after it, the cut part out) and scored by the same «шанс на залёт»; best chance first.
+  const tops = [...picks.map((p) => ({ p, v: undefined as undefined | NonNullable<NachalaFallback['versions']>[number] })),
+    ...(fb?.versions || []).filter((v) => v.kind !== 'own').map((v) => ({ p: undefined as undefined | NachalaPick, v }))].slice(0, 3);
+  await Promise.all(tops.map(async ({ p, v }) => {
+    const o = (p || v)!;
+    const applied = applyBundle(script, { plaque: o.plaque, speech: o.speech, next: p?.next, drop: p?.drop });
+    const sh = await scoreShans(applied).catch(() => null);
+    o.text = applied;
+    if (sh) o.shans = { hitShare: sh.hitShare, bandName: sh.bandName, band: sh.band };
+  }));
+  picks.sort((a, b) => (b.shans?.hitShare ?? 0) - (a.shans?.hitShare ?? 0));
+  return { v: 4, payoff, orig: { ...orig, fam: origFam }, picks, topic, ms: Date.now() - t0, best, text, fallback: fb };
+}
+
+/** The script with a bundle in place: new plaque and first phrase, the «right after» line moved up, the «cut» part removed. */
+export function applyBundle(script: string, b: { plaque: string; speech: string; next?: string; drop?: string }): string {
+  const sp = (t: string) => t.replace(/\s+/g, ' ').trim();
+  let body = sp(bodyWithoutOpening(script));
+  if (b.drop && body.includes(sp(b.drop))) body = sp(body.replace(sp(b.drop), ' '));
+  let first = '';
+  if (b.next && body.includes(sp(b.next))) { body = sp(body.replace(sp(b.next), ' ')); first = sp(b.next); }
+  return (b.plaque ? `[Текст на экране: ${b.plaque}]\n` : '') + sp(b.speech) + (first ? `\n${first}` : '') + `\n${body}`;
 }
 
 /** Opening defects confirmed within author on the base (O-REPORT.txt, EXPECT-REPORT.txt, 20-21.11). */
