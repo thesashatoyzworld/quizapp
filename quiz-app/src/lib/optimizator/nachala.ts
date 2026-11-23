@@ -206,15 +206,35 @@ const MIN_OVERLAP = 0.3;
 const MAX_OVERLAP = 0.55;
 
 /** Facts, numbers, names, events or claims in the opening that the script does not have (the bench labeler's wording); '' when clean. */
-async function invented(script: string, p: { plaque: string; speech: string }): Promise<string> {
+/** Gate types of an opening as the base labels them (gates.py brief), to keep the student off the weak ones. */
+const GATE_DEF = `Тип начала (как его встречает зритель в ленте, плашка + первая фраза вместе), один из:
+result_money: обещает или называет конкретный результат, деньги, цифру, превращение
+teaser: короткая интригующая недосказанность, загадка, неожиданное утверждение, хочется узнать остальное
+light_fun: шутка, ирония, абсурд, лёгкое настроение
+recognition: описывает ситуацию или чувство, в котором зритель узнаёт себя («Когда муж опять…», «Ты тоже открываешь холодильник каждые 5 минут?», «Если у тебя тоже…»)
+question: нейтральный прямой вопрос зрителю или вопрос темы
+reproach: упрекает, ругает, обвиняет зрителя
+abstract_thesis: общее утверждение, совет или принцип без конкретного крючка
+personal_story: начинает личную историю или событие
+mid_thought: начинается с середины мысли, вода, нет входа
+scene_line: реплика внутри разыгранной сценки
+announcement: анонс, новость, «сейчас расскажу про…», «сегодня поговорим о…», промо`;
+/** 23.11: weak gate types (gates_rating.json): recognition x0.67, mid-thought x0.53, announcement x0.77, question x0.81. */
+const WEAK_GATES = new Set(['recognition', 'mid_thought', 'announcement', 'question']);
+/** A first phrase above 15 words was the bench's long-opening flag; hand-made bundles were 10-15 words. */
+const MAX_FIRST_WORDS = 15;
+const firstWords = (speech: string) => ((speech.trim().match(/^[\s\S]*?[.!?…](\s|$)/)?.[0] || speech).match(/[\p{L}\p{N}]+/gu) || []).length;
+
+async function invented(script: string, p: { plaque: string; speech: string }): Promise<{ bad: string; gate: string }> {
   const out = await ask(SONNET, 'Ниже сценарий рилса и новое начало для него. Проверь: есть ли в начале факты, цифры, имена, события, оценки или утверждения, ' +
     'которых НЕТ в сценарии (выдумано или взято откуда-то ещё). Перефразирование того, что есть в сценарии, выдумкой не считается. ' +
     'И отдельно: звучит ли начало естественно по-русски и по смыслу, как живая речь автора (natural false, если фраза корявая, склеенная, бессмысленная или противоречит сценарию).\n' +
-    'Верни только JSON-массив: [{"i": 0, "invented": true, "what": "что выдумано, коротко, или пусто", "natural": true, "why": "если не естественно, почему"}]\n\nСЦЕНАРИЙ:\n' + script +
+    GATE_DEF + '\n' +
+    'Верни только JSON-массив: [{"i": 0, "invented": true, "what": "что выдумано, коротко, или пусто", "natural": true, "why": "если не естественно, почему", "hook": "тип начала"}]\n\nСЦЕНАРИЙ:\n' + script +
     `\n\nНАЧАЛА:\n0) плашка: ${p.plaque || '(нет)'} | речь: ${p.speech}`, 'low');
-  const r = json<{ invented?: boolean; what?: string; natural?: boolean; why?: string }[]>(out, '[')?.[0];
+  const r = json<{ invented?: boolean; what?: string; natural?: boolean; why?: string; hook?: string }[]>(out, '[')?.[0];
   const bad = [r?.invented ? (r.what || 'есть выдуманное') : '', r?.natural === false ? `звучит неестественно: ${r.why || ''}` : ''].filter(Boolean);
-  return bad.join('; ');
+  return { bad: bad.join('; '), gate: r?.hook || '' };
 }
 
 type Payoff = { type?: string; payoff?: string; quote?: string; not_given?: string };
@@ -295,15 +315,30 @@ ${cands}`;
     }
     // 1b) a near-verbatim copy drags the donor's own facts along («осень 2026», «таких, как я, не любят»: 41% of v5 variants on the
     // bench); claims absent from the script are swapped for the script's own or dropped, the donor's other words stay
-    const inv = await invented(script, p);
-    if (inv) {
+    // 23.11: a long first phrase is shortened once (the donor's second sentence often rides along)
+    if (firstWords(p.speech) > MAX_FIRST_WORDS) {
       const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
-        `В переносе есть проблемы: ${inv}. Выдуманное замени на то, что есть в сценарии, или убери; корявое сделай живой речью автора. Остальные слова образца не трогай.`), 'medium'), '{');
+        `Первая фраза слишком длинная (${firstWords(p.speech)} слов). Сократи первую фразу до ${MAX_FIRST_WORDS} слов и меньше: оставь крючок образца, убери пояснения и вторую мысль.`), 'medium'), '{');
+      if (fix?.speech && donorOverlap(donor, { plaque: fix.plaque || '', speech: fix.speech }) >= MIN_OVERLAP) {
+        p = { ...p, plaque: fix.plaque || '', speech: fix.speech, promise: fix.promise || p.promise }; narrowed = true;
+      }
+      if (firstWords(p.speech) > MAX_FIRST_WORDS) return null;
+    }
+    // 23.11: a variant that is the student's own opening in other words gives him nothing
+    if (!src.own && donorOverlap({ plaque: orig.plaque, speech: orig.speech }, p) >= 0.5) return null;
+    let inv = await invented(script, p);
+    if (inv.bad) {
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
+        `В переносе есть проблемы: ${inv.bad}. Выдуманное замени на то, что есть в сценарии, или убери; корявое сделай живой речью автора. Остальные слова образца не трогай.`), 'medium'), '{');
       if (!fix?.speech) return null;
       const q = { plaque: fix.plaque || '', speech: fix.speech };
-      if (donorOverlap(donor, q) < MIN_OVERLAP || await invented(script, q)) return null;
+      if (donorOverlap(donor, q) < MIN_OVERLAP || firstWords(q.speech) > MAX_FIRST_WORDS) return null;
+      inv = await invented(script, q);
+      if (inv.bad) return null;
       p = { ...p, ...q, promise: fix.promise || p.promise }; narrowed = true;
     }
+    // 23.11: the donor's gate is good, but the adaptation may slide into a weak one (recognition, announcement): out
+    if (WEAK_GATES.has(inv.gate)) return null;
     // 2) the reel must pay off what the opening opens; one narrowing that keeps the donor's words, else a warning about the body
     let c = await check(p.plaque, p.speech + '\n' + body);
     let bodyGap: string | undefined;
@@ -384,7 +419,7 @@ async function fallback(script: string, orig: Nachala['orig'], payoff: Nachala['
   for (const [kind, v] of [['repair', gen.repair], ['form', gen.form]] as const) {
     if (!v?.speech) continue;
     const q = { plaque: v.plaque || '', speech: v.speech };
-    if (await invented(script, q)) continue;
+    if ((await invented(script, q)).bad) continue;
     const c = await check(q.plaque, q.speech + '\n' + body);
     if (c.delivered === 'no' || c.delivered === 'none') continue;
     const f = kind === 'form' ? FAM_BY_ID.get((v as { fam?: string }).fam || '') : undefined;
