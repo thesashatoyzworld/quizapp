@@ -45,14 +45,24 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
   async function go() {
     setBusy(Date.now()); setErr('');
     try {
-      const res = await fetch('/api/cabinet/optimizator/nachala', {
-        method: 'POST', credentials: 'same-origin', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ id: runId }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.nachala) throw new Error(data.error || 'Не получилось подобрать начало.');
-      setN(data.nachala);
-      onReady?.(data.nachala);
+      // 23.11: the build runs in the background on the server (2-4 min); the first call starts it, then we ask every 6 s
+      const t0 = Date.now();
+      for (;;) {
+        const res = await fetch('/api/cabinet/optimizator/nachala', {
+          method: 'POST', credentials: 'same-origin', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify({ id: runId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.pending) {
+          if (Date.now() - t0 > 8 * 60_000) throw new Error('Подбор идёт дольше обычного. Обнови страницу через пару минут.');
+          await new Promise((r) => setTimeout(r, 6000));
+          continue;
+        }
+        if (!res.ok || !data.nachala) throw new Error(data.error || 'Не получилось подобрать начало.');
+        setN(data.nachala);
+        onReady?.(data.nachala);
+        break;
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Не получилось подобрать начало.');
     } finally { setBusy(null); }

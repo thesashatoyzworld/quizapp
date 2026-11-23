@@ -1,15 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { verifiedViewer } from '@/lib/reels/store';
 import { prisma } from '@/lib/prisma';
 import { buildNachala, saveNachala } from '@/lib/optimizator/nachala';
 import type { Analysis, Nachala } from '@/lib/optimizator/view';
 
 export const runtime = 'nodejs';
-// Payoff + pick (Opus) + 3 checks and up to 3 narrowings: typically 60-120 s.
+// Bundles (formula + editor) take 2-4 min; the build runs after the response (after()), within this budget.
 export const maxDuration = 300;
 
-// «Начало из залётов» for a saved run (owner only), built once and stored in the run:
-//   POST /api/cabinet/optimizator/nachala { id } → { nachala } | { error }
+/** A job older than this is considered dead (the function was killed) and may be started again. */
+const STALE_MS = 6 * 60_000;
+
+type Res = Analysis & { nachala?: Nachala; nachala_pending?: number; nachala_error?: string };
+
+async function mark(id: string, key: 'nachala_pending' | 'nachala_error', value: number | string | null): Promise<void> {
+  if (value === null) {
+    await prisma.$executeRaw`UPDATE optimizator_runs SET result = result::jsonb - ${key} WHERE id = ${id}`;
+  } else {
+    await prisma.$executeRaw`UPDATE optimizator_runs SET result = jsonb_set(result::jsonb, ${`{${key}}`}::text[], ${JSON.stringify(value)}::jsonb) WHERE id = ${id}`;
+  }
+}
+
+// «Начало из залётов» for a saved run (owner only), built once in the background and stored in the run:
+//   POST /api/cabinet/optimizator/nachala { id } → { nachala } | { pending: true } | { error }
+// 23.11: the build no longer holds the request (a tunnel or proxy cuts a request at ~100 s, the bundles take 2-4 min):
+// the first call starts it and answers pending, the screen asks again every few seconds.
 // Not counted against the monthly limit: it completes the analysis the student already paid a slot for.
 export async function POST(request: NextRequest) {
   const tg = verifiedViewer(request);
@@ -19,19 +34,30 @@ export async function POST(request: NextRequest) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: 'Нет разбора.' }, { status: 400 });
   const run = await prisma.optimizatorRun.findFirst({ where: { id, telegramId: BigInt(tg), status: 'ok' }, select: { script: true, result: true } });
   if (!run?.result) return NextResponse.json({ error: 'Разбор не найден.' }, { status: 404 });
-  const res = run.result as unknown as Analysis & { nachala?: Nachala };
+  const res = run.result as unknown as Res;
   // v3 (23.11 bundles: formula + editor, what goes right after); older cached picks are rebuilt once.
   if (res.nachala?.v === 3) return NextResponse.json({ nachala: res.nachala });
-  try {
-    // the student's Instagram, so his own hits go first (optimizator_ig from students.json, else the reels space header)
-    const ig = await prisma.$queryRaw<{ ig: string }[]>`SELECT ig FROM optimizator_ig WHERE telegram_id = ${BigInt(tg)} LIMIT 1`.catch(() => []);
-    const ownAuthor = ig[0]?.ig || (await prisma.reelSpace.findUnique({ where: { telegramId: BigInt(tg) }, select: { igHandle: true } }).catch(() => null))?.igHandle || undefined;
-    const n = await buildNachala(run.script, res.format?.type, { stop: res.viewer_reasons?.stop, rewrite: res.rewrite?.script, ownAuthor });
-    if (n.picks.length || n.empty) await saveNachala(id, n);
-    console.log(`[optimizator/nachala] ${id}: ${n.picks.length} picks, fits ${n.picks.filter((p) => p.fits).length}, orig ${n.orig.check.delivered} ${n.orig.fam?.id}, best ${JSON.stringify(n.best)}, ${Math.round(n.ms / 1000)} s`);
-    return NextResponse.json({ nachala: n });
-  } catch (err) {
-    console.error('[optimizator/nachala] failed', id, String((err as Error)?.message || err).slice(0, 300));
+  if (res.nachala_error) {
+    await mark(id, 'nachala_error', null);
     return NextResponse.json({ error: 'Не получилось подобрать начало. Попробуй ещё раз через минуту.' }, { status: 502 });
   }
+  if (res.nachala_pending && Date.now() - res.nachala_pending < STALE_MS) return NextResponse.json({ pending: true });
+
+  await mark(id, 'nachala_pending', Date.now());
+  after(async () => {
+    try {
+      // the student's Instagram, so his own hits go first (optimizator_ig from students.json, else the reels space header)
+      const ig = await prisma.$queryRaw<{ ig: string }[]>`SELECT ig FROM optimizator_ig WHERE telegram_id = ${BigInt(tg)} LIMIT 1`.catch(() => []);
+      const ownAuthor = ig[0]?.ig || (await prisma.reelSpace.findUnique({ where: { telegramId: BigInt(tg) }, select: { igHandle: true } }).catch(() => null))?.igHandle || undefined;
+      const n = await buildNachala(run.script, res.format?.type, { stop: res.viewer_reasons?.stop, rewrite: res.rewrite?.script, ownAuthor });
+      await saveNachala(id, n);
+      console.log(`[optimizator/nachala] ${id}: ${n.picks.length} picks, own ${ownAuthor || '-'}, fallback ${n.fallback?.versions.length ?? 0}, best ${JSON.stringify(n.best)}, ${Math.round(n.ms / 1000)} s`);
+    } catch (err) {
+      console.error('[optimizator/nachala] failed', id, String((err as Error)?.message || err).slice(0, 300));
+      await mark(id, 'nachala_error', String((err as Error)?.message || err).slice(0, 200)).catch(() => {});
+    } finally {
+      await mark(id, 'nachala_pending', null).catch(() => {});
+    }
+  });
+  return NextResponse.json({ pending: true });
 }
