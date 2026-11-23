@@ -107,11 +107,15 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
       </section>
     );
   }
+  // 23.11: variants the editor judged weaker than the student's own opening go under a fold, never on top
+  const strong = bundles.filter((x) => !x.weak);
+  const weak = bundles.filter((x) => x.weak);
   return (
     <section className="op-card opn-bundles">
-      <h2 className="op-h2">Начало: 3 связки из залётов</h2>
+      <h2 className="op-h2">Начало: связки из залётов</h2>
       {(() => {
-        const top = bundles[0]?.share; const was = n.origShare;
+        const top = strong[0]?.share; const was = n.origShare;
+        if (!strong.length) return <div className="opn-verdict opn-verdict-ok">Твоё начало сильнее вариантов из залётов, оставляем{was !== undefined ? ` (шанс ${pct(was)})` : ''}</div>;
         if (top === undefined || was === undefined) return null;
         return top > was
           ? <div className="opn-verdict">Шанс на залёт: {pct(was)} → {pct(top)}</div>
@@ -127,11 +131,14 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
         <summary>Твоё начало сейчас</summary>
         <Opening plaque={n.orig.plaque} speech={n.orig.speech} />
       </details>
+      {[strong, weak].map((list, li) => list.length > 0 && (
+      <details key={li} className="opn-group" open={li === 0}>
+      <summary className={li === 0 ? 'opn-group-open' : ''}>{li === 0 ? 'Связки' : `Ещё варианты: редактор считает их слабее твоего начала (${list.length})`}</summary>
       <div className="opn-picks">
-        {bundles.map((x, i) => (
+        {list.map((x, i) => (
           <div key={i} className="opn-pick">
             <div className="opn-ptop">
-              <span className="opn-num">{i + 1}</span>
+              <span className="opn-num">{li === 0 ? i + 1 : '·'}</span>
               {x.badge && <span className={`opn-badge ${x.badgeOk ? 'opn-ok' : 'opn-part'}`}>{x.badge}</span>}
               {x.share !== undefined && (
                 <span className={`opn-share ${n.origShare !== undefined && x.share > n.origShare ? 'opn-share-up' : ''}`}>
@@ -168,6 +175,8 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
           </div>
         ))}
       </div>
+      </details>
+      ))}
     </section>
   );
 }
@@ -178,13 +187,15 @@ const clip = (t: string, n: number) => (t.length > n ? t.slice(0, n).trimEnd() +
 type Bundle = {
   plaque: string; speech: string; next?: string; drop?: string; gap?: string; badge?: string; badgeOk?: boolean; key: string;
   text?: string; share?: number;
+  /** the editor judge said the author should not film it instead of his own opening */
+  weak?: boolean;
   src?: { author: string; ratio: number; url: string; first: string; plaque: string | null; tmpl?: string | null };
 };
 
 /** Picks of the generator (ranked by the editor) topped up to 3 by the repaired own opening and a confirmed form. */
 export function bundlesOf(n: Nachala): Bundle[] {
   const out: Bundle[] = n.picks.slice(0, 3).map((p, i) => ({
-    key: `bank:${i}`, plaque: p.plaque, speech: p.speech, next: p.next, drop: p.drop, text: p.text, share: p.shans?.hitShare,
+    key: `bank:${i}`, plaque: p.plaque, speech: p.speech, next: p.next, drop: p.drop, text: p.text, share: p.shans?.hitShare, weak: p.editor?.usable === false,
     gap: p.check.delivered !== 'full' ? p.check.gap || p.bodyGap : undefined,
     // the gate odds only when they say something (x1.2 and up); a neutral thesis gets no badge
     badge: p.src.own ? 'твой залёт' : p.src.gate && (p.src.gateX ?? 0) >= 1.2 ? `${p.src.gate} ×${fmt(p.src.gateX!)}` : undefined,
@@ -198,7 +209,7 @@ export function bundlesOf(n: Nachala): Bundle[] {
       badge: v.kind === 'repair' ? 'твоё, починенное' : v.famName ? `${v.famName}${v.famX ? ` ×${fmt(v.famX)}` : ''}` : 'подтверждённая форма', badgeOk: v.kind !== 'repair' });
   }
   // highest «шанс на залёт» first (the same model as the run's own number)
-  return out.sort((a, b) => (b.share ?? -1) - (a.share ?? -1));
+  return out.sort((a, b) => Number(!!a.weak) - Number(!!b.weak) || (b.share ?? -1) - (a.share ?? -1));
 }
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -382,6 +393,9 @@ export const BLOCKS_CSS = `
   .opn-formula { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: oklch(0.955 0.005 75); border-radius: 6px; padding: 6px 8px; }
   .opn-bundles .opn-was { margin: 4px 0 2px; border-top: none; padding-top: 0; }
   .opn-bundles .opn-picks { grid-template-columns: 1fr !important; }
+  .opn-group > summary { list-style: none; cursor: pointer; font-size: 13px; font-weight: 700; color: oklch(0.46 0.012 55); margin-top: 10px; }
+  .opn-group > summary::-webkit-details-marker { display: none; }
+  .opn-group > summary.opn-group-open { display: none; }
   .opn-share { margin-left: auto; font-size: 13px; font-weight: 800; color: oklch(0.46 0.012 55); white-space: nowrap; }
   .opn-share span { font-weight: 500; }
   .opn-share-up { color: oklch(0.50 0.14 150); }
