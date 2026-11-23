@@ -32,7 +32,7 @@ export function bestOpening(n: Nachala, stop?: ViewerReason): { keep: true; why?
 
 export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady }: { runId: string; initial: Nachala | null | undefined; headers: Headers; readOnly?: boolean; stop?: ViewerReason; onReady?: (n: Nachala) => void }) {
   // Picks saved before v2 (three variants, no single answer) are rebuilt once by the owner.
-  const [n, setN] = useState<Nachala | null>(initial && (initial.v === 2 || readOnly) ? initial : null);
+  const [n, setN] = useState<Nachala | null>(initial && (initial.v === 3 || readOnly) ? initial : null);
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState('');
   const [now, setNow] = useState(0);
@@ -78,52 +78,94 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
           </>
         ) : (
           <p className="op-p op-muted">
-            <span className="op-spinner op-spinner-sm" /> Сверяю твоё начало с залётами по теме и подбираю лучшее… {busy !== null ? Math.max(0, Math.round((now - busy) / 1000)) : 0} с, обычно около минуты
+            <span className="op-spinner op-spinner-sm" /> Подбираю связки из залётов по твоей теме и проверяю каждую… {busy !== null ? Math.max(0, Math.round((now - busy) / 1000)) : 0} с, обычно 2-3 минуты
           </p>
         )}
       </section>
     );
   }
   const b = bestOpening(n, stop);
-  if (b.keep) {
+  const bundles = bundlesOf(n);
+  // 23.11 bundles (Sasha: «связка»): always up to 3 ready openings, the editor's best first, each with what goes right after
+  // and what to cut; the old single answer stays only for runs saved before v3 that have no bundles.
+  if (!bundles.length) {
     return (
       <section className="op-card opn-keep">
-        <div className={'why' in b && b.why === 'none' ? 'opn-verdict' : 'opn-verdict opn-verdict-ok'}>
-          {'why' in b && b.why === 'none' ? 'Оставляем твоё начало' : 'Начало сильное, не трогаем'}
-        </div>
+        <div className="opn-verdict opn-verdict-ok">Начало сильное, не трогаем</div>
         <Opening plaque={n.orig.plaque} speech={n.orig.speech} />
-        <p className="op-p opn-small">
-          {'why' in b && b.why === 'strong' && n.orig.fam
-            ? `Это «${n.orig.fam.name}»: в залётах такая конструкция встречается в ${String(Math.round(n.orig.fam.x * 10) / 10).replace('.', ',')} раза чаще, и ролик держит обещание.`
-            : 'why' in b && b.why === 'none'
-              ? 'Сильнее в залётах по твоей теме не нашлось.'
-              : 'Ролик выполняет то, что обещает начало, и зритель остановится.'}
-        </p>
-        {'why' in b && b.why === 'none' && n.orig.check.gap && <p className="op-p opn-small opn-gap">Чтобы начало сработало, добавь в ролик: {n.orig.check.gap}</p>}
+        {n.orig.check.gap && <p className="op-p opn-small opn-gap">Чтобы начало сработало, добавь в ролик: {n.orig.check.gap}</p>}
       </section>
     );
   }
-  const p = n.picks[b.i];
-  const full = p.check.delivered === 'full';
   return (
-    <section className="op-card opn-best">
-      <div className="opn-verdict">Бери это начало</div>
-      <Opening plaque={p.plaque} speech={p.speech} />
-      <p className="op-p opn-small">
-        Так начинаются залёты в твоей теме: «{p.src.famName}» залетает в {String(Math.round(p.src.famX * 10) / 10).replace('.', ',')} раза чаще.
-        {full ? ' Ролик выполняет это обещание.' : ''}
+    <section className="op-card opn-bundles">
+      <h2 className="op-h2">Начало: 3 связки из залётов</h2>
+      <p className="op-p op-muted opn-small">
+        {b.keep
+          ? 'Твоё начало рабочее. Если хочешь сильнее, вот готовые связки: сними одну из них пробным и сравни.'
+          : 'Бери первую. Остальные две сними пробными, если хочешь сравнить.'}
+        {' '}Связка = начало по формуле чужого залёта + что сказать сразу после него.
       </p>
-      {!full && p.check.gap && <p className="op-p opn-small opn-gap">Чтобы начало сработало, добавь в ролик: {p.check.gap}</p>}
       <details className="opn-was">
-        <summary>Твоё было</summary>
+        <summary>Твоё начало сейчас</summary>
         <Opening plaque={n.orig.plaque} speech={n.orig.speech} />
-        {n.orig.check.gap && <p className="op-p opn-small opn-gap">{n.orig.check.gap}</p>}
-        <p className="op-p op-muted opn-small">
-          Образец: <a href={p.src.url} target="_blank" rel="noopener noreferrer">@{p.src.author}</a>, ×{Math.round(p.src.ratio)} к его обычным роликам
-        </p>
       </details>
+      <div className="opn-picks">
+        {bundles.map((x, i) => (
+          <div key={i} className="opn-pick">
+            <div className="opn-ptop">
+              <span className="opn-num">{i + 1}</span>
+              {x.badge && <span className={`opn-badge ${x.badgeOk ? 'opn-ok' : 'opn-part'}`}>{x.badge}</span>}
+            </div>
+            <Opening plaque={x.plaque} speech={x.speech} />
+            {x.next && <p className="op-p opn-small"><b>Сразу после:</b> «{x.next}»</p>}
+            {x.drop && <p className="op-p opn-small"><b>Убери или перенеси в конец:</b> «{clip(x.drop, 200)}»</p>}
+            {x.gap && <p className="op-p opn-small opn-gap">Чтобы начало сработало, добавь в ролик: {x.gap}</p>}
+            {x.src && (
+              <details className="opn-src">
+                <summary>Откуда</summary>
+                <div className="opn-small">
+                  {x.src.plaque && <div className="opn-plaque">{x.src.plaque}</div>}
+                  «{clip(x.src.first, 160)}»
+                  {x.src.tmpl && <div className="opn-formula">{x.src.tmpl}</div>}
+                  <div className="op-muted">
+                    <a href={x.src.url} target="_blank" rel="noopener noreferrer">@{x.src.author}</a>, ×{fmt(x.src.ratio)} к его обычным роликам
+                  </div>
+                </div>
+              </details>
+            )}
+          </div>
+        ))}
+      </div>
     </section>
   );
+}
+
+const fmt = (x: number) => String(x >= 10 ? Math.round(x) : Math.round(x * 10) / 10).replace('.', ',');
+const clip = (t: string, n: number) => (t.length > n ? t.slice(0, n).trimEnd() + '…' : t);
+
+type Bundle = {
+  plaque: string; speech: string; next?: string; drop?: string; gap?: string; badge?: string; badgeOk?: boolean; key: string;
+  src?: { author: string; ratio: number; url: string; first: string; plaque: string | null; tmpl?: string | null };
+};
+
+/** Picks of the generator (ranked by the editor) topped up to 3 by the repaired own opening and a confirmed form. */
+export function bundlesOf(n: Nachala): Bundle[] {
+  const out: Bundle[] = n.picks.slice(0, 3).map((p, i) => ({
+    key: `bank:${i}`, plaque: p.plaque, speech: p.speech, next: p.next, drop: p.drop,
+    gap: p.check.delivered !== 'full' ? p.check.gap || p.bodyGap : undefined,
+    // the gate odds only when they say something (x1.2 and up); a neutral thesis gets no badge
+    badge: p.src.own ? 'твой залёт' : p.src.gate && (p.src.gateX ?? 0) >= 1.2 ? `${p.src.gate} ×${fmt(p.src.gateX!)}` : undefined,
+    badgeOk: !!p.src.own || (p.src.gateX ?? 1) >= 1.2,
+    src: { author: p.src.author, ratio: p.src.ratio, url: p.src.url, first: p.src.first, plaque: p.src.plaque, tmpl: p.src.tmpl },
+  }));
+  for (const [j, v] of (n.fallback?.versions || []).entries()) {
+    if (out.length >= 3) break;
+    if (v.kind === 'own') continue;
+    out.push({ key: `fb:${j}`, plaque: v.plaque, speech: v.speech, gap: v.check && v.check.delivered !== 'full' ? v.check.gap : undefined,
+      badge: v.kind === 'repair' ? 'твоё, починенное' : v.famName ? `${v.famName}${v.famX ? ` ×${fmt(v.famX)}` : ''}` : 'подтверждённая форма', badgeOk: v.kind !== 'repair' });
+  }
+  return out;
 }
 
 /** Long side to 1600 px, JPEG: screenshots go to the vision model and the database. */
@@ -143,16 +185,14 @@ const SHOWN: (keyof ReelMetrics)[] = ['views', 'skip_rate', 'avg_watch_s', 'dura
 
 function openingLabel(v: string | null, n: Nachala | null | undefined): string {
   if (!v || v === 'orig') return 'своё начало';
-  if (v.startsWith('bank:')) {
-    const i = Number(v.slice(5));
-    const p = n?.picks[i];
-    return p ? `начало из залётов: «${p.speech}»` : 'начало из залётов';
+  if (v.startsWith('bank:') || v.startsWith('fb:')) {
+    const x = n ? bundlesOf(n).find((b) => b.key === v) : undefined;
+    return x ? `связка из залётов: «${x.speech}»` : 'связка из залётов';
   }
   return v;
 }
 
 export function StatsBlock({ runId, initial, nachala, headers, stop }: { runId: string; initial: StatsEntry[] | undefined; nachala: Nachala | null | undefined; headers: Headers; stop?: ViewerReason }) {
-  const best = nachala ? bestOpening(nachala, stop) : null;
   const [list, setList] = useState<StatsEntry[]>(initial || []);
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -229,9 +269,9 @@ export function StatsBlock({ runId, initial, nachala, headers, stop }: { runId: 
           <label className="op-label">С каким началом выложил</label>
           <div className="opn-radios">
             <label><input type="radio" name="opn-o" checked={opening === 'orig'} onChange={() => setOpening('orig')} /> своё начало из сценария</label>
-            {best && !best.keep && nachala && (
-              <label><input type="radio" name="opn-o" checked={opening === `bank:${best.i}`} onChange={() => setOpening(`bank:${best.i}`)} /> предложенное: «{nachala.picks[best.i].speech}»</label>
-            )}
+            {nachala && bundlesOf(nachala).map((x, i) => (
+              <label key={x.key}><input type="radio" name="opn-o" checked={opening === x.key} onChange={() => setOpening(x.key)} /> связка {i + 1}: «{x.speech}»</label>
+            ))}
             <label><input type="radio" name="opn-o" checked={opening === 'own'} onChange={() => setOpening('own')} /> другое</label>
             {opening === 'own' && <input className="opn-input" placeholder="Первая фраза, с которой выложил" value={own} onChange={(e) => setOwn(e.target.value)} />}
           </div>
@@ -296,6 +336,18 @@ export const BLOCKS_CSS = `
   .opn-weak { opacity: .65; }
   .opn-weak .opn-open { background: oklch(0.955 0.005 75); }
   .opn-small { font-size: 13px; }
+  .opn-ptop { display: flex; align-items: center; gap: 8px; }
+  .opn-num { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 18px; color: oklch(0.60 0.19 52); }
+  .opn-pick .opn-badge { margin-left: 0; }
+  .opn-src summary { cursor: pointer; font-size: 12.5px; font-weight: 700; color: oklch(0.46 0.012 55); list-style: none; }
+  .opn-src summary::-webkit-details-marker { display: none; }
+  .opn-src summary::before { content: '+ '; }
+  .opn-src[open] summary::before { content: '− '; }
+  .opn-src > div { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .opn-formula { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: oklch(0.955 0.005 75); border-radius: 6px; padding: 6px 8px; }
+  .opn-bundles .opn-was { margin: 4px 0 2px; border-top: none; padding-top: 0; }
+  .opn-bundles .opn-picks { grid-template-columns: 1fr !important; }
+  .opn-bundles .opn-pick { min-width: 0; }
   .opn-gap { color: oklch(0.50 0.12 50); }
   .opn-fix { background: oklch(0.96 0.03 70); border-radius: 10px; padding: 10px 12px; }
   .opn-stats { list-style: none; padding: 0; margin: 8px 0 12px; display: flex; flex-direction: column; gap: 10px; }

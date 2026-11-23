@@ -20,10 +20,13 @@ export async function POST(request: NextRequest) {
   const run = await prisma.optimizatorRun.findFirst({ where: { id, telegramId: BigInt(tg), status: 'ok' }, select: { script: true, result: true } });
   if (!run?.result) return NextResponse.json({ error: 'Разбор не найден.' }, { status: 404 });
   const res = run.result as unknown as Analysis & { nachala?: Nachala };
-  // v2 (one answer + text with the opening); older cached picks are rebuilt once.
-  if (res.nachala?.v === 2) return NextResponse.json({ nachala: res.nachala });
+  // v3 (23.11 bundles: formula + editor, what goes right after); older cached picks are rebuilt once.
+  if (res.nachala?.v === 3) return NextResponse.json({ nachala: res.nachala });
   try {
-    const n = await buildNachala(run.script, res.format?.type, { stop: res.viewer_reasons?.stop, rewrite: res.rewrite?.script });
+    // the student's Instagram, so his own hits go first (optimizator_ig from students.json, else the reels space header)
+    const ig = await prisma.$queryRaw<{ ig: string }[]>`SELECT ig FROM optimizator_ig WHERE telegram_id = ${BigInt(tg)} LIMIT 1`.catch(() => []);
+    const ownAuthor = ig[0]?.ig || (await prisma.reelSpace.findUnique({ where: { telegramId: BigInt(tg) }, select: { igHandle: true } }).catch(() => null))?.igHandle || undefined;
+    const n = await buildNachala(run.script, res.format?.type, { stop: res.viewer_reasons?.stop, rewrite: res.rewrite?.script, ownAuthor });
     if (n.picks.length || n.empty) await saveNachala(id, n);
     console.log(`[optimizator/nachala] ${id}: ${n.picks.length} picks, fits ${n.picks.filter((p) => p.fits).length}, orig ${n.orig.check.delivered} ${n.orig.fam?.id}, best ${JSON.stringify(n.best)}, ${Math.round(n.ms / 1000)} s`);
     return NextResponse.json({ nachala: n });

@@ -92,6 +92,15 @@ for (const r of rows) {
      r.gate || null, r.gate_x ?? null, (r.after || []).join(' → ') || null, r.own],
   );
 }
+// 23.11: student Telegram → Instagram, so the optimizer puts a student's own hits first (GSD-BRAND optimizator-zamer/students.json)
+await db.query(`CREATE TABLE IF NOT EXISTS optimizator_ig (telegram_id BIGINT PRIMARY KEY, ig TEXT NOT NULL)`);
+const SJ = process.env.STUDENTS_JSON || resolve(B, '../../../../GSD-BRAND/clients/sasha/optimizator-zamer/students.json');
+try {
+  for (const s of JSON.parse(readFileSync(SJ, 'utf8'))) {
+    if (!s.tg || !s.ig) continue; // a wrong handle only finds no rows
+    await db.query('INSERT INTO optimizator_ig (telegram_id, ig) VALUES ($1, $2) ON CONFLICT (telegram_id) DO UPDATE SET ig = $2', [String(s.tg), s.ig]);
+  }
+} catch (e) { console.log('students.json not read:', String(e).slice(0, 120)); }
 // Openings that left the bank (family re-rated, promise re-labelled) leave the table too.
 await db.query('DELETE FROM optimizator_openings WHERE NOT (code = ANY($1))', [rows.map((r) => r.code)]);
 const n = await db.query('SELECT count(*)::int AS n FROM optimizator_openings');

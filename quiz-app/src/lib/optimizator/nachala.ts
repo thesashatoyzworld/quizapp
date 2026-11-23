@@ -217,7 +217,8 @@ export function donorOverlap(donor: { plaque: string | null; speech: string }, m
 }
 /** 23.11 experiment (OPT_FORMULA=1): write by the donor's formula in the student's words, two phrasings per donor, instead of a
  * near-verbatim copy; the skeleton keeps about 0.20-0.35 of the donor's words. Default stays the copy until the judge says otherwise. */
-const FORMULA = !!process.env.OPT_FORMULA;
+// 23.11 evening: formula + editor won the blind judge (33-34% usable vs 9-24% for the copy), on by default; OPT_FORMULA=0 = old copy mode
+const FORMULA = process.env.OPT_FORMULA !== '0';
 const MIN_OVERLAP = FORMULA ? 0.2 : 0.3;
 /** 23.11: a variant repaired for invented facts or clumsy wording may keep less of the donor's words, its construction stays
  * (with 0.30 here 11-16 of the dropped candidates per 10 student cases were good repairs dropped only for distance). */
@@ -279,7 +280,7 @@ export async function buildNachala(script: string, formatType: FormatType | unde
   // an own hit with the same opening is this very reel re-uploaded or re-checked, not a donor (23.11: Artem's «дом за 1,4 млн»)
   for (let i = P.length - 1; i >= 0; i--) if (P[i].own && donorOverlap({ plaque: P[i].plaque, speech: P[i].speech30 }, orig) >= 0.6) P.splice(i, 1);
   const payoff = { type: pay.type || '', payoff: pay.payoff || '', quote: pay.quote || '', notGiven: pay.not_given || '' };
-  if (P.length < 3) return { v: 2, payoff, orig, picks: [], topic, ms: Date.now() - t0, empty: true, best: { keep: true, why: 'none' }, fallback: await fallback(script, orig, payoff) };
+  if (P.length < 3) return { v: 3, payoff, orig, picks: [], topic, ms: Date.now() - t0, empty: true, best: { keep: true, why: 'none' }, fallback: await fallback(script, orig, payoff) };
 
   const cands = P.map((b) => `=== код ${b.code}${b.own ? ' (СВОЙ ЗАЛЁТ АВТОРА СЦЕНАРИЯ' : ' ('}×${b.ratio.toFixed(1)}; семейство «${b.fam_name}» ×${b.fam_or.toFixed(1)}${b.tier === 0 && !b.own ? ', подтверждено' : ''}` +
     `${b.gate && GATE_RU[b.gate] ? `; заход «${GATE_RU[b.gate]}»${b.gate_x ? ` ×${b.gate_x.toFixed(2)}` : ''}` : ''})\n` +
@@ -427,8 +428,9 @@ ${cands}`;
   let text: string | undefined;
   if (!best.keep && opts.rewrite) text = await withOpening(opts.rewrite, picks[best.i]).catch(() => undefined);
   // v6: no donor fits → defects of the own opening, a repair, a confirmed form, as a set for trial reels
-  const fb = (best.keep && best.why === 'none') || process.env.OPT_FALLBACK_ALL ? await fallback(script, orig, payoff) : undefined;
-  return { v: 2, payoff, orig: { ...orig, fam: origFam }, picks, topic, ms: Date.now() - t0, best, text, fallback: fb };
+  // 23.11: fewer than 3 bundles are topped up on the screen by the repair and confirmed-form versions
+  const fb = (best.keep && best.why === 'none') || picks.length < 3 || process.env.OPT_FALLBACK_ALL ? await fallback(script, orig, payoff) : undefined;
+  return { v: 3, payoff, orig: { ...orig, fam: origFam }, picks, topic, ms: Date.now() - t0, best, text, fallback: fb };
 }
 
 /** Opening defects confirmed within author on the base (O-REPORT.txt, EXPECT-REPORT.txt, 20-21.11). */
