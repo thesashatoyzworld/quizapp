@@ -255,6 +255,8 @@ export interface NachalaPick {
   /** 23.11 bundle: the script's own line that goes right after this opening, and what stands in between and should go (self-intro, lead-in). */
   next?: string;
   drop?: string;
+  /** 23.11 formula mode: the editor judge's verdict that ranked this variant. */
+  editor?: { usable?: boolean; better?: string; why?: string };
   src: { code: string; author: string; ratio: number; likes: number | null; first: string; plaque: string | null; url: string; famName: string; famX: number; confirmed: boolean;
     /** 23.11: the student's own hit; the donor's template, gate type in words with its base odds, blocks right after its hook. */
     own?: boolean; tmpl?: string | null; gate?: string; gateX?: number; after?: string };

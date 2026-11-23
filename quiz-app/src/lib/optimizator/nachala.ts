@@ -186,6 +186,20 @@ async function pool(topic: string | null, format: string | null, excludeAuthor?:
   return out;
 }
 
+/** 23.11 editor judge (same criteria as the blind bench judge judge_bundles.py): would the author film this instead of his own opening. */
+async function editor(script: string, picks: NachalaPick[]): Promise<({ usable?: boolean; better?: string; why?: string } | undefined)[]> {
+  const out = await ask(SONNET, 'Ты строгий редактор рилсов в Instagram. Ниже сценарий автора (его текущее начало в самом верху) и несколько предложенных новых начал.\n' +
+    'Для каждого начала реши: стоит ли автору снять ролик с этим началом вместо своего. Годное начало:\n' +
+    '- звучит как живая устная речь этого автора, без корявых склеек и канцелярита;\n- не выдумывает фактов, цифр, оценок, которых нет в сценарии;\n' +
+    '- создаёт у зрителя ожидание, которое сценарий потом отдаёт;\n' +
+    '- цепляет в ленте сильнее или хотя бы не слабее его текущего начала (крючок, недосказанность, конфликт, конкретика), а не узнавание «если у тебя тоже…», анонс «сейчас расскажу про…» или общий тезис;\n' +
+    '- первая фраза короткая, её можно сказать на одном дыхании.\n' +
+    'Верни только JSON-массив: [{"i": номер, "usable": true/false, "better": "лучше" | "так же" | "хуже", "why": "коротко"}]\n\nСЦЕНАРИЙ:\n' + script.slice(0, 2500) +
+    '\n\nНОВЫЕ НАЧАЛА:\n' + picks.map((p, i) => `${i}) плашка: ${p.plaque || '(нет)'} | речь: ${p.speech}`).join('\n'), 'low');
+  const arr = json<{ i?: number; usable?: boolean; better?: string; why?: string }[]>(out, '[') ?? [];
+  return picks.map((_, i) => arr.find((x) => x.i === i));
+}
+
 /** Lowercased words only, to find a quoted line inside the script whatever the punctuation and line breaks. */
 const norm = (t: string) => (t.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).join(' ');
 
@@ -383,11 +397,24 @@ ${cands}`;
     };
   };
   // formula mode: the second phrasing of the same donor is tried when the first one fails the checks
-  const all: (NachalaPick | null)[] = await Promise.all(raw.filter((r) => r.code && byCode.has(r.code) && r.speech).slice(0, 7).map(async (r) =>
-    (await one(r)) ?? (FORMULA && r.speech2 ? await one({ ...r, plaque: r.plaque2 || '', speech: r.speech2 }) : null)));
+  const cand = raw.filter((r) => r.code && byCode.has(r.code) && r.speech).slice(0, 7);
+  // formula mode: both phrasings of every donor go through the checks in parallel, then an editor judge ranks the survivors
+  // (23.11: about a third of checked variants pass a strict blind editor, the same share as hand-made bundles)
+  const all: (NachalaPick | null)[] = FORMULA
+    ? await Promise.all(cand.flatMap((r) => [r, ...(r.speech2 ? [{ ...r, plaque: r.plaque2 || '', speech: r.speech2 }] : [])]).map(one))
+    : await Promise.all(cand.map(one));
   // 23.11: 5 candidates, so that 3 survive the checks (with 3 asked, 4 of 10 student cases ended with 1-2 variants)
   const picks = all.filter((p): p is NachalaPick => !!p);
   picks.sort((a, b) => Number(!!b.src.own) - Number(!!a.src.own) || Number(b.check.delivered === 'full') - Number(a.check.delivered === 'full'));
+  if (FORMULA && picks.length > 1) {
+    // one variant per donor after ranking: two phrasings of the same donor are not two bundles
+    const verdict = await editor(script, picks);
+    const score = (i: number) => (verdict[i]?.usable ? 2 : 0) + (verdict[i]?.better === 'лучше' ? 1 : 0) + (picks[i].src.own ? 0.5 : 0);
+    const order = picks.map((_, i) => i).sort((a, b) => score(b) - score(a));
+    const seen = new Set<string>(); const ranked: NachalaPick[] = [];
+    for (const i of order) { if (seen.has(picks[i].src.code)) continue; seen.add(picks[i].src.code); ranked.push({ ...picks[i], editor: verdict[i] }); }
+    picks.splice(0, picks.length, ...ranked);
+  }
   picks.splice(3);
 
   // 21.11: one answer instead of three. Family of the student's own opening and of each adapted pick

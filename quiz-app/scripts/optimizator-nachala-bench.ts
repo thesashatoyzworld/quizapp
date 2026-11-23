@@ -20,7 +20,7 @@ async function main() {
         done[r.code] = { payoff: n.payoff, orig: n.orig, best: n.best, empty: !!n.empty, ms: n.ms, fallback: n.fallback,
           picks: n.picks.map((p) => ({ plaque: p.plaque, speech: p.speech, d: p.check.delivered, fits: p.fits, overlap: p.overlap, bodyGap: p.bodyGap, fam: p.src.famName, x: p.src.famX, src: p.src.code,
             own: p.src.own, gate: p.src.gate, gateX: p.src.gateX, tmpl: p.src.tmpl, after: p.src.after, donor: { plaque: p.src.plaque, first: p.src.first, author: p.src.author, ratio: p.src.ratio, url: p.src.url },
-            next: p.next, drop: p.drop, promise: p.promise })) };
+            next: p.next, drop: p.drop, promise: p.promise, editor: p.editor })) };
       } catch (e) { done[r.code] = { error: String((e as Error).message).slice(0, 200) }; }
       writeFileSync(outp, JSON.stringify(done, null, 1));
       console.log(Object.keys(done).length, '/', rows.length);
