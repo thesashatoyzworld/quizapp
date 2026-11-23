@@ -221,6 +221,9 @@ scene_line: реплика внутри разыгранной сценки
 announcement: анонс, новость, «сейчас расскажу про…», «сегодня поговорим о…», промо`;
 /** 23.11: weak gate types (gates_rating.json): recognition x0.67, mid-thought x0.53, announcement x0.77, question x0.81. */
 const WEAK_GATES = new Set(['recognition', 'mid_thought', 'announcement', 'question']);
+const GATE_WEAK_RU: Record<string, string> = { recognition: 'узнавание себя', mid_thought: 'с середины мысли', announcement: 'анонс', question: 'вопрос' };
+/** Why a candidate was dropped, for bench runs (OPT_DEBUG=1). */
+const dbg = (code: string, why: string) => { if (process.env.OPT_DEBUG) console.error(`[drop] ${code}: ${why}`); };
 /** A first phrase above 15 words was the bench's long-opening flag; hand-made bundles were 10-15 words. */
 const MAX_FIRST_WORDS = 15;
 const firstWords = (speech: string) => ((speech.trim().match(/^[\s\S]*?[.!?…](\s|$)/)?.[0] || speech).match(/[\p{L}\p{N}]+/gu) || []).length;
@@ -303,7 +306,7 @@ ${cands}`;
       const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p, 'Начало ушло слишком далеко от образца: осталось мало его слов.'), 'medium'), '{');
       if (fix?.speech) { p = { ...p, plaque: fix.plaque || '', speech: fix.speech, promise: fix.promise || p.promise }; narrowed = true; }
     }
-    if (donorOverlap(donor, p) < MIN_OVERLAP) return null;
+    if (donorOverlap(donor, p) < MIN_OVERLAP) { dbg(src.code, 'far from donor'); return null; }
     // 21.11 blind test: the generator kept 65% of the donor's words, authors 40%, and Sonnet told them apart in 94%: too literal = the donor's voice
     if (donorOverlap(donor, p) > MAX_OVERLAP) {
       const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
@@ -322,23 +325,32 @@ ${cands}`;
       if (fix?.speech && donorOverlap(donor, { plaque: fix.plaque || '', speech: fix.speech }) >= MIN_OVERLAP) {
         p = { ...p, plaque: fix.plaque || '', speech: fix.speech, promise: fix.promise || p.promise }; narrowed = true;
       }
-      if (firstWords(p.speech) > MAX_FIRST_WORDS) return null;
+      if (firstWords(p.speech) > MAX_FIRST_WORDS) { dbg(src.code, `long ${firstWords(p.speech)}`); return null; }
     }
     // 23.11: a variant that is the student's own opening in other words gives him nothing
-    if (!src.own && donorOverlap({ plaque: orig.plaque, speech: orig.speech }, p) >= 0.5) return null;
+    if (!src.own && donorOverlap({ plaque: orig.plaque, speech: orig.speech }, p) >= 0.5) { dbg(src.code, 'own opening reworded'); return null; }
     let inv = await invented(script, p);
     if (inv.bad) {
       const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
         `В переносе есть проблемы: ${inv.bad}. Выдуманное замени на то, что есть в сценарии, или убери; корявое сделай живой речью автора. Остальные слова образца не трогай.`), 'medium'), '{');
-      if (!fix?.speech) return null;
+      if (!fix?.speech) { dbg(src.code, `invented, no fix: ${inv.bad}`); return null; }
       const q = { plaque: fix.plaque || '', speech: fix.speech };
-      if (donorOverlap(donor, q) < MIN_OVERLAP || firstWords(q.speech) > MAX_FIRST_WORDS) return null;
+      if (donorOverlap(donor, q) < MIN_OVERLAP || firstWords(q.speech) > MAX_FIRST_WORDS) { dbg(src.code, 'invented fix too far or long'); return null; }
       inv = await invented(script, q);
-      if (inv.bad) return null;
+      if (inv.bad) { dbg(src.code, `invented twice: ${inv.bad}`); return null; }
       p = { ...p, ...q, promise: fix.promise || p.promise }; narrowed = true;
     }
-    // 23.11: the donor's gate is good, but the adaptation may slide into a weak one (recognition, announcement): out
-    if (WEAK_GATES.has(inv.gate)) return null;
+    // 23.11: the donor's gate is good, but the adaptation may slide into a weak one (recognition, announcement): one try to bring
+    // the donor's construction back, then out. The student's own hit is exempt: proven on his own audience.
+    if (!src.own && WEAK_GATES.has(inv.gate)) {
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
+        `Перенос потерял крючок образца и стал слабым началом (${GATE_WEAK_RU[inv.gate] || inv.gate}). Верни конструкцию и крючок образца: ` +
+        `${src.gate && GATE_RU[src.gate] ? `у образца это «${GATE_RU[src.gate]}». ` : ''}Первая фраза не длиннее ${MAX_FIRST_WORDS} слов.`), 'medium'), '{');
+      const q = fix?.speech ? { plaque: fix.plaque || '', speech: fix.speech } : null;
+      const v = q && donorOverlap(donor, q) >= MIN_OVERLAP && firstWords(q.speech) <= MAX_FIRST_WORDS ? await invented(script, q) : null;
+      if (!q || !v || v.bad || WEAK_GATES.has(v.gate)) { dbg(src.code, `weak gate ${inv.gate}${v ? ` → ${v.gate} ${v.bad}` : ''}`); return null; }
+      p = { ...p, ...q, promise: fix?.promise || p.promise }; narrowed = true;
+    }
     // 2) the reel must pay off what the opening opens; one narrowing that keeps the donor's words, else a warning about the body
     let c = await check(p.plaque, p.speech + '\n' + body);
     let bodyGap: string | undefined;
