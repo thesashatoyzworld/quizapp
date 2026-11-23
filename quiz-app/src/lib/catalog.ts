@@ -128,6 +128,19 @@ export const CATALOG: Record<string, CatalogProduct> = {
     orderPrefix: 'uroven_dop',
   },
 
+  // ── Бронь «Личного бренда на 360» (с 24.11): 2 000 в счёт первого месяца ──
+  // Своя роль bron360: уникализатор без лимитов сразу, оптимизатор на второй неделе.
+  // Срок задаёт вебхук (до 26.01), см. lib/bron360.ts.
+  bron_360: {
+    slug: 'bron-360',
+    name: 'Бронь «Личный бренд на 360»',
+    price: 2000,
+    type: 'one_time',
+    role: 'bron360',
+    period: null,
+    orderPrefix: 'bron360_',
+  },
+
   uroven_t3: {
     slug: 'uroven-t3',
     name: 'Новый уровень контента — Тариф 3 (делаем вместе)',

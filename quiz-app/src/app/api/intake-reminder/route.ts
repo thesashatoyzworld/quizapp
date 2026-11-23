@@ -36,7 +36,9 @@ export async function POST(request: NextRequest) {
   const text =
     intake.status === 'in_progress'
       ? `мы остановились на вопросе ${intake.currentStep + 1}, осталось ${left}. продолжим? /anketa`
-      : 'напоминаю про анкету до нашего созвона. начать: /anketa';
+      : intake.track === '360'
+        ? 'напоминаю про вопросы для твоей карты к 19 января. начать: /anketa'
+        : 'напоминаю про анкету до нашего созвона. начать: /anketa';
 
   await sendBotMessage(Number(intake.telegramId), text, undefined, 'Markdown', 'intake-reminder');
   await prisma.intake.update({ where: { id: intakeId }, data: { remindedAt: new Date() } });

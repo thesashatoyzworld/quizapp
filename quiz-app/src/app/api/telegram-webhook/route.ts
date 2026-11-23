@@ -55,6 +55,8 @@ import { claimProposal, runClaimedProposal, retryKeyboard } from '@/lib/roadmap/
 import { scheduleRoadmapBuild } from '@/lib/qstash';
 import { INTAKE_TEXTS } from '@/content/intake-tarif3';
 import { trackContent } from '@/content/intake-tracks';
+import { BRON_CB_OFF, optOut, chainOnJoin, sendChainStep, seatOf, hasBron, bronStat, payUrl, runBronCron } from '@/lib/bron360';
+import { CHAIN, OPT_OUT_REPLY, ALREADY_TEXT, FULL_TEXT } from '@/content/bron360';
 
 // Держим функцию открытой дольше дефолтных 10с: kazino-флоу ждёт ~7с между
 // сообщением про канал и статьёй. 60с нужны анкете: расшифровка голосового
@@ -433,6 +435,14 @@ export async function POST(request: NextRequest) {
     if (update.callback_query) {
       const cb = update.callback_query;
       const data = cb.data || '';
+
+      // Цепочка брони 360: «не актуально, не присылай» = выходит из цепочки.
+      if (data === BRON_CB_OFF && cb.message) {
+        await answerCallbackQuery(cb.id);
+        await optOut(cb.from.id);
+        await sendBotMessage(cb.message.chat.id, OPT_OUT_REPLY, undefined, null);
+        return NextResponse.json({ ok: true });
+      }
 
       // Кнопки под черновиком ответа в «Коннекторы».
       if (
@@ -893,6 +903,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Бронь 360, команды Саши из его чата: /bron360_test (вся цепочка себе, оплата 10 ₽),
+    // /bron360_stat (кто сколько получил), /bron360_run (прогнать крон сейчас).
+    if (
+      update.message?.text?.startsWith('/bron360_') &&
+      String(update.message.chat.id) === (process.env.ADMIN_CHAT_ID || '').trim()
+    ) {
+      const chatId = update.message.chat.id;
+      const cmd = update.message.text.trim().split(/\s+/)[0];
+      if (cmd === '/bron360_test') {
+        for (let i = 0; i < CHAIN.length; i++) await sendChainStep(chatId, i, { log: false, test: true });
+        await sendBotMessage(chatId, 'это вся цепочка брони, как её увидит лист ожидания. кнопка оплаты у тебя на 10 ₽: после оплаты придёт место, интервью и уникализатор.', undefined, null);
+      } else if (cmd === '/bron360_stat') {
+        await sendBotMessage(chatId, await bronStat(), undefined, null);
+      } else if (cmd === '/bron360_run') {
+        await sendBotMessage(chatId, JSON.stringify(await runBronCron()), undefined, null);
+      } else {
+        await sendBotMessage(chatId, 'команды: /bron360_test, /bron360_stat, /bron360_run', undefined, null);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     // Команды Саши по анкетам. Только из его чата, ADMIN_CHAT_ID.
     if (
       update.message?.text?.startsWith('/anketa_') &&
@@ -934,7 +965,9 @@ export async function POST(request: NextRequest) {
       await syncUsername(tgId, update.message.from.username, update.message.from.first_name);
 
       // Набор вопросов зависит от тарифа: t3 — досье к созвону, t2 — маршрут.
-      const track = await resolveTrack(tgId);
+      // Бронь 360: тариф не выводится из доступов, трек уже записан в анкете при оплате.
+      const own360 = await prisma.intake.findUnique({ where: { telegramId: BigInt(tgId) }, select: { track: true } });
+      const track = (await resolveTrack(tgId)) ?? (own360?.track === '360' ? ('360' as const) : null);
       if (!track) {
         await sendMessage(chatId, INTAKE_TEXTS.noAccess);
         return NextResponse.json({ ok: true });
@@ -1682,6 +1715,22 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
       // Открываем компактный checkout в мини-аппе; оплата привязывается к Telegram.
       // Лист ожидания после анкеты: /start wl_<номер>_<подпись>. Привязываем Телеграм
       // к записи, чтобы об открытии набора бот написал сам, и подтверждаем запись.
+      // Бронь 360: возврат с оплаты и ссылка без Telegram id (/pay/bron360 без u).
+      if (startParam === 'bron360' || startParam === 'bron360_full') {
+        const tg = update.message.from?.id || chatId;
+        if (await hasBron(tg)) {
+          await sendBotMessage(chatId, ALREADY_TEXT((await seatOf(tg)) ?? 1), undefined, null);
+        } else if (startParam === 'bron360_full') {
+          await sendBotMessage(chatId, FULL_TEXT, undefined, null);
+        } else {
+          // Оплата могла пройти, а вебхук ещё в пути: тогда место придёт следующим сообщением.
+          await sendBotMessage(chatId, 'если ты только что оплатил, подтверждение с местом придёт сюда через минуту. если нет, бронь тут 👇', {
+            inline_keyboard: [[{ text: 'забронировать за 2 000 ₽', url: payUrl(tg, 'start') }]],
+          }, null);
+        }
+        return NextResponse.json({ ok: true });
+      }
+
       if (startParam.startsWith('wl_')) {
         const leadId = parseWaitlistStart(startParam);
         const lead = leadId
@@ -1694,6 +1743,8 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
             data: { telegramId: String(tgId), ...(!lead.username && username ? { username } : {}) },
           });
           await sendMessage(chatId, WAITLIST_CONFIRM_TEXT[lead.kind ?? ''] ?? 'анкета принята ✅ напишу сюда, когда открою набор');
+          // Бронь уже идёт: записавшийся позже получает цепочку с первого сообщения сразу.
+          if (lead.kind === '360') await chainOnJoin(Number(tgId)).catch((e) => console.error('[bron360] join failed:', e));
           await trackEvent({
             event_type: 'waitlist_bot_confirm',
             user_id: chatId,

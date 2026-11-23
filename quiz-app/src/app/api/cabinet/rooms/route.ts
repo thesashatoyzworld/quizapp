@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { FORUM_ADMINS, forumTabVisible } from '@/lib/forum';
 import { isLichka, REELS_CLIENTS_OPEN } from '@/lib/reels/store';
 import { uniqTabVisible, UNIQ_ADMINS } from '@/lib/uniq/access';
+import { bronOptOpen } from '@/lib/bron360';
 
 export const runtime = 'nodejs';
 
@@ -65,6 +66,8 @@ export async function GET(request: NextRequest) {
 
     const unlockedRoles = Array.from(new Set(activeRows.map((r) => r.role)));
     const tiers = computeTiers(activeRows);
+    // Оптимизатор в «Инструментах»: ученики курса и бронь 360 со второй недели (материал с tierRole 'opt').
+    if ((tiers.uroven ?? 0) >= 1 || (telegramId != null && activeRows.some((r) => r.role === 'bron360') && (await bronOptOpen(telegramId)))) tiers.opt = 1;
 
     // Раздел «Личное» показываем только тем, у кого личные материалы реально
     // есть. Остальным его в кабинете не существует — даже под замком: пустой
