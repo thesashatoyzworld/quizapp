@@ -31,6 +31,25 @@ export type Opening = {
   code: string; author: string; ratio: number; likes: number | null; plaque: string | null; first: string; speech30: string;
   fam: string; fam_name: string; fam_or: number; tier: number; topic: string | null; format: string | null; promise: string | null; url: string;
   expect_type: string | null; explicit: boolean | null; tmpl: string | null;
+  /** 23.11 bundle: gate type of the opening with its base odds within author, the blocks right after the hook, a student's own hit. */
+  gate: string | null; gate_x: number | null; after: string | null; own: boolean;
+};
+
+/** Gate types (baza/gates.py) in plain words for the student. */
+const GATE_RU: Record<string, string> = {
+  result_money: 'результат или цифра', teaser: 'недосказанность', light_fun: 'лёгкое, смешное', reproach: 'упрёк зрителю',
+  abstract_thesis: 'тезис', personal_story: 'начало личной истории', scene_line: 'реплика из сценки',
+};
+
+/** 23.11: a topic with few bank openings borrows from the nearest ones (питание had 3 of 10 student cases with an empty pool). */
+const NEAR: Record<string, string[]> = {
+  питание: ['еда_рецепты', 'фитнес_тело', 'здоровье_медицина'], еда_рецепты: ['питание'], фитнес_тело: ['питание', 'здоровье_медицина'],
+  здоровье_медицина: ['фитнес_тело', 'питание'], психология_саморазвитие: ['отношения_семья', 'образование_языки'],
+  отношения_семья: ['психология_саморазвитие', 'дети_родительство'], дети_родительство: ['отношения_семья'],
+  блогинг_контент: ['маркетинг_реклама', 'бизнес_продажи'], маркетинг_реклама: ['блогинг_контент', 'бизнес_продажи'],
+  бизнес_продажи: ['маркетинг_реклама', 'деньги_инвестиции', 'карьера_работа'], деньги_инвестиции: ['бизнес_продажи', 'карьера_работа'],
+  карьера_работа: ['бизнес_продажи', 'психология_саморазвитие'], образование_языки: ['психология_саморазвитие'],
+  красота_стиль: ['здоровье_медицина'], дом_быт: ['деньги_инвестиции', 'бизнес_продажи'], нейросети_технологии: ['блогинг_контент', 'бизнес_продажи'],
 };
 
 /** Base format labels (label.py) for the optimizer's format types. */
@@ -137,16 +156,23 @@ async function check(plaque: string, text: string): Promise<PromiseCheck> {
 /** A scripted dialogue («Голос 1: …», «Мама: …»): a dialogue donor turns a monologue into a skit, so it never goes to a monologue. */
 const isDialogue = (t: string) => /(голос\s*\d\s*:|^\s*[А-ЯЁ][а-яё]{1,12}\s*:)/im.test(t);
 
-async function pool(topic: string | null, format: string | null, excludeAuthor?: string, dialogue = true): Promise<Opening[]> {
-  const rows = topic
-    ? await prisma.$queryRaw<Opening[]>`
-        SELECT * FROM optimizator_openings WHERE topic = ${topic}
-        ORDER BY (format = ${format ?? ''})::int DESC, tier ASC, ratio DESC LIMIT 500`
+async function pool(topic: string | null, format: string | null, excludeAuthor?: string, dialogue = true, ownAuthor?: string): Promise<Opening[]> {
+  // 23.11: ratio capped at 15 in the order: a single x400 explosion is a fluke more than a repeatable move; the gate's base odds rank
+  // a confirmed teaser or scene line over a neutral thesis at the same tier.
+  const byTopics = (topics: string[]) => prisma.$queryRaw<Opening[]>`
+    SELECT * FROM optimizator_openings WHERE topic = ANY(${topics}) AND NOT own
+    ORDER BY (topic = ${topics[0]})::int DESC, (format = ${format ?? ''})::int DESC, tier ASC, COALESCE(gate_x, 1) DESC, LEAST(ratio, 15) DESC LIMIT 500`;
+  let rows = topic
+    ? await byTopics([topic])
     : await prisma.$queryRaw<Opening[]>`
-        SELECT * FROM optimizator_openings WHERE format = ${format ?? ''} ORDER BY tier ASC, ratio DESC LIMIT 500`;
+        SELECT * FROM optimizator_openings WHERE format = ${format ?? ''} AND NOT own ORDER BY tier ASC, COALESCE(gate_x, 1) DESC, LEAST(ratio, 15) DESC LIMIT 500`;
+  if (topic && rows.length < 10 && NEAR[topic]) rows = await byTopics([topic, ...NEAR[topic]]);
+  // the student's own hits go first, whatever the topic: his own proven opening beats any stranger's
+  const own = ownAuthor ? await prisma.$queryRaw<Opening[]>`
+    SELECT * FROM optimizator_openings WHERE own AND author = ${ownAuthor} ORDER BY (topic = ${topic ?? ''})::int DESC, ratio DESC LIMIT 3` : [];
   const perAuthor = new Map<string, number>();
   const perFam = new Map<string, number>();
-  const out: Opening[] = [];
+  const out: Opening[] = [...own];
   for (const r of rows) {
     if (excludeAuthor && r.author === excludeAuthor) continue; // bench: the tested reel's author must not leak in
     if (!dialogue && isDialogue(r.speech30)) continue;
@@ -159,6 +185,9 @@ async function pool(topic: string | null, format: string | null, excludeAuthor?:
   }
   return out;
 }
+
+/** Lowercased words only, to find a quoted line inside the script whatever the punctuation and line breaks. */
+const norm = (t: string) => (t.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).join(' ');
 
 /** Stems of the opening words (first 5 letters, words of 3+ letters), plaque + first 15 words of speech. */
 function stems(plaque: string | null, speech: string): string[] {
@@ -189,9 +218,9 @@ async function invented(script: string, p: { plaque: string; speech: string }): 
 }
 
 type Payoff = { type?: string; payoff?: string; quote?: string; not_given?: string };
-type Raw = { code?: string; plaque?: string; speech?: string; promise?: string; kept_in?: string };
+type Raw = { code?: string; plaque?: string; speech?: string; promise?: string; kept_in?: string; next?: string; drop?: string };
 
-export async function buildNachala(script: string, formatType: FormatType | undefined, opts: { stop?: ViewerReason; rewrite?: string; topic?: string | null; excludeAuthor?: string; pool?: Opening[] } = {}): Promise<Nachala> {
+export async function buildNachala(script: string, formatType: FormatType | undefined, opts: { stop?: ViewerReason; rewrite?: string; topic?: string | null; excludeAuthor?: string; ownAuthor?: string; pool?: Opening[] } = {}): Promise<Nachala> {
   const t0 = Date.now();
   const [pay, topic] = await Promise.all([
     ask(OPUS, PAY + script, 'medium').then((t) => json<Payoff>(t, '{') ?? {}),
@@ -199,15 +228,16 @@ export async function buildNachala(script: string, formatType: FormatType | unde
   ]);
   const format = (formatType && FORMAT_OF[formatType]) || null;
   const [P, origCheck] = await Promise.all([
-    opts.pool ? Promise.resolve(opts.pool.filter((r) => isDialogue(script) || !isDialogue(r.speech30))) : pool(topic, format, opts.excludeAuthor, isDialogue(script)),
+    opts.pool ? Promise.resolve(opts.pool.filter((r) => isDialogue(script) || !isDialogue(r.speech30))) : pool(topic, format, opts.excludeAuthor, isDialogue(script), opts.ownAuthor),
     (() => { const o = openingOf(script); return check(o.plaque, script.replace(/\[Текст на экране[^\]]*\]/g, '')); })(),
   ]);
   const orig = { ...openingOf(script), check: origCheck };
   const payoff = { type: pay.type || '', payoff: pay.payoff || '', quote: pay.quote || '', notGiven: pay.not_given || '' };
   if (P.length < 3) return { v: 2, payoff, orig, picks: [], topic, ms: Date.now() - t0, empty: true, best: { keep: true, why: 'none' }, fallback: await fallback(script, orig, payoff) };
 
-  const cands = P.map((b) => `=== код ${b.code} (×${b.ratio.toFixed(1)}; семейство «${b.fam_name}» ×${b.fam_or.toFixed(1)}${b.tier === 0 ? ', подтверждено' : ''})\n` +
-    `плашка: ${b.plaque || '(нет)'}\nречь: ${b.speech30}\nшаблон: ${b.tmpl || '—'}\nзритель ждал и получил: ${b.promise || ''}${b.expect_type ? ` (${b.expect_type}${b.explicit === false ? ', из сцены, не словами' : ''})` : ''}`).join('\n');
+  const cands = P.map((b) => `=== код ${b.code}${b.own ? ' (СВОЙ ЗАЛЁТ АВТОРА СЦЕНАРИЯ' : ' ('}×${b.ratio.toFixed(1)}; семейство «${b.fam_name}» ×${b.fam_or.toFixed(1)}${b.tier === 0 && !b.own ? ', подтверждено' : ''}` +
+    `${b.gate && GATE_RU[b.gate] ? `; заход «${GATE_RU[b.gate]}»${b.gate_x ? ` ×${b.gate_x.toFixed(2)}` : ''}` : ''})\n` +
+    `плашка: ${b.plaque || '(нет)'}\nречь: ${b.speech30}\nшаблон: ${b.tmpl || '—'}\nсразу после хука у него: ${b.after || '—'}\nзритель ждал и получил: ${b.promise || ''}${b.expect_type ? ` (${b.expect_type}${b.explicit === false ? ', из сцены, не словами' : ''})` : ''}`).join('\n');
   const prompt = `Ниже сценарий рилса, что он реально даёт зрителю, и ${P.length} начал чужих залётов. У каждого начала указано, чего зритель ждал после него, и в том ролике он это получил.
 Правило из базы 4825 рилсов: если ролик отдаёт то, чего зритель ждёт после начала, он залетает в 2 раза чаще; если начало ничего не открывает, в 3 раза реже. Ожидание может быть названо словами («три причины») или возникать из сцены, конфликта, странной фразы («чем кончится?»), работает одинаково. Поэтому начало должно создавать ожидание ровно того, что сценарий даёт.
 Второе правило из базы: начало, перенесённое близко к тексту залёта, переносит его результат (копия, где осталась треть слов образца и больше, залетает в 2 раза чаще). Перенос по смыслу своими словами не даёт ничего. Поэтому начало переносится почти дословно.
@@ -221,7 +251,9 @@ export async function buildNachala(script: string, formatType: FormatType | unde
 4) Не добавляй слов и анонсов, которых нет в образце («объясню», «расскажу», «покажу», «вот что»): если в образце их нет, их нет и в переносе.
 5) Голос автора сценария, не образца: обращение (ты или вы), связки и разговорные слова («короче», «смотри», «бля»), мат и манеру бери из сценария. Живые авторы так и копируют: «Только не говори мне, что ты до сих пор не ведёшь блог» → «Бля, только не говори, что ты до сих пор скачиваешь фильмы». Начало должно звучать так, будто его сказал автор сценария.
 6) Тему и формат сценария не меняй. Длина как у образца; в диалоге первая фраза это реплика персонажа.
-Верни только JSON-массив из 3 объектов: [{"code": "код образца", "plaque": "...", "speech": "...", "promise": "чего зритель ждёт после этого начала", "kept_in": "дословная фраза сценария, где он это получает"}]
+7) Если среди начал есть СВОЙ ЗАЛЁТ АВТОРА СЦЕНАРИЯ и его конструкция ложится на сценарий, бери его первым: своё проверенное начало сильнее чужого.
+8) Что сразу после начала. Правило из базы: когда сразу после хука идут шаги или примеры, ролик залетает в 1,7 раза чаще; когда после хука самопрезентация («я ведущий», «подпишись»), подводка или утешение, сильно реже. Для каждого начала найди в сценарии кусок, который должен идти сразу за ним (обычно первый шаг, первый пример или первое блюдо из списка), и верни его ДОСЛОВНО фразой из сценария. Если между началом и этим куском в сценарии стоит самопрезентация, призыв подписаться, подводка или утешение, назови это дословно в drop: это убрать или перенести в конец. Если ничего мешающего нет, drop пустой.
+Верни только JSON-массив из 3 объектов: [{"code": "код образца", "plaque": "...", "speech": "...", "promise": "чего зритель ждёт после этого начала", "kept_in": "дословная фраза сценария, где он это получает", "next": "дословная фраза сценария, которая идёт сразу после начала", "drop": "дословный кусок сценария, который убрать или перенести в конец, или пусто"}]
 
 СЦЕНАРИЙ:
 ${script}
@@ -239,6 +271,10 @@ ${cands}`;
     const src = byCode.get(r.code!)!;
     const donor = { plaque: src.plaque, speech: src.speech30 };
     let p = { plaque: r.plaque || '', speech: r.speech!, promise: r.promise || '', keptIn: r.kept_in || '' };
+    // the «what goes right after» line must be the script's own words, else it is not shown (no invented next step)
+    const inScript = (q?: string) => { const w = norm(q || ''); return w.length > 8 && norm(script).includes(w) ? (q || '').trim() : undefined; };
+    const next = inScript(r.next);
+    const drop = inScript(r.drop);
     let narrowed = false;
     // 1) closeness: a paraphrase does not carry the donor's result, so it gets one retry and is dropped if still far
     if (donorOverlap(donor, p) < MIN_OVERLAP) {
@@ -281,13 +317,14 @@ ${cands}`;
       if (c.delivered !== 'full') bodyGap = c.gap || 'ролик не отдаёт того, чего ждут после этого начала';
     }
     return {
-      ...p, check: c, narrowed, overlap: donorOverlap(donor, p), bodyGap,
+      ...p, check: c, narrowed, overlap: donorOverlap(donor, p), bodyGap, next, drop,
       src: { code: src.code, author: src.author, ratio: src.ratio, likes: src.likes, first: src.first, plaque: src.plaque, url: src.url,
-             famName: src.fam_name, famX: src.fam_or, confirmed: src.tier === 0 },
+             famName: src.fam_name, famX: src.fam_or, confirmed: src.tier === 0, own: !!src.own, tmpl: src.tmpl,
+             gate: src.gate && GATE_RU[src.gate] ? GATE_RU[src.gate] : undefined, gateX: src.gate_x ?? undefined, after: src.after || undefined },
     };
   }));
   const picks = all.filter((p): p is NachalaPick => !!p);
-  picks.sort((a, b) => Number(b.check.delivered === 'full') - Number(a.check.delivered === 'full'));
+  picks.sort((a, b) => Number(!!b.src.own) - Number(!!a.src.own) || Number(b.check.delivered === 'full') - Number(a.check.delivered === 'full'));
 
   // 21.11: one answer instead of three. Family of the student's own opening and of each adapted pick
   // (an adaptation that lost its construction, «Три причины…» without a number, is not shown).

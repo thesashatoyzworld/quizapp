@@ -24,13 +24,23 @@ function tier(f) {
   if ((x.verdict === 'мало данных' && x.or >= 1.5) || (x.verdict === 'как у всех' && x.or >= 1)) return 1;
   return null;
 }
+// 23.11 bundles: gate types confirmed or leaning worse than average within author (gates_rating.json: recognition x0.67,
+// mid-thought x0.53, announcement x0.77, question x0.81, no words x0.58) never go to a student as a model to copy.
+const BAD_GATES = new Set(['recognition', 'mid_thought', 'announcement', 'question', 'none']);
 const rows = [];
 for (const b of lines('bank.jsonl')) {
   const f = fam.get(b.code);
+  const x = rate.get(f);
+  // a student's own hit (views rule, students_to_base.py) is the strongest donor for that student whatever its family or template
+  if (b.source === 'student') {
+    if (b.paid !== 'full' && b.paid !== 'partial') continue;
+    rows.push({ ...b, fam: f || 'f00', fam_name: x?.name || 'свой залёт', fam_or: x?.or || 1, tier: 0, own: true });
+    continue;
+  }
   const t = tier(f);
   if (t === null || b.paid !== 'full' || b.tmpl_kind !== 'template') continue; // 21.11: only openings that become a template (copies x2.90 same topic)
-  const x = rate.get(f);
-  rows.push({ ...b, fam: f, fam_name: x.name, fam_or: x.or, tier: t });
+  if (!b.gate || BAD_GATES.has(b.gate)) continue;
+  rows.push({ ...b, fam: f, fam_name: x.name, fam_or: x.or, tier: t, own: false });
 }
 console.log(`openings: ${rows.length}, authors ${new Set(rows.map((r) => r.author)).size}`);
 
@@ -45,6 +55,11 @@ await db.query(`
   ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS expect_type TEXT;
   ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS explicit BOOLEAN;
   ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS tmpl TEXT;
+  ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS gate TEXT;
+  ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS gate_x REAL;
+  ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS after TEXT;
+  ALTER TABLE optimizator_openings ADD COLUMN IF NOT EXISTS own BOOLEAN NOT NULL DEFAULT false;
+  CREATE INDEX IF NOT EXISTS optimizator_openings_author_idx ON optimizator_openings (author);
   CREATE INDEX IF NOT EXISTS optimizator_openings_topic_idx ON optimizator_openings (topic, format);
   CREATE TABLE IF NOT EXISTS optimizator_stats (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -67,12 +82,14 @@ await db.query(`
 `);
 for (const r of rows) {
   await db.query(
-    `INSERT INTO optimizator_openings (code, author, ratio, likes, plaque, first, speech30, fam, fam_name, fam_or, tier, topic, format, promise, url, expect_type, explicit, tmpl)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+    `INSERT INTO optimizator_openings (code, author, ratio, likes, plaque, first, speech30, fam, fam_name, fam_or, tier, topic, format, promise, url, expect_type, explicit, tmpl, gate, gate_x, after, own)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
      ON CONFLICT (code) DO UPDATE SET author=$2, ratio=$3, likes=$4, plaque=$5, first=$6, speech30=$7, fam=$8, fam_name=$9,
-       fam_or=$10, tier=$11, topic=$12, format=$13, promise=$14, url=$15, expect_type=$16, explicit=$17, tmpl=$18`,
+       fam_or=$10, tier=$11, topic=$12, format=$13, promise=$14, url=$15, expect_type=$16, explicit=$17, tmpl=$18,
+       gate=$19, gate_x=$20, after=$21, own=$22`,
     [r.code, r.author, r.ratio, r.likes ?? null, r.plaque || null, r.first, r.speech30, r.fam, r.fam_name, r.fam_or, r.tier,
-     r.topic || null, r.format || null, r.expect || null, r.url, r.expect_type || null, r.explicit ?? null, r.tmpl || null],
+     r.topic || null, r.format || null, r.expect || null, r.url, r.expect_type || null, r.explicit ?? null, r.tmpl || r.template || null,
+     r.gate || null, r.gate_x ?? null, (r.after || []).join(' → ') || null, r.own],
   );
 }
 // Openings that left the bank (family re-rated, promise re-labelled) leave the table too.

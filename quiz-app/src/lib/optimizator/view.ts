@@ -252,7 +252,12 @@ export interface NachalaPick {
   overlap?: number;
   /** v5: the reel does not pay off what this opening opens (copy of a hit with the expectation unpaid x0.85): what is missing. */
   bodyGap?: string;
-  src: { code: string; author: string; ratio: number; likes: number | null; first: string; plaque: string | null; url: string; famName: string; famX: number; confirmed: boolean };
+  /** 23.11 bundle: the script's own line that goes right after this opening, and what stands in between and should go (self-intro, lead-in). */
+  next?: string;
+  drop?: string;
+  src: { code: string; author: string; ratio: number; likes: number | null; first: string; plaque: string | null; url: string; famName: string; famX: number; confirmed: boolean;
+    /** 23.11: the student's own hit; the donor's template, gate type in words with its base odds, blocks right after its hook. */
+    own?: boolean; tmpl?: string | null; gate?: string; gateX?: number; after?: string };
 }
 
 /** v6 (21.11): no fitting donor. What the base says pulls this opening down, a minimal repair in the student's words, a version in a
