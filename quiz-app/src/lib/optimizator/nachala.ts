@@ -318,24 +318,15 @@ ${cands}`;
     }
     // 1b) a near-verbatim copy drags the donor's own facts along («осень 2026», «таких, как я, не любят»: 41% of v5 variants on the
     // bench); claims absent from the script are swapped for the script's own or dropped, the donor's other words stay
-    // 23.11: a long first phrase is shortened once (the donor's second sentence often rides along)
-    if (firstWords(p.speech) > MAX_FIRST_WORDS) {
-      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
-        `Первая фраза слишком длинная (${firstWords(p.speech)} слов). Сократи первую фразу до ${MAX_FIRST_WORDS} слов и меньше: оставь крючок образца, убери пояснения и вторую мысль.`), 'medium'), '{');
-      if (fix?.speech && donorOverlap(donor, { plaque: fix.plaque || '', speech: fix.speech }) >= MIN_OVERLAP) {
-        p = { ...p, plaque: fix.plaque || '', speech: fix.speech, promise: fix.promise || p.promise }; narrowed = true;
-      }
-      if (firstWords(p.speech) > MAX_FIRST_WORDS) { dbg(src.code, `long ${firstWords(p.speech)}`); return null; }
-    }
     // 23.11: a variant that is the student's own opening in other words gives him nothing
-    if (!src.own && donorOverlap({ plaque: orig.plaque, speech: orig.speech }, p) >= 0.5) { dbg(src.code, 'own opening reworded'); return null; }
+    if (!src.own && donorOverlap({ plaque: orig.plaque, speech: orig.speech }, p) >= 0.6) { dbg(src.code, 'own opening reworded'); return null; }
     let inv = await invented(script, p);
     if (inv.bad) {
       const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
         `В переносе есть проблемы: ${inv.bad}. Выдуманное замени на то, что есть в сценарии, или убери; корявое сделай живой речью автора. Остальные слова образца не трогай.`), 'medium'), '{');
       if (!fix?.speech) { dbg(src.code, `invented, no fix: ${inv.bad}`); return null; }
       const q = { plaque: fix.plaque || '', speech: fix.speech };
-      if (donorOverlap(donor, q) < MIN_OVERLAP || firstWords(q.speech) > MAX_FIRST_WORDS) { dbg(src.code, 'invented fix too far or long'); return null; }
+      if (donorOverlap(donor, q) < MIN_OVERLAP) { dbg(src.code, 'invented fix too far'); return null; }
       inv = await invented(script, q);
       if (inv.bad) { dbg(src.code, `invented twice: ${inv.bad}`); return null; }
       p = { ...p, ...q, promise: fix.promise || p.promise }; narrowed = true;
@@ -347,9 +338,20 @@ ${cands}`;
         `Перенос потерял крючок образца и стал слабым началом (${GATE_WEAK_RU[inv.gate] || inv.gate}). Верни конструкцию и крючок образца: ` +
         `${src.gate && GATE_RU[src.gate] ? `у образца это «${GATE_RU[src.gate]}». ` : ''}Первая фраза не длиннее ${MAX_FIRST_WORDS} слов.`), 'medium'), '{');
       const q = fix?.speech ? { plaque: fix.plaque || '', speech: fix.speech } : null;
-      const v = q && donorOverlap(donor, q) >= MIN_OVERLAP && firstWords(q.speech) <= MAX_FIRST_WORDS ? await invented(script, q) : null;
+      const v = q && donorOverlap(donor, q) >= MIN_OVERLAP ? await invented(script, q) : null;
       if (!q || !v || v.bad || WEAK_GATES.has(v.gate)) { dbg(src.code, `weak gate ${inv.gate}${v ? ` → ${v.gate} ${v.bad}` : ''}`); return null; }
       p = { ...p, ...q, promise: fix?.promise || p.promise }; narrowed = true;
+    }
+    // 23.11: a long first phrase is shortened once, last, so the other fixes cannot lengthen it again (the donor's second sentence often rides along)
+    if (firstWords(p.speech) > MAX_FIRST_WORDS) {
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
+        `Первая фраза слишком длинная (${firstWords(p.speech)} слов). Сократи первую фразу до ${MAX_FIRST_WORDS} слов и меньше: оставь крючок образца, убери пояснения и вторую мысль.`), 'medium'), '{');
+      if (fix?.speech && donorOverlap(donor, { plaque: fix.plaque || '', speech: fix.speech }) >= MIN_OVERLAP) {
+        const q = { plaque: fix.plaque || '', speech: fix.speech };
+        const v = await invented(script, q);
+        if (!v.bad && (src.own || !WEAK_GATES.has(v.gate))) { p = { ...p, ...q, promise: fix.promise || p.promise }; narrowed = true; }
+      }
+      if (firstWords(p.speech) > MAX_FIRST_WORDS) { dbg(src.code, `long ${firstWords(p.speech)}`); return null; }
     }
     // 2) the reel must pay off what the opening opens; one narrowing that keeps the donor's words, else a warning about the body
     let c = await check(p.plaque, p.speech + '\n' + body);
