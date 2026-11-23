@@ -4,6 +4,7 @@
 // Validation on new authors: AUC within author 0.67, hit share by band 33/37/53/57/69%.
 // Rebuild the model: python3 export_shans.py <baza> src/lib/optimizator/data/shans-model.json (see scripts/).
 import Anthropic from '@anthropic-ai/sdk';
+import { llm } from './llm';
 import { prisma } from '@/lib/prisma';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 import MODEL_JSON from './data/shans-model.json';
@@ -16,7 +17,7 @@ const M = MODEL_JSON as unknown as {
 };
 const LABEL_MODEL = 'claude-sonnet-5-5';
 const VOTES = 3;
-const anthropic = new Anthropic();
+const anthropic = llm(); // OPT_VIA_CLI: local subscription runs (llm.ts)
 
 function lengthKey(t: string): string {
   const n = t.split(/\s+/).filter(Boolean).length;

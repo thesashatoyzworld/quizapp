@@ -6,6 +6,7 @@
 // Postgres full-text search. Server only. Never throws: on any error or timeout
 // the analysis goes on with `searched: false`.
 import Anthropic from '@anthropic-ai/sdk';
+import { llm } from './llm';
 import { prisma } from '@/lib/prisma';
 import { recordAnthropicUsage } from '@/lib/costs/anthropic';
 
@@ -33,7 +34,7 @@ export type DemandEvidence = {
   items: DemandItem[];
 };
 
-const anthropic = new Anthropic();
+const anthropic = llm(); // OPT_VIA_CLI: local subscription runs (llm.ts)
 
 const PHRASES_PROMPT =
   'Тебе дают сценарий рилса. Составь 6-10 коротких поисковых фраз на русском (2-4 слова каждая), ' +
