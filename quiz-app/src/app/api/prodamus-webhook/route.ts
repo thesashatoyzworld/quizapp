@@ -6,6 +6,8 @@ import { CATALOG, resolveProductByOrderId } from '@/lib/catalog';
 import { floorPrice } from '@/content/prices';
 import { grantAccess } from '@/lib/access';
 import { startForDeal, startForUroven } from '@/lib/start360';
+import { onBronPaid } from '@/lib/bron360';
+import { UNIQ_ADMINS } from '@/lib/uniq/access';
 import { getDeal, countPayment, dealProduct, parseDealOrderId, alreadyProcessed } from '@/lib/deals';
 import { markDuePaid } from '@/lib/payment-dues';
 import { matchPayer } from '@/lib/payer-match';
@@ -484,6 +486,34 @@ export async function POST(request: NextRequest) {
     // третий сегмент тот же, что у uroven_<tier>_<...>, поэтому разбор общий.
     const isPotok = typeof orderId === 'string' && orderId.startsWith('potok_sprosa');
     const isDeal = typeof orderId === 'string' && orderId.startsWith('deal_');
+
+    // Бронь «Личного бренда на 360»: bron360_<tg>_<хвост>, ссылка только из бота (/pay/bron360).
+    if (typeof orderId === 'string' && orderId.startsWith('bron360_')) {
+      const tg = Number(orderId.split('_')[1]);
+      const products = body.products as Record<string, Record<string, string>> | undefined;
+      const paidRaw = products?.['0']?.sum ?? products?.['0']?.price;
+      const amount = parseInt(String(paidRaw ?? CATALOG.bron_360.price), 10) || CATALOG.bron_360.price;
+      // Саша проверяет за 10 ₽ (k=test в /pay/bron360), остальным недоплата доступ не открывает.
+      const floor = UNIQ_ADMINS.has(tg) ? 10 : CATALOG.bron_360.price;
+      if (!Number.isFinite(tg) || tg < 1000) {
+        await notifyAdmin(`⚠️ бронь 360 без Telegram: ${orderId}, ${amount} ₽. выдать руками`, { alsoWork: true });
+        return NextResponse.json({ success: true });
+      }
+      if (amount < floor) {
+        await notifyAdminUnderpaid(CATALOG.bron_360.name, floor, amount, `TG user ${tg}`, orderId);
+        return NextResponse.json({ success: true });
+      }
+      await prisma.product.upsert({
+        where: { slug: CATALOG.bron_360.slug },
+        create: { slug: CATALOG.bron_360.slug, name: CATALOG.bron_360.name, price: CATALOG.bron_360.price, type: 'one_time' },
+        update: { name: CATALOG.bron_360.name },
+      });
+      const already = await prisma.purchase.findFirst({ where: { prodamusOrderId: orderId }, select: { id: true } });
+      if (!already) await createPurchase(tg, CATALOG.bron_360.slug, amount, 'bron360', orderId);
+      const u = await prisma.user.findUnique({ where: { telegramId: BigInt(tg) }, select: { username: true } }).catch(() => null);
+      await onBronPaid(tg, orderId, amount, u?.username ?? null);
+      return NextResponse.json({ success: true });
+    }
 
     if (isDeal) {
       // Прайс-ссылка: цена и срок вне каталога.

@@ -22,9 +22,9 @@ export function uniqTabVisible(
   return UNIQ_BETA_VIEWERS.has(telegramId) || uniqTesters(env.testers || '').has(telegramId);
 }
 
-/** Unlimited: «Новый уровень» tier 2 and 3, admins. Everyone else (tier 1, «Поток спроса», no tariff) is on the free plan. */
+/** Unlimited: «Новый уровень» tier 2 and 3, the 360 booking (role bron360), admins. Everyone else is on the free plan. */
 export function uniqPaid(telegramId: number, tiers: Record<string, number>): boolean {
-  return UNIQ_ADMINS.has(telegramId) || (tiers.uroven ?? 0) >= 2;
+  return UNIQ_ADMINS.has(telegramId) || (tiers.uroven ?? 0) >= 2 || tiers.bron360 !== undefined;
 }
 
 export const FREE_VERSIONS = 2;

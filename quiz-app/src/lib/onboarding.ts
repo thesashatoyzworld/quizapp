@@ -20,7 +20,8 @@ const CABINET_URL =
   '/dostup';
 
 /** Всё, чем тариф отличается в приветствии. Новый тариф добавляется сюда. */
-const TIERS: Record<IntakeTrack, {
+// Бронь 360 встречает своим сообщением (lib/bron360.ts), здесь только тарифы курса.
+const TIERS: Record<Exclude<IntakeTrack, '360'>, {
   slug: string;
   label: string;
   button: string;
@@ -70,7 +71,7 @@ async function intakeDone(telegramId: number): Promise<boolean> {
  */
 export async function sendWelcome(
   telegramId: number,
-  tier: IntakeTrack,
+  tier: Exclude<IntakeTrack, '360'>,
   force = false,
   intakeTrack: IntakeTrack = tier,
 ): Promise<boolean> {
@@ -190,9 +191,10 @@ export async function adminWelcome(arg: string): Promise<string> {
   if (!user) return `не нашёл ${who} в базе. он должен хоть раз запустить бота`;
 
   const tg = Number(user.telegramId);
-  const forced = asked === 't2' || asked === 't3' ? (asked as IntakeTrack) : null;
+  const forced = asked === 't2' || asked === 't3' ? asked : null;
   const live = await tierOf(user.telegramId);
-  const tier = forced || live;
+  // resolveTrack отдаёт только t2/t3: трек '360' по тарифу не выводится.
+  const tier = (forced || live) as Exclude<IntakeTrack, '360'> | null;
   if (!tier) return `у ${who} нет активного тарифа 2 или 3. или выдай доступ, или скажи тариф: /welcome ${who} t3`;
 
   if (await alreadyWelcomed(tg)) return `${who} уже здоровались раньше, ничего не отправил`;
