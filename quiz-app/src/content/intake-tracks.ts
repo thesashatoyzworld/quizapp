@@ -22,8 +22,9 @@ import {
   T2_INVITE,
   T2_PRODUCT_SLUG,
 } from './intake-tarif2';
+import { B360_PREAMBLE, B360_QUESTIONS, B360_TEXTS, B360_TOTAL, B360_INVITE, B360_PRODUCT_SLUG } from './intake-360';
 
-export type IntakeTrack = 't2' | 't3';
+export type IntakeTrack = 't2' | 't3' | '360';
 
 /** Старые анкеты заведены до появления треков, все они менторские. */
 export const DEFAULT_TRACK: IntakeTrack = 't3';
@@ -61,6 +62,15 @@ export const TRACKS: Record<IntakeTrack, TrackContent> = {
     invite: T2_INVITE,
     // Служебные реплики общие, переопределены только те, что обещают созвон.
     texts: { ...INTAKE_TEXTS, ...T2_TEXTS },
+  },
+  // Бронь «Личного бренда на 360»: вопросы под карту к старту 19.01.
+  '360': {
+    productSlug: B360_PRODUCT_SLUG,
+    preamble: B360_PREAMBLE,
+    questions: B360_QUESTIONS,
+    total: B360_TOTAL,
+    invite: B360_INVITE,
+    texts: { ...INTAKE_TEXTS, ...B360_TEXTS },
   },
 };
 

@@ -353,6 +353,11 @@ async function finishIntake(intake: IntakeRow, chatId: number): Promise<void> {
   });
 
   await sendBotMessage(chatId, trackContent(intake.track).texts.finished);
+  // Бронь 360: после интервью сразу открываем уникализатор (неделя 1).
+  if (intake.track === '360') {
+    const { sendUniqOpen } = await import('@/lib/bron360');
+    await sendUniqOpen(chatId).catch((e) => console.error('[intake] bron360 uniq open failed:', e));
+  }
   await notifyIntakeDone(intake.id);
 }
 
@@ -733,7 +738,7 @@ async function notifyIntakeDone(intakeId: string): Promise<void> {
     : '';
 
   await notifyAdmin(
-    `📋 <b>Анкета собрана</b> (${isRoute ? 'тариф 2' : 'менторство'})\n\n` +
+    `📋 <b>Анкета собрана</b> (${isRoute ? 'тариф 2' : intake.track === '360' ? 'бронь 360, карта к 19.01' : 'менторство'})\n\n` +
       `👤 ${who}\n` +
       `🎙 голосовых: ${voices}${minutes ? ` (~${minutes} мин)` : ''}\n` +
       `⏭ пропущено вопросов: ${skipped}\n\n` +
