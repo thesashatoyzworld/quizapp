@@ -277,6 +277,23 @@ export interface NachalaFallback {
 /** v2: one answer. keep = the student's own opening stays (strong family / already stops / nothing better). */
 export type NachalaBest = { keep: true; why: 'strong' | 'stops' | 'none' } | { keep: false; i: number };
 
+/** «Довести до верхней ступени»: the whole script with the best bundle and an edited body. */
+export interface Telo {
+  text: string;
+  /** what was changed, in plain words for the author */
+  changes: string[];
+  /** chance before the edit (the best bundle, or the script itself) and after (the lower of two scorings) */
+  before: number;
+  share: number;
+  top: boolean;
+  /** what still pulls it down */
+  minus: string[];
+  /** the opening the edit is built on: a bundle's speech, empty = the author's own */
+  base?: string;
+  note?: string;
+  ms: number;
+}
+
 export interface Nachala {
   v?: number;
   payoff: { type: string; payoff: string; quote: string; notGiven: string };
@@ -289,6 +306,8 @@ export interface Nachala {
   fallback?: NachalaFallback;
   /** 23.11: the run's own «шанс на залёт» when the bundles were built, to show «было». */
   origShare?: number;
+  /** v5 (23.11): the body edited up to the top band, on top of the best bundle (telo.ts). */
+  telo?: Telo | null;
   topic: string | null;
   ms: number;
   /** Too few bank openings on the topic. */

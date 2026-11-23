@@ -59,7 +59,7 @@ const FORMAT_OF: Partial<Record<FormatType, string>> = {
 };
 
 /** Opus/Sonnet 5.5 always think (adaptive); max_tokens leaves room for it. Effort low for the checks, medium elsewhere. */
-async function ask(model: string, prompt: string, effort: 'low' | 'medium'): Promise<string> {
+export async function ask(model: string, prompt: string, effort: 'low' | 'medium'): Promise<string> {
   if (process.env.OPT_VIA_CLI) return askCli(model, prompt);
   const msg = await anthropic.messages.create({
     model, max_tokens: 16_000, thinking: { type: 'adaptive' }, output_config: { effort }, messages: [{ role: 'user', content: prompt }],
@@ -94,7 +94,7 @@ async function askCli(model: string, prompt: string): Promise<string> {
   return '';
 }
 
-function json<T>(text: string, open: '[' | '{'): T | null {
+export function json<T>(text: string, open: '[' | '{'): T | null {
   const i = text.indexOf(open);
   if (i < 0) return null;
   const close = open === '[' ? ']' : '}';

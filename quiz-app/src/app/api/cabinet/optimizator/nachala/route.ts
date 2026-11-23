@@ -2,14 +2,15 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { verifiedViewer } from '@/lib/reels/store';
 import { prisma } from '@/lib/prisma';
 import { buildNachala, saveNachala } from '@/lib/optimizator/nachala';
+import { buildTelo } from '@/lib/optimizator/telo';
 import type { Analysis, Nachala } from '@/lib/optimizator/view';
 
 export const runtime = 'nodejs';
 // Bundles (formula + editor) take 2-4 min; the build runs after the response (after()), within this budget.
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 /** A job older than this is considered dead (the function was killed) and may be started again. */
-const STALE_MS = 6 * 60_000;
+const STALE_MS = 14 * 60_000;
 
 type Res = Analysis & { nachala?: Nachala; nachala_pending?: number; nachala_error?: string };
 
@@ -35,8 +36,8 @@ export async function POST(request: NextRequest) {
   const run = await prisma.optimizatorRun.findFirst({ where: { id, telegramId: BigInt(tg), status: 'ok' }, select: { script: true, result: true } });
   if (!run?.result) return NextResponse.json({ error: 'Разбор не найден.' }, { status: 404 });
   const res = run.result as unknown as Res;
-  // v4 (23.11 bundles with the chance of each applied bundle); older cached picks are rebuilt once.
-  if (res.nachala?.v === 4) return NextResponse.json({ nachala: res.nachala });
+  // v5 (23.11 bundles with their chance + the body edited up to the top band); older cached picks are rebuilt once.
+  if (res.nachala?.v === 5) return NextResponse.json({ nachala: res.nachala });
   if (res.nachala_error) {
     await mark(id, 'nachala_error', null);
     return NextResponse.json({ error: 'Не получилось подобрать начало. Попробуй ещё раз через минуту.' }, { status: 502 });
@@ -54,8 +55,18 @@ export async function POST(request: NextRequest) {
       const now = await prisma.optimizatorRun.findUnique({ where: { id }, select: { result: true } }).catch(() => null);
       const own = (now?.result as unknown as { shans?: { hitShare?: number } } | null)?.shans?.hitShare;
       if (typeof own === 'number') n.origShare = own;
+      // 23.11 «довести до верхней ступени»: the body is edited on top of the best usable bundle (or the script itself)
+      const cands = [...n.picks.filter((p) => p.editor?.usable !== false).map((p) => ({ text: p.text, share: p.shans?.hitShare, speech: p.speech })),
+        ...(n.fallback?.versions || []).filter((v) => v.kind !== 'own').map((v) => ({ text: v.text, share: v.shans?.hitShare, speech: v.speech }))]
+        .filter((c) => c.text && typeof c.share === 'number' && (own === undefined || c.share! >= own))
+        .sort((a, b) => b.share! - a.share!);
+      const base = cands[0];
+      const telo = await buildTelo(base?.text || run.script, base?.share ?? own ?? 0);
+      if (telo && base) telo.base = base.speech;
+      n.telo = telo;
+      n.v = 5;
       await saveNachala(id, n);
-      console.log(`[optimizator/nachala] ${id}: ${n.picks.length} picks, own ${ownAuthor || '-'}, fallback ${n.fallback?.versions.length ?? 0}, best ${JSON.stringify(n.best)}, ${Math.round(n.ms / 1000)} s`);
+      console.log(`[optimizator/nachala] ${id}: ${n.picks.length} picks, own ${ownAuthor || '-'}, fallback ${n.fallback?.versions.length ?? 0}, best ${JSON.stringify(n.best)}, telo ${n.telo ? `${Math.round(n.telo.before * 100)}→${Math.round(n.telo.share * 100)}` : '-'}, ${Math.round(n.ms / 1000)} s`);
     } catch (err) {
       console.error('[optimizator/nachala] failed', id, String((err as Error)?.message || err).slice(0, 300));
       await mark(id, 'nachala_error', String((err as Error)?.message || err).slice(0, 200)).catch(() => {});

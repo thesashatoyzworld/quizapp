@@ -30,9 +30,33 @@ export function bestOpening(n: Nachala, stop?: ViewerReason): { keep: true; why?
   return { keep: false, i: rank[0].i };
 }
 
+/** 23.11 «довести до верхней ступени»: the whole script with the best bundle and the body edited (telo.ts). */
+function TeloCard({ t }: { t: NonNullable<Nachala['telo']> }) {
+  const p = (x: number) => `${Math.round(x * 100)}%`;
+  return (
+    <div className={`opn-telo ${t.top ? '' : 'opn-telo-low'}`}>
+      <h3>{t.top ? `Готовый сценарий: шанс ${p(t.before)} → ${p(t.share)}` : `Сценарий подтянут до ${p(t.share)} (было ${p(t.before)}), до верхней ступени не дотянул`}</h3>
+      <p className="op-p opn-small op-muted">
+        {t.base ? 'Начало из связки 1, тело поправлено' : 'Начало твоё, тело поправлено'}: убрано то, что по базе из 4 700 рилсов мешает залететь, добавлены приёмы залётов. Факты, кейсы, цифры и призыв в конце те же.
+        {t.top ? ' 69% это верхняя ступень: так залетают лучшие тексты базы.' : ''}
+      </p>
+      {t.changes.length > 0 && <ul className="opn-small">{t.changes.map((c, i) => <li key={i}>{c}</li>)}</ul>}
+      {!t.top && t.minus.length > 0 && <p className="op-p opn-small"><b>Ещё тянет вниз:</b> {t.minus.join(', ')}. Если это можно убрать без потерь для тебя, убери, или возьми другую тему.</p>}
+      <details className="opn-src" open>
+        <summary>Сценарий целиком</summary>
+        <div className="opn-small">
+          <div className="opn-full">{t.text}</div>
+          <button type="button" className="op-copy" onClick={() => { void navigator.clipboard?.writeText(t.text); }}>Скопировать</button>
+        </div>
+      </details>
+      <p className="op-p opn-small op-muted">Проверь, что всё звучит как ты и ничего не приписано. Связки ниже, если хочешь собрать сам.</p>
+    </div>
+  );
+}
+
 export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady }: { runId: string; initial: Nachala | null | undefined; headers: Headers; readOnly?: boolean; stop?: ViewerReason; onReady?: (n: Nachala) => void }) {
   // Picks saved before v2 (three variants, no single answer) are rebuilt once by the owner.
-  const [n, setN] = useState<Nachala | null>(initial && ((initial.v ?? 0) >= 3 || readOnly) ? initial : null);
+  const [n, setN] = useState<Nachala | null>(initial && ((initial.v ?? 0) >= 5 || readOnly) ? initial : null);
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState('');
   const [now, setNow] = useState(0);
@@ -54,7 +78,7 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.pending) {
-          if (Date.now() - t0 > 8 * 60_000) throw new Error('Подбор идёт дольше обычного. Обнови страницу через пару минут.');
+          if (Date.now() - t0 > 15 * 60_000) throw new Error('Подбор идёт дольше обычного. Обнови страницу через пару минут.');
           await new Promise((r) => setTimeout(r, 6000));
           continue;
         }
@@ -88,7 +112,7 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
           </>
         ) : (
           <p className="op-p op-muted">
-            <span className="op-spinner op-spinner-sm" /> Подбираю связки из залётов по твоей теме и проверяю каждую… {busy !== null ? Math.max(0, Math.round((now - busy) / 1000)) : 0} с, обычно 3-4 минуты
+            <span className="op-spinner op-spinner-sm" /> Подбираю связки из залётов по твоей теме и проверяю каждую… {busy !== null ? Math.max(0, Math.round((now - busy) / 1000)) : 0} с, обычно 4-6 минут
           </p>
         )}
       </section>
@@ -115,12 +139,14 @@ export function NachalaBlock({ runId, initial, headers, readOnly, stop, onReady 
       <h2 className="op-h2">Начало: связки из залётов</h2>
       {(() => {
         const top = strong[0]?.share; const was = n.origShare;
+        if (n.telo && was !== undefined && n.telo.share > was) return <div className="opn-verdict">Шанс на залёт: {pct(was)} → {pct(n.telo.share)}</div>;
         if (!strong.length) return <div className="opn-verdict opn-verdict-ok">Твоё начало сильнее вариантов из залётов, оставляем{was !== undefined ? ` (шанс ${pct(was)})` : ''}</div>;
         if (top === undefined || was === undefined) return null;
         return top > was
           ? <div className="opn-verdict">Шанс на залёт: {pct(was)} → {pct(top)}</div>
           : <div className="opn-verdict opn-verdict-ok">Шанс на залёт {pct(was)}: связки его не поднимают</div>;
       })()}
+      {n.telo && <TeloCard t={n.telo} />}
       <p className="op-p op-muted opn-small">
         {b.keep
           ? 'Твоё начало рабочее. Если хочешь сильнее, вот готовые связки: сними одну из них пробным и сравни.'
@@ -359,6 +385,11 @@ export const BLOCKS_CSS = `
   .opn-part { background: oklch(0.94 0.05 75); color: oklch(0.50 0.12 60); }
   .opn-bad { background: oklch(0.92 0.05 25); color: oklch(0.48 0.15 25); }
   .opn-verdict { font-family: 'Archivo', system-ui, sans-serif; font-weight: 900; font-size: 19px; letter-spacing: -0.015em; margin-bottom: 10px; color: oklch(0.60 0.19 52); }
+  .opn-telo { border: 1.5px solid oklch(0.62 0.14 150); border-radius: 12px; padding: 12px 14px; margin: 10px 0 14px; }
+  .opn-telo-low { border-color: oklch(0.75 0.12 70); }
+  .opn-telo h3 { margin: 0 0 6px; font-size: 16px; }
+  .opn-telo ul { margin: 6px 0; padding-left: 18px; }
+  .opn-telo li { margin: 2px 0; }
   .opn-verdict-ok { color: oklch(0.55 0.13 150); }
   .opn-best .opn-open, .opn-keep .opn-open { background: oklch(0.95 0.04 150); border-radius: 12px; padding: 12px 14px; }
   .opn-keep .opn-open { background: oklch(0.955 0.01 75); }
