@@ -6,6 +6,7 @@ import { analyzeScript } from '@/lib/optimizator/analyze';
 import { LADDER_ON, MODEL, MONTHLY_LIMIT, TESTER_LIMIT, TESTER_USERNAMES, UNLIMITED_IDS, limitFor, monthKey } from '@/lib/optimizator/config';
 import { prisma } from '@/lib/prisma';
 import { bronOptOpen } from '@/lib/bron360';
+import { isReviewId } from '@/lib/instagram/connect';
 import { findDemand, scriptPhrases, type DemandEvidence } from '@/lib/optimizator/demand';
 import { runLadder } from '@/lib/optimizator/ladder';
 import { saveShans, scoreShans } from '@/lib/optimizator/shans';
@@ -42,6 +43,8 @@ async function viewerOf(request: NextRequest): Promise<Viewer | null> {
   const tiers = await tiersForTelegram(id);
   const tier = tiers.uroven ?? 0;
   const admin = UNLIMITED_IDS.has(id);
+  // Meta App Review demo account: page open as tier 3 (Instagram block), tester quota for runs.
+  if (isReviewId(id)) return { id, tier: 3, limit: TESTER_LIMIT };
   // Бронь 360: оптимизатор со второй недели после брони, 30 разборов в месяц (как тариф 2).
   if (tiers.uroven === undefined && !admin && tiers.bron360 !== undefined && await bronOptOpen(id)) return { id, tier: 1, limit: MONTHLY_LIMIT[2] };
   if (tiers.uroven === undefined && !admin && await isTester(request, id)) return { id, tier: 0, limit: TESTER_LIMIT };
