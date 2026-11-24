@@ -1483,6 +1483,34 @@ model OptimizatorRun {
   @@map("optimizator_runs")
 }
 
+/// Instagram professional account a t2/t3 student connected in the cabinet
+/// (Meta app "SASHA TOYZ Stats", Facebook Login for Business). One per student.
+/// Table is created by scripts/instagram-connect-create-table.mjs (not db push).
+model InstagramConnection {
+  id          String    @id @default(uuid())
+  telegramId  BigInt    @unique @map("telegram_id")
+  igUserId    String    @map("ig_user_id")
+  username    String?
+  /// Meta user id from debug_token: matched against signed_request.user_id on deletion/deauthorize.
+  fbUserId    String?   @map("fb_user_id")
+  /// Never sent to the client.
+  accessToken String    @map("access_token")
+  /// SYSTEM_USER | USER (from debug_token)
+  tokenType   String?   @map("token_type")
+  /// NULL = never expires (system user token)
+  expiresAt   DateTime? @map("expires_at")
+  scopes      String[]  @default([])
+  /// active | revoked
+  status      String    @default("active")
+  lastError   String?   @map("last_error")
+  connectedAt DateTime  @default(now()) @map("connected_at")
+  lastSyncAt  DateTime? @map("last_sync_at")
+
+  @@index([fbUserId])
+  @@index([igUserId])
+  @@map("instagram_connections")
+}
+
 // ─── «Студия»: контент Instagram Саши и Дани (рилсы и карусели) ───
 // Таблицы создаёт scripts/studio-create-tables.mjs, не prisma db push.
 
