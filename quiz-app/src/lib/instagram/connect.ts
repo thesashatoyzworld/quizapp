@@ -30,11 +30,17 @@ function app() {
  */
 const IG_PUBLIC = process.env.STATS_IG_PUBLIC === '1';
 
+/** Fixed demo account for Meta App Review reviewers (entry: /api/cabinet/instagram/review). */
+export function isReviewId(id: number): boolean {
+  const demo = Number(process.env.STATS_REVIEW_TG_ID || 0);
+  return demo > 0 && id === demo;
+}
+
 /** Telegram id of a viewer allowed to connect: Sasha; with STATS_IG_PUBLIC=1 also tariff 2 or 3 of «Новый уровень». */
 export async function igViewer(request: NextRequest): Promise<{ id: number | null; allowed: boolean }> {
   const id = verifiedViewer(request);
   if (!id) return { id: null, allowed: false };
-  if (UNLIMITED_IDS.has(id)) return { id, allowed: true };
+  if (UNLIMITED_IDS.has(id) || isReviewId(id)) return { id, allowed: true };
   if (!IG_PUBLIC) return { id, allowed: false };
   const tiers = await tiersForTelegram(id);
   return { id, allowed: (tiers.uroven ?? 0) >= 2 };
