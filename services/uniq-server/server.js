@@ -292,14 +292,25 @@ function createServer(opts = {}) {
         if (!tmp) { big++; continue; }
         file = tmp; light++;
       }
+      const caption = `Версия ${n + 1} из ${vs.length}. Открой видео → ⋯ → «Сохранить в галерею».`;
       try {
-        await postVideo(j.uid, file, `Версия ${n + 1} из ${vs.length}. Открой видео → ⋯ → «Сохранить в галерею».`);
+        await postVideo(j.uid, file, caption);
         sent++;
-      } catch (e) { failed++; console.error(`send ${j.id}/${v.i}: ${e.message}`); }
+      } catch (e) {
+        // One retry: most failures here are a transient Telegram/network hiccup, not a real problem.
+        try {
+          await postVideo(j.uid, file, caption);
+          sent++;
+        } catch (e2) { failed++; console.error(`send ${j.id}/${v.i}: ${e2.message}`); }
+      }
       finally { if (tmp) fs.rmSync(tmp, { force: true }); }
     }
     if (big && tgToken) {
       await tgSend(tgToken, j.uid, `${big} ${plural(big, 'версия тяжелее', 'версии тяжелее', 'версий тяжелее')} 50 МБ, Телеграм не даёт боту прислать такие. Ролик слишком длинный для чата: скачай их на странице.`).catch(() => false);
+    }
+    // Without this the person just never gets the video and has no idea why: nothing on the page says it failed.
+    if (failed && tgToken) {
+      await tgSend(tgToken, j.uid, `${failed} ${plural(failed, 'версия', 'версии', 'версий')} не ${plural(failed, 'отправилась', 'отправились', 'отправились')} в чат: не достучались до Телеграма. Скачай ${failed > 1 ? 'их' : 'её'} на странице.`).catch(() => false);
     }
     mon.log('sent', { uid: j.uid, id: j.id, sent, big, failed, light });
     return { sent, big, failed, light };
