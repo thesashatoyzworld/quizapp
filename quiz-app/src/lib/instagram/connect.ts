@@ -24,11 +24,18 @@ function app() {
   return { id, secret };
 }
 
-/** Telegram id of a viewer allowed to connect: tariff 2 or 3 of «Новый уровень», or Sasha. */
+/**
+ * Until Meta App Review passes only app admins can log in, so students must not see
+ * the block: everything is Sasha-only unless STATS_IG_PUBLIC=1.
+ */
+const IG_PUBLIC = process.env.STATS_IG_PUBLIC === '1';
+
+/** Telegram id of a viewer allowed to connect: Sasha; with STATS_IG_PUBLIC=1 also tariff 2 or 3 of «Новый уровень». */
 export async function igViewer(request: NextRequest): Promise<{ id: number | null; allowed: boolean }> {
   const id = verifiedViewer(request);
   if (!id) return { id: null, allowed: false };
   if (UNLIMITED_IDS.has(id)) return { id, allowed: true };
+  if (!IG_PUBLIC) return { id, allowed: false };
   const tiers = await tiersForTelegram(id);
   return { id, allowed: (tiers.uroven ?? 0) >= 2 };
 }
