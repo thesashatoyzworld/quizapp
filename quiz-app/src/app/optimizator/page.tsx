@@ -5,6 +5,7 @@ import { waitForTelegramWebApp } from '@/lib/telegram-ready';
 import { trackSection } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
 import { BLOCKS_CSS, NachalaBlock, StatsBlock } from './blocks';
+import InstagramBlock from './InstagramBlock';
 import {
   DEMAND_STATUS, FORMAT_NAME, REASON_ANSWER, SCRIPT_MAX, SCRIPT_MIN, SHARE_KIND, firstLine, ladderVerdict, sourceUrl,
   type DemandLink, type Ladder, type ViewerReason, type HistoryItem, type SavedRun, type Shans, type StudentAnalysis,
@@ -734,6 +735,7 @@ function OptimizatorInner() {
   const [script, setScript] = useState('');
   const [instagram, setInstagram] = useState('');
   const [ladderOn, setLadderOn] = useState(false);
+  const [tier, setTier] = useState(0);
   const [busySince, setBusySince] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [run, setRun] = useState<SavedRun | null>(null);
@@ -783,6 +785,7 @@ function OptimizatorInner() {
         if (!data.access) { setState('locked'); return; }
         setUsed(data.used); setLimit(data.limit); setItems(data.history || []);
         setLadderOn(Boolean(data.ladder));
+        setTier(Number(data.tier) || 0);
         if (data.instagram) setInstagram(`@${data.instagram}`);
         setState('ok');
         trackSection('optimizator', id);
@@ -953,6 +956,8 @@ function OptimizatorInner() {
           </div>
 
           {run && <Feedback initData={initData.current} runId={run.id || null} />}
+
+          {!run && tier >= 2 && <InstagramBlock initData={initData.current} />}
 
           {!run && items.length > 0 && (
             <section className="op-history">
