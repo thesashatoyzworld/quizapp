@@ -127,6 +127,32 @@ test('end to end: 3 + clamped 2 versions, all distinct, 6th rejected', { timeout
   } finally { await s.close(); }
 });
 
+test('a failed cabinet notification is retried on the next video, not given up on', { timeout: 120000 }, async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'uniq-e2e-'));
+  const src1 = path.join(tmp, 'one.mp4');
+  const src2 = path.join(tmp, 'two.mp4');
+  makeVideo(src1, 1);
+  execFileSync(FF, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=blue:size=540x960:rate=25', '-t', '1', src2]);
+  let calls = 0;
+  const s = await start({ notifyFirst: () => { calls++; if (calls === 1) throw new Error('fetch failed'); } });
+  const t = token('u-retry');
+  try {
+    const a = await (await upload(s.base, t, src1, 1)).json();
+    await poll(s.base, a.jobId, t);
+    assert.strictEqual(calls, 1);
+    // Network blip on the first try: not marked as notified, so no credit is lost for good.
+    const seen = JSON.parse(fs.readFileSync(path.join(s.dataDir, 'seen.json'), 'utf8'));
+    assert.strictEqual(seen['u-retry'], undefined);
+    assert.ok(fs.readFileSync(path.join(s.dataDir, 'log.jsonl'), 'utf8').includes('не смог сообщить кабинету'));
+
+    const b = await (await upload(s.base, t, src2, 1)).json();
+    await poll(s.base, b.jobId, t);
+    assert.strictEqual(calls, 2);
+    const seen2 = JSON.parse(fs.readFileSync(path.join(s.dataDir, 'seen.json'), 'utf8'));
+    assert.strictEqual(seen2['u-retry'], 1);
+  } finally { await s.close(); }
+});
+
 test('rejects videos longer than 3 minutes', { timeout: 120000 }, async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'uniq-e2e-'));
   const src = path.join(tmp, 'long.mp4');

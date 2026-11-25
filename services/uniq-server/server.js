@@ -350,10 +350,11 @@ function createServer(opts = {}) {
         .then((ok) => mon.log('remind', { uid: j.uid, kind: 'ready', ok: !!ok }))
         .catch(() => {});
     }
+    // Marked seen only once the cabinet actually got the news: a network blip must not
+    // permanently cost a friend's referral credit (nothing retries a one-shot "seen").
     if (j.done && !seen[j.uid]) {
-      seen[j.uid] = 1;
-      writeJson(seenFile, seen);
       Promise.resolve().then(() => notifyFirst(j.uid))
+        .then(() => { seen[j.uid] = 1; writeJson(seenFile, seen); })
         .catch((e) => mon.alert('first', `не смог сообщить кабинету о первом ролике ${j.uid}: ${e.message}`, 3600 * 1000));
     }
     delete j.lastError;
