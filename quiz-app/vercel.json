@@ -39,6 +39,10 @@
     {
       "path": "/api/cron-bron360",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron-uniq-alive",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
