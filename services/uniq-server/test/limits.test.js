@@ -122,6 +122,35 @@ test('restart gives the week slot back for a video that produced nothing', async
   } finally { await s.close(); }
 });
 
+test('ready ping in the bot counts the whole queue wait, not just processing time', async () => {
+  const { execFileSync } = require('child_process');
+  const FF = process.env.UNIQ_FFMPEG || 'ffmpeg';
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'uniq-test-'));
+  const src = path.join(dataDir, 'in.mp4');
+  execFileSync(FF, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=25', '-f', 'lavfi',
+    '-i', 'sine=frequency=440', '-t', '1', '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', '-shortest', src]);
+  const sent = [];
+  const s = await start({
+    dataDir, notifyFirst: () => {},
+    sendReminder: async (uid, text) => { sent.push([uid, text]); return true; },
+  });
+  try {
+    const { jobs, queue, pump } = s.server.uniq;
+    // Simulates a job that sat in the queue for a long time (other people's videos ahead of it)
+    // but, once started, processes fast: the old check only looked at processing time and missed this.
+    jobs.set('longqueue', {
+      id: 'longqueue', uid: '999', key: '999:fp', stem: 'v', src, count: 1, status: 'queued',
+      done: 0, failed: 0, versions: [], createdAt: Date.now() - 5 * 60 * 1000,
+    });
+    queue.push('longqueue');
+    await pump();
+    for (let i = 0; i < 50 && !sent.length; i++) await new Promise((r) => setTimeout(r, 20));
+    assert.strictEqual(sent.length, 1);
+    assert.strictEqual(sent[0][0], '999');
+    assert.match(sent[0][1], /Готово/);
+  } finally { await s.close(); }
+});
+
 test('reminders: only 09-21 Almaty, numeric uids, logged', async () => {
   const sent = [];
   const s = await start({ sendReminder: async (uid, text) => { sent.push([uid, text]); return true; } });

@@ -344,7 +344,9 @@ function createServer(opts = {}) {
     giveQuotaBack(j);
     if (j.done) remind(j.uid, 'check', Date.now() + 24 * 3600 * 1000);
     // Long jobs: the page is usually closed by now, so say in the bot that the versions are ready.
-    if (j.done && Date.now() - j.startedAt >= READY_PING_MS) {
+    // Measured from createdAt, not startedAt: a job can sit in the queue for a while and still
+    // process in seconds, but the person closed the page during that wait either way.
+    if (j.done && Date.now() - j.createdAt >= READY_PING_MS) {
       const text = `Готово: ${j.done} ${plural(j.done, 'версия', 'версии', 'версий')} ролика «${j.stem}» ждут в уникализаторе. Файлы хранятся сутки, скачай их до ${fmtUntil(Date.now() + OUTPUT_TTL_MS)}.`;
       Promise.resolve().then(() => sendReminder(j.uid, text))
         .then((ok) => mon.log('remind', { uid: j.uid, kind: 'ready', ok: !!ok }))
@@ -612,7 +614,7 @@ function createServer(opts = {}) {
   // Big uploads over slow links must not hit Node's default 5-minute request timeout.
   server.requestTimeout = 0;
   server.on('close', () => { clearInterval(sweepTimer); clearInterval(remindTimer); mon.stop(); });
-  server.uniq = { usage, history, jobs, queue, monitor: mon, quota, reminders, tickReminders, sendToChat };
+  server.uniq = { usage, history, jobs, queue, monitor: mon, quota, reminders, tickReminders, sendToChat, pump };
   return server;
 }
 
