@@ -46,6 +46,10 @@ test('restart fails unfinished jobs and refunds them', async () => {
     assert.ok(b.error);
     const me = await (await fetch(`${s.base}/api/me`, { headers: { Authorization: `Bearer ${token('u2')}` } })).json();
     assert.strictEqual(me.active, null);
+    // Reopening the page after a restart killed the job must show the failure, not a blank screen.
+    assert.strictEqual(me.last.id, 'b');
+    assert.strictEqual(me.last.status, 'failed');
+    assert.ok(me.last.error);
   } finally { await s.close(); }
 });
 

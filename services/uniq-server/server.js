@@ -239,6 +239,18 @@ function createServer(opts = {}) {
     return best;
   }
 
+  // Latest job that failed outright (ffmpeg error, or a restart that killed it mid-flight) and
+  // produced nothing to show. Without this, someone who closes the page on a doomed job comes back
+  // to a blank screen instead of the «не получилось» message the page already knows how to show.
+  function lastFailed(uid) {
+    let best = null;
+    for (const j of jobs.values()) {
+      if (j.uid !== uid || j.status !== 'failed') continue;
+      if (!best || j.finishedAt > best.finishedAt) best = j;
+    }
+    return best;
+  }
+
   // iPhones: Telegram's downloadFile puts files into Telegram's own «Downloads», not the gallery.
   // A video in the bot chat saves to the gallery in two taps, so the page can ask for that instead.
   const BOT_UPLOAD_MAX = 50 * 1000 * 1000; // Bot API limit for uploads
@@ -564,7 +576,12 @@ function createServer(opts = {}) {
           limit: plan.w, used: used.length,
           nextAt: used.length >= plan.w ? used[used.length - plan.w] + WEEK_MS : null,
         } : null;
-        const ld = a ? null : lastDone(auth.uid);
+        let ld = null;
+        if (!a) {
+          const done = lastDone(auth.uid);
+          const failed = lastFailed(auth.uid);
+          ld = !failed || (done && done.finishedAt > failed.finishedAt) ? done : failed;
+        }
         return send(res, 200, { uid: auth.uid, maxPerVideo: plan.v, active: a ? view(a) : null, last: ld ? view(ld) : null, week });
       }
       // Behaviour events from the page (opened, downloaded, shared…) go to the same log as jobs.
