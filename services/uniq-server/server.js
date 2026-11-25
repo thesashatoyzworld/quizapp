@@ -594,10 +594,12 @@ function createServer(opts = {}) {
         if (!j || j.uid !== auth.uid) return send(res, 404, { error: 'задача не найдена' });
         if (!j.versions.length) return send(res, 409, { error: 'версий ещё нет' });
         if (!/^\d+$/.test(String(j.uid)) || !tgToken) return send(res, 409, { error: 'бот недоступен, скачай на странице' });
-        if (j.sending) return send(res, 200, { ok: true, already: true });
+        // Versions over the bot limit are re-encoded first (minutes), so the page must not say «sent» yet.
+        const heavy = j.versions.filter((v) => v.size > BOT_UPLOAD_MAX && fs.existsSync(v.file)).length;
+        if (j.sending) return send(res, 200, { ok: true, already: true, heavy });
         j.sending = true;
         sendToChat(j).catch((e) => console.error(`send: ${e.message}`)).finally(() => { j.sending = false; });
-        return send(res, 202, { ok: true, count: j.versions.length });
+        return send(res, 202, { ok: true, count: j.versions.length, heavy });
       }
       m = /^\/files\/([\w-]+)\/(\d+)\.mp4$/.exec(url.pathname);
       if (req.method === 'GET' && m) return handleFile(req, res, m[1], +m[2], auth);

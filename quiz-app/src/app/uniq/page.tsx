@@ -341,6 +341,7 @@ function UniqInner() {
   // bot chat save to the gallery from there, so inside Telegram that is the main way out.
   const [sent, setSent] = useState<'idle' | 'sending' | 'ok' | 'err'>('idle');
   const [sentErr, setSentErr] = useState<string | null>(null);
+  const [sentHeavy, setSentHeavy] = useState(0);
   async function sendToBot(jobId: string) {
     const a = access.current;
     if (!a || sent === 'sending') return;
@@ -355,7 +356,7 @@ function UniqInner() {
         if (b) res = await fetch(`${b.url}/api/jobs/${jobId}/send`, { method: 'POST', headers: { Authorization: `Bearer ${b.token}` } });
       }
       const data = await res.json().catch(() => ({}));
-      if (res.ok) { setSent('ok'); return; }
+      if (res.ok) { setSentHeavy(Number(data.heavy) || 0); setSent('ok'); return; }
       setSentErr(String(data.error || `ошибка ${res.status}`));
       setSent('err');
     } catch {
@@ -368,6 +369,7 @@ function UniqInner() {
   function startNew() {
     setSent('idle');
     setSentErr(null);
+    setSentHeavy(0);
     setJob(null);
     setFile(null);
     setRemaining(null);
@@ -537,7 +539,7 @@ function UniqInner() {
             </section>
           )}
 
-          {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} inTg={inTg} sent={sent} sentErr={sentErr} onSend={() => sendToBot(job.id)} />}
+          {job && <JobCard job={job} access={acc} remaining={remaining} onNew={startNew} onDownload={download} onDownloadAll={downloadAll} bulk={bulk} inTg={inTg} sent={sent} sentErr={sentErr} sentHeavy={sentHeavy} onSend={() => sendToBot(job.id)} />}
           {job && error && <div className="un-error" role="alert">{error}</div>}
           {job && job.status === 'done' && job.done > 0 && acc.offer && <OfferCard key={job.id} kind={acc.offer} uid={tgRef.current?.initDataUnsafe?.user?.id ?? null} tg={tgRef.current} onTrack={track} />}
           {acc.free && acc.ref && acc.plan && <Invite ref_={acc.ref} perWeek={acc.plan.w} tg={tgRef.current} onTrack={track} />}
@@ -627,6 +629,10 @@ function UniqInner() {
         .un-all:disabled { opacity: .7; cursor: default; }
         .un-all span { font-family: 'Manrope', system-ui, sans-serif; font-weight: 600; font-size: 13px; opacity: .85; }
         .un-all-2 { margin-top: 0; background: var(--un-good-soft); color: var(--un-good); }
+        .un-note { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--un-accent-soft); border: 1px solid var(--un-accent); }
+        .un-note b { display: block; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 15px; color: var(--un-accent); margin-bottom: 4px; }
+        .un-note p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--un-text); }
+        .un-note a { color: var(--un-accent); font-weight: 700; text-decoration: underline; }
         .un-new { margin-top: 14px; background: none; border: 1px solid var(--un-line); color: var(--un-text); }
 
         /* Free plan meter */
@@ -1016,7 +1022,7 @@ function Guide() {
   );
 }
 
-function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bulk, inTg, sent, sentErr, onSend }: {
+function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bulk, inTg, sent, sentErr, sentHeavy, onSend }: {
   job: Job;
   access: Access;
   remaining: number | null;
@@ -1027,6 +1033,7 @@ function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bul
   inTg: boolean;
   sent: 'idle' | 'sending' | 'ok' | 'err';
   sentErr: string | null;
+  sentHeavy: number;
   onSend: () => void;
 }) {
   const items = job.versions.map((v) => ({
@@ -1062,14 +1069,26 @@ function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bul
       {job.status !== 'failed' && (
         <div className={finished ? 'un-bar un-bar-done' : 'un-bar'}><i style={{ width: `${Math.max(job.status === 'queued' ? 0 : 4, pct)}%` }} /></div>
       )}
+      {items.length > 0 && finished && (
+        <div className="un-note">
+          <b>Версии выглядят как исходник? Так и задумано.</b>
+          <p>
+            Глазом разницу не видно. Меняются кроп, скорость, цвет и метка в кадре:
+            по ним Инстаграм ловит повтор, а не по тому, как ролик выглядит для человека.{' '}
+            <a href="https://thesashatoyz.com/blog/shema-perezaliva?utm_source=kabinet&utm_medium=uniq_note" target="_blank" rel="noopener">Как выкладывать версии: схема перезалива →</a>
+          </p>
+        </div>
+      )}
       {items.length > 0 && finished && inTg && (
         <>
           <button type="button" className="un-all" disabled={sent === 'sending'} onClick={onSend}>
-            {sent === 'sending' ? 'отправляю…' : sent === 'ok' ? 'отправлено, открой чат с ботом' : `прислать ${items.length > 1 ? 'все ' : ''}в Телеграм`}
+            {sent === 'sending' ? 'отправляю…' : sent === 'ok' ? (sentHeavy > 0 ? 'отправляю в чат с ботом' : 'отправлено, открой чат с ботом') : `прислать ${items.length > 1 ? 'все ' : ''}в Телеграм`}
           </button>
           <p className="un-status-sub" style={{ margin: '8px 0 14px' }}>
             {sent === 'err'
               ? `Не отправилось: ${sentErr}. Скачай кнопками ниже.`
+              : sent === 'ok' && sentHeavy > 0
+              ? `${sentHeavy === items.length ? 'Версии тяжёлые' : `Версий тяжелее 50 МБ: ${sentHeavy}`}, Телеграм такие не принимает. Сначала сжимаю, придут в чат через 2–3 минуты. Нажимать ещё раз не нужно, страницу можно закрыть.`
               : 'Видео придут в чат с ботом. Открой видео → ⋯ → «Сохранить в галерею». На айфоне кнопки «скачать» кладут файлы в загрузки Телеграма, а не в галерею.'}
           </p>
         </>
@@ -1090,13 +1109,6 @@ function JobCard({ job, access, remaining, onNew, onDownload, onDownloadAll, bul
             </li>
           ))}
         </ul>
-      )}
-      {items.length > 0 && finished && (
-        <p className="un-status-sub" style={{ margin: '14px 0 0' }}>
-          Разница между версиями почти не видна глазу, так и задумано. Меняются кроп, скорость, цвет и метка в кадре:
-          по ним Инстаграм ловит повтор, а не по тому, как ролик выглядит для человека.{' '}
-          <a href="https://thesashatoyz.com/blog/shema-perezaliva?utm_source=kabinet&utm_medium=uniq_note" target="_blank" rel="noopener" style={{ color: 'inherit', textDecoration: 'underline' }}>Зачем это и как выкладывать: схема перезалива →</a>
-        </p>
       )}
       {(job.status === 'done' || job.status === 'failed') && (
         <>
