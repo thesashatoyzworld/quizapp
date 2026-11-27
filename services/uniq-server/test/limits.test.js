@@ -173,3 +173,28 @@ test('send to the bot posts every version as a video, skips ones over 50 MB', as
     assert.deepStrictEqual({ sent: sent.sent, big: sent.big, failed: sent.failed }, { sent: 1, big: 1, failed: 0 });
   } finally { await s.close(); }
 });
+
+test('send to the bot: a post that fails is counted, not silently dropped', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'uniq-test-'));
+  const file = path.join(dataDir, 'v1.mp4');
+  fs.writeFileSync(file, 'x');
+  fs.writeFileSync(path.join(dataDir, 'jobs.json'), JSON.stringify({
+    j1: { id: 'j1', uid: '555', key: '555:fp', stem: 'v', src: '', count: 1, status: 'done', done: 1, failed: 0, finishedAt: Date.now(),
+      versions: [{ i: 1, size: 1, file }] },
+  }));
+  const texts = [];
+  const s = await start({
+    dataDir, tgToken: 'x',
+    postVideo: async () => { throw new Error('Forbidden: bot was blocked by the user'); },
+    sendBotText: (uid, text) => { texts.push([uid, text]); return Promise.resolve(true); },
+  });
+  try {
+    const r = await fetch(`${s.base}/api/jobs/j1/send?t=${token('555')}`, { method: 'POST' });
+    assert.strictEqual(r.status, 202);
+    for (let i = 0; i < 50 && !fs.readFileSync(path.join(dataDir, 'log.jsonl'), 'utf8').includes('"ev":"sent"'); i++) await new Promise((x) => setTimeout(x, 20));
+    const sent = fs.readFileSync(path.join(dataDir, 'log.jsonl'), 'utf8').trim().split('\n').map(JSON.parse).find((e) => e.ev === 'sent');
+    assert.deepStrictEqual({ sent: sent.sent, big: sent.big, failed: sent.failed }, { sent: 0, big: 0, failed: 1 });
+    // The person must hear that it failed, not just see the page say «отправлено» while nothing arrives.
+    assert.deepStrictEqual(texts, [['555', 'Не получилось отправить в бота 1 версию. Скачай её на странице.']]);
+  } finally { await s.close(); }
+});

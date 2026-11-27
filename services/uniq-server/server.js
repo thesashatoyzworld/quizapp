@@ -163,6 +163,7 @@ function createServer(opts = {}) {
   const sendReminder = opts.sendReminder || ((uid, text) => (tgToken ? tgSend(tgToken, uid, text, {
     inline_keyboard: [[{ text: 'Открыть уникализатор', web_app: { url: `${cabinetUrl}/uniq` } }]],
   }) : Promise.resolve(false)));
+  const sendBotText = opts.sendBotText || ((uid, text) => (tgToken ? tgSend(tgToken, uid, text) : Promise.resolve(false)));
   const REMIND_TEXT = {
     check: 'Прошли сутки с твоих версий. Глянь охваты пробных рилсов: какая версия набрала больше, ту можно выложить в ленту. А тема, которая зашла, стоит ещё одного ролика.',
     refill: 'Новый ролик в уникализаторе доступен. Какой из твоих роликов на этой неделе зашёл лучше всего? Его и прогони.',
@@ -298,8 +299,13 @@ function createServer(opts = {}) {
       } catch (e) { failed++; console.error(`send ${j.id}/${v.i}: ${e.message}`); }
       finally { if (tmp) fs.rmSync(tmp, { force: true }); }
     }
-    if (big && tgToken) {
-      await tgSend(tgToken, j.uid, `${big} ${plural(big, 'версия тяжелее', 'версии тяжелее', 'версий тяжелее')} 50 МБ, Телеграм не даёт боту прислать такие. Ролик слишком длинный для чата: скачай их на странице.`).catch(() => false);
+    if (big) {
+      await sendBotText(j.uid, `${big} ${plural(big, 'версия тяжелее', 'версии тяжелее', 'версий тяжелее')} 50 МБ, Телеграм не даёт боту прислать такие. Ролик слишком длинный для чата: скачай их на странице.`).catch(() => false);
+    }
+    // Without this the page says «отправлено» right after accepting the request, and a failed
+    // send (bot blocked, Telegram API blip) leaves the person staring at an empty chat with no clue.
+    if (failed) {
+      await sendBotText(j.uid, `Не получилось отправить в бота ${failed} ${plural(failed, 'версию', 'версии', 'версий')}. Скачай ${plural(failed, 'её', 'их', 'их')} на странице.`).catch(() => false);
     }
     mon.log('sent', { uid: j.uid, id: j.id, sent, big, failed, light });
     return { sent, big, failed, light };
