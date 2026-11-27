@@ -1882,6 +1882,10 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
           ],
         };
 
+        // Подписчик канала (часто приходит из поста в @sashatoyz) получает статью сразу:
+        // звать его в канал незачем. Остальным сначала мягкий пул в канал.
+        const alreadyInChannel = await isChannelMember('sashatoyz', chatId);
+
         // Сначала мягкий пул в канал (текст Саши, дословно)…
         const channelText = `подписку проверять не буду, но если реально хочешь:
 
@@ -1893,14 +1897,15 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
 
 буду ждать тебя тут 👇`;
 
-        await sendMessage(chatId, channelText, {
-          inline_keyboard: [
-            [{ text: '📣 мой канал в telegram', url: 'https://t.me/sashatoyz' }],
-          ],
-        });
-
-        // …потом, с паузой ~7с, сама статья.
-        await new Promise((r) => setTimeout(r, 7000));
+        if (!alreadyInChannel) {
+          await sendMessage(chatId, channelText, {
+            inline_keyboard: [
+              [{ text: '📣 мой канал в telegram', url: 'https://t.me/sashatoyz' }],
+            ],
+          });
+          // …потом, с паузой ~7с, сама статья.
+          await new Promise((r) => setTimeout(r, 7000));
+        }
         await sendMessage(chatId, kazinoText, kazinoMarkup);
 
         await trackEvent({
