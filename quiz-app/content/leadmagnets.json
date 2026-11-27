@@ -1,4 +1,14 @@
 {
+  "1000": {
+    "title": "Карусель на 1000 комментов",
+    "url": "https://thesashatoyz.com/blog/karusel-na-1000-kommentov",
+    "channelUsername": "sashatoyz",
+    "requireSub": true,
+    "buttonText": "💬 Открыть гайд по карусели",
+    "gateText": "привет, {name}\n\nгайд открывается подписчикам <a href=\"https://t.me/sashatoyz\">канала</a>. там я пишу про контент без расписания и догревов\n\nподпишись и жми «я подписался», сразу пришлю 👇",
+    "intro": "держи гайд, как собрать карусель на 1000 комментов: что давать за слово, чтобы писали, и как понять, что награда сильная\n\nвнутри все мои слова с цифрами и один промпт для ленивых\n\nкнопка ниже:",
+    "softPitch": ""
+  },
   "10-chit-kodov": {
     "title": "10 чит-кодов для контента",
     "url": "https://thesashatoyz.com/blog/10-chit-kodov-dlya-kontenta",
