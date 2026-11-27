@@ -126,6 +126,7 @@ export const SECTIONS: Section[] = [
     subtitle: 'Статьи и разборы — открыто всем',
     materials: [
       { kind: 'article', title: 'Статьи', url: 'https://thesashatoyz.com/blog', note: 'Лонгриды и разборы.' },
+      { kind: 'article', title: 'Карусель на 1000 комментов', url: 'https://thesashatoyz.com/blog/karusel-na-1000-kommentov', note: 'Что давать за кодовое слово, чтобы писали, и как это замерить.' },
     ],
   },
   {
