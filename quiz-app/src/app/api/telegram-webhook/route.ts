@@ -1879,6 +1879,8 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
         const kazinoMarkup = {
           inline_keyboard: [
             [{ text: '📖 Читать разбор', web_app: { url: 'https://thesashatoyz.com/algoritm-sistema.html' } }],
+            // Для тех, кто хочет читать в браузере: та же метка + telegram id, чтобы чтение осталось именным.
+            [{ text: '🌐 открыть на сайте', url: `https://thesashatoyz.com/algoritm-sistema.html?utm_source=${encodeURIComponent(startParam)}&u=${chatId}` }],
           ],
         };
 
