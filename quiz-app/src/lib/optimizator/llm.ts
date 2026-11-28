@@ -19,6 +19,7 @@ async function viaCli(p: Params): Promise<Anthropic.Message> {
   const system = typeof p.system === 'string' ? p.system : (p.system || []).map((b) => b.text).join('\n\n');
   const prompt = p.messages.map((m) => textOf(m.content)).join('\n\n');
   const args = ['-p', '--tools', '', '--strict-mcp-config', '--setting-sources', '', '--no-session-persistence', '--model', p.model];
+  if (process.env.OPT_CLI_COST) args.push('--output-format', 'json');
   if (system) args.push('--system-prompt', system);
   const text = await new Promise<string>((ok, bad) => {
     const ch = spawn(process.env.CLAUDE_BIN || 'claude', args, { cwd, env });
@@ -29,9 +30,10 @@ async function viaCli(p: Params): Promise<Anthropic.Message> {
     ch.on('close', (code) => (code === 0 ? ok(out) : bad(new Error(`claude cli ${code}: ${err.slice(0, 300)}`))));
     ch.stdin.end(prompt);
   });
+  const outText = process.env.OPT_CLI_COST ? (await import('./nachala')).cliCost(p.model, text) : text;
   return {
     id: 'cli', type: 'message', role: 'assistant', model: p.model, stop_reason: 'end_turn', stop_sequence: null,
-    content: [{ type: 'text', text, citations: null }],
+    content: [{ type: 'text', text: outText, citations: null }],
     usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
   } as unknown as Anthropic.Message;
 }

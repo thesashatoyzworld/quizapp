@@ -19,6 +19,10 @@ const LABEL_MODEL = 'claude-sonnet-5-5';
 const VOTES = 3;
 const anthropic = llm(); // OPT_VIA_CLI: local subscription runs (llm.ts)
 
+const AT = M.prompt.indexOf('{SCRIPT}');
+const PROMPT_HEAD = M.prompt.slice(0, AT);
+const PROMPT_TAIL = M.prompt.slice(AT + '{SCRIPT}'.length);
+
 function lengthKey(t: string): string {
   const n = t.split(/\s+/).filter(Boolean).length;
   return n < 40 ? 'len_short' : n < 220 ? 'len_mid' : n <= 450 ? 'len_90_180' : 'len_180p';
@@ -27,7 +31,11 @@ function lengthKey(t: string): string {
 async function labelOnce(script: string): Promise<Set<string> | null> {
   const msg = await anthropic.messages.create({
     model: LABEL_MODEL, max_tokens: 8000, thinking: { type: 'adaptive' }, output_config: { effort: 'low' },
-    messages: [{ role: 'user', content: M.prompt.replace('{SCRIPT}', () => script.slice(0, 2500)) }],
+    // the labelling instructions (~3k tokens) are the same in every call: cached head, the script after it
+    messages: [{ role: 'user', content: [
+      { type: 'text', text: PROMPT_HEAD, cache_control: { type: 'ephemeral' } },
+      { type: 'text', text: script.slice(0, 2500) + PROMPT_TAIL },
+    ] }],
   });
   await recordAnthropicUsage(LABEL_MODEL, msg.usage, 'optimizator');
   const text = msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
@@ -43,8 +51,24 @@ async function labelOnce(script: string): Promise<Set<string> | null> {
   } catch { return null; }
 }
 
+/** 28.11: the same text is scored several times in one run (a bundle's text, then the body edit starts from it). A result
+ * is reused for 10 minutes within the process instead of three new labellings. */
+const memo = new Map<string, { at: number; p: Promise<Shans | null> }>();
+
 /** Never throws; null when the labelling failed every time. */
 export async function scoreShans(script: string): Promise<Shans | null> {
+  const now = Date.now();
+  for (const [k, v] of memo) if (now - v.at > 10 * 60_000) memo.delete(k);
+  const hit = memo.get(script);
+  if (hit) return hit.p;
+  const p = scoreShansOnce(script);
+  memo.set(script, { at: now, p });
+  const r = await p;
+  if (!r) memo.delete(script);
+  return r;
+}
+
+async function scoreShansOnce(script: string): Promise<Shans | null> {
   try {
     const runs = (await Promise.all(Array.from({ length: VOTES }, () => labelOnce(script).catch(() => null))))
       .filter((r): r is Set<string> => !!r);

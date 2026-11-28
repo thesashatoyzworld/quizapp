@@ -58,11 +58,23 @@ const FORMAT_OF: Partial<Record<FormatType, string>> = {
   position: 'position', lecture: 'lecture', story: 'story', skit: 'dialogue', dialogue: 'dialogue', reaction: 'reaction', demo: 'demo',
 };
 
-/** Opus/Sonnet 5.5 always think (adaptive); max_tokens leaves room for it. Effort low for the checks, medium elsewhere. */
-export async function ask(model: string, prompt: string, effort: 'low' | 'medium'): Promise<string> {
-  if (process.env.OPT_VIA_CLI) return askCli(model, prompt);
+/** 28.11 cost cut (Sasha: «сократить расходы на прогон текста и при этом не потерять в качестве»): OPT_CHEAP=1 runs the
+ * cheaper variant (payoff and the repair calls on Sonnet, 4 donors instead of 7). Bench: scripts/optimizator-cost-bench.ts. */
+const CHEAP = process.env.OPT_CHEAP === '1';
+/** Model of the small repair calls (closeness, voice, invented facts, weak gate, long phrase, expectation). */
+const FIX = CHEAP ? 'claude-sonnet-5-5' : 'claude-opus-5-5';
+/** Donors asked from the generator; each gives two phrasings, all of them go through the checks. */
+const DONORS = CHEAP ? 4 : 7;
+
+/** Opus/Sonnet 5.5 always think (adaptive); max_tokens leaves room for it. Effort low for the checks, medium elsewhere.
+ * A [static, dynamic] prompt caches the static head (instructions, often with the script): it repeats in every check of a run. */
+export async function ask(model: string, prompt: string | [string, string], effort: 'low' | 'medium'): Promise<string> {
+  if (process.env.OPT_VIA_CLI) return askCli(model, typeof prompt === 'string' ? prompt : prompt.join(''));
+  const content: Anthropic.TextBlockParam[] = typeof prompt === 'string'
+    ? [{ type: 'text', text: prompt }]
+    : [{ type: 'text', text: prompt[0], cache_control: { type: 'ephemeral' } }, { type: 'text', text: prompt[1] }];
   const msg = await anthropic.messages.create({
-    model, max_tokens: 16_000, thinking: { type: 'adaptive' }, output_config: { effort }, messages: [{ role: 'user', content: prompt }],
+    model, max_tokens: 16_000, thinking: { type: 'adaptive' }, output_config: { effort }, messages: [{ role: 'user', content }],
   });
   await recordAnthropicUsage(model, msg.usage, 'optimizator');
   return msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
@@ -80,7 +92,9 @@ async function askCli(model: string, prompt: string): Promise<string> {
   const cliEnv = { ...process.env }; delete cliEnv.ANTHROPIC_API_KEY; delete cliEnv.ANTHROPIC_AUTH_TOKEN;
   for (let attempt = 0; attempt < 2; attempt++) {
     const out = await new Promise<string>((res) => {
-      const p = spawn(process.env.CLAUDE_BIN || 'claude', ['-p', '--tools', '', '--strict-mcp-config', '--setting-sources', '', '--no-session-persistence', '--model', model], { cwd, env: cliEnv });
+      const args = ['-p', '--tools', '', '--strict-mcp-config', '--setting-sources', '', '--no-session-persistence', '--model', model];
+      if (process.env.OPT_CLI_COST) args.push('--output-format', 'json');
+      const p = spawn(process.env.CLAUDE_BIN || 'claude', args, { cwd, env: cliEnv });
       let o = '', e = '';
       p.stdout.on('data', (d) => { o += d; });
       p.stderr.on('data', (d) => { e += d; });
@@ -89,9 +103,21 @@ async function askCli(model: string, prompt: string): Promise<string> {
       p.stdin.end(prompt);
     });
     if (process.env.OPT_CLI_DEBUG) console.error('askCli', model, JSON.stringify(out.slice(0, 200)));
-    if (out.trim()) return out;
+    if (out.trim()) return process.env.OPT_CLI_COST ? cliCost(model, out) : out;
   }
   return '';
+}
+
+/** Bench cost (OPT_CLI_COST=1): the CLI's JSON result carries the API price of the call; summed per model in globalThis. */
+export function cliCost(model: string, raw: string): string {
+  try {
+    const j = JSON.parse(raw) as { result?: string; total_cost_usd?: number };
+    const g = globalThis as unknown as { __optCost?: Record<string, { calls: number; usd: number }> };
+    g.__optCost ??= {};
+    const k = (g.__optCost[model] ??= { calls: 0, usd: 0 });
+    k.calls += 1; k.usd += j.total_cost_usd || 0;
+    return j.result || '';
+  } catch { return raw; }
 }
 
 export function json<T>(text: string, open: '[' | '{'): T | null {
@@ -147,7 +173,7 @@ const CHECK = `Ниже расшифровки рилсов. У каждого �
 `;
 
 async function check(plaque: string, text: string): Promise<PromiseCheck> {
-  const out = await ask(SONNET, CHECK + `=== id r1\nплашка: ${plaque || '(нет)'}\nречь: ${text.split(/\s+/).slice(0, 400).join(' ')}`, 'low');
+  const out = await ask(SONNET, [CHECK, `=== id r1\nплашка: ${plaque || '(нет)'}\nречь: ${text.split(/\s+/).slice(0, 400).join(' ')}`], 'low');
   const r = json<{ expect?: string; type?: string; paid?: string; gap?: string }[]>(out, '[')?.[0];
   const d = r?.paid;
   // PromiseCheck keeps its field names (stored runs, view): delivered = paid off, promise = the expectation.
@@ -252,12 +278,12 @@ const MAX_FIRST_WORDS = 15;
 const firstWords = (speech: string) => ((speech.trim().match(/^[\s\S]*?[.!?…](\s|$)/)?.[0] || speech).match(/[\p{L}\p{N}]+/gu) || []).length;
 
 async function invented(script: string, p: { plaque: string; speech: string }): Promise<{ bad: string; gate: string }> {
-  const out = await ask(SONNET, 'Ниже сценарий рилса и новое начало для него. Проверь: есть ли в начале факты, цифры, имена, события, оценки или утверждения, ' +
+  const out = await ask(SONNET, ['Ниже сценарий рилса и новое начало для него. Проверь: есть ли в начале факты, цифры, имена, события, оценки или утверждения, ' +
     'которых НЕТ в сценарии (выдумано или взято откуда-то ещё). Перефразирование того, что есть в сценарии, выдумкой не считается. ' +
     'И отдельно: звучит ли начало естественно по-русски и по смыслу, как живая речь автора (natural false, если фраза корявая, склеенная, бессмысленная или противоречит сценарию).\n' +
     GATE_DEF + '\n' +
-    'Верни только JSON-массив: [{"i": 0, "invented": true, "what": "что выдумано, коротко, или пусто", "natural": true, "why": "если не естественно, почему", "hook": "тип начала"}]\n\nСЦЕНАРИЙ:\n' + script +
-    `\n\nНАЧАЛА:\n0) плашка: ${p.plaque || '(нет)'} | речь: ${p.speech}`, 'low');
+    'Верни только JSON-массив: [{"i": 0, "invented": true, "what": "что выдумано, коротко, или пусто", "natural": true, "why": "если не естественно, почему", "hook": "тип начала"}]\n\nСЦЕНАРИЙ:\n' + script,
+    `\n\nНАЧАЛА:\n0) плашка: ${p.plaque || '(нет)'} | речь: ${p.speech}`], 'low');
   const r = json<{ invented?: boolean; what?: string; natural?: boolean; why?: string; hook?: string }[]>(out, '[')?.[0];
   const bad = [r?.invented ? (r.what || 'есть выдуманное') : '', r?.natural === false ? `звучит неестественно: ${r.why || ''}` : ''].filter(Boolean);
   return { bad: bad.join('; '), gate: r?.hook || '' };
@@ -269,7 +295,7 @@ type Raw = { code?: string; plaque?: string; speech?: string; promise?: string; 
 export async function buildNachala(script: string, formatType: FormatType | undefined, opts: { stop?: ViewerReason; rewrite?: string; topic?: string | null; excludeAuthor?: string; ownAuthor?: string; pool?: Opening[] } = {}): Promise<Nachala> {
   const t0 = Date.now();
   const [pay, topic] = await Promise.all([
-    ask(OPUS, PAY + script, 'medium').then((t) => json<Payoff>(t, '{') ?? {}),
+    ask(CHEAP ? SONNET : OPUS, PAY + script, 'medium').then((t) => json<Payoff>(t, '{') ?? {}),
     opts.topic !== undefined ? Promise.resolve(opts.topic) : topicOf(script).catch(() => null),
   ]);
   const format = (formatType && FORMAT_OF[formatType]) || null;
@@ -293,7 +319,7 @@ ${FORMULA ? 'Второе правило из базы: начало, котор
 ЧТО СЦЕНАРИЙ ДАЁТ: ${payoff.payoff} (тип: ${payoff.type}; где: «${payoff.quote}»)
 ЧЕГО СЦЕНАРИЙ НЕ ДАЁТ: ${payoff.notGiven || '—'}
 
-1) Выбери 7 начал из РАЗНЫХ семейств, у которых тип ожидания совпадает с тем, что даёт сценарий (ждали способ, и сценарий даёт способ; ждали развязку, и сценарий рассказывает историю до конца). Сценка и история могут начинаться прямо со сцены, без слов о том, что будет. При прочих равных бери семейства с пометкой «подтверждено». Семейство бери только если смысл конструкции есть в сценарии: «тяжёлый факт биографии» = потеря, провал, беда автора, а не его успех; «сейчас все обсуждают» = в сценарии есть конкретная вещь, которую все видели; «запрет» = сценарий правда говорит не делать привычного.
+1) Выбери ${DONORS} начал из РАЗНЫХ семейств, у которых тип ожидания совпадает с тем, что даёт сценарий (ждали способ, и сценарий даёт способ; ждали развязку, и сценарий рассказывает историю до конца). Сценка и история могут начинаться прямо со сцены, без слов о том, что будет. При прочих равных бери семейства с пометкой «подтверждено». Семейство бери только если смысл конструкции есть в сценарии: «тяжёлый факт биографии» = потеря, провал, беда автора, а не его успех; «сейчас все обсуждают» = в сценарии есть конкретная вещь, которую все видели; «запрет» = сценарий правда говорит не делать привычного.
 ${FORMULA ? FORMULA_STEP : `2) Перенеси начало-образец почти дословно по его шаблону: заполни слоты шаблона [в скобках] словами из сценария, скелет и слова-крючки образца оставь, в том же порядке и той же длины (обычно это 30-50% его слов, как у живых авторов, которые копировали залёты). Бери только те образцы, чей шаблон естественно ложится на первый ход сценария; если ради шаблона приходится выдумывать или фраза становится корявой, бери другой образец. Меняй только те слова, которые обязаны поменяться под тему сценария (предмет, ниша, цифра, имя, профессия), и только на то, что есть в сценарии. Минимум половина слов образца должна остаться теми же. Не перефразируй и не улучшай.`}
 3) Ожидание = отдача сценария, не больше. Не создавай ожидания того, что в «чего не даёт». Новых фактов, цифр, имён, оценок не выдумывай (нельзя «никто не говорит», «самый ленивый», «я наконец понял», если этого нет в сценарии).
 4) Не добавляй слов и анонсов, которых нет в образце («объясню», «расскажу», «покажу», «вот что»): если в образце их нет, их нет и в переносе.
@@ -301,7 +327,7 @@ ${FORMULA ? FORMULA_STEP : `2) Перенеси начало-образец по
 6) Тему и формат сценария не меняй. Длина как у образца; в диалоге первая фраза это реплика персонажа.
 7) Если среди начал есть СВОЙ ЗАЛЁТ АВТОРА СЦЕНАРИЯ и его конструкция ложится на сценарий, бери его первым: своё проверенное начало сильнее чужого.
 8) Что сразу после начала. Правило из базы: когда сразу после хука идут шаги или примеры, ролик залетает в 1,7 раза чаще; когда после хука самопрезентация («я ведущий», «подпишись»), подводка или утешение, сильно реже. Для каждого начала найди в сценарии кусок, который должен идти сразу за ним (обычно первый шаг, первый пример или первое блюдо из списка), и верни его ДОСЛОВНО фразой из сценария; это должна быть фраза, которой ещё нет в новом начале (не повторяй то, что начало уже сказало). Если между началом и этим куском в сценарии стоит самопрезентация, призыв подписаться, подводка или утешение, назови это дословно в drop: это убрать или перенести в конец. Если ничего мешающего нет, drop пустой.
-Верни только JSON-массив из 7 объектов: [{"code": "код образца", "plaque": "...", "speech": "...", "promise": "чего зритель ждёт после этого начала", "kept_in": "дословная фраза сценария, где он это получает",${FORMULA ? ' "plaque2": "...", "speech2": "вторая формулировка по той же формуле",' : ''} "next": "дословная фраза сценария, которая идёт сразу после начала", "drop": "дословный кусок сценария, который убрать или перенести в конец, или пусто"}]
+Верни только JSON-массив из ${DONORS} объектов: [{"code": "код образца", "plaque": "...", "speech": "...", "promise": "чего зритель ждёт после этого начала", "kept_in": "дословная фраза сценария, где он это получает",${FORMULA ? ' "plaque2": "...", "speech2": "вторая формулировка по той же формуле",' : ''} "next": "дословная фраза сценария, которая идёт сразу после начала", "drop": "дословный кусок сценария, который убрать или перенести в конец, или пусто"}]
 
 СЦЕНАРИЙ:
 ${script}
@@ -327,13 +353,13 @@ ${cands}`;
     let narrowed = false;
     // 1) closeness: a paraphrase does not carry the donor's result, so it gets one retry and is dropped if still far
     if (donorOverlap(donor, p) < MIN_OVERLAP) {
-      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p, 'Начало ушло слишком далеко от образца: осталось мало его слов.'), 'medium'), '{');
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(FIX, fitMsg(src, p, 'Начало ушло слишком далеко от образца: осталось мало его слов.'), 'medium'), '{');
       if (fix?.speech) { p = { ...p, plaque: fix.plaque || '', speech: fix.speech, promise: fix.promise || p.promise }; narrowed = true; }
     }
     if (donorOverlap(donor, p) < MIN_OVERLAP) { dbg(src.code, 'far from donor'); return null; }
     // 21.11 blind test: the generator kept 65% of the donor's words, authors 40%, and Sonnet told them apart in 94%: too literal = the donor's voice
     if (donorOverlap(donor, p) > MAX_OVERLAP) {
-      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(FIX, fitMsg(src, p,
         'Перенос звучит голосом образца, а не автора сценария. Оставь скелет образца, но обращение, связки, разговорные слова и манеру возьми из сценария автора.'), 'medium'), '{');
       if (fix?.speech) {
         const q = { plaque: fix.plaque || '', speech: fix.speech };
@@ -346,7 +372,7 @@ ${cands}`;
     if (!src.own && donorOverlap({ plaque: orig.plaque, speech: orig.speech }, p) >= 0.6) { dbg(src.code, 'own opening reworded'); return null; }
     let inv = await invented(script, p);
     if (inv.bad) {
-      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(FIX, fitMsg(src, p,
         `В переносе есть проблемы: ${inv.bad}. Выдуманное замени на то, что есть в сценарии, или убери; корявое сделай живой речью автора. Остальные слова образца не трогай.`), 'medium'), '{');
       if (!fix?.speech) { dbg(src.code, `invented, no fix: ${inv.bad}`); return null; }
       const q = { plaque: fix.plaque || '', speech: fix.speech };
@@ -358,7 +384,7 @@ ${cands}`;
     // 23.11: the donor's gate is good, but the adaptation may slide into a weak one (recognition, announcement): one try to bring
     // the donor's construction back, then out. The student's own hit is exempt: proven on his own audience.
     if (!src.own && WEAK_GATES.has(inv.gate)) {
-      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(FIX, fitMsg(src, p,
         `Перенос потерял крючок образца и стал слабым началом (${GATE_WEAK_RU[inv.gate] || inv.gate}). Верни конструкцию и крючок образца: ` +
         `${src.gate && GATE_RU[src.gate] ? `у образца это «${GATE_RU[src.gate]}». ` : ''}Первая фраза не длиннее ${MAX_FIRST_WORDS} слов.`), 'medium'), '{');
       const q = fix?.speech ? { plaque: fix.plaque || '', speech: fix.speech } : null;
@@ -368,7 +394,7 @@ ${cands}`;
     }
     // 23.11: a long first phrase is shortened once, last, so the other fixes cannot lengthen it again (the donor's second sentence often rides along)
     if (firstWords(p.speech) > MAX_FIRST_WORDS) {
-      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(FIX, fitMsg(src, p,
         `Первая фраза слишком длинная (${firstWords(p.speech)} слов). Сократи первую фразу до ${MAX_FIRST_WORDS} слов и меньше: оставь крючок образца, убери пояснения и вторую мысль.`), 'medium'), '{');
       if (fix?.speech && donorOverlap(donor, { plaque: fix.plaque || '', speech: fix.speech }) >= MIN_OVERLAP) {
         const q = { plaque: fix.plaque || '', speech: fix.speech };
@@ -381,7 +407,7 @@ ${cands}`;
     let c = await check(p.plaque, p.speech + '\n' + body);
     let bodyGap: string | undefined;
     if (c.delivered !== 'full') {
-      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(OPUS, fitMsg(src, p,
+      const fix = json<{ plaque?: string; speech?: string; promise?: string }>(await ask(FIX, fitMsg(src, p,
         `После этого начала зритель ждёт не того, что даёт сценарий (${c.gap}). Сценарий даёт: ${payoff.payoff}. Поменяй в переносе только слова, из-за которых ожидание расходится со сценарием.`), 'medium'), '{');
       if (fix?.speech && donorOverlap(donor, { plaque: fix.plaque || '', speech: fix.speech }) >= MIN_OVERLAP) {
         const c2 = await check(fix.plaque || '', fix.speech + '\n' + body);
@@ -399,7 +425,7 @@ ${cands}`;
     };
   };
   // formula mode: the second phrasing of the same donor is tried when the first one fails the checks
-  const cand = raw.filter((r) => r.code && byCode.has(r.code) && r.speech).slice(0, 7);
+  const cand = raw.filter((r) => r.code && byCode.has(r.code) && r.speech).slice(0, DONORS);
   // formula mode: both phrasings of every donor go through the checks in parallel, then an editor judge ranks the survivors
   // (23.11: about a third of checked variants pass a strict blind editor, the same share as hand-made bundles)
   const all: (NachalaPick | null)[] = FORMULA
@@ -507,11 +533,11 @@ async function fallback(script: string, orig: Nachala['orig'], payoff: Nachala['
 
 async function classify(items: { id: string; plaque: string; speech: string }[]): Promise<Map<string, string>> {
   const list = FAMS.map((f) => `${f.id} «${f.name}»: ${f.template}${f.examples[0] ? ` (пример: «${f.examples[0]}»)` : ''}`).join('\n');
-  const out = await ask(SONNET, 'Отнеси каждое начало рилса (плашка + первые фразы) к одному семейству конструкций из списка. ' +
+  const out = await ask(SONNET, ['Отнеси каждое начало рилса (плашка + первые фразы) к одному семейству конструкций из списка. ' +
     'Смотри на форму, а не на тему: «Число + список» только если в начале есть число и перечисление, вопрос только если это вопрос и т.д. ' +
     'Если конструкция не совпадает ни с одним семейством, ставь f00.\n\nСЕМЕЙСТВА:\n' + list +
-    '\n\nВерни только JSON-массив: [{"id": "...", "fam": "f01"}]\n\nНАЧАЛА:\n' +
-    items.map((x) => `=== ${x.id}\nплашка: ${x.plaque || '(нет)'}\nречь: ${x.speech}`).join('\n'), 'low');
+    '\n\nВерни только JSON-массив: [{"id": "...", "fam": "f01"}]\n\nНАЧАЛА:\n', 
+    items.map((x) => `=== ${x.id}\nплашка: ${x.plaque || '(нет)'}\nречь: ${x.speech}`).join('\n')], 'low');
   const arr = json<{ id?: string; fam?: string }[]>(out, '[') ?? [];
   return new Map(arr.filter((o) => o.id && o.fam && FAM_BY_ID.has(o.fam)).map((o) => [o.id!, o.fam!]));
 }
