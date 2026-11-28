@@ -1,4 +1,7 @@
 import { prisma } from '@/lib/prisma';
+import { paidViaLabel, SOURCE_RU } from '@/lib/paid-via';
+
+export { SOURCE_RU };
 
 // Лид воронки /uroven: живьём из events (клики «Забрать», заходы на лендинг,
 // попытки оплаты), обогащённый юзернеймом, реальной оплатой, ручным статусом
@@ -52,40 +55,8 @@ type PaidRow = {
   co_method: string | null;
   co_utm: string | null;
   co_from: string | null;
+  co_post: string | null;
 };
-
-const PAY_SRC_RU: Record<string, string> = {
-  potok: 'Поток Спроса',
-  yt: 'YouTube',
-  ig: 'Instagram',
-  lichka: 'личка',
-};
-
-// Откуда пришла оплата — по чекауту, который её открыл (checkout_open с тем же order_id).
-// Метка ?src= на ссылке оплаты главнее способа: /pay/t1?src=potok — это «Поток Спроса»,
-// даже если сама ссылка обычная.
-function paidViaLabel(r: PaidRow): string {
-  if (r.co_src) return PAY_SRC_RU[r.co_src] || r.co_src;
-  if (r.co_utm === 'uroven_dop_potok') return 'доплата из Потока Спроса';
-  const from = r.co_from || (r.co_utm === 'ig' ? 'ig' : null);
-  const fromRu = from ? ` · ${PAY_SRC_RU[from] || SOURCE_RU[from] || from}` : '';
-  switch (r.co_method) {
-    case 'deal_link':
-      return 'прайс-ссылка';
-    case 'tg_openlink':
-      return 'бот';
-    case 'paylink_tg':
-      return 'лендинг в Telegram';
-    case 'bounce_bot':
-    case 'browser_card':
-    case 'tg_webview':
-      return `лендинг${fromRu}`;
-    case 'paylink':
-      return 'ссылка на оплату';
-  }
-  // Чекаута нет: доступ выдан скриптом мимо формы (перевод, крипта, PayPal)
-  return r.source === 'web_redeem' ? 'выдано вручную' : 'не отмечено';
-}
 
 // uroven-t2 / t2 / uroven_t3 → «тариф 2»
 function tierName(slug: string | null): string | null {
@@ -95,16 +66,6 @@ function tierName(slug: string | null): string | null {
 
 export const PRODUCT = 'uroven';
 
-export const SOURCE_RU: Record<string, string> = {
-  'casino-block': 'блок-казино',
-  popup: 'попап',
-  final: 'финал статьи',
-  inline: 'по тексту',
-  floatcta: 'плавающая кнопка',
-  'urovni-article': 'статья 6 уровней',
-  'chitkody-article': 'статья чит-коды',
-  'article-bottom': 'низ статьи',
-};
 
 const ARTICLE_RU: Record<string, string> = {
   '/algoritm-sistema.html': 'Алгоритм (казино)',
@@ -239,7 +200,8 @@ export async function getUrovenLeads(): Promise<UrovenLead[]> {
       co.metadata->>'src'                                                  AS co_src,
       co.metadata->>'method'                                               AS co_method,
       co.utm_source                                                        AS co_utm,
-      co.metadata->>'from'                                                 AS co_from
+      co.metadata->>'from'                                                 AS co_from,
+      co.metadata->>'post'                                                 AS co_post
     FROM purchases pu
     LEFT JOIN products p ON p.id = pu.product_id
     LEFT JOIN users u ON u.id = pu.user_id
@@ -259,7 +221,7 @@ export async function getUrovenLeads(): Promise<UrovenLead[]> {
       ORDER BY e.created_at DESC
       LIMIT 1
     ) co ON true
-    WHERE pu.source = 'uroven' OR p.slug LIKE 'uroven%'
+    WHERE pu.source IN ('uroven', 'potok') OR p.slug LIKE 'uroven%' OR p.slug = 'potok-sprosa'
     ORDER BY pu.created_at ASC
   `;
   // на человека — последняя покупка (перекрывает предыдущую при апгрейде тарифа)
