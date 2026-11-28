@@ -1483,3 +1483,9 @@ textarea.input.cgText {
 .donorLog { list-style: none; padding: 0; margin: 8px 0 16px; display: grid; gap: 6px; font-size: 14px; }
 .donorExamples { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 12px; }
 .donorExamples li { padding-bottom: 10px; border-bottom: 1px solid rgba(127, 127, 127, 0.2); }
+.donorMobile { display: none; }
+@media (max-width: 760px) {
+  .donorWide { display: none; }
+  .donorMobile { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--muted, #8a8f98); }
+  .donory .table th[scope='row'] { min-width: 0; }
+}

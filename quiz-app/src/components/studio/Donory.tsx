@@ -90,8 +90,8 @@ export default function Donory() {
           <thead>
             <tr>
               <th>#</th><th>Тема</th><th className={s.num}>Вес</th><th className={s.num}>Авторов</th>
-              {SOURCES.map((k) => <th key={k} className={s.num}>{SOURCE_LABEL[k]}</th>)}
-              <th>У нас</th><th className={s.num}>Макс</th><th>Лучший пример</th>
+              {SOURCES.map((k) => <th key={k} className={`${s.num} ${s.donorWide}`}>{SOURCE_LABEL[k]}</th>)}
+              <th className={s.donorWide}>У нас</th><th className={`${s.num} ${s.donorWide}`}>Макс</th><th className={s.donorWide}>Лучший пример</th>
             </tr>
           </thead>
           <tbody>
@@ -102,13 +102,16 @@ export default function Donory() {
                   <button className={s.linkBtn} onClick={() => setOpenId(t.id)}>{t.name}</button>
                   {t.taken.length > 0 && <span className={s.donorTaken}> взяли {t.taken.length}</span>}
                   {t.hidden && <span className={s.muted}> мимо</span>}
+                  <span className={s.donorMobile}>
+                    {Object.entries(t.platforms).map(([k, n]) => `${SOURCE_LABEL[k] ?? k} ${n}`).join(' · ')} · у нас {t.ours}{t.maxX ? ` · ${xLabel(t.maxX)}` : ''}
+                  </span>
                 </th>
                 <td className={s.num}><b>{t.ves}</b></td>
                 <td className={s.num}>{t.authors}</td>
-                {SOURCES.map((k) => <td key={k} className={s.num}>{t.platforms[k] || ''}</td>)}
-                <td className={s.nowrap}>{t.ours}</td>
-                <td className={s.num}>{xLabel(t.maxX)}</td>
-                <td>{t.best && <Example e={t.best} />}</td>
+                {SOURCES.map((k) => <td key={k} className={`${s.num} ${s.donorWide}`}>{t.platforms[k] || ''}</td>)}
+                <td className={`${s.nowrap} ${s.donorWide}`}>{t.ours}</td>
+                <td className={`${s.num} ${s.donorWide}`}>{xLabel(t.maxX)}</td>
+                <td className={s.donorWide}>{t.best && <Example e={t.best} />}</td>
               </tr>
             ))}
           </tbody>
