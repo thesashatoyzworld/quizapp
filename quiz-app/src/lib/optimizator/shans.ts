@@ -56,7 +56,9 @@ async function labelOnce(script: string): Promise<Set<string> | null> {
 const memo = new Map<string, { at: number; p: Promise<Shans | null> }>();
 
 /** Never throws; null when the labelling failed every time. */
-export async function scoreShans(script: string): Promise<Shans | null> {
+export async function scoreShans(script: string, opts: { fresh?: boolean } = {}): Promise<Shans | null> {
+  // fresh: an independent labelling on purpose (the body edit takes the lower of two counts of its final text)
+  if (opts.fresh) return scoreShansOnce(script);
   const now = Date.now();
   for (const [k, v] of memo) if (now - v.at > 10 * 60_000) memo.delete(k);
   const hit = memo.get(script);

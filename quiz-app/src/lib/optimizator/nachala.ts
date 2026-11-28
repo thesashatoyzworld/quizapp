@@ -109,13 +109,21 @@ async function askCli(model: string, prompt: string): Promise<string> {
 }
 
 /** Bench cost (OPT_CLI_COST=1): the CLI's JSON result carries the API price of the call; summed per model in globalThis. */
+// The CLI adds its own ~14.6k-token system prompt to every call (measured 28.11 on a one-word prompt): subtracted, so the sum is
+// what the same prompt costs on the API (prices as in costs/anthropic.ts, no cache).
+const CLI_OVERHEAD = 14_640;
+const PRICE: Record<string, [number, number]> = { 'claude-opus-5-5': [4, 20], 'claude-sonnet-5-5': [2, 10], 'claude-haiku-5-5': [0.1, 0.5] };
 export function cliCost(model: string, raw: string): string {
   try {
-    const j = JSON.parse(raw) as { result?: string; total_cost_usd?: number };
-    const g = globalThis as unknown as { __optCost?: Record<string, { calls: number; usd: number }> };
+    const j = JSON.parse(raw) as { result?: string; usage?: { input_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number; output_tokens?: number } };
+    const u = j.usage || {};
+    const inp = Math.max(0, (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0) - CLI_OVERHEAD);
+    const out = u.output_tokens || 0;
+    const [pi, po] = PRICE[model] || [0, 0];
+    const g = globalThis as unknown as { __optCost?: Record<string, { calls: number; inp: number; out: number; usd: number }> };
     g.__optCost ??= {};
-    const k = (g.__optCost[model] ??= { calls: 0, usd: 0 });
-    k.calls += 1; k.usd += j.total_cost_usd || 0;
+    const k = (g.__optCost[model] ??= { calls: 0, inp: 0, out: 0, usd: 0 });
+    k.calls += 1; k.inp += inp; k.out += out; k.usd += (inp * pi + out * po) / 1e6;
     return j.result || '';
   } catch { return raw; }
 }

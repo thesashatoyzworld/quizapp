@@ -85,7 +85,8 @@ export async function buildTelo(script: string, before: number): Promise<Telo | 
       left = bad;
     }
     if (cur === script) return null;
-    const re = await scoreShans(cur);
+    // second, independent count of the final text: the lower of the two is shown, so a lucky labelling does not inflate it
+    const re = await scoreShans(cur, { fresh: true });
     const share = Math.min(s.hitShare, re?.hitShare ?? s.hitShare);
     return {
       text: cur, changes, before, share, top: share >= TOP_SHARE,
