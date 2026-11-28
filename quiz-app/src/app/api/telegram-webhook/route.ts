@@ -12,6 +12,7 @@ import { STATUS_LABEL, type LeadStatus } from '@/content/lead-status';
 import { prisma } from '@/lib/prisma';
 import { parseWaitlistStart, WAITLIST_CONFIRM_TEXT } from '@/lib/waitlist-bot';
 import { parseRefParam, rememberReferral } from '@/lib/uniq/referral';
+import { parseOptRef, rememberOptReferral } from '@/lib/optimizator/free';
 import { catchForumReply } from '@/lib/forum';
 import { getLeadMagnet, type LeadMagnet } from '@/lib/leadmagnets';
 import { CATALOG, getProductBySlug } from '@/lib/catalog';
@@ -1292,6 +1293,40 @@ export async function POST(request: NextRequest) {
           await sendMessage(chatId, `что-то пошло не так с активацией. напиши сюда — открою доступ вручную.`);
         }
 
+        return NextResponse.json({ ok: true });
+      }
+
+      // Оптимизатор (бесплатный для подписчиков): /start opt, opt_<кампания> или opt_<id пригласившего>.
+      // Друг засчитывается после своего первого разбора (creditOptReferral в /api/cabinet/optimizator).
+      if (startParam === 'opt' || startParam.startsWith('opt_')) {
+        await prisma.user.upsert({
+          where: { telegramId: BigInt(chatId) },
+          create: { telegramId: BigInt(chatId), username: username || null, firstName: update.message.from?.first_name || null },
+          update: {},
+        });
+        const referrerId = parseOptRef(startParam);
+        const src = referrerId ? 'ref' : (startParam.slice(4) || 'direct').replace(/[^a-z0-9_-]/gi, '').slice(0, 32);
+        await prisma.event.create({
+          data: { type: 'opt_start', source: 'optimizator', telegramId: BigInt(chatId), metadata: { src } },
+        }).catch((e) => console.error('[optimizator] start source save failed:', e));
+        let fromWho = '';
+        if (referrerId) {
+          try {
+            if (await rememberOptReferral(chatId, referrerId)) {
+              const ref = await prisma.user.findUnique({ where: { telegramId: BigInt(referrerId) }, select: { firstName: true, username: true } });
+              fromWho = ref?.firstName || (ref?.username ? `@${ref.username}` : '');
+            }
+          } catch (err) {
+            console.error('[optimizator] referral save failed:', err);
+          }
+        }
+        const q = referrerId ? 'src=ref' : `src=${encodeURIComponent(src)}`;
+        await sendBotMessage(
+          chatId,
+          `${firstName}, привет!${fromWho ? ` Тебя позвал ${fromWho}.` : ''}\n\nЭто мой оптимизатор рилсов: вставляешь текст ролика до съёмки и получаешь шанс на залёт, разбор и готовый сценарий с началом из залетевших роликов твоей темы.\n\nОдин разбор бесплатно для подписчиков канала. Открывай по кнопке ниже.`,
+          { inline_keyboard: [[{ text: 'Открыть оптимизатор', web_app: { url: `https://world.thesashatoyz.com/optimizator?${q}` } }]] },
+          null, // plain text: names may contain <, & or _
+        );
         return NextResponse.json({ ok: true });
       }
 

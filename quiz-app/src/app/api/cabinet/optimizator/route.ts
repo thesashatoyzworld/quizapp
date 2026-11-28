@@ -15,6 +15,9 @@ import {
   getRun, history, lastUsername, releaseSlot, reserveSlot, saveRun, studentLadder, usedThisMonth, type StoredDemand,
 } from '@/lib/optimizator/store';
 import { shareUrl } from '@/lib/optimizator/share';
+import { FREE_MONTH, creditOptReferral, freeLimit, optEvent, optFreeOpen, optRefStats, type OptRefStats } from '@/lib/optimizator/free';
+import { isChannelMember, UNIQ_CHANNEL_URL } from '@/lib/uniq/channel';
+import { UNIQ_ADMINS } from '@/lib/uniq/access';
 import { SCRIPT_MAX, SCRIPT_MIN, normalizeUsername, toStudent, type Analysis, type DemandLink } from '@/lib/optimizator/view';
 
 export const runtime = 'nodejs';
@@ -35,20 +38,53 @@ export const maxDuration = 300;
 //
 // Identity is signed only (x-tg-init-data or kb_session cookie): runs cost money.
 
-type Viewer = { id: number; tier: number; limit: number };
+// free: the channel-subscriber plan (lib/optimizator/free.ts), counted for good under month FREE_MONTH.
+// subscribe: free plan is open to this person, but they do not follow the channel yet (limit 0).
+type Viewer = { id: number; tier: number; limit: number; month: string; free: boolean; subscribe?: boolean; ref?: OptRefStats | null; tiers?: Record<string, number> };
 
-async function viewerOf(request: NextRequest): Promise<Viewer | null> {
-  const id = verifiedViewer(request);
-  if (!id) return null;
-  const tiers = await tiersForTelegram(id);
+async function paidViewer(request: NextRequest, id: number, tiers: Record<string, number>): Promise<Viewer> {
+  const month = monthKey();
   const tier = tiers.uroven ?? 0;
   const admin = UNLIMITED_IDS.has(id);
   // Meta App Review demo account: page open as tier 3 (Instagram block), tester quota for runs.
-  if (isReviewId(id)) return { id, tier: 3, limit: TESTER_LIMIT };
+  if (isReviewId(id)) return { id, tier: 3, limit: TESTER_LIMIT, month, free: false };
   // Бронь 360: оптимизатор со второй недели после брони, 30 разборов в месяц (как тариф 2).
-  if (tiers.uroven === undefined && !admin && tiers.bron360 !== undefined && await bronOptOpen(id)) return { id, tier: 1, limit: MONTHLY_LIMIT[2] };
-  if (tiers.uroven === undefined && !admin && await isTester(request, id)) return { id, tier: 0, limit: TESTER_LIMIT };
-  return { id, tier: admin ? Math.max(tier, 3) : tier, limit: tiers.uroven !== undefined || admin ? limitFor(id, tier) : 0 };
+  if (tiers.uroven === undefined && !admin && tiers.bron360 !== undefined && await bronOptOpen(id)) return { id, tier: 1, limit: MONTHLY_LIMIT[2], month, free: false };
+  if (tiers.uroven === undefined && !admin && await isTester(request, id)) return { id, tier: 0, limit: TESTER_LIMIT, month, free: false };
+  return { id, tier: admin ? Math.max(tier, 3) : tier, limit: tiers.uroven !== undefined || admin ? limitFor(id, tier) : 0, month, free: false };
+}
+
+/**
+ * Paid plans first; everyone else gets the free plan when it is open (OPT_OPEN=1) and they follow
+ * the channel. Sasha previews the free plan with ?as=free; as the channel owner he sees the subscribe
+ * screen until he presses «Я подписался» (?checked=1).
+ */
+async function viewerOf(request: NextRequest): Promise<Viewer | null> {
+  const id = verifiedViewer(request);
+  if (!id) return null;
+  const q = request.nextUrl.searchParams;
+  const asFree = q.get('as') === 'free' && UNIQ_ADMINS.has(id);
+  const tiers = asFree ? {} : await tiersForTelegram(id);
+  if (!asFree) {
+    const paid = await paidViewer(request, id, tiers);
+    if (paid.limit > 0 || !optFreeOpen()) return { ...paid, tiers };
+  }
+  const member = asFree && q.get('checked') !== '1' && q.get('ok') !== '1' ? false : await isChannelMember(id);
+  // Telegram outage (null) → let them through, as in the Уникализатор.
+  if (member === false) return { id, tier: 0, limit: 0, month: FREE_MONTH, free: true, subscribe: true, tiers };
+  const ref = await optRefStats(id).catch((err) => { console.error('[optimizator] referral stats failed:', err); return null; });
+  return { id, tier: 0, limit: freeLimit(ref?.credited ?? 0), month: FREE_MONTH, free: true, ref, tiers };
+}
+
+const OFFERS = ['uroven', 'potok', '360'] as const;
+type Offer = (typeof OFFERS)[number];
+
+/** A/B offer under a free analysis, as in the Уникализатор: tier-less people split three ways by id. */
+function offerFor(v: Viewer, forced: string | null): Offer {
+  if (forced && (OFFERS as readonly string[]).includes(forced)) return forced as Offer;
+  const t = v.tiers || {};
+  const pool: Offer[] = 'uroven' in t ? ['360'] : 'potok' in t ? ['uroven', '360'] : ['uroven', 'potok', '360'];
+  return pool[v.id % pool.length];
 }
 
 // Tester by username: from the signed initData (Mini App), else from the bot's users table.
@@ -73,7 +109,15 @@ export async function GET(request: NextRequest) {
   try {
     const v = await viewerOf(request);
     if (!v) return NextResponse.json({ identified: false, access: false });
+    const q = request.nextUrl.searchParams;
+    // ?auto=1: the subscribe screen re-checking by itself; misses are not logged.
+    const auto = q.get('auto') === '1';
+    if (v.subscribe) {
+      if (!auto) await optEvent(v.id, q.get('checked') === '1' ? 'sub_no' : 'sub_screen');
+      return NextResponse.json({ identified: true, access: false, subscribe: true, channel: UNIQ_CHANNEL_URL, tier: v.tier });
+    }
     if (v.limit <= 0) return NextResponse.json({ identified: true, access: false, tier: v.tier });
+    if (v.free && (auto || q.get('checked') === '1')) await optEvent(v.id, 'sub_ok');
 
     const id = request.nextUrl.searchParams.get('id');
     if (id) {
@@ -82,10 +126,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ run: { ...run, shareUrl: shareUrl(run.id) } });
     }
     const [used, items, instagram] = await Promise.all([
-      usedThisMonth(v.id), history(v.id), lastUsername(v.id).catch(() => null),
+      usedThisMonth(v.id, v.month), history(v.id), lastUsername(v.id).catch(() => null),
     ]);
+    if (v.free) {
+      // ?src=<campaign>: one open event per person and campaign (where the free users come from).
+      const src = (q.get('src') || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 32);
+      if (!auto) await optEvent(v.id, 'open', src ? { src } : {});
+    }
     return NextResponse.json({
       identified: true, access: true, tier: v.tier, used, limit: v.limit, history: items, instagram, ladder: LADDER_ON,
+      free: v.free, ref: v.free ? v.ref ?? null : null, offer: v.free ? offerFor(v, q.get('cta')) : null,
     });
   } catch (err) {
     console.error('[optimizator] GET failed:', err);
@@ -131,6 +181,7 @@ export async function POST(request: NextRequest) {
     return fail(500, 'server_error', 'Не получилось проверить доступ. Попробуй ещё раз.');
   }
   if (!v) return fail(401, 'not_identified', 'Войди через Telegram, чтобы запустить разбор.');
+  if (v.subscribe) return fail(403, 'subscribe', 'Оптимизатор бесплатный для подписчиков канала. Подпишись и вернись сюда.', { channel: UNIQ_CHANNEL_URL });
   if (v.limit <= 0) return fail(403, 'no_access', 'Раздел открыт ученикам курса «Новый Уровень».');
 
   let body: Record<string, unknown>;
@@ -147,15 +198,20 @@ export async function POST(request: NextRequest) {
     return fail(400, 'script_too_long', `Сценарий слишком длинный: до ${SCRIPT_MAX} символов.`);
   }
 
-  const month = monthKey();
+  const month = v.month;
   let reserved: number | null;
   try {
-    reserved = await reserveSlot(v.id, v.limit);
+    reserved = await reserveSlot(v.id, v.limit, month);
   } catch (err) {
     console.error('[optimizator] reserve failed:', err);
     return fail(500, 'reserve_failed', 'Не получилось начать разбор. Попробуй ещё раз.');
   }
   if (reserved === null) {
+    if (v.free) {
+      return fail(429, 'limit_reached', v.limit >= 5
+        ? 'Бесплатные разборы закончились (5 из 5).'
+        : `Бесплатный разбор уже использован (${v.limit} из ${v.limit}). Позови друга, и откроется ещё один.`, { used: v.limit, limit: v.limit, free: true });
+    }
     return fail(429, 'limit_reached', `Разборы на этот месяц закончились (${v.limit} из ${v.limit}). Новые откроются первого числа.`, {
       used: v.limit,
       limit: v.limit,
@@ -219,6 +275,10 @@ export async function POST(request: NextRequest) {
   }
   const shans = await shansP;
   if (shans && runId) await saveShans(runId, shans).catch((e) => console.error('[optimizator] shans save failed:', e));
+  if (v.free) {
+    await optEvent(v.id, 'run', { n: reserved });
+    if (reserved === 1) await creditOptReferral(v.id);
+  }
 
   return NextResponse.json({
     run: {
