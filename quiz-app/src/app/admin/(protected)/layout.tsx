@@ -20,6 +20,7 @@ const NAV_LINKS = [
   { href: '/admin/anketa', label: 'Анкеты' },
   { href: '/admin/zayavki', label: 'Заявки' },
   { href: '/admin/ssylki', label: 'Ссылки для оплаты' },
+  { href: '/admin/metki', label: 'Посты' },
   { href: '/admin/revenue', label: 'Выручка' },
   { href: '/admin/rashody', label: 'Расходы' },
   { href: '/admin/byudzhet', label: 'Бюджет' },

@@ -1786,11 +1786,13 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
           `https://thesashatoyz.com/potok-sprosa?utm_source=telegram&utm_medium=bot&utm_campaign=potok` +
           `${src ? `&utm_content=${src}` : ''}`;
 
-        await sendMessage(
+        // delivered: дошло ли сообщение с видео, для «получили» в /admin/metki.
+        // Падение отправки не должно съесть bot_start, поэтому catch.
+        const sent = await sendMessage(
           chatId,
           `${firstName}, держи видео 👇`,
           { inline_keyboard: [[{ text: '▶️ Смотреть видео', web_app: { url: watchUrl } }]] },
-        );
+        ).catch(() => null);
 
         await trackEvent({
           event_type: 'bot_start',
@@ -1798,7 +1800,7 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
           username: username || undefined,
           first_name: fullName || undefined,
           utm_source: src ? `potok_${src}` : startParam,
-          metadata: { product: 'potok', src, startParam },
+          metadata: { product: 'potok', src, startParam, delivered: !!sent?.ok },
         });
 
         return NextResponse.json({ ok: true });
@@ -1850,9 +1852,9 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
             ? `${firstName}, набор на этот тариф закрыт, тебе открываю лично ⚡`
             : `${firstName}, открываю «Новый уровень контента» ⚡`;
 
-        await sendMessage(chatId, intro, {
+        const sent = await sendMessage(chatId, intro, {
           inline_keyboard: [[{ text: '⚡ Оформить доступ', web_app: { url: checkoutUrl } }]],
-        });
+        }).catch(() => null);
 
         await trackEvent({
           event_type: 'bot_start',
@@ -1860,7 +1862,7 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
           username: username || undefined,
           first_name: fullName || undefined,
           utm_source: src ? `uroven_${src}` : startParam,
-          metadata: { product: 'uroven', tier: safeTier, src, startParam },
+          metadata: { product: 'uroven', tier: safeTier, src, startParam, delivered: !!sent?.ok },
         });
 
         return NextResponse.json({ ok: true });
@@ -1878,7 +1880,7 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
 
         const kazinoMarkup = {
           inline_keyboard: [
-            [{ text: '📖 Читать разбор', web_app: { url: 'https://thesashatoyz.com/algoritm-sistema.html' } }],
+            [{ text: '📖 Читать разбор', web_app: { url: `https://thesashatoyz.com/algoritm-sistema.html?utm_source=${encodeURIComponent(startParam)}` } }],
             // Для тех, кто хочет читать в браузере: та же метка + telegram id, чтобы чтение осталось именным.
             [{ text: '🌐 открыть на сайте', url: `https://thesashatoyz.com/algoritm-sistema.html?utm_source=${encodeURIComponent(startParam)}&u=${chatId}` }],
           ],
@@ -1904,11 +1906,12 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
             inline_keyboard: [
               [{ text: '📣 мой канал в telegram', url: 'https://t.me/sashatoyz' }],
             ],
-          });
+          }).catch(() => null);
           // …потом, с паузой ~7с, сама статья.
           await new Promise((r) => setTimeout(r, 7000));
         }
-        await sendMessage(chatId, kazinoText, kazinoMarkup);
+        // delivered: статья дошла (подписчику сразу, остальным после пула в канал).
+        const sent = await sendMessage(chatId, kazinoText, kazinoMarkup).catch(() => null);
 
         await trackEvent({
           event_type: 'bot_start',
@@ -1916,6 +1919,13 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
           username: username || undefined,
           first_name: fullName || undefined,
           utm_source: startParam,
+          metadata: {
+            product: 'kazino',
+            src: startParam.slice('kazino'.length).replace(/^_/, '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || null,
+            startParam,
+            inChannel: alreadyInChannel,
+            delivered: !!sent?.ok,
+          },
         });
 
         return NextResponse.json({ ok: true });

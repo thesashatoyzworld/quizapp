@@ -147,6 +147,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   // Метка источника, если её передали: /pay/t1?src=oksana
   const src = (request.nextUrl.searchParams.get('src') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32);
+  // Метка поста из ссылки бота (utm_content → ?post=), по ней оплата встаёт в строку поста в /admin/metki.
+  const post = (request.nextUrl.searchParams.get('post') || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
 
   // Трекинг не должен мешать оплате — падение молча игнорируем.
   try {
@@ -157,7 +159,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         tag: 'uroven', tier, price: legacyT2 ? LEGACY_T2_PRICE : oldPriceT2 ? OLD_T2_PRICE : t.price,
         legacy: legacyT2 ? LEGACY_T2[uid] : undefined,
         method: byTelegram ? 'paylink_tg' : 'paylink',
-        order_id: orderId, src: src || null, card,
+        order_id: orderId, src: src || null, post: post || undefined, card,
         tg: byTelegram ? Number(uid) : undefined,
         // Личная ссылка на закрытый тариф — чтобы в статистике набора её было видно отдельно.
         personal: personal || undefined,

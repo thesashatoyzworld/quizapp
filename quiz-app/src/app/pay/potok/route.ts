@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
   // Откуда человек пришёл на лендинг (utm_medium первого захода, например huki).
   // Лендинг протаскивает его сюда как ?from=, `src` занят A/B-вариантом страницы.
   const from = (request.nextUrl.searchParams.get('from') || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
+  // Метка поста из ссылки бота (utm_content → ?post=), по ней оплата встаёт в строку поста в /admin/metki.
+  const post = (request.nextUrl.searchParams.get('post') || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
 
   // Трекинг не должен мешать оплате — падение молча игнорируем.
   try {
@@ -71,7 +73,7 @@ export async function GET(request: NextRequest) {
       metadata: {
         tag: 'potok', price: product.price,
         method: byTelegram ? 'paylink_tg' : 'paylink',
-        order_id: orderId, src: src || null, from: from || null, card,
+        order_id: orderId, src: src || null, from: from || null, post: post || undefined, card,
         tg: byTelegram ? Number(uid) : undefined,
       },
     });
