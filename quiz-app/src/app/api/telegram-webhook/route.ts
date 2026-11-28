@@ -1852,9 +1852,9 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
             ? `${firstName}, набор на этот тариф закрыт, тебе открываю лично ⚡`
             : `${firstName}, открываю «Новый уровень контента» ⚡`;
 
-        await sendMessage(chatId, intro, {
+        const sent = await sendMessage(chatId, intro, {
           inline_keyboard: [[{ text: '⚡ Оформить доступ', web_app: { url: checkoutUrl } }]],
-        });
+        }).catch(() => null);
 
         await trackEvent({
           event_type: 'bot_start',
@@ -1862,7 +1862,7 @@ ${formatPrice(deal.price)} · доступ на ${formatDays(deal.days)}`,
           username: username || undefined,
           first_name: fullName || undefined,
           utm_source: src ? `uroven_${src}` : startParam,
-          metadata: { product: 'uroven', tier: safeTier, src, startParam },
+          metadata: { product: 'uroven', tier: safeTier, src, startParam, delivered: !!sent?.ok },
         });
 
         return NextResponse.json({ ok: true });
