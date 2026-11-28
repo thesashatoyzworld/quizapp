@@ -17,6 +17,10 @@ import {
 } from './muzey';
 import { GUIDE_AUTHOR, checkGuideEdit, guideEditNotice, type GuideSectionView, type GuideVersionView } from './carousel-guide';
 import { notifyAdmin } from '@/lib/telegram';
+import {
+  applyDonorOverrides, donorNotice, mapDonory, overridesForBank, pickThemes, themeView,
+  type DonorExhibit, type DonorOverride, type DonorTaken, type DonorTheme, type PickOpts,
+} from './donory';
 
 /** Admin session acts as Sasha; otherwise the studio_session cookie. */
 export async function currentActor(): Promise<Actor | null> {
@@ -546,4 +550,142 @@ export async function editMuzeyPointTitle(actor: Actor, id: string, title: strin
   const after = next ?? point.originalTitle ?? before;
   if (actor === 'danya') await notifyAdmin(titleNotice(before, after, why), { disableLinkPreview: true });
   return { ok: true, id, title: after, original: point.originalTitle ?? before };
+}
+
+// ─── «Доноры» (банк доноров) ───
+
+/** Replace themes and exhibits with the bank's run; answer with people's edits for the bank's temy.json. */
+export async function syncDonory(input: { temy?: unknown; eksponaty?: unknown }) {
+  const { themes, exhibits } = mapDonory(input);
+  if (!themes.length || !exhibits.length) throw new StudioError('пустой банк: нет тем или экспонатов');
+  const syncedAt = new Date();
+  await prisma.$transaction([
+    prisma.studioDonorTheme.deleteMany({}),
+    prisma.studioDonorTheme.createMany({ data: themes.map((t) => ({ ...t, syncedAt })) }),
+    prisma.studioDonorExhibit.deleteMany({}),
+    prisma.studioDonorExhibit.createMany({ data: exhibits.map((e) => ({ ...e, likes: e.likes === null ? null : Math.round(e.likes) })) }),
+  ]);
+  const [overrides, taken] = await Promise.all([
+    prisma.studioDonorOverride.findMany({ orderBy: { updatedAt: 'asc' } }),
+    prisma.studioDonorTaken.findMany({ orderBy: { id: 'asc' } }),
+  ]);
+  return {
+    themes: themes.length, exhibits: exhibits.length,
+    overrides: overridesForBank(overrides),
+    taken: taken.map((t) => ({ theme: t.themeId, exhibit: t.exhibitId, zahod: t.zahod, karusel: t.karusel, actor: t.actor, data: localDate(t.createdAt) })),
+  };
+}
+
+async function loadDonory() {
+  const [themes, exhibits, overrides, rows] = await Promise.all([
+    prisma.studioDonorTheme.findMany({ orderBy: { rank: 'asc' } }),
+    prisma.studioDonorExhibit.findMany(),
+    prisma.studioDonorOverride.findMany(),
+    prisma.studioDonorTaken.findMany({ orderBy: { id: 'asc' } }),
+  ]);
+  const taken: DonorTaken[] = rows.map((t) => ({
+    themeId: t.themeId, exhibitId: t.exhibitId, zahod: t.zahod, karusel: t.karusel, actor: t.actor, itemId: t.itemId,
+    createdAt: localDate(t.createdAt),
+  }));
+  return {
+    raw: themes as DonorTheme[],
+    themes: applyDonorOverrides(themes as DonorTheme[], overrides as DonorOverride[]),
+    exhibits: exhibits as DonorExhibit[], taken, syncedAt: themes[0]?.syncedAt ?? null,
+  };
+}
+
+export async function podborTemy(opts: PickOpts = {}) {
+  const { themes, exhibits, taken, syncedAt } = await loadDonory();
+  const limit = Math.max(1, Math.min(opts.limit ?? 15, 200));
+  return { syncedAt, themes: pickThemes(themes, exhibits, taken, { ...opts, limit }) };
+}
+
+/** A theme with every exhibit (merged themes included). */
+export async function getTema(id: string) {
+  const { themes, exhibits, taken } = await loadDonory();
+  const t = themes.find((x) => x.id === id || x.mergedFrom?.includes(id));
+  if (!t) throw new StudioError('тема не найдена: id из podbor_temy');
+  return themeView(t, new Map(exhibits.map((e) => [e.id, e])), taken, 0);
+}
+
+export async function donorLog(limit = 50) {
+  const rows = await prisma.studioDonorLog.findMany({ orderBy: { id: 'desc' }, take: limit });
+  const names = new Map((await prisma.studioDonorTheme.findMany({ select: { id: true, name: true } })).map((t) => [t.id, t.name]));
+  return rows.map((r) => ({
+    themeId: r.themeId, theme: names.get(r.themeId) ?? r.themeId, action: r.action, value: r.value, note: r.note,
+    actor: r.actor, at: r.createdAt.toISOString(),
+  }));
+}
+
+async function donorEdit(actor: Actor, themeId: string, action: string, value: string | null, note: string | null, notice: string, data: Partial<DonorOverride>) {
+  await prisma.$transaction([
+    prisma.studioDonorOverride.upsert({
+      where: { themeId },
+      create: { themeId, hidden: false, ...data, updatedBy: actor },
+      update: { ...data, updatedBy: actor, updatedAt: new Date() },
+    }),
+    prisma.studioDonorLog.create({ data: { themeId, action, value, note, actor } }),
+  ]);
+  if (actor === 'danya') await notifyAdmin(notice, { disableLinkPreview: true });
+}
+
+const clip = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n) || null;
+
+/** «Беру»: theme + заход into a carousel. The theme stays in the bank (a working theme is reused). */
+export async function takeTema(actor: Actor, id: string, zahod: string, karusel: string, opts: { exhibitId?: string; itemId?: string } = {}) {
+  const t = await getTema(id);
+  const hook = clip(zahod, 500);
+  const slug = clip(karusel, 120);
+  if (!hook) throw new StudioError('нужен заход');
+  if (!slug) throw new StudioError('нужно название карусели');
+  if (opts.itemId && !(await prisma.studioItem.findUnique({ where: { id: opts.itemId }, select: { id: true } }))) {
+    throw new StudioError('карточка не найдена: id из list_schedule');
+  }
+  const row = await prisma.studioDonorTaken.create({
+    data: { themeId: t.id, exhibitId: opts.exhibitId || null, zahod: hook, karusel: slug, itemId: opts.itemId || null, actor },
+  });
+  await prisma.studioDonorLog.create({ data: { themeId: t.id, action: 'take', value: hook, note: slug, actor } });
+  if (actor === 'danya') await notifyAdmin(donorNotice(actor, 'взял тему', t.name, `Заход: ${hook}\nКарусель: ${slug}`), { disableLinkPreview: true });
+  return { ok: true, useId: row.id, id: t.id, name: t.name, zahod: hook, karusel: slug, takenBefore: t.taken.length };
+}
+
+export async function hideTema(actor: Actor, id: string, hidden: boolean, reason?: string) {
+  const t = await getTema(id);
+  const why = clip(reason, 500);
+  if (hidden && !why) throw new StudioError('напиши причину, почему мимо');
+  await donorEdit(actor, t.id, hidden ? 'hide' : 'unhide', null, why,
+    donorNotice(actor, hidden ? 'убрал как «мимо» тему' : 'вернул тему', t.name, why && `Причина: ${why}`), { hidden, reason: hidden ? why : null });
+  return { ok: true, id: t.id, hidden };
+}
+
+export async function renameTema(actor: Actor, id: string, name: string, note?: string) {
+  const t = await getTema(id);
+  const next = clip(name, 300);
+  const why = clip(note, 500);
+  await donorEdit(actor, t.id, 'rename', next, why,
+    donorNotice(actor, 'переименовал тему', t.originalName ?? t.name, `стало: ${next ?? t.originalName ?? t.name}${why ? `\nЗачем: ${why}` : ''}`), { name: next });
+  return { ok: true, id: t.id, name: next ?? t.originalName ?? t.name };
+}
+
+/** Merge a theme into another (into = '' undoes it). Refuses loops. */
+export async function mergeTema(actor: Actor, id: string, into: string, note?: string) {
+  const { raw } = await loadDonory();
+  const src = raw.find((x) => x.id === id);
+  if (!src) throw new StudioError('тема не найдена: id из podbor_temy');
+  const why = clip(note, 500);
+  const target = clip(into, 40);
+  if (target) {
+    const dst = raw.find((x) => x.id === target);
+    if (!dst) throw new StudioError('тема, в которую склеиваем, не найдена');
+    if (target === id) throw new StudioError('тему нельзя склеить саму с собой');
+    const overrides = await prisma.studioDonorOverride.findMany();
+    const by = new Map(overrides.map((o) => [o.themeId, o.mergedInto]));
+    for (let cur: string | null | undefined = target, i = 0; cur && i < 50; cur = by.get(cur), i++) {
+      if (cur === id) throw new StudioError('так получится круг: та тема уже склеена в эту');
+    }
+    await donorEdit(actor, id, 'merge', target, why, donorNotice(actor, 'склеил тему', src.name, `в «${dst.name}»${why ? `\nЗачем: ${why}` : ''}`), { mergedInto: target });
+    return { ok: true, id, into: target };
+  }
+  await donorEdit(actor, id, 'unmerge', null, why, donorNotice(actor, 'расклеил тему', src.name, why), { mergedInto: null });
+  return { ok: true, id, into: null };
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   StudioError, addComment, attachPost, createItem, currentActor, deleteRule, guideHistory, listGuide, listLibrary, loadBoard,
   restoreGuideVersion, saveGuideSection, saveLibraryEntry, saveRule, setLibraryOpen, updateItem,
+  donorLog, getTema, hideTema, mergeTema, podborTemy, renameTema, takeTema,
 } from '@/lib/studio/store';
 import { syncInstagram } from '@/lib/studio/sync';
 
@@ -25,6 +26,9 @@ export const maxDuration = 300;
 //   POST { op: 'library-open', open }       — let Danya see the library, Sasha only
 //   POST { op: 'guide-save', slug, title?, body, note? } — both; Danya's edits notify Sasha
 //   POST { op: 'guide-restore', versionId }  — rollback = the old version saved as the newest
+//   GET ?part=donory                         → { syncedAt, themes, log } «Доноры», hidden included
+//   POST { op: 'donor-take', id, zahod, karusel, exhibitId? } | { op: 'donor-hide', id, hidden, reason? }
+//   POST { op: 'donor-rename', id, name, note? } | { op: 'donor-merge', id, into, note? } — both; Danya's notify Sasha
 
 export async function GET(request: NextRequest) {
   const actor = await currentActor();
@@ -32,6 +36,11 @@ export async function GET(request: NextRequest) {
   const part = request.nextUrl.searchParams.get('part');
   if (part === 'library') return NextResponse.json(await listLibrary(actor));
   if (part === 'guide') return NextResponse.json({ sections: await listGuide() });
+  if (part === 'donory') {
+    const [pick, log] = await Promise.all([podborTemy({ limit: 200, withHidden: true, examples: 0 }), donorLog(60)]);
+    return NextResponse.json({ ...pick, log });
+  }
+  if (part === 'donory-tema') return NextResponse.json(await getTema(request.nextUrl.searchParams.get('id') ?? '').catch(() => null));
   if (part === 'guide-history') return NextResponse.json({ versions: await guideHistory(request.nextUrl.searchParams.get('slug') ?? '') });
   return NextResponse.json(await loadBoard());
 }
@@ -68,6 +77,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(await saveGuideSection(actor, String(body.slug ?? ''), body));
       case 'guide-restore':
         return NextResponse.json(await restoreGuideVersion(actor, Number(body.versionId)));
+      case 'donor-take':
+        return NextResponse.json(await takeTema(actor, id, String(body.zahod ?? ''), String(body.karusel ?? ''), { exhibitId: body.exhibitId }));
+      case 'donor-hide':
+        return NextResponse.json(await hideTema(actor, id, !!body.hidden, body.reason));
+      case 'donor-rename':
+        return NextResponse.json(await renameTema(actor, id, String(body.name ?? ''), body.note));
+      case 'donor-merge':
+        return NextResponse.json(await mergeTema(actor, id, String(body.into ?? ''), body.note));
       case 'sync':
         if (actor !== 'sasha') return NextResponse.json({ error: 'только Саша' }, { status: 403 });
         return NextResponse.json({ ok: true, ...(await syncInstagram()) });
