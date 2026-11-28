@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
   const uid = (request.nextUrl.searchParams.get('u') || '').replace(/\D/g, '').slice(0, 15);
   const from = (request.nextUrl.searchParams.get('t') || '').replace(/[^a-z0-9]/gi, '').slice(0, 64);
   const byTelegram = uid.length >= 3;
+  // Метка поста из ссылки бота (utm_content → ?post=), по ней оплата встаёт в строку поста в /admin/metki.
+  const post = (request.nextUrl.searchParams.get('post') || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
 
   // Зачёт 1 490 живёт семь дней (src/content/potok/upsell.ts). Человека из
   // кабинета мы знаем по ?u и проверяем срок здесь, а не только таймером на
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
       metadata: {
         tag: 'uroven', tier: 't1', price: product.price,
         method: byTelegram ? 'paylink_tg' : 'paylink',
-        order_id: orderId, from: from || null, card,
+        order_id: orderId, from: from || null, post: post || undefined, card,
         tg: byTelegram ? Number(uid) : undefined,
       },
     });
