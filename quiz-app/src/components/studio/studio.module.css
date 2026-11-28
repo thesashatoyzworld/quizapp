@@ -1472,3 +1472,14 @@ textarea.input.cgText {
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+/* «Доноры»: bank of donors */
+.donory .toolbar { flex-wrap: wrap; gap: 8px; }
+.donory .table th[scope='row'] { font-weight: 500; text-align: left; min-width: 220px; }
+.donorHidden { opacity: 0.45; }
+.donorTaken { font-size: 12px; color: var(--accent, #c9a227); white-space: nowrap; }
+.donorEx { display: inline; font-size: 13px; line-height: 1.35; }
+.donorEx a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.donorLog { list-style: none; padding: 0; margin: 8px 0 16px; display: grid; gap: 6px; font-size: 14px; }
+.donorExamples { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 12px; }
+.donorExamples li { padding-bottom: 10px; border-bottom: 1px solid rgba(127, 127, 127, 0.2); }

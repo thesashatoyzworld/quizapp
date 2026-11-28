@@ -11,7 +11,9 @@ import { actorForKey, keyFromRequest } from '@/lib/studio/keys';
 import {
   StudioError, addComment, attachPost, getItem, getLibraryEntry, getMuzeyPoint, libraryOpenToDanya, listItems, listLibrary, listRules, loadBoard,
   editMuzeyPointTitle, hideMuzeyPoint, listGuide, podborPoints, saveGuideSection, saveLibraryEntry, searchLibrary, useMuzeyPoint, updateItem,
+  donorLog, getTema, hideTema, mergeTema, podborTemy, renameTema, takeTema,
 } from '@/lib/studio/store';
+import { SOURCES, SOURCE_LABEL } from '@/lib/studio/donory';
 import { LIB_BASES, type LibBase } from '@/lib/studio/library';
 import { guideMarkdown } from '@/lib/studio/guide';
 import { guideToMarkdown } from '@/lib/studio/carousel-guide';
@@ -47,7 +49,7 @@ const CAROUSEL_FLOW = [
 ].join('\n');
 
 /** Server-level instructions: clients inject them, so Danya's AI gets the flow without a local skill. */
-const INSTRUCTIONS = 'Студия Саши: контент Instagram. Когда просят карусель, поинт или заход: сначала вызови get_carousel_guide целиком и иди строго по нему; поинты бери через podbor_points; связку поинт + заход фиксируй use_point; готовый текст отдай Саше комментарием через add_comment. Как пользоваться Студией в целом: get_onboarding.';
+const INSTRUCTIONS = 'Студия Саши: контент Instagram. Когда просят карусель, поинт или заход: сначала вызови get_carousel_guide целиком и иди строго по нему; поинты бери через podbor_points; связку поинт + заход фиксируй use_point; готовый текст отдай Саше комментарием через add_comment. Что залетает у других авторов (темы с весом по повторяемости на каруселях, рилсах, YouTube и Shorts): podbor_temy, get_tema; тему, взятую в карусель, фиксируй use_tema. Код самого банка доноров живёт в GitHub thesashatoyzworld/bank-donorov (инструкция CLAUDE.md там). Как пользоваться Студией в целом: get_onboarding.';
 
 function buildServer(actor: Actor) {
   const server = new McpServer({ name: 'studio', version: '1.0.0' }, { instructions: INSTRUCTIONS });
@@ -210,6 +212,46 @@ function buildServer(actor: Actor) {
     description: 'Переписать формулировку поинта из музея (как он показывается в podbor_points и get_point). Исходная формулировка музея сохраняется (originalTitle). Пустой title = вернуть исходную. note = зачем поменял. Делать только когда человек прямо попросил.',
     inputSchema: { id: z.string(), title: z.string().max(1000), note: z.string().max(500).optional() },
   }, safe(async ({ id, title, note }: { id: string; title: string; note?: string }) => editMuzeyPointTitle(actor, id, title, note)));
+
+  const platform = z.enum(SOURCES as [string, ...string[]]);
+
+  server.registerTool('podbor_temy', {
+    description: 'Банк доноров: темы, которые залетели у РАЗНЫХ авторов (чужие карусели, рилсы, YouTube, Shorts), по весу. Вес = разных авторов + 2 за каждую площадку сверх первой + 3 за наш залёт на этой теме − 1 за наш провал. У темы: id, название, вес, авторов, platforms (сколько залётов на площадке: '
+      + SOURCES.map((x) => `${x} = ${SOURCE_LABEL[x]}`).join(', ')
+      + '), ours («1 из 2» = брали 2 раза, залетело 1; «не брали»), max_x (во сколько раз лучший пример обогнал медиану своего автора), 3 лучших примера (hook = обложка или заголовок, his = как это звучит у Саши, url), taken = кто и в какую карусель уже брал. platform = только темы, залетевшие на этой площадке. query = слова в названии или заходах. Заход для карусели бери отсюда, а не из головы.',
+    inputSchema: { limit: z.number().int().min(1).max(100).optional(), platform: platform.optional(), query: z.string().optional() },
+  }, safe(async ({ limit, platform: p, query }: { limit?: number; platform?: string; query?: string }) => podborTemy({ limit: limit ?? 15, platform: p, query })));
+
+  server.registerTool('get_tema', {
+    description: 'Тема банка доноров целиком по id из podbor_temy: все примеры (автор, площадка, обложка или заголовок, во сколько раз обогнал медиану автора, ссылка), наш результат, кто брал.',
+    inputSchema: { id: z.string() },
+  }, safe(async ({ id }: { id: string }) => getTema(id)));
+
+  server.registerTool('use_tema', {
+    description: 'Записать, что тема из банка доноров взята в карусель: zahod = заход (заголовок обложки), karusel = короткое название латиницей через дефис, exhibit_id = id примера, от которого отталкивались, item_id = id карточки из list_schedule, если есть. Тема из подбора не пропадает: работающую тему берут снова.',
+    inputSchema: { id: z.string(), zahod: z.string().min(1).max(500), karusel: z.string().min(1).max(120), exhibit_id: z.string().optional(), item_id: z.string().optional() },
+  }, safe(async ({ id, zahod, karusel, exhibit_id, item_id }: { id: string; zahod: string; karusel: string; exhibit_id?: string; item_id?: string }) =>
+    takeTema(actor, id, zahod, karusel, { exhibitId: exhibit_id, itemId: item_id })));
+
+  server.registerTool('hide_tema', {
+    description: 'Пометить тему банка доноров «мимо» (не про аудиторию Саши, мусор судьи): пропадёт из podbor_temy у всех, банк тоже перестанет её показывать. reason обязательно. hidden=false вернёт. Делать только когда человек прямо попросил.',
+    inputSchema: { id: z.string(), reason: z.string().max(500).optional(), hidden: z.boolean().optional() },
+  }, safe(async ({ id, reason, hidden }: { id: string; reason?: string; hidden?: boolean }) => hideTema(actor, id, hidden ?? true, reason)));
+
+  server.registerTool('rename_tema', {
+    description: 'Переименовать тему банка доноров (название уходит и в банк). Пустое name = вернуть исходное. note = зачем. Только когда человек прямо попросил.',
+    inputSchema: { id: z.string(), name: z.string().max(300), note: z.string().max(500).optional() },
+  }, safe(async ({ id, name, note }: { id: string; name: string; note?: string }) => renameTema(actor, id, name, note)));
+
+  server.registerTool('merge_tema', {
+    description: 'Склеить тему банка доноров с другой (это одна мысль, названная по-разному): примеры id переходят в into, вес складывается, банк тоже склеит. into = "" расклеить. note = почему одна тема. Только когда человек прямо попросил.',
+    inputSchema: { id: z.string(), into: z.string(), note: z.string().max(500).optional() },
+  }, safe(async ({ id, into, note }: { id: string; into: string; note?: string }) => mergeTema(actor, id, into, note)));
+
+  server.registerTool('donor_log', {
+    description: 'Журнал правок банка доноров в Студии: кто (Саша/Даня) что сделал с темами (взял, мимо, переименовал, склеил) и когда. Правки кода банка смотри в GitHub thesashatoyzworld/bank-donorov/commits.',
+    inputSchema: { limit: z.number().int().min(1).max(200).optional() },
+  }, safe(async ({ limit }: { limit?: number }) => ({ log: await donorLog(limit ?? 30) })));
 
   return server;
 }

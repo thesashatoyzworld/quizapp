@@ -1745,6 +1745,80 @@ model StudioMuzeyLog {
   @@map("studio_muzey_log")
 }
 
+// ─── «Студия»: «Доноры» (банк доноров, github thesashatoyzworld/bank-donorov) ───
+
+model StudioDonorTheme {
+  id         String   @id // T0001, stable in the bank's temy.json
+  name       String
+  ves        Int      @default(0)
+  authors    Int      @default(0)
+  sources    String[] @default([])
+  hits       Int      @default(0)
+  flops      Int      @default(0)
+  used       Int      @default(0)
+  maxX       Float?   @map("max_x")
+  last       String?
+  rank       Int      @default(0)
+  exhibitIds String[] @default([]) @map("exhibit_ids")
+  syncedAt   DateTime @default(now()) @map("synced_at")
+
+  @@map("studio_donor_themes")
+}
+
+model StudioDonorExhibit {
+  id      String  @id // shortcode or yt:<video id>
+  source  String // instagram-carousel | instagram-reel | youtube-long | youtube-shorts
+  author  String
+  hook    String  @default("")
+  his     String  @default("")
+  move    String  @default("")
+  x       Float?
+  likes   Int?
+  date    String?
+  url     String?
+  ourCode String? @map("our_code")
+  ourX    Float?  @map("our_x")
+
+  @@map("studio_donor_exhibits")
+}
+
+model StudioDonorOverride {
+  themeId    String   @id @map("theme_id")
+  hidden     Boolean  @default(false)
+  reason     String?
+  name       String?
+  mergedInto String?  @map("merged_into")
+  updatedBy  String   @map("updated_by")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  @@map("studio_donor_overrides")
+}
+
+model StudioDonorTaken {
+  id        Int      @id @default(autoincrement())
+  themeId   String   @map("theme_id")
+  exhibitId String?  @map("exhibit_id")
+  zahod     String
+  karusel   String
+  itemId    String?  @map("item_id")
+  actor     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("studio_donor_taken")
+}
+
+model StudioDonorLog {
+  id        Int      @id @default(autoincrement())
+  themeId   String   @map("theme_id")
+  action    String // take | hide | unhide | rename | merge | unmerge
+  value     String?
+  note      String?
+  actor     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("studio_donor_log")
+}
+
 /// Уникализатор: кто кого привёл. Друг засчитывается (creditedAt), когда сделал первый ролик
 /// и подписан на канал; за каждого засчитанного пригласивший получает бонусный ролик.
 model UniqReferral {
