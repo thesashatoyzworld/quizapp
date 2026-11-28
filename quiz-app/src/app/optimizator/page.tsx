@@ -6,6 +6,7 @@ import { trackSection } from '@/lib/cabinet-track';
 import OpenInBrowser from '@/components/OpenInBrowser';
 import { BLOCKS_CSS, NachalaBlock, StatsBlock } from './blocks';
 import InstagramBlock from './InstagramBlock';
+import { previewAs } from '@/lib/uniq/preview';
 import {
   DEMAND_STATUS, FORMAT_NAME, REASON_ANSWER, SCRIPT_MAX, SCRIPT_MIN, SHARE_KIND, firstLine, ladderVerdict, sourceUrl,
   type DemandLink, type Ladder, type ViewerReason, type HistoryItem, type SavedRun, type Shans, type StudentAnalysis,
@@ -727,8 +728,100 @@ function Waiting({ startedAt }: { startedAt: number }) {
   );
 }
 
+type Offer = 'uroven' | 'potok' | '360';
+type OptRef = { link: string; invited: number; credited: number; cap: number };
+type TgLike = {
+  initDataUnsafe?: { user?: { id?: number } };
+  openTelegramLink?: (u: string) => void;
+  openLink?: (u: string) => void;
+};
+
+// A/B offer under a free analysis (as in the Уникализатор). Copy from the live landings; Sasha edits.
+const OFFERS: Record<Offer, { title: string; text: string; cta: string; note: string; url: string }> = {
+  uroven: {
+    title: 'Новый уровень контента',
+    text: 'Курс Саши по контенту: 6 уровней навыка, чтобы вывести блог и личный бренд на следующую ступень. Внутри оптимизатор на 10 разборов в месяц.',
+    cta: 'Смотреть курс',
+    note: 'от 6 550 ₽',
+    url: 'https://thesashatoyz.com/uroven?from=opt-a&utm_source=kabinet&utm_medium=opt_a&utm_campaign=uroven',
+  },
+  potok: {
+    title: 'Сценарий есть. Теперь нужна тема, которая уже залетела',
+    text: 'В «Потоке Спроса» показываю, где брать заходы, которые собрали просмотры в твоей нише, и как налить в них свой смысл.',
+    cta: 'Забрать «Поток Спроса»',
+    note: 'сначала видео на 6 минут, потом решаешь',
+    url: 'https://thesashatoyz.com/potok-sprosa?utm_source=kabinet&utm_medium=opt_b&utm_campaign=potok',
+  },
+  '360': {
+    title: 'Личный бренд на 360',
+    text: 'Выведем твой контент, продукт и продажи на новый уровень. Через 3 месяца есть результат под твой запрос или вернём деньги. Оптимизатор там на 30 разборов в месяц.',
+    cta: 'Смотреть программу',
+    note: '10 000 ₽ в месяц · отменить можно в любой момент',
+    url: 'https://thesashatoyz.com/360?from=opt-c&utm_source=kabinet&utm_medium=opt_c&utm_campaign=360',
+  },
+};
+
+function OfferCard({ kind, uid, tg, onTrack }: { kind: Offer; uid: number | null; tg: TgLike | null; onTrack: (ev: string) => void }) {
+  const base = OFFERS[kind];
+  // ?u= lets the course landing bind the checkout to this Telegram account.
+  const o = kind === 'uroven' && uid ? { ...base, url: `${base.url}&u=${uid}` } : base;
+  useEffect(() => { onTrack(`cta_view_${kind}`); }, [kind, onTrack]);
+  const open = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    onTrack(`cta_click_${kind}`);
+    if (tg?.openLink) { e.preventDefault(); tg.openLink(o.url); }
+  };
+  return (
+    <section className="op-card op-offer" aria-label={o.title}>
+      <h2 className="op-offer-h">{o.title}</h2>
+      <p className="op-p">{o.text}</p>
+      <a className="op-cta" href={o.url} target="_blank" rel="noopener" onClick={open}>{o.cta} →</a>
+      <div className="op-offer-note">{o.note}</div>
+    </section>
+  );
+}
+
+function Invite({ ref_, limit, tg, onTrack }: { ref_: OptRef; limit: number; tg: TgLike | null; onTrack: (ev: string) => void }) {
+  const [copied, setCopied] = useState(false);
+  const full = ref_.credited >= ref_.cap;
+  const share = () => {
+    onTrack('share');
+    const text = 'Бесплатный оптимизатор рилсов: вставляешь текст до съёмки и получаешь шанс на залёт и готовый сценарий';
+    const url = `https://t.me/share/url?url=${encodeURIComponent(ref_.link)}&text=${encodeURIComponent(text)}`;
+    if (tg?.openTelegramLink) tg.openTelegramLink(url);
+    else window.open(url, '_blank', 'noopener');
+  };
+  const copy = async () => {
+    onTrack('copy');
+    try { await navigator.clipboard.writeText(ref_.link); setCopied(true); window.setTimeout(() => setCopied(false), 2000); } catch { /* the link stays selectable */ }
+  };
+  return (
+    <section className="op-card op-inv">
+      <div className="op-eyebrow">Позови друга</div>
+      <h2 className="op-offer-h">{full ? `У тебя максимум: ${limit} разборов` : '+1 разбор сценария за каждого друга'}</h2>
+      {!full && (
+        <>
+          <p className="op-p">Друг засчитается, когда подпишется на канал и сделает свой первый разбор. Всего до {ref_.cap + 1} бесплатных.{ref_.credited ? ` Засчитано друзей: ${ref_.credited}.` : ''}</p>
+          <button type="button" className="op-cta op-cta-btn" onClick={share}>Позвать друга</button>
+          <button type="button" className="op-inv-copy" onClick={copy}>
+            <span>{ref_.link.replace('https://', '')}</span>
+            <b>{copied ? 'скопировано' : 'копировать'}</b>
+          </button>
+        </>
+      )}
+    </section>
+  );
+}
+
 function OptimizatorInner() {
-  const [state, setState] = useState<'load' | 'guest' | 'locked' | 'ok' | 'shared' | 'shared_bad'>('load');
+  const [state, setState] = useState<'load' | 'guest' | 'locked' | 'subscribe' | 'ok' | 'shared' | 'shared_bad'>('load');
+  const [free, setFree] = useState(false);
+  const [ref, setRef] = useState<OptRef | null>(null);
+  const [offer, setOffer] = useState<Offer | null>(null);
+  const [channel, setChannel] = useState('https://t.me/sashatoyz');
+  const [subBusy, setSubBusy] = useState(false);
+  const [subMsg, setSubMsg] = useState<string | null>(null);
+  const subOk = useRef(false);
+  const tgRef = useRef<TgLike | null>(null);
   const [used, setUsed] = useState(0);
   const [limit, setLimit] = useState(0);
   const [items, setItems] = useState<HistoryItem[]>([]);
@@ -745,6 +838,76 @@ function OptimizatorInner() {
   function authHeaders(): Record<string, string> {
     return initData.current ? { 'x-tg-init-data': initData.current } : {};
   }
+
+  // Query for the main API: Sasha's «as free» preview (and «already subscribed» in it), the campaign
+  // (?src=) and a forced offer (?cta=) from the page link.
+  function apiQs(extra: Record<string, string> = {}): string {
+    const p = new URLSearchParams();
+    if (previewAs()) { p.set('as', 'free'); if (subOk.current) p.set('ok', '1'); }
+    const here = new URLSearchParams(window.location.search);
+    for (const k of ['src', 'cta']) { const v = here.get(k); if (v) p.set(k, v); }
+    for (const [k, v] of Object.entries(extra)) p.set(k, v);
+    const qs = p.toString();
+    return qs ? `?${qs}` : '';
+  }
+
+  function track(ev: string) {
+    fetch('/api/cabinet/optimizator/ev', {
+      method: 'POST', headers: { 'content-type': 'application/json', ...authHeaders() }, credentials: 'same-origin', body: JSON.stringify({ ev }),
+    }).catch(() => { /* analytics only */ });
+  }
+
+  type AccessData = {
+    identified?: boolean; access?: boolean; subscribe?: boolean; channel?: string; used?: number; limit?: number;
+    history?: HistoryItem[]; ladder?: boolean; tier?: number; instagram?: string | null; free?: boolean; ref?: OptRef | null; offer?: Offer | null;
+  };
+
+  function applyAccess(data: AccessData, id: number | null): void {
+    setUsed(data.used ?? 0); setLimit(data.limit ?? 0); setItems(data.history || []);
+    setLadderOn(Boolean(data.ladder));
+    setTier(Number(data.tier) || 0);
+    setFree(Boolean(data.free)); setRef(data.ref ?? null); setOffer(data.offer ?? null);
+    if (data.instagram) setInstagram(`@${data.instagram}`);
+    setState('ok');
+    trackSection('optimizator', id);
+  }
+
+  async function checkSub(silent: boolean) {
+    if (!silent) { setSubBusy(true); setSubMsg(null); }
+    try {
+      const res = await fetch(`/api/cabinet/optimizator${apiQs(silent ? { auto: '1' } : { checked: '1' })}`, { headers: authHeaders(), credentials: 'same-origin' });
+      const data: AccessData = await res.json();
+      if (data.access) {
+        subOk.current = true;
+        applyAccess(data, tgRef.current?.initDataUnsafe?.user?.id ?? null);
+        return;
+      }
+      if (!silent) setSubMsg(data.subscribe ? 'Пока не вижу подписку. Подпишись и нажми ещё раз.' : 'Не получилось проверить. Попробуй ещё раз.');
+    } catch {
+      if (!silent) setSubMsg('Не получилось проверить. Попробуй ещё раз.');
+    } finally {
+      if (!silent) setSubBusy(false);
+    }
+  }
+
+  // Subscribe screen: re-check on return from the channel and every 5 s for 3 minutes.
+  useEffect(() => {
+    if (state !== 'subscribe') return;
+    const started = Date.now();
+    const onBack = () => { if (document.visibilityState === 'visible') void checkSub(true); };
+    document.addEventListener('visibilitychange', onBack);
+    window.addEventListener('focus', onBack);
+    const iv = setInterval(() => {
+      if (Date.now() - started > 3 * 60 * 1000) { clearInterval(iv); return; }
+      if (document.visibilityState === 'visible') void checkSub(true);
+    }, 5000);
+    return () => {
+      document.removeEventListener('visibilitychange', onBack);
+      window.removeEventListener('focus', onBack);
+      clearInterval(iv);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   async function loadRun(id: string) {
     try {
@@ -774,21 +937,18 @@ function OptimizatorInner() {
       }
       const tg = await waitForTelegramWebApp();
       if (stop) return;
+      tgRef.current = tg as TgLike | null;
       if (tg) { try { tg.ready(); tg.expand(); } catch { /* noop */ } }
       const id = tg?.initDataUnsafe?.user?.id ?? null;
       initData.current = typeof tg?.initData === 'string' ? tg.initData : '';
       try {
-        const res = await fetch('/api/cabinet/optimizator', { headers: authHeaders(), credentials: 'same-origin' });
-        const data = await res.json();
+        const res = await fetch(`/api/cabinet/optimizator${apiQs()}`, { headers: authHeaders(), credentials: 'same-origin' });
+        const data: AccessData = await res.json();
         if (stop) return;
         if (!data.identified) { setState('guest'); return; }
+        if (data.subscribe) { if (data.channel) setChannel(data.channel); setState('subscribe'); return; }
         if (!data.access) { setState('locked'); return; }
-        setUsed(data.used); setLimit(data.limit); setItems(data.history || []);
-        setLadderOn(Boolean(data.ladder));
-        setTier(Number(data.tier) || 0);
-        if (data.instagram) setInstagram(`@${data.instagram}`);
-        setState('ok');
-        trackSection('optimizator', id);
+        applyAccess(data, id);
         const want = new URLSearchParams(window.location.search).get('run');
         if (want) loadRun(want);
       } catch {
@@ -809,7 +969,7 @@ function OptimizatorInner() {
     setRun(null);
     setBusySince(Date.now());
     try {
-      const res = await fetch('/api/cabinet/optimizator', {
+      const res = await fetch(`/api/cabinet/optimizator${apiQs()}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...authHeaders() },
         credentials: 'same-origin',
@@ -887,6 +1047,31 @@ function OptimizatorInner() {
         </div>
       )}
 
+      {state === 'subscribe' && (
+        <div className="op-card">
+          <h1 className="op-lock-h1">Сначала подпишись на канал</h1>
+          <p className="op-lock-p">
+            Один разбор сценария бесплатно для подписчиков моего канала. Подпишись и возвращайся сюда: я сам увижу подписку и открою.
+          </p>
+          <button
+            type="button"
+            className="op-cta op-cta-btn"
+            onClick={() => {
+              track('sub_open');
+              const t = tgRef.current;
+              if (t?.openTelegramLink) t.openTelegramLink(channel);
+              else window.open(channel, '_blank', 'noopener');
+            }}
+          >
+            Подписаться на канал
+          </button>
+          <button type="button" className="op-sub-check" disabled={subBusy} onClick={() => { void checkSub(false); }}>
+            {subBusy ? 'Проверяю…' : 'Я подписался'}
+          </button>
+          {subMsg && <div className="op-error" role="alert">{subMsg}</div>}
+        </div>
+      )}
+
       {state === 'locked' && (
         <div className="op-card">
           <div className="op-lock-badge">🔒 Закрытый раздел</div>
@@ -907,7 +1092,7 @@ function OptimizatorInner() {
             <div className="op-form-head">
               <label className="op-label" htmlFor="op-script">Текст ролика</label>
               <span className={left > 0 ? 'op-quota' : 'op-quota op-quota-out'}>
-                {limit >= 100000 ? 'без лимита' : `осталось ${left} из ${limit} в этом месяце`}
+                {limit >= 100000 ? 'без лимита' : free ? `бесплатно: ${left} из ${limit}` : `осталось ${left} из ${limit} в этом месяце`}
               </span>
             </div>
             <textarea
@@ -943,7 +1128,7 @@ function OptimizatorInner() {
             )}
 
             <button type="button" className="op-run" onClick={submit} disabled={!canRun}>
-              {busySince ? 'Разбираю…' : left > 0 ? 'Разобрать' : 'Лимит на месяц исчерпан'}
+              {busySince ? 'Разбираю…' : left > 0 ? 'Разобрать' : free ? 'Бесплатный разбор использован' : 'Лимит на месяц исчерпан'}
             </button>
             {error && <div className="op-error" role="alert">{error}</div>}
           </section>
@@ -954,6 +1139,10 @@ function OptimizatorInner() {
           <div ref={resultRef} className="op-anchor">
             {run && <Result key={run.id} run={run} onNew={startNew} headers={authHeaders} />}
           </div>
+
+          {run && free && offer && <OfferCard key={`${run.id}-${offer}`} kind={offer} uid={tgRef.current?.initDataUnsafe?.user?.id ?? null} tg={tgRef.current} onTrack={track} />}
+
+          {free && ref && (run || left === 0) && <Invite ref_={ref} limit={limit} tg={tgRef.current} onTrack={track} />}
 
           {run && <Feedback initData={initData.current} runId={run.id || null} />}
 
@@ -1000,6 +1189,19 @@ function OptimizatorInner() {
           background: var(--op-bg); min-height: 100svh;
         }
         .op-wrap * { box-sizing: border-box; }
+        .op-cta-btn { width: 100%; border: 0; cursor: pointer; font-family: inherit; text-align: center; }
+        .op-sub-check { display: block; width: 100%; margin-top: 10px; padding: 12px; border-radius: 12px; cursor: pointer;
+          background: none; border: 1px solid var(--op-line); color: var(--op-text); font: 600 14px/1.2 'Manrope', system-ui, sans-serif; }
+        .op-sub-check:disabled { opacity: .6; cursor: default; }
+        .op-offer { margin-top: 14px; border: 1.5px solid var(--op-accent); }
+        .op-offer-h { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 20px; line-height: 1.2; letter-spacing: -0.01em; margin: 4px 0 8px; text-wrap: balance; }
+        .op-offer .op-cta, .op-inv .op-cta { margin-top: 12px; }
+        .op-offer-note { margin-top: 8px; font-size: 12px; color: var(--op-muted); text-align: center; }
+        .op-inv { margin-top: 14px; }
+        .op-inv-copy { display: flex; gap: 10px; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px;
+          padding: 11px 12px; border-radius: 12px; border: 1px dashed var(--op-line); background: var(--op-bg); cursor: pointer; font-family: inherit; color: var(--op-text); }
+        .op-inv-copy span { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+        .op-inv-copy b { font-size: 12px; color: var(--op-accent); flex: none; }
         .op-top { margin-bottom: 16px; }
         .op-back { display: inline-block; text-decoration: none; color: var(--op-muted); font-size: 13px; font-weight: 600; margin-bottom: 10px; }
         .op-back:hover { color: var(--op-accent); }

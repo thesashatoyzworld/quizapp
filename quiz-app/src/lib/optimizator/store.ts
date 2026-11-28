@@ -8,9 +8,9 @@ import type { Analysis, BazaBlock, DemandLink, Goal, HistoryItem, Ladder, Nachal
 import { statsForRun } from './stats';
 import { firstLine, toStudent } from './view';
 
-export async function usedThisMonth(telegramId: number): Promise<number> {
+export async function usedThisMonth(telegramId: number, month = monthKey()): Promise<number> {
   const row = await prisma.optimizatorUsage.findUnique({
-    where: { telegramId_month: { telegramId: BigInt(telegramId), month: monthKey() } },
+    where: { telegramId_month: { telegramId: BigInt(telegramId), month } },
   });
   return row?.count ?? 0;
 }
@@ -19,10 +19,10 @@ export async function usedThisMonth(telegramId: number): Promise<number> {
  * Take one slot of the monthly limit atomically, before the paid call.
  * Returns the new count, or null when the limit is already used up.
  */
-export async function reserveSlot(telegramId: number, limit: number): Promise<number | null> {
+export async function reserveSlot(telegramId: number, limit: number, month = monthKey()): Promise<number | null> {
   const rows = await prisma.$queryRaw<{ count: number }[]>`
     INSERT INTO optimizator_usage (telegram_id, month, count, updated_at)
-    VALUES (${BigInt(telegramId)}, ${monthKey()}, 1, now())
+    VALUES (${BigInt(telegramId)}, ${month}, 1, now())
     ON CONFLICT (telegram_id, month) DO UPDATE
       SET count = optimizator_usage.count + 1, updated_at = now()
       WHERE optimizator_usage.count < ${limit}
