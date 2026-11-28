@@ -64,7 +64,7 @@ const CHEAP = process.env.OPT_CHEAP === '1';
 /** Model of the small repair calls (closeness, voice, invented facts, weak gate, long phrase, expectation). */
 const FIX = CHEAP ? 'claude-sonnet-5-5' : 'claude-opus-5-5';
 /** Donors asked from the generator; each gives two phrasings, all of them go through the checks. */
-const DONORS = CHEAP ? 4 : 7;
+const DONORS = Number(process.env.OPT_DONORS) || (CHEAP ? 4 : 7);
 
 /** Opus/Sonnet 5.5 always think (adaptive); max_tokens leaves room for it. Effort low for the checks, medium elsewhere.
  * A [static, dynamic] prompt caches the static head (instructions, often with the script): it repeats in every check of a run. */
